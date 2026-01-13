@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { fetchMe } from '@/features/auth/authThunks'
 import Navbar from '@/components/layouts/Navbar'
+import Footer from '@/components/layouts/Footer'
 import AppRoutes from '@/routes/AppRoutes'
 
 function App() {
@@ -32,10 +33,17 @@ function App() {
   }
 
   return (
-    <>
+    <div className="flex min-h-screen flex-col">
+
       <Navbar />
-      <AppRoutes />
-    </>
+
+      {/* Main Content */}
+      <main className="flex-1">
+        <AppRoutes />
+      </main>
+
+      <Footer />
+    </div>
   )
 }
 
