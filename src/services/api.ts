@@ -1,10 +1,13 @@
-import axios from 'axios'
+import axios, { AxiosRequestConfig } from 'axios'
 import { store } from '@/app/store'
 import { refreshAccessToken, logout } from '@/features/auth/authThunks'
 
+interface AxiosRequestConfigWithRetry extends AxiosRequestConfig {
+    _retry?: boolean
+}
+
 export const api = axios.create({
-    baseURL: 'https://localhost:3000/api',
-    withCredentials: true, // refresh token via httpOnly cookie
+    baseURL: 'http://localhost:8000/api/v1',
 })
 
 /* =========================
@@ -32,17 +35,17 @@ let failedQueue: {
     reject: (reason?: any) => void
 }[] = []
 
-const processQueue = (error: any, token: string | null = null) => {
-    failedQueue.forEach((promise) => {
-        error ? promise.reject(error) : promise.resolve(token)
-    })
+const processQueue = (error: any) => {
+    failedQueue.forEach((promise) =>
+        error ? promise.reject(error) : promise.resolve(undefined)
+    )
     failedQueue = []
 }
 
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
-        const originalRequest = error.config
+        const originalRequest = error.config as AxiosRequestConfigWithRetry
 
         if (error.response?.status === 401 && !originalRequest._retry) {
             if (isRefreshing) {
@@ -59,7 +62,7 @@ api.interceptors.response.use(
                 processQueue(null)
                 return api(originalRequest)
             } catch (err) {
-                processQueue(err, null)
+                processQueue(err)
                 store.dispatch(logout())
                 return Promise.reject(err)
             } finally {
@@ -70,22 +73,3 @@ api.interceptors.response.use(
         return Promise.reject(error)
     }
 )
-
-// // Interceptor Flow Example:
-// LoginPage.tsx
-//  ↓ dispatch(login)
-// authThunks.ts
-//  ↓ authService.login()
-// api.ts
-//  ↓ interceptor adds token
-//  ↓ backend response
-//  ↓ redux state updated
-// UI re-renders automatically
-
-// // On token expiry:
-// Any API call
-//  ↓ 401
-// api interceptor
-//  ↓ refreshToken()
-//  ↓ retry request
-//  ↓ success (user never notices)
