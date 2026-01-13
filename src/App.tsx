@@ -1,7 +1,36 @@
+import { useEffect } from 'react'
+import { useAppDispatch, useAppSelector } from '@/app/hooks'
+import { fetchMe } from '@/features/auth/authThunks'
+import Navbar from '@/components/layouts/Navbar'
 import AppRoutes from '@/routes/AppRoutes'
-import Navbar from './components/layouts/Navbar'
 
 function App() {
+  const dispatch = useAppDispatch()
+  const { accessToken, status } = useAppSelector((state) => state.auth)
+
+  /**
+   * Rehydrate auth on app load
+   * - If accessToken exists → try /me
+   * - If token expired → interceptor refreshes automatically
+   * - If refresh fails → user stays logged out
+   */
+  useEffect(() => {
+    if (accessToken) {
+      dispatch(fetchMe())
+    }
+  }, [accessToken, dispatch])
+
+  /**
+   * Optional: prevent UI flicker during auth bootstrap
+   */
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <span className="text-gray-500">Loading...</span>
+      </div>
+    )
+  }
+
   return (
     <>
       <Navbar />

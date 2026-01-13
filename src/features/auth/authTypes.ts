@@ -1,18 +1,16 @@
+// User shape returned by /me
 export interface User {
     id: number
     name: string
     email: string
 }
 
-export interface AuthPayload {
-    user: User
+// Payload returned by login/register/refresh
+export interface TokenPayload {
     accessToken: string
 }
 
-export interface RefreshTokenPayload {
-    accessToken: string
-}
-
+// Redux auth state
 export interface AuthState {
     user: User | null
     accessToken: string | null
