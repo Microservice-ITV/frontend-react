@@ -62,7 +62,7 @@ const Navbar = () => {
                                     placeholder="Search products, brands and more"
                                     className="flex-1 px-4 py-2 text-sm outline-none"
                                 />
-                                <button className="bg-orange-500 px-4 py-2 text-white">
+                                <button className="bg-orange-500 px-4 py-2 text-white cursor-pointer">
                                     <Search size={18} />
                                 </button>
                             </div>
