@@ -23,7 +23,7 @@ export const login = createAsyncThunk<
 // ============== REGISTER Same response shape as login =================
 export const register = createAsyncThunk<
     TokenPayload,
-    { name: string; email: string; password: string },
+    { name: string; email: string; password: string; recaptchaToken: string },
     { rejectValue: string }
 >('auth/register', async (data, { rejectWithValue }) => {
     try {

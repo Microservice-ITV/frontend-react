@@ -1,1 +1,11 @@
-@import 'tailwindcss'
+@import "tailwindcss";
+
+/* Force-hide Google reCAPTCHA badge */
+.grecaptcha-badge,
+iframe[src*="recaptcha"],
+iframe[title="reCAPTCHA"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
