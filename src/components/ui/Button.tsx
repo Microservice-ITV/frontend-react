@@ -10,7 +10,7 @@ export const Button = ({ loading, children, ...props }: Props) => {
         <button
             {...props}
             disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded disabled:opacity-50"
+            className="w-full bg-orange-500 text-white hover:bg-gray-800 py-2 rounded disabled:opacity-50"
         >
             {loading ? "Loading..." : children}
         </button>
