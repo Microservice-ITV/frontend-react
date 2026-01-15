@@ -4,6 +4,7 @@ import { fetchMe } from '@/features/auth/authThunks'
 import Navbar from '@/components/layouts/Navbar'
 import Footer from '@/components/layouts/Footer'
 import AppRoutes from '@/routes/AppRoutes'
+import HeaderSpacer from './components/layouts/HeaderSpacer'
 
 function App() {
   const dispatch = useAppDispatch()
@@ -36,6 +37,8 @@ function App() {
     <div className="flex min-h-screen flex-col">
 
       <Navbar />
+
+      <HeaderSpacer />
 
       {/* Main Content */}
       <main className="flex-1">
