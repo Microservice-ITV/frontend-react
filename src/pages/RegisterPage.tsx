@@ -24,7 +24,7 @@ export const RegisterPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // 🔐 Get reCAPTCHA token
+    // Get reCAPTCHA token
     const recaptchaToken = await getRecaptchaToken('register')
 
     dispatch(

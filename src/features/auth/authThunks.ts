@@ -5,7 +5,7 @@ import type { User, TokenPayload } from './authTypes'
 // ============== LOGIN Backend returns ONLY access_token =================
 export const login = createAsyncThunk<
     TokenPayload,
-    { email: string; password: string },
+    { email: string; password: string; recaptchaToken: string },
     { rejectValue: string }
 >('auth/login', async (data, { rejectWithValue }) => {
     try {
