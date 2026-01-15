@@ -1,56 +1,149 @@
-import { Link } from "react-router-dom"
+import { Link } from 'react-router-dom'
+
+// Assets
+import visa from '@/assets/images/payments/visa.jpeg'
+import mastercard from '@/assets/images/payments/mastercard.jpeg'
+import shopeepay from '@/assets/images/payments/shopeepay.jpeg'
+
+import ninjavan from '@/assets/images/logistics/ninjavan.jpeg'
+import jtexpress from '@/assets/images/logistics/jtexpress.jpeg'
+import spx from '@/assets/images/logistics/spx.jpeg'
+
+import facebook from '@/assets/images/social/facebook.jpeg'
+import instagram from '@/assets/images/social/instagram.jpeg'
+import linkedin from '@/assets/images/social/linkedin.jpeg'
+
+import qr from '@/assets/images/app/app-qr.jpeg'
+import appstore from '@/assets/images/app/appstore.jpeg'
+import googleplay from '@/assets/images/app/googleplay.jpeg'
+import appgallery from '@/assets/images/app/appgallery.jpeg'
 
 const Footer = () => {
     return (
-        <footer className="border-t bg-white mt-20">
-            <div className="max-w-7xl mx-auto px-6 py-12">
+        <footer className="bg-gray-100 text-xs text-gray-600 border-t">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-
-                    {/* Brand */}
+                    {/* CUSTOMER SERVICE */}
                     <div>
-                        <h3 className="text-lg font-semibold text-gray-900">🛒 Ecommerce</h3>
-                        <p className="mt-3 text-sm text-gray-600">
-                            Modern ecommerce platform built with React & Laravel.
-                        </p>
-                    </div>
-
-                    {/* Shop */}
-                    <div>
-                        <h4 className="text-sm font-semibold text-gray-900">Shop</h4>
-                        <ul className="mt-4 space-y-2 text-sm text-gray-600">
-                            <li><Link to="/products" className="hover:text-black">All Products</Link></li>
-                            <li><Link to="/cart" className="hover:text-black">Cart</Link></li>
-                            <li><Link to="/checkout" className="hover:text-black">Checkout</Link></li>
+                        <h3 className="font-semibold text-gray-900 mb-3">
+                            CUSTOMER SERVICE
+                        </h3>
+                        <ul className="space-y-2">
+                            <li><Link to="#">Help Centre</Link></li>
+                            <li><Link to="#">How To Buy</Link></li>
+                            <li><Link to="#">How To Sell</Link></li>
+                            <li><Link to="#">Payment Methods</Link></li>
+                            <li><Link to="#">Ecommerce Coins</Link></li>
+                            <li><Link to="#">Ecommerce Guarantee</Link></li>
+                            <li><Link to="#">Return & Refund</Link></li>
+                            <li><Link to="#">Ecommerce Mall Return & Refund</Link></li>
+                            <li><Link to="#">Contact Us</Link></li>
                         </ul>
                     </div>
 
-                    {/* Account */}
+                    {/* ABOUT SHOPEE */}
                     <div>
-                        <h4 className="text-sm font-semibold text-gray-900">Account</h4>
-                        <ul className="mt-4 space-y-2 text-sm text-gray-600">
-                            <li><Link to="/login" className="hover:text-black">Login</Link></li>
-                            <li><Link to="/register" className="hover:text-black">Register</Link></li>
-                            <li><Link to="/account" className="hover:text-black">My Account</Link></li>
+                        <h3 className="font-semibold text-gray-900 mb-3">
+                            ABOUT ECOMMERCE
+                        </h3>
+                        <ul className="space-y-2">
+                            <li><Link to="#">About Us</Link></li>
+                            <li><Link to="#">Ecommerce Careers</Link></li>
+                            <li><Link to="#">Policies</Link></li>
+                            <li><Link to="#">Privacy Policy</Link></li>
+                            <li><Link to="#">Ecommerce Blog</Link></li>
+                            <li><Link to="#">Ecommerce Mall</Link></li>
+                            <li><Link to="#">Seller Centre</Link></li>
+                            <li><Link to="#">Seller Mentors</Link></li>
+                            <li><Link to="#">Flash Deals</Link></li>
+                            <li><Link to="#">Media Contact</Link></li>
+                            <li><Link to="#">Ecommerce Ambassador Programme</Link></li>
                         </ul>
                     </div>
 
-                    {/* Legal */}
+                    {/* PAYMENT & LOGISTICS */}
                     <div>
-                        <h4 className="text-sm font-semibold text-gray-900">Legal</h4>
-                        <ul className="mt-4 space-y-2 text-sm text-gray-600">
-                            <li><Link to="#" className="hover:text-black">Privacy Policy</Link></li>
-                            <li><Link to="#" className="hover:text-black">Terms of Service</Link></li>
+                        <h3 className="font-semibold text-gray-900 mb-3">
+                            PAYMENT
+                        </h3>
+                        <div className="flex flex-wrap gap-2 mb-6">
+                            {[visa, mastercard, shopeepay].map((img, i) => (
+                                <img key={i} src={img} alt="Payment" className="h-6" />
+                            ))}
+                        </div>
+
+                        <h3 className="font-semibold text-gray-900 mb-3">
+                            LOGISTICS
+                        </h3>
+                        <div className="flex flex-wrap gap-2">
+                            {[ninjavan, jtexpress, spx].map((img, i) => (
+                                <img key={i} src={img} alt="Logistics" className="h-6" />
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* FOLLOW US */}
+                    <div>
+                        <h3 className="font-semibold text-gray-900 mb-3">
+                            FOLLOW US
+                        </h3>
+                        <ul className="space-y-3">
+                            <li className="flex items-center gap-2">
+                                <img src={facebook} className="h-4" />
+                                Facebook
+                            </li>
+                            <li className="flex items-center gap-2">
+                                <img src={instagram} className="h-4" />
+                                Instagram
+                            </li>
+                            <li className="flex items-center gap-2">
+                                <img src={linkedin} className="h-4" />
+                                LinkedIn
+                            </li>
                         </ul>
+                    </div>
+
+                    {/* APP DOWNLOAD */}
+                    <div>
+                        <h3 className="font-semibold text-gray-900 mb-3">
+                            APP DOWNLOAD
+                        </h3>
+                        <div className="flex items-start gap-4">
+                            {/* QR Code */}
+                            <img
+                                src={qr}
+                                alt="Ecommerce App QR Code"
+                                className="w-28 h-28 border"
+                            />
+
+                            {/* App Store Badges */}
+                            <div className="flex flex-col gap-5">
+                                <img
+                                    src={appstore}
+                                    alt="Download on App Store"
+                                    className="w-28 cursor-pointer"
+                                />
+                                <img
+                                    src={googleplay}
+                                    alt="Get it on Google Play"
+                                    className="w-28 cursor-pointer"
+                                />
+                                <img
+                                    src={appgallery}
+                                    alt="Download on AppGallery"
+                                    className="w-28 cursor-pointer"
+                                />
+                            </div>
+                        </div>
                     </div>
 
                 </div>
+            </div>
 
-                {/* Bottom */}
-                <div className="mt-12 border-t pt-6 text-center text-sm text-gray-500">
-                    © {new Date().getFullYear()} Ecommerce. All rights reserved.
-                </div>
-
+            {/* Bottom Bar */}
+            <div className="border-t text-center py-4 text-xs text-gray-500">
+                © 2026 Ecommerce Clone. All Rights Reserved.
             </div>
         </footer>
     )

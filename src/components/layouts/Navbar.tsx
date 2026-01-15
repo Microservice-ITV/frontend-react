@@ -11,7 +11,7 @@ const Navbar = () => {
         <header className="sticky top-0 z-50 bg-white shadow-sm">
             {/* ===== Top Utility Bar ===== */}
             <div className="bg-gray-50 text-xs text-gray-600">
-                <div className="max-w-7xl mx-auto px-6 flex justify-between h-8 items-center">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 flex justify-between h-8 items-center">
                     <div className="flex space-x-4">
                         <Link to="#" className="hover:text-black">Help</Link>
                         <Link to="#" className="hover:text-black">Notifications</Link>
@@ -46,21 +46,24 @@ const Navbar = () => {
 
             {/* ===== Main Navbar ===== */}
             <div className="bg-white">
-                <div className="max-w-7xl mx-auto px-6">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6">
                     <div className="flex h-20 items-center gap-6">
 
-                        {/* Logo */}
-                        <Link to="/" className="text-2xl font-bold text-orange-500">
-                            Shopee
-                        </Link>
+                    <Link to="/" className="text-2xl font-bold text-orange-500 flex items-center">
+                        {/* Mobile */}
+                        <span className="block md:hidden tracking-wide">DNI</span>
+
+                        {/* Desktop */}
+                        <span className="hidden md:block">Daily Need Items</span>
+                    </Link>
 
                         {/* Search Bar */}
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                             <div className="flex items-center border rounded-sm overflow-hidden">
                                 <input
                                     type="text"
                                     placeholder="Search products, brands and more"
-                                    className="flex-1 px-4 py-2 text-sm outline-none"
+                                    className="flex-1 min-w-0 px-4 py-2 text-sm outline-none"
                                 />
                                 <button className="bg-orange-500 px-4 py-2 text-white cursor-pointer">
                                     <Search size={18} />
