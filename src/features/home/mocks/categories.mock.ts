@@ -1,22 +1,22 @@
 export const categoriesMock = [
-    {
-        id: 1,
-        name: 'Electronics',
-        link: '/category/electronics',
-    },
-    {
-        id: 2,
-        name: 'Fashion',
-        link: '/category/fashion',
-    },
-    {
-        id: 3,
-        name: 'Home & Living',
-        link: '/category/home-living',
-    },
-    {
-        id: 4,
-        name: 'Groceries',
-        link: '/category/groceries',
-    },
-]
+    { id: 1, name: "Women's Apparel", image: "https://picsum.photos/seed/women/200/200", link: "/category/women" },
+    { id: 2, name: "Men's Apparel", image: "https://picsum.photos/seed/men/200/200", link: "/category/men" },
+    { id: 3, name: "Mobile & Gadgets", image: "https://picsum.photos/seed/mobile/200/200", link: "/category/mobile" },
+    { id: 4, name: "Home & Living", image: "https://picsum.photos/seed/home/200/200", link: "/category/home" },
+    { id: 5, name: "Beauty & Personal Care", image: "https://picsum.photos/seed/beauty/200/200", link: "/category/beauty" },
+    { id: 6, name: "Health & Wellness", image: "https://picsum.photos/seed/health/200/200", link: "/category/health" },
+    { id: 7, name: "Baby & Toys", image: "https://picsum.photos/seed/baby/200/200", link: "/category/baby" },
+    { id: 8, name: "Groceries", image: "https://picsum.photos/seed/grocery/200/200", link: "/category/groceries" },
+    { id: 9, name: "Electronics", image: "https://picsum.photos/seed/electronics/200/200", link: "/category/electronics" },
+    { id: 10, name: "Sports & Outdoors", image: "https://picsum.photos/seed/sports/200/200", link: "/category/sports" },
+    { id: 11, name: "Automotive", image: "https://picsum.photos/seed/car/200/200", link: "/category/automotive" },
+    { id: 12, name: "Books & Stationery", image: "https://picsum.photos/seed/books/200/200", link: "/category/books" },
+    { id: 13, name: "Pet Supplies", image: "https://picsum.photos/seed/pets/200/200", link: "/category/pets" },
+    { id: 14, name: "Gaming", image: "https://picsum.photos/seed/gaming/200/200", link: "/category/gaming" },
+    { id: 15, name: "Watches", image: "https://picsum.photos/seed/watch/200/200", link: "/category/watches" },
+    { id: 16, name: "Jewelry", image: "https://picsum.photos/seed/jewelry/200/200", link: "/category/jewelry" },
+    { id: 17, name: "Office Supplies", image: "https://picsum.photos/seed/office/200/200", link: "/category/office" },
+    { id: 18, name: "Travel & Luggage", image: "https://picsum.photos/seed/travel/200/200", link: "/category/travel" },
+    { id: 19, name: "Digital Products", image: "https://picsum.photos/seed/digital/200/200", link: "/category/digital" },
+    { id: 20, name: "Deals & Promotions", image: "https://picsum.photos/seed/deals/200/200", link: "/category/deals" }
+];

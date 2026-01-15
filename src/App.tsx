@@ -34,10 +34,8 @@ function App() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
-
+    <div className="flex min-h-screen flex-col bg-[#f5f5f5]">
       <Navbar />
-
       <HeaderSpacer />
 
       {/* Main Content */}
