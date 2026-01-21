@@ -1,8 +1,10 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { LoginPage } from '@/pages/LoginPage'
-import { RegisterPage } from '@/pages/RegisterPage'
+import { LoginPage } from '@/features/auth/pages/LoginPage'
+import { RegisterPage } from '@/features/auth/pages/RegisterPage'
 import { GuestRoute, ProtectedRoute } from './RouteGuards'
-import HomePage from '@/pages/HomePage'
+import HomePage from '@/features/home/HomePage'
+import CategoryProductsPage from '@/features/products/pages/CategoryProductsPage'
+import ProductDetailPage from '@/features/products/pages/ProductDetailPage'
 
 const AppRoutes = () => {
     return (
@@ -20,6 +22,8 @@ const AppRoutes = () => {
 
             {/* Public routes */}
             <Route path="/" element={<HomePage />} />
+            <Route path="/categories/:id" element={<CategoryProductsPage />} />
+            <Route path="/products/:id" element={<ProductDetailPage />} />
 
             {/* fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />

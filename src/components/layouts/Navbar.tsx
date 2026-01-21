@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { ShoppingCart, Search } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
-import { logout } from '@/features/auth/authThunks'
+import { logout } from '@/features/auth/store/authThunks'
 
 const Navbar = () => {
     const dispatch = useAppDispatch()

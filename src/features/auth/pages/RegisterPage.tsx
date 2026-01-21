@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
-import { register } from '@/features/auth/authThunks'
+import { register } from '@/features/auth/store/authThunks'
 import { getRecaptchaToken } from '@/utils/recaptcha'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'

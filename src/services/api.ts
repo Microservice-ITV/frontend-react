@@ -1,6 +1,6 @@
 import axios, { AxiosRequestConfig } from 'axios'
 import { store } from '@/app/store'
-import { refreshAccessToken, logout } from '@/features/auth/authThunks'
+import { refreshAccessToken, logout } from '@/features/auth/store/authThunks'
 
 interface AxiosRequestConfigWithRetry extends AxiosRequestConfig {
     _retry?: boolean
