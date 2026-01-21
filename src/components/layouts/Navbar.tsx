@@ -1,14 +1,14 @@
 import { Link } from 'react-router-dom'
 import { ShoppingCart, Search } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
-import { logout } from '@/features/auth/authThunks'
+import { logout } from '@/features/auth/store/authThunks'
 
 const Navbar = () => {
     const dispatch = useAppDispatch()
     const { isAuthenticated, user } = useAppSelector((s) => s.auth)
 
     return (
-        <header className="sticky top-0 z-50 bg-white shadow-sm">
+        <header className="fixed top-0 left-0 right-0 z-50 bg-white">
             {/* ===== Top Utility Bar ===== */}
             <div className="bg-gray-50 text-xs text-gray-600">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 flex justify-between h-8 items-center">

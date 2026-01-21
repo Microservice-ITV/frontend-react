@@ -4,7 +4,7 @@ const actions = ["Vouchers", "Coins", "Majulah Club", "Fulfilled", "Supermarket"
 
 const HomeQuickActions = () => {
     return (
-        <section className="bg-white">
+        <section>
             {/* SAME WIDTH AS HOME BANNER */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6">
 

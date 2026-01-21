@@ -1,9 +1,10 @@
 import { useEffect } from 'react'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
-import { fetchMe } from '@/features/auth/authThunks'
+import { fetchMe } from '@/features/auth/store/authThunks'
 import Navbar from '@/components/layouts/Navbar'
 import Footer from '@/components/layouts/Footer'
 import AppRoutes from '@/routes/AppRoutes'
+import HeaderSpacer from './components/layouts/HeaderSpacer'
 
 function App() {
   const dispatch = useAppDispatch()
@@ -33,9 +34,9 @@ function App() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
-
+    <div className="flex min-h-screen flex-col bg-[#f5f5f5]">
       <Navbar />
+      <HeaderSpacer />
 
       {/* Main Content */}
       <main className="flex-1">

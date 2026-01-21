@@ -1,8 +1,12 @@
 import { combineReducers } from '@reduxjs/toolkit'
-import appReducer from '@/features/app/appSlice'
+import authReducer from '@/features/auth/store/authSlice'
+import productsReducer from '@/features/products/store/productsSlice'
+import categoriesReducer from '@/features/categories/store/categoriesSlice'
 
 const rootReducer = combineReducers({
-  app: appReducer,
+  auth: authReducer,
+  products: productsReducer,
+  categories: categoriesReducer,
 })
 
 export default rootReducer
