@@ -1,28 +1,22 @@
 import { createAsyncThunk } from '@reduxjs/toolkit'
 import { productApi } from '@/features/products/api/productApi'
-import type { Product } from '../types/productTypes'
+import type { Product, ProductDetail } from '../types/productTypes'
 
+/* ------------------------------
+   LIST PRODUCTS BY CATEGORY
+-------------------------------- */
 // Raw API response type (price comes as string from API)
 interface RawProduct {
     id: string
     name: string
-    description?: string
     price: string | number
-    sku?: string
-    images?: string
+    images?: string[]
     categoryId: string
-    [key: string]: any
 }
 
 interface ProductsApiResponse {
     success: boolean
     data: RawProduct[]
-    pagination?: {
-        page: number
-        limit: number
-        total: number
-        totalPages: number
-    }
 }
 
 export const fetchProductsByCategory = createAsyncThunk<
@@ -39,7 +33,7 @@ export const fetchProductsByCategory = createAsyncThunk<
             id: product.id,
             name: product.name,
             price: typeof product.price === 'string' ? parseFloat(product.price) : product.price,
-            images: product.images[0],
+            images: product.images ?? [],
             categoryId: product.categoryId,
         }))
         return products
@@ -47,5 +41,54 @@ export const fetchProductsByCategory = createAsyncThunk<
         const message =
             error?.response?.data?.message || error.message || 'Failed to load products'
         return rejectWithValue(message)
+    }
+})
+
+
+/* ------------------------------
+   PRODUCT DETAIL
+-------------------------------- */
+interface ProductDetailApiResponse {
+    success: boolean
+    data: {
+        id: string
+        name: string
+        description?: string
+        sku?: string
+        stock?: number
+        price: string | number
+        images?: string[]
+        categoryId: string
+        categories?: {
+            id: string
+            name: string
+            slug: string
+        }[]
+    }
+}
+
+export const fetchProductDetail = createAsyncThunk<
+    ProductDetail,
+    string,
+    { rejectValue: string }
+>('products/fetchDetail', async (productId, { rejectWithValue }) => {
+    try {
+        const response = await productApi.get(`/products/${productId}`)
+        const p = response.data.data
+
+        return {
+            id: p.id,
+            name: p.name,
+            description: p.description,
+            sku: p.sku,
+            stock: p.stock,
+            slug: p.slug,
+            price: Number(p.price),
+            images: p.images ?? [],
+            categoryId: p.categoryId,
+            category: p.category,
+        }
+    } catch (err: any) {
+        return rejectWithValue(err.message || 'Failed to load product')
     }
 })

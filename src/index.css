@@ -1,17 +1,17 @@
 @import "tailwindcss";
 
-.shopee-btn {
-    @apply px-4 py-1.5 border border-gray-300 bg-white text-sm cursor-pointer select-none hover:text-[var(--shopee-primary)];
+.dni-btn {
+    @apply px-4 py-1.5 border border-gray-300 bg-white text-sm cursor-pointer select-none hover:text-[var(--dni-primary)];
 }
 
-.shopee-btn-active {
-    @apply px-4 py-1.5 border border-[var(--shopee-primary)] bg-[var(--shopee-primary)] text-white text-sm cursor-pointer select-none;
+.dni-btn-active {
+    @apply px-4 py-1.5 border border-[var(--dni-primary)] bg-[var(--dni-primary)] text-white text-sm cursor-pointer select-none;
 }
 
-/* .shopee-dropdown-item {
-    @apply w-full text-left px-3 py-2 text-sm text-gray-700 cursor-pointer select-none hover:text-[var(--shopee-primary)];
+/* .dni-dropdown-item {
+    @apply w-full text-left px-3 py-2 text-sm text-gray-700 cursor-pointer select-none hover:text-[var(--dni-primary)];
 }
 
-.shopee-dropdown-item-active {
-    @apply text-[var(--shopee-primary)] font-medium;
+.dni-dropdown-item-active {
+    @apply text-[var(--dni-primary)] font-medium;
 } */

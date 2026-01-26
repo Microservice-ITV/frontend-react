@@ -3,7 +3,7 @@ import { LoginPage } from '@/features/auth/pages/LoginPage'
 import { RegisterPage } from '@/features/auth/pages/RegisterPage'
 import { GuestRoute, ProtectedRoute } from './RouteGuards'
 import HomePage from '@/features/home/HomePage'
-import CategoryProductsPage from '@/features/products/pages/CategoryProductsPage'
+import ProductListPage from '@/features/products/pages/ProductListPage'
 import ProductDetailPage from '@/features/products/pages/ProductDetailPage'
 
 const AppRoutes = () => {
@@ -22,7 +22,7 @@ const AppRoutes = () => {
 
             {/* Public routes */}
             <Route path="/" element={<HomePage />} />
-            <Route path="/categories/:id" element={<CategoryProductsPage />} />
+            <Route path="/categories/:id" element={<ProductListPage />} />
             <Route path="/products/:id" element={<ProductDetailPage />} />
 
             {/* fallback */}

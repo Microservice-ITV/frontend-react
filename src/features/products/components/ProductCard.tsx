@@ -8,11 +8,11 @@ const ProductCard = ({ product }: { product: Product }) => {
         group
         relative
         box-content
-        border border-[var(--shopee-border)]
+        border border-[var(--dni-border)]
         rounded-[6px]
         bg-white
         transition-all duration-100
-        hover:border-[var(--shopee-primary)]
+        hover:border-[var(--dni-primary)]
         hover:shadow-md
         hover:-translate-y-[1px]
         hover:z-[10]"
@@ -41,7 +41,7 @@ const ProductCard = ({ product }: { product: Product }) => {
             <div className="space-y-1">
               <div className="flex items-center">
                 <span className="text-xs mr-0.5">$</span>
-                <span className="text-base font-medium text-[var(--shopee-primary)]">
+                <span className="text-base font-medium text-[var(--dni-primary)]">
                   {product.price.toFixed(2)}
                 </span>
                 <span className="ml-auto text-xs text-gray-500">
@@ -62,18 +62,17 @@ const ProductCard = ({ product }: { product: Product }) => {
           top-[calc(100%-6px)]
           w-[calc(100%+2px)]
           h-[30px]
-          bg-[var(--shopee-primary)]
+          bg-[var(--dni-primary)]
           text-white
           text-center
           text-sm
           leading-[30px]
-          border border-[var(--shopee-primary)]
+          border border-[var(--dni-primary)]
           rounded-b-sm
           opacity-0
           group-hover:opacity-100
           transition-opacity duration-100
-          z-[-1]
-        "
+          z-[-1]"
       >
         Find Similar
       </Link>

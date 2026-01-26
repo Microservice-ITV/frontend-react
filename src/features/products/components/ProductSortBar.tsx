@@ -62,7 +62,7 @@ useEffect(() => {
           setSort('popular')
           setIsPriceOpen(false)
         }}
-        className={sort === 'popular' ? 'shopee-btn-active' : 'shopee-btn'}
+        className={sort === 'popular' ? 'dni-btn-active' : 'dni-btn'}
       >
         Popular
       </button>
@@ -73,7 +73,7 @@ useEffect(() => {
           setSort('latest')
           setIsPriceOpen(false)
         }}
-        className={sort === 'latest' ? 'shopee-btn-active' : 'shopee-btn'}
+        className={sort === 'latest' ? 'dni-btn-active' : 'dni-btn'}
       >
         Latest
       </button>
@@ -84,7 +84,7 @@ useEffect(() => {
           setSort('top-sales')
           setIsPriceOpen(false)
         }}
-        className={sort === 'top-sales' ? 'shopee-btn-active' : 'shopee-btn'}
+        className={sort === 'top-sales' ? 'dni-btn-active' : 'dni-btn'}
       >
         Top Sales
       </button>
@@ -94,7 +94,7 @@ useEffect(() => {
         <button
           onClick={() => setIsPriceOpen(prev => !prev)}
           className={`
-            ${isPriceActive ? 'shopee-btn-active' : 'shopee-btn'}
+            ${isPriceActive ? 'dni-btn-active' : 'dni-btn'}
             flex items-center justify-between
             min-w-[180px]
           `}
@@ -115,7 +115,7 @@ useEffect(() => {
               }}
               className={`
                 w-full text-left px-3 py-2
-                ${sort === 'price-asc' ? 'shopee-btn-active' : 'shopee-btn'}
+                ${sort === 'price-asc' ? 'dni-btn-active' : 'dni-btn'}
               `}
             >
               Price: Low to High
@@ -128,7 +128,7 @@ useEffect(() => {
               }}
               className={`
                 w-full text-left px-3 py-2
-                ${sort === 'price-desc' ? 'shopee-btn-active' : 'shopee-btn'}
+                ${sort === 'price-desc' ? 'dni-btn-active' : 'dni-btn'}
               `}
             >
               Price: High to Low
