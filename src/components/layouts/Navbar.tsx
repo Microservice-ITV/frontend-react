@@ -1,11 +1,16 @@
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { ShoppingCart, Search } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { logout } from '@/features/auth/store/authThunks'
+import { selectCartCount } from '@/features/cart/store/cartSelectors'
 
 const Navbar = () => {
     const dispatch = useAppDispatch()
     const { isAuthenticated, user } = useAppSelector((s) => s.auth)
+    const { items } = useAppSelector((s) => s.cart)
+
+    const cartCount = useAppSelector(selectCartCount)
 
     return (
         <header className="fixed top-0 left-0 right-0 z-50 bg-white">
@@ -72,12 +77,19 @@ const Navbar = () => {
                         </div>
 
                         {/* Cart */}
-                        <Link to="/cart" className="relative">
-                            <ShoppingCart size={26} />
-                            <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs rounded-full px-1.5">
-                                0
-                            </span>
-                        </Link>
+                        <Link to="/cart" className="relative flex items-center">
+                            <ShoppingCart size={22} className="md:size-[26px]" />
+
+                            {cartCount > 0 && (
+                                <span
+                                    className="
+                                    absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] flex items-center justify-center
+                                    rounded-full bg-orange-500 text-white text-[10px] leading-none px-[3px]"
+                                >
+                                {cartCount}
+                                </span>
+                            )}
+                            </Link>
                     </div>
                 </div>
             </div>

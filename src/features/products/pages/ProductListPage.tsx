@@ -6,7 +6,7 @@ import ProductSidebar from '../components/ProductSidebar'
 import ProductSortBar from '../components/ProductSortBar'
 import ProductGrid from '../components/ProductGrid'
 
-const CategoryProductsPage = () => {
+const ProductListPage = () => {
   const { id } = useParams<{ id: string }>()
   const dispatch = useAppDispatch()
   const { items, status } = useAppSelector((s) => s.products)
@@ -50,4 +50,4 @@ const CategoryProductsPage = () => {
   )
 }
 
-export default CategoryProductsPage
+export default ProductListPage
