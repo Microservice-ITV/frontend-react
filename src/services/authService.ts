@@ -1,23 +1,23 @@
-import { api } from './api'
+import { authApi } from '@/lib/api/authApi'
 
 export const authService = {
   login(data: { email: string; password: string }) {
-    return api.post('/login', data)
+    return authApi.post('/login', data)
   },
 
   register(data: { email: string; password: string; name: string }) {
-    return api.post('/register', data)
+    return authApi.post('/register', data)
   },
 
   refresh() {
-    return api.post('/refresh')
+    return authApi.post('/refresh')
   },
 
   logout() {
-    return api.post('/logout')
+    return authApi.post('/logout')
   },
 
   me() {
-    return api.get('/me')
+    return authApi.get('/me')
   },
 }

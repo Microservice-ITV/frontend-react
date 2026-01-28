@@ -1,3 +1,4 @@
+// Thunks => Async Business Logic
 import { createAsyncThunk } from '@reduxjs/toolkit'
 import { authService } from '@/services/authService'
 import type { User, TokenPayload } from './authTypes'

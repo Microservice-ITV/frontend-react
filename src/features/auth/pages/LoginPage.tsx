@@ -17,6 +17,7 @@ export const LoginPage = () => {
   const [password, setPassword] = useState("")
 
   const isLoading = status === 'loading'
+  const isFormValid = email.trim() !== '' && password.trim() !== ''
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -50,6 +51,8 @@ export const LoginPage = () => {
             label="Email"
             type="email"
             placeholder="you@example.com"
+            autoComplete="email"
+            disabled={isLoading}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -59,13 +62,15 @@ export const LoginPage = () => {
             label="Password"
             type="password"
             placeholder="••••••••"
+            autoComplete="current-password"
+            disabled={isLoading}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
 
           {error && (
-            <p className="text-sm text-red-600 text-center">
+            <p className="text-sm text-red-600 text-center" aria-live="polite" role="alert">
               {error}
             </p>
           )}
@@ -81,7 +86,7 @@ export const LoginPage = () => {
             </div>
           </div>
 
-          <Button type="submit" loading={isLoading} className="w-full">
+          <Button type="submit" loading={isLoading} disabled={!isFormValid || isLoading} className="w-full">
             Login
           </Button>
         </form>

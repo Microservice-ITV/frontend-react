@@ -7,16 +7,16 @@ export interface Product {
   categoryId: string
 }
 
-// Product used in DETAIL page
+// Product used in DETAILS page
 export interface ProductDetail {
   id: string
   name: string
+  slug: string
   price: number
   images: string[]
   description?: string
   sku?: string
   stock?: number
-  slug: string
   categoryId: string
   category?: {
     id: string

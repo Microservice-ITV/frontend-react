@@ -1,74 +1,45 @@
-import axios, { AxiosRequestConfig } from 'axios'
-import { store } from '@/app/store'
-import { refreshAccessToken, logout } from '@/features/auth/store/authThunks'
+import { catalogApi } from '@/lib/api/catalogApi'
+import { AxiosResponse } from 'axios'
 
-interface AxiosRequestConfigWithRetry extends AxiosRequestConfig {
-    _retry?: boolean
+// API RESPONSE TYPES (RAW BACKEND)
+interface ProductsApiResponse {
+    success: boolean
+    data: {
+        id: string
+        name: string
+        price: string | number
+        images?: string[]
+        categoryId: string
+    }[]
 }
 
-const CATALOG_BASE_URL =
-    import.meta.env.VITE_CATALOG_API_URL ?? 'http://localhost:5001/api/v1'
-
-export const productApi = axios.create({
-    baseURL: CATALOG_BASE_URL,
-})
-
-// Attach access token (same as auth api)
-productApi.interceptors.request.use(
-    (config) => {
-        const token = store.getState().auth.accessToken
-
-        if (token && config.headers) {
-            config.headers.Authorization = `Bearer ${token}`
+interface ProductDetailApiResponse {
+    success: boolean
+    data: {
+        id: string
+        name: string
+        slug: string
+        description?: string
+        sku?: string
+        stock?: number
+        price: string | number
+        images?: string[]
+        categoryId: string
+        category?: {
+            id: string
+            name: string
+            slug: string
+            parentId: string | null
         }
-
-        return config
-    },
-    (error) => Promise.reject(error)
-)
-
-// Reuse the same refresh-token flow as auth api
-let isRefreshing = false
-let failedQueue: {
-    resolve: (value?: unknown) => void
-    reject: (reason?: any) => void
-}[] = []
-
-const processQueue = (error: any) => {
-    failedQueue.forEach((promise) =>
-        error ? promise.reject(error) : promise.resolve(undefined)
-    )
-    failedQueue = []
-}
-
-productApi.interceptors.response.use(
-    (response) => response,
-    async (error) => {
-        const originalRequest = error.config as AxiosRequestConfigWithRetry
-
-        if (error.response?.status === 401 && !originalRequest._retry) {
-            if (isRefreshing) {
-                return new Promise((resolve, reject) => {
-                    failedQueue.push({ resolve, reject })
-                }).then(() => productApi(originalRequest))
-            }
-
-            originalRequest._retry = true
-            isRefreshing = true
-
-            try {
-                await store.dispatch(refreshAccessToken()).unwrap()
-                processQueue(null)
-                return productApi(originalRequest)
-            } catch (err) {
-                processQueue(err)
-                store.dispatch(logout())
-                return Promise.reject(err)
-            } finally {
-                isRefreshing = false
-            }
-        }
-
-        return Promise.reject(error)
     }
-)
+}
+
+export const productApi = {
+    getByCategory: (categoryId: string): Promise<AxiosResponse<ProductsApiResponse>> =>
+        catalogApi.get('/products', {
+            params: { categoryId },
+        }),
+
+    getDetail: (productId: string): Promise<AxiosResponse<ProductDetailApiResponse>> =>
+        catalogApi.get(`/products/${productId}`),
+}
