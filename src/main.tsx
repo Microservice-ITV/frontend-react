@@ -6,6 +6,7 @@ import { BrowserRouter } from 'react-router-dom'
 
 // 2. Absolute imports
 import { store } from '@/app/store'
+import { initCartSync } from '@/app/bootstrap'
 import App from './App'
 
 // 3. Relative imports (styles)
@@ -13,8 +14,13 @@ import './styles/fonts.css' // Import custom fonts
 import './styles/global.css'
 import './index.css'
 
+// initialize global side effects
+initCartSync(store.dispatch)
+
 createRoot(document.getElementById('root')!).render(
-  <StrictMode>
+  <StrictMode> {/* development-only tool, highlighting potential */ }
+    {/* 1. Entire application state is stored in one object called the store */}
+    {/* 2. Without Provider, React components cannot interact with Redux. */}
     <Provider store={store}>
       <BrowserRouter>
         <App />

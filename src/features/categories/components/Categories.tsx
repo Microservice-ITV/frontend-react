@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { fetchCategories } from '@/features/categories/store/categoryThunks'
@@ -32,39 +32,14 @@ const Categories = () => {
 
         {status === 'succeeded' && (
           <div className="overflow-x-auto md:overflow-visible">
-            <ul
-              className="
-            flex md:grid
-            gap-0
-            snap-x snap-mandatory
-            md:snap-none
-            md:grid-cols-10 md:grid-rows-2
-          "
-            >
+            <ul className="flex md:grid gap-0 snap-x snap-mandatory md:snap-none md:grid-cols-10 md:grid-rows-2">
               {items.slice(0, 20).map((cat) => (
-                <li
-                  key={cat.id}
-                  className="
-                snap-start
-                shrink-0 md:shrink
-                w-[120px] md:w-auto
-              "
-                >
+                <li key={cat.id} className="snap-start shrink-0 md:shrink w-[120px] md:w-auto">
                   <Link
                     to={`/categories/${cat.id}`}
                     className="
-                  group
-                  flex flex-col items-center
-                  px-4 py-5
-                  h-full
-                  rounded-sm
-                  bg-gray-50
-                  border border-gray-200
-                  transition-all duration-200
-                  hover:bg-white
-                  hover:border-gray-200
-                  hover:shadow-lg
-                "
+                      group flex flex-col items-center px-4 py-5 h-full rounded-sm bg-gray-50 border 
+                      border-gray-200 transition-all duration-200 hover:bg-white hover:border-gray-200 hover:shadow-lg"
                   >
                     <div className="w-14 h-14 flex items-center justify-center">
                       {cat.image ? (
