@@ -13,29 +13,36 @@ export const RegisterPage = () => {
 
   const { status, error } = useAppSelector((s) => s.auth)
 
-  const [form, setForm] = useState({
-    name: '',
-    email: '',
-    password: '',
-  })
+  const [form, setForm] = useState({ name: '', email: '', password: '' })
 
   const isLoading = status === 'loading'
+  const isFormValid = form.name.trim() && form.email.trim() && form.password.trim()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Get reCAPTCHA token
-    const recaptchaToken = await getRecaptchaToken('register')
+    if (!isFormValid || isLoading) return
 
-    dispatch(
-      register({
-        ...form,
-        recaptchaToken,
-      })
-    )
+    const normalizedForm = {
+      name: form.name.trim(),
+      email: form.email.trim().toLowerCase(),
+      password: form.password.trim(),
+    }
+
+    try {
+      // Get reCAPTCHA token
+      const recaptchaToken = await getRecaptchaToken('register')
+      if (!recaptchaToken) return
+
+      dispatch(
+        register({ ...normalizedForm, recaptchaToken })
+      )
+    } catch {
+      // optional: local error handling
+    }
   }
 
-  // ✅ Redirect to login after successful registration
+  // Redirect to login after successful registration
   useEffect(() => {
     if (status === 'succeeded') {
       navigate('/login', { replace: true })
@@ -46,13 +53,9 @@ export const RegisterPage = () => {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <Card className="w-full max-w-md p-8">
         {/* Title */}
-        <h1 className="text-2xl font-semibold text-gray-900 text-center">
-          Create an account
-        </h1>
+        <h1 className="text-2xl font-semibold text-gray-900 text-center">Create an account</h1>
 
-        <p className="mt-2 text-sm text-gray-600 text-center">
-          Join us and start shopping today
-        </p>
+        <p className="mt-2 text-sm text-gray-600 text-center">Join us and start shopping today</p>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
@@ -87,10 +90,11 @@ export const RegisterPage = () => {
             }
             required
           />
+          <p className="text-xs text-gray-500">Must be at least 8 characters</p>
 
           {/* Error */}
           {error && (
-            <p className="text-sm text-red-600 text-center">
+            <p className="text-sm text-red-600 text-center" aria-live="polite" role="alert">
               {error}
             </p>
           )}
@@ -110,6 +114,7 @@ export const RegisterPage = () => {
           <Button
             type="submit"
             loading={isLoading}
+            disabled={!isFormValid || isLoading}
             className="w-full bg-black text-white hover:bg-gray-800"
           >
             Create Account
@@ -119,30 +124,17 @@ export const RegisterPage = () => {
         {/* Footer */}
         <p className="mt-6 text-sm text-center text-gray-600">
           Already have an account?{' '}
-          <Link
-            to="/login"
-            className="font-medium text-black hover:underline"
-          >
-            Login
-          </Link>
+          <Link to="/login" className="font-medium text-black hover:underline">Login</Link>
         </p>
 
         {/* Legal */}
         <p className="mt-4 text-[10px] text-center text-gray-400">
           This site is protected by reCAPTCHA and the Google
-          <a
-            href="https://policies.google.com/privacy"
-            target="_blank"
-            className="underline mx-1"
-          >
+          <a href="https://policies.google.com/privacy" target="_blank" className="underline mx-1">
             Privacy Policy
           </a>
           and
-          <a
-            href="https://policies.google.com/terms"
-            target="_blank"
-            className="underline ml-1"
-          >
+          <a href="https://policies.google.com/terms" target="_blank" className="underline ml-1">
             Terms of Service
           </a>
           apply.

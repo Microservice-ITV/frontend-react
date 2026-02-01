@@ -1,3 +1,4 @@
+// Slice => State & Reducers
 import { createSlice } from '@reduxjs/toolkit'
 import { login, register, fetchMe, refreshAccessToken, logout } from './authThunks'
 import type { AuthState } from './authTypes'

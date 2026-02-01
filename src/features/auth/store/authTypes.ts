@@ -1,3 +1,4 @@
+// Types => Type Definitions
 // User shape returned by /me
 export interface User {
     id: number

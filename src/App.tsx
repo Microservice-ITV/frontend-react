@@ -7,8 +7,8 @@ import AppRoutes from '@/routes/AppRoutes'
 import HeaderSpacer from './components/layouts/HeaderSpacer'
 
 function App() {
-  const dispatch = useAppDispatch()
-  const { accessToken, status } = useAppSelector((state) => state.auth)
+  const dispatch = useAppDispatch() // Typed dispatch function to send actions
+  const { accessToken, status } = useAppSelector((state) => state.auth) // Reads auth state from Redux store
 
   /**
    * Rehydrate auth on app load
@@ -18,12 +18,12 @@ function App() {
    */
   useEffect(() => {
     if (accessToken) {
-      dispatch(fetchMe())
+      dispatch(fetchMe()) // Fetch user data
     }
   }, [accessToken, dispatch])
 
   /**
-   * Optional: prevent UI flicker during auth bootstrap
+   * Prevent UI flicker during authentication bootstrap
    */
   if (status === 'loading') {
     return (
