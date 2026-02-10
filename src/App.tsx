@@ -6,6 +6,7 @@ import Footer from '@/components/layouts/Footer'
 import AppRoutes from '@/routes/AppRoutes'
 import HeaderSpacer from './components/layouts/HeaderSpacer'
 import { selectAuthStatus } from './features/auth/store/authSelectors'
+import ScrollToTop from './components/routing/ScrollToTop'
 
 function App() {
   const dispatch = useAppDispatch() // Typed dispatch function to send actions
@@ -37,6 +38,8 @@ function App() {
     <div className="flex min-h-screen flex-col bg-[#f5f5f5]">
       <Navbar />
       <HeaderSpacer />
+
+      <ScrollToTop />
 
       {/* Main Content */}
       <main className="flex-1">
