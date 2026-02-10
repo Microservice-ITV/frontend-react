@@ -58,7 +58,7 @@ const CheckoutItems = () => {
         {/* LEFT COLUMN — Message */}
         <div className="px-6 py-5 md:py-6 md:border-r border-dashed border-black/10">
           <div className="flex flex-col gap-2">
-            {/* Shopee-style row label */}
+            {/* DNI-style row label */}
             <span className="text-sm font-medium text-gray-900">
               Message for Seller
             </span>

@@ -3,7 +3,7 @@ import { MapPin } from 'lucide-react'
 const CheckoutAddress = () => {
   return (
     <div className="bg-white">
-      {/* Shopee dashed top border */}
+      {/* DNI dashed top border */}
       <div className="h-[4px] bg-[repeating-linear-gradient(150deg,_#f18d9b_0_22px,_transparent_22px_36px,_#6fa6d6_36px_58px,_transparent_58px_72px)]" />
 
       <div className="px-6 py-4">

@@ -43,7 +43,7 @@ const CartSummary = ({ total }: CartSummaryProps) => {
       <div className="flex items-center px-4 md:px-6 py-3 text-xs md:text-sm text-gray-400 border-b border-dashed border-[var(--dni-cart-border)]">
         <input type="checkbox" disabled className="mr-3 h-4 w-4" />
         <span className="mr-2 text-orange-400">Ⓢ</span>
-        <span className="flex-1">Shopee Coins</span>
+        <span className="flex-1">DNI Coins</span>
         <span className="hidden sm:inline">No item selected</span>
         <span className="ml-2 sm:ml-4">-$0.00</span>
       </div>
