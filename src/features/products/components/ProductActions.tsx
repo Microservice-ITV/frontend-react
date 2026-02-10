@@ -3,6 +3,7 @@ import { useAppDispatch } from '@/app/hooks'
 import { addToCart } from '@/features/cart/store/cartSlice'
 import { addToCartIcon } from '@/assets/icons'
 import type { ProductDetail } from '@/features/products/types/productTypes'
+import { useNavigate } from 'react-router-dom'
 
 type ProductActionsProps = {
   product: ProductDetail
@@ -11,6 +12,8 @@ type ProductActionsProps = {
 const ProductActions = ({ product }: ProductActionsProps) => {
   const dispatch = useAppDispatch()
   const [quantity, setQuantity] = useState(1)
+
+  const navigate = useNavigate()
 
   const increase = () => setQuantity((q) => q + 1)
   const decrease = () => setQuantity((q) => (q > 1 ? q - 1 : 1))
@@ -23,12 +26,30 @@ const ProductActions = ({ product }: ProductActionsProps) => {
         price: product.price,
         image: product.images?.[0],
         quantity,
+        shopId: product.shop.id,
+        shopName: product.shop.name,
+
+        selected: true,
       })
     )
   }
 
   const handleBuyNow = () => {
-    console.log('Buy now:', { quantity })
+    dispatch(
+      addToCart({
+        productId: product.id,
+        name: product.name,
+        price: product.price,
+        image: product.images?.[0],
+        quantity,
+        shopId: product.shop.id,
+        shopName: product.shop.name,
+
+        selected: true,
+      })
+    )
+
+    navigate('/cart')
   }
 
   return (

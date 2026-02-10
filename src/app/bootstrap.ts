@@ -10,9 +10,19 @@ export const initCartSync = (dispatch: AppDispatch) => {
     if (typeof window === 'undefined' || initialized) return
     initialized = true
 
+    // INITIAL HYDRATION
+    const cart = loadCart()
+    if (cart) {
+        dispatch(syncCart(cart))
+    }
+
+    // CROSS-TAB SYNC
     window.addEventListener('storage', (e) => {
-        if (e.key === 'dni_cart' || !e.newValue) {
-            dispatch(syncCart(loadCart()))
+        if (e.key !== 'dni_cart') return
+
+        const cart = loadCart()
+        if (cart) {
+            dispatch(syncCart(cart))
         }
     })
 }
