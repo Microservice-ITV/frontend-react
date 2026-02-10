@@ -125,7 +125,7 @@ const ProductInfo = ({ product }: Props) => {
             className="w-4 h-4 mt-0.5 flex-shrink-0"
           />
           <span>
-            100% Authentic · Fulfilled by Shopee · 15-Day Free Returns
+            100% Authentic · Fulfilled by DNI · 15-Day Free Returns
           </span>
         </div>
       </div>
