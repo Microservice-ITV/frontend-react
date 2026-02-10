@@ -1,12 +1,12 @@
 import axios from 'axios'
-import { CATALOG_API_BASE_URL } from './apiConfig'
+import { ORDER_SERVICE_BASE_URL } from './apiConfig'
 import { store } from '@/app/store'
 
-export const catalogApi = axios.create({
-    baseURL: CATALOG_API_BASE_URL,
+export const orderApi = axios.create({
+    baseURL: ORDER_SERVICE_BASE_URL,
 })
 
-catalogApi.interceptors.request.use((config) => {
+orderApi.interceptors.request.use((config) => {
     const token = store.getState().auth.accessToken
     if (token && config.headers) {
         config.headers.Authorization = `Bearer ${token}`

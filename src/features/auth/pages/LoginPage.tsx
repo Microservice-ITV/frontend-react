@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
-import { login } from '@/features/auth/store/authThunks'
+import { fetchMe, login } from '@/features/auth/store/authThunks'
 import { getRecaptchaToken } from '@/utils/recaptcha'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
@@ -10,8 +10,11 @@ import { Button } from '@/components/ui/Button'
 export const LoginPage = () => {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
+  const location = useLocation()
 
-  const { status, isAuthenticated, error } = useAppSelector((s) => s.auth)
+  const from = location.state?.from?.pathname || '/'
+
+  const { status, isAuthenticated, user, error } = useAppSelector((s) => s.auth)
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -25,15 +28,20 @@ export const LoginPage = () => {
     // Get reCAPTCHA token
     const recaptchaToken = await getRecaptchaToken('login')
 
-    dispatch(login({ email, password, recaptchaToken }))
+    try {
+      await dispatch(login({ email, password, recaptchaToken })).unwrap()
+      await dispatch(fetchMe()).unwrap()
+    } catch (err) {
+      // login failed → do NOT fetchMe
+    }
   }
 
   // Redirect after login success
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/', { replace: true })
+    if (isAuthenticated && user) {
+      navigate(from, { replace: true })
     }
-  }, [isAuthenticated, navigate])
+  }, [isAuthenticated, user, from, navigate])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
@@ -86,7 +94,11 @@ export const LoginPage = () => {
             </div>
           </div>
 
-          <Button type="submit" loading={isLoading} disabled={!isFormValid || isLoading} className="w-full">
+          <Button
+            type="submit"
+            loading={isLoading}
+            disabled={!isFormValid || isLoading}
+          >
             Login
           </Button>
         </form>

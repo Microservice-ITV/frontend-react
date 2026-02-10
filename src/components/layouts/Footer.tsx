@@ -1,26 +1,30 @@
 import { Link } from 'react-router-dom'
-
-// Assets
-import visa from '@/assets/images/payments/visa.jpeg'
-import mastercard from '@/assets/images/payments/mastercard.jpeg'
-import shopeepay from '@/assets/images/payments/shopeepay.jpeg'
-
-import ninjavan from '@/assets/images/logistics/ninjavan.jpeg'
-import jtexpress from '@/assets/images/logistics/jtexpress.jpeg'
-import spx from '@/assets/images/logistics/spx.jpeg'
-
-import facebook from '@/assets/images/social/facebook.jpeg'
-import instagram from '@/assets/images/social/instagram.jpeg'
-import linkedin from '@/assets/images/social/linkedin.jpeg'
-
-import qr from '@/assets/images/app/app-qr.jpeg'
-import appstore from '@/assets/images/app/appstore.jpeg'
-import googleplay from '@/assets/images/app/googleplay.jpeg'
-import appgallery from '@/assets/images/app/appgallery.jpeg'
+// SOCIAL
+import {
+    facebookIcon,
+    instagramIcon,
+    linkedIcon,
+  
+    // PAYMENTS
+    visaIcon,
+    masterCardIcon,
+    shopPayIcon,
+  
+    // LOGISTICS
+    ninjavanIcon,
+    jtExpressIcon,
+    spxIcon,
+  
+    // APP
+    qrIcon,
+    appStoreIcon,
+    googlePlayIcon,
+    appGalleryIcon,
+} from '@/assets/icons'
 
 const Footer = () => {
     return (
-        <footer className="bg-gray-100 text-xs text-gray-600 border-t">
+        <footer className="bg-gray-100 text-xs text-gray-600 border-t-4 border-[#ee4d2d] mt-5">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10">
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
 
@@ -68,7 +72,7 @@ const Footer = () => {
                             PAYMENT
                         </h3>
                         <div className="flex flex-wrap gap-2 mb-6">
-                            {[visa, mastercard, shopeepay].map((img, i) => (
+                            {[visaIcon, masterCardIcon, shopPayIcon].map((img, i) => (
                                 <img key={i} src={img} alt="Payment" className="h-6" />
                             ))}
                         </div>
@@ -77,7 +81,7 @@ const Footer = () => {
                             LOGISTICS
                         </h3>
                         <div className="flex flex-wrap gap-2">
-                            {[ninjavan, jtexpress, spx].map((img, i) => (
+                            {[ninjavanIcon, jtExpressIcon, spxIcon].map((img, i) => (
                                 <img key={i} src={img} alt="Logistics" className="h-6" />
                             ))}
                         </div>
@@ -90,15 +94,15 @@ const Footer = () => {
                         </h3>
                         <ul className="space-y-3">
                             <li className="flex items-center gap-2">
-                                <img src={facebook} className="h-4" />
+                                <img src={facebookIcon} className="h-4" />
                                 Facebook
                             </li>
                             <li className="flex items-center gap-2">
-                                <img src={instagram} className="h-4" />
+                                <img src={instagramIcon} className="h-4" />
                                 Instagram
                             </li>
                             <li className="flex items-center gap-2">
-                                <img src={linkedin} className="h-4" />
+                                <img src={linkedIcon} className="h-4" />
                                 LinkedIn
                             </li>
                         </ul>
@@ -112,7 +116,7 @@ const Footer = () => {
                         <div className="flex items-start gap-4">
                             {/* QR Code */}
                             <img
-                                src={qr}
+                                src={qrIcon}
                                 alt="Ecommerce App QR Code"
                                 className="w-28 h-28 border"
                             />
@@ -120,17 +124,17 @@ const Footer = () => {
                             {/* App Store Badges */}
                             <div className="flex flex-col gap-5">
                                 <img
-                                    src={appstore}
+                                    src={appStoreIcon}
                                     alt="Download on App Store"
                                     className="w-28 cursor-pointer"
                                 />
                                 <img
-                                    src={googleplay}
+                                    src={googlePlayIcon}
                                     alt="Get it on Google Play"
                                     className="w-28 cursor-pointer"
                                 />
                                 <img
-                                    src={appgallery}
+                                    src={appGalleryIcon}
                                     alt="Download on AppGallery"
                                     className="w-28 cursor-pointer"
                                 />
@@ -142,7 +146,7 @@ const Footer = () => {
             </div>
 
             {/* Bottom Bar */}
-            <div className="border-t text-center py-4 text-xs text-gray-500">
+            <div className="border-t border-[var(--dni-cart-border)] text-center py-4 text-xs text-gray-500">
                 © 2026 Ecommerce Clone. All Rights Reserved.
             </div>
         </footer>

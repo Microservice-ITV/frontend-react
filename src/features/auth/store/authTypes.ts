@@ -16,6 +16,8 @@ export interface AuthState {
     user: User | null
     accessToken: string | null
     isAuthenticated: boolean
+    hasSession: boolean
+    initialized: boolean 
     status: 'idle' | 'loading' | 'succeeded' | 'failed'
     error: string | null
 }

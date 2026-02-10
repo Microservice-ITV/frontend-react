@@ -115,7 +115,6 @@ export const RegisterPage = () => {
             type="submit"
             loading={isLoading}
             disabled={!isFormValid || isLoading}
-            className="w-full bg-black text-white hover:bg-gray-800"
           >
             Create Account
           </Button>

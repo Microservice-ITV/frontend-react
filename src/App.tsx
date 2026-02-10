@@ -1,26 +1,26 @@
 import { useEffect } from 'react'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
-import { fetchMe } from '@/features/auth/store/authThunks'
+import { bootstrapAuth } from '@/features/auth/store/authThunks'
 import Navbar from '@/components/layouts/Navbar'
 import Footer from '@/components/layouts/Footer'
 import AppRoutes from '@/routes/AppRoutes'
 import HeaderSpacer from './components/layouts/HeaderSpacer'
+import { selectAuthStatus } from './features/auth/store/authSelectors'
 
 function App() {
   const dispatch = useAppDispatch() // Typed dispatch function to send actions
-  const { accessToken, status } = useAppSelector((state) => state.auth) // Reads auth state from Redux store
+  const status = useAppSelector(selectAuthStatus) // Reads auth state from Redux store
 
   /**
-   * Rehydrate auth on app load
-   * - If accessToken exists → try /me
-   * - If token expired → interceptor refreshes automatically
-   * - If refresh fails → user stays logged out
-   */
+   * Bootstrap authentication on app load
+   * - Checks for existing access token (In Cookies)
+   * - Attempts to fetch current user (/me)
+   * - If access token is expired, Axios interceptor attempts refresh
+   * - If refresh fails, auth state resets to unauthenticated
+ */
   useEffect(() => {
-    if (accessToken) {
-      dispatch(fetchMe()) // Fetch user data
-    }
-  }, [accessToken, dispatch])
+    dispatch(bootstrapAuth())
+  }, [dispatch])
 
   /**
    * Prevent UI flicker during authentication bootstrap

@@ -5,17 +5,8 @@ const ProductCard = ({ product }: { product: Product }) => {
   return (
     <div
       className="
-        group
-        relative
-        box-content
-        border border-[var(--dni-border)]
-        rounded-[6px]
-        bg-white
-        transition-all duration-100
-        hover:border-[var(--dni-primary)]
-        hover:shadow-md
-        hover:-translate-y-[1px]
-        hover:z-[10]"
+        group relative box-content border border-[var(--dni-border)] rounded-[6px] bg-white transition-all
+        duration-100 hover:border-[var(--dni-primary)] hover:shadow-md hover:-translate-y-[1px] hover:z-[10]"
     >
       {/* MAIN CARD */}
       <Link to={`/products/${product.id}`} className="contents">
@@ -23,7 +14,7 @@ const ProductCard = ({ product }: { product: Product }) => {
           {/* IMAGE */}
           <div className="relative w-full pt-[100%] bg-gray-100">
             <img
-              src={product.images}
+              src={product.images?.[0] ?? '/placeholder.png'}
               alt={product.name}
               className="absolute inset-0 w-full h-full object-contain pointer-events-none"
               loading="lazy"
@@ -57,22 +48,9 @@ const ProductCard = ({ product }: { product: Product }) => {
       <Link
         to={`/find-similar/${product.id}`}
         className="
-          absolute
-          left-[-1px]
-          top-[calc(100%-6px)]
-          w-[calc(100%+2px)]
-          h-[30px]
-          bg-[var(--dni-primary)]
-          text-white
-          text-center
-          text-sm
-          leading-[30px]
-          border border-[var(--dni-primary)]
-          rounded-b-sm
-          opacity-0
-          group-hover:opacity-100
-          transition-opacity duration-100
-          z-[-1]"
+          absolute left-[-1px] top-[calc(100%-6px)] w-[calc(100%+2px)] h-[30px] bg-[var(--dni-primary)] 
+          text-white text-center text-sm leading-[30px] border border-[var(--dni-primary)] rounded-b-sm 
+          opacity-0 group-hover:opacity-100 transition-opacity duration-100 z-[-1]"
       >
         Find Similar
       </Link>

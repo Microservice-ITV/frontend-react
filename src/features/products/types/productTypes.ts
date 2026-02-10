@@ -12,17 +12,23 @@ export interface ProductDetail {
   id: string
   name: string
   slug: string
-  price: number
-  images: string[]
   description?: string
   sku?: string
   stock?: number
+  price: number
+  images: string[]
   categoryId: string
   category?: {
     id: string
     name: string
     slug: string
     parentId: string | null
+  }
+
+  shop: {
+    id: string
+    name: string
+    slug: string
   }
 }
 
