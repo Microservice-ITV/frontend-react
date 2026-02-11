@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { bootstrapAuth } from '@/features/auth/store/authThunks'
-import Navbar from '@/components/layouts/Navbar'
+import Navbar from '@/components/layouts/navbar/Navbar'
 import Footer from '@/components/layouts/Footer'
 import AppRoutes from '@/routes/AppRoutes'
 import HeaderSpacer from './components/layouts/HeaderSpacer'
