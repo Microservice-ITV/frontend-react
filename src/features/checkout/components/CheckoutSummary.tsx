@@ -1,6 +1,17 @@
-import React from 'react'
+import { CheckoutTotals } from '../utils/checkoutCalculator'
 
-const CheckoutSummary = () => {
+interface CheckoutSummaryProps {
+  checkout: CheckoutTotals
+}
+
+const CheckoutSummary = ({ checkout }: CheckoutSummaryProps) => {
+  const {
+    merchandiseSubtotal,
+    shippingSubtotal,
+    shippingDiscount,
+    totalPayment,
+  } = checkout
+
   return (
     <div className="bg-[#fffefb] border-t border-dashed border-black/10 px-6 py-6">
       {/* Summary rows */}
@@ -10,19 +21,19 @@ const CheckoutSummary = () => {
           {/* Merchandise */}
           <div className="flex justify-between mb-3">
             <span className="text-gray-600">Merchandise Subtotal</span>
-            <span className="text-gray-900">$3,803.90</span>
+            <span className="text-gray-900">${merchandiseSubtotal.toFixed(2)}</span>
           </div>
 
           {/* Shipping */}
           <div className="flex justify-between mb-3">
             <span className="text-gray-600">Shipping Subtotal</span>
-            <span className="text-gray-900">$3.98</span>
+            <span className="text-gray-900">${shippingSubtotal.toFixed(2)}</span>
           </div>
 
           {/* Discount */}
           <div className="flex justify-between mb-4">
             <span className="text-gray-600">Shipping Discount Subtotal</span>
-            <span className="text-[#ee4d2d]">-$1.99</span>
+            <span className="text-[#ee4d2d]">-{shippingDiscount.toFixed(2)}</span>
           </div>
 
           {/* Total */}
@@ -31,7 +42,7 @@ const CheckoutSummary = () => {
               Total Payment:
             </span>
             <span className="text-3xl font-semibold text-[#ee4d2d] text-center md:text-right">
-              $3,805.89
+              ${totalPayment.toFixed(2)}
             </span>
           </div>
 

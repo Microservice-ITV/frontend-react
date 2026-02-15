@@ -11,11 +11,8 @@ const CheckoutPayment = () => {
         {/* RIGHT */}
         <div className="flex flex-wrap gap-3">
           {[
-            { label: 'Cash on Delivery' },
-            { label: 'Google Pay', disabled: true },
-            { label: 'Credit/Debit Card', selected: true },
-            { label: 'Credit Card Installment', disabled: true },
-            { label: 'Apple Pay', disabled: true },
+            { label: 'Stripe Payment', selected: true },
+            { label: 'Cash on Delivery', disabled: true },
           ].map(({ label, disabled, selected }) => (
             <button
               key={label}
@@ -43,7 +40,6 @@ const CheckoutPayment = () => {
       </div>
 
       {/* ROW 2 — Voucher */}
-      {/* <div className="grid grid-cols-[220px_1fr] px-6 py-5 border-b border-black/5"> */}
       <div className="flex flex-col md:grid md:grid-cols-[220px_1fr] px-4 md:px-6 py-5 gap-2">
         {/* LEFT */}
         <div className="text-gray-900 text-base font-medium">
@@ -59,7 +55,6 @@ const CheckoutPayment = () => {
       </div>
 
       {/* ROW 3 — Select payment account */}
-      {/* <div className="grid grid-cols-[220px_1fr] px-6 py-6"> */}
       <div className="flex flex-col md:grid md:grid-cols-[220px_1fr] px-4 md:px-6 py-5 gap-2">
         {/* LEFT */}
         <div className="text-gray-900 text-base font-medium">
@@ -78,7 +73,6 @@ const CheckoutPayment = () => {
             {/* Card */}
             <div className="flex items-center gap-3">
               <img
-                // src="https://spm.susercontent.com/api/v4/50092786/shopee_logo_bucket/static/images/credit_card_icon_visa@3x.png"
                 src={visaIcon}
                 className="w-12 h-8 object-contain"
               />
