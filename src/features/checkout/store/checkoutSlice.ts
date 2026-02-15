@@ -81,7 +81,7 @@ const checkoutSlice = createSlice({
                 if (action.payload.client_secret) {
                     state.clientSecret = action.payload.client_secret
                 }
-                if (['PAID', 'COMPLETED', 'FAILED', 'EXPIRED'].includes(action.payload.status)) {
+                if (['PAID', 'COMPLETED', 'FAILED', 'FAILED_PAYMENT', 'EXPIRED'].includes(action.payload.status)) {
                     state.isAwaitingFinalStatus = false
                 }
             })

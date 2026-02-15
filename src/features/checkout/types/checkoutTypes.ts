@@ -13,6 +13,7 @@ export type CheckoutPaymentStatus =
     | 'PAID'
     | 'COMPLETED'
     | 'FAILED'
+    | 'FAILED_PAYMENT'
     | 'EXPIRED'
 
 export interface CheckoutStatusResponse {

@@ -72,7 +72,7 @@ const CheckoutSummary = ({ checkout }: CheckoutSummaryProps) => {
   const isTerminal =
     paymentStatus === 'PAID' ||
     paymentStatus === 'COMPLETED' ||
-    paymentStatus === 'FAILED' ||
+    paymentStatus === 'FAILED_PAYMENT' ||
     paymentStatus === 'EXPIRED'
 
   const canPlaceOrder =
@@ -163,7 +163,7 @@ const CheckoutSummary = ({ checkout }: CheckoutSummaryProps) => {
             ? error
             : paymentStatus === 'PAID' || paymentStatus === 'COMPLETED'
               ? 'Order completed successfully.'
-              : paymentStatus === 'FAILED'
+              : paymentStatus === 'FAILED_PAYMENT'
                 ? 'Payment failed. Please try again.'
                 : paymentStatus === 'EXPIRED'
                   ? 'Checkout expired. Please start a new checkout.'

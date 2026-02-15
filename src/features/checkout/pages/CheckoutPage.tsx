@@ -34,7 +34,7 @@ const CheckoutPage = () => {
             return
         }
 
-        const terminalStatuses = new Set(['PAID', 'COMPLETED', 'FAILED', 'EXPIRED'])
+        const terminalStatuses = new Set(['PAID', 'COMPLETED', 'FAILED', 'FAILED_PAYMENT', 'EXPIRED'])
         if (paymentStatus && terminalStatuses.has(paymentStatus)) {
             return
         }
