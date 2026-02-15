@@ -1,7 +1,7 @@
 // Types => Type Definitions
 // User shape returned by /me
 export interface User {
-    id: number
+    id: string
     name: string
     email: string
 }
