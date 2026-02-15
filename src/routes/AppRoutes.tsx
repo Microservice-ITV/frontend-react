@@ -21,8 +21,8 @@ const AppRoutes = () => {
             {/* Protected routes */}
             <Route element={<ProtectedRoute />}>
                 <Route path="/account" element={<div>My Account</div>} />
-                <Route path="/checkout" element={<CheckoutPage />} />
                 <Route path="/checkout/success" element={<CheckoutSuccessPage />} />
+                <Route path="/checkout" element={<CheckoutPage />} />
             </Route>
 
             {/* Public routes */}

@@ -1,6 +1,18 @@
 import { Link } from 'react-router-dom'
+import { useEffect } from 'react'
+import { useAppDispatch } from '@/app/hooks'
+import { removeSelectedItems } from '@/features/cart/store/cartSlice'
+import { clearCheckout } from '../store/checkoutSlice'
 
 const CheckoutSuccessPage = () => {
+  const dispatch = useAppDispatch()
+
+  useEffect(() => {
+    // Clear purchased items and transient checkout session when success page opens.
+    dispatch(removeSelectedItems())
+    dispatch(clearCheckout())
+  }, [dispatch])
+
   return (
     <div className="max-w-[1200px] mx-auto px-4 sm:px-4 py-10">
       <div className="bg-white border border-black/5 rounded p-8 text-center">

@@ -3,6 +3,13 @@ import type { RootState } from '@/app/store'
 import { orderService } from '@/services/orderService'
 import { CheckoutResponse, CheckoutStatusResponse } from '../types/checkoutTypes';
 
+const generateIdempotencyKey = (userId: string) => {
+    if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+        return crypto.randomUUID()
+    }
+    return `checkout-${userId}-${Date.now()}`
+}
+
 export const checkoutCart = createAsyncThunk<
     CheckoutResponse,
     void,
@@ -25,8 +32,8 @@ export const checkoutCart = createAsyncThunk<
         }
 
         try {
-            // const idempotencyKey = crypto.randomUUID()
-            const idempotencyKey = `${userId}-${JSON.stringify(selectedItems)}`
+            // Keep idempotency key short (<255) to satisfy backend validation.
+            const idempotencyKey = generateIdempotencyKey(String(userId))
 
             const response = await orderService.createCheckoutSession({
                 idempotency_key: idempotencyKey,
@@ -68,7 +75,6 @@ export const fetchCheckoutStatus = createAsyncThunk<
         try {
             const response = await orderService.getCheckoutSession(checkoutId)
 
-            console.log('response.data', response.data)
             // Support both:
             // 1) { checkout_id, status, client_secret, ... }
             // 2) { success, data: { checkout_id, status, client_secret, ... } }

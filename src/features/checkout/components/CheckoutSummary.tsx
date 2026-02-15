@@ -16,7 +16,7 @@ const CheckoutSummary = ({ checkout }: CheckoutSummaryProps) => {
   const dispatch = useAppDispatch()
   const stripe = useStripe()
   const elements = useElements()
-  const { clientSecret, paymentStatus, isPlacingOrder, error } = useAppSelector(
+  const { clientSecret, paymentStatus, isPlacingOrder, isAwaitingFinalStatus, error } = useAppSelector(
     state => state.checkout
   )
 
@@ -78,6 +78,7 @@ const CheckoutSummary = ({ checkout }: CheckoutSummaryProps) => {
   const canPlaceOrder =
     !!clientSecret &&
     !isPlacingOrder &&
+    !isAwaitingFinalStatus &&
     !isTerminal &&
     (!paymentStatus ||
       paymentStatus === 'PAYMENT_INTENT_READY' ||
@@ -148,7 +149,11 @@ const CheckoutSummary = ({ checkout }: CheckoutSummaryProps) => {
           disabled={!canPlaceOrder}
           className="w-full md:w-auto px-12 py-3 bg-[#ee4d2d] text-white text-base font-medium rounded hover:bg-[#d73211] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {isPlacingOrder ? 'Processing...' : 'Place Order'}
+          {isPlacingOrder
+            ? 'Processing...'
+            : isAwaitingFinalStatus
+              ? 'Waiting confirmation...'
+              : 'Place Order'}
         </button>
       </div>
 
