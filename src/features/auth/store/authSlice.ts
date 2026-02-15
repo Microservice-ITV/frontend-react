@@ -1,12 +1,14 @@
 // Slice => State & Reducers
 import { createSlice } from '@reduxjs/toolkit'
-import { login, register, fetchMe, refreshAccessToken, logout } from './authThunks'
+import { login, register, fetchMe, refreshAccessToken, logout, bootstrapAuth } from './authThunks'
 import type { AuthState } from './authTypes'
 
 const initialState: AuthState = {
   user: null,
   accessToken: null,
   isAuthenticated: false,
+  hasSession: false,
+  initialized: false,
   status: 'idle',
   error: null,
 }
@@ -14,7 +16,21 @@ const initialState: AuthState = {
 const authSlice = createSlice({
   name: 'auth',
   initialState,
-  reducers: {},
+  reducers: {
+    setHasSession(state, action) {
+      state.hasSession = action.payload
+    },
+
+    markInitialized(state) {
+      state.initialized = true
+    },
+    forceLogout(state) {
+      state.user = null
+      state.accessToken = null
+      state.isAuthenticated = false
+      state.hasSession = false
+    },
+  },
   extraReducers: (builder) => {
     builder
       // ================= LOGIN =================
@@ -24,6 +40,7 @@ const authSlice = createSlice({
       .addCase(login.fulfilled, (state, action) => {
         state.accessToken = action.payload.accessToken
         state.isAuthenticated = true
+        state.hasSession = true
         state.status = 'succeeded'
       })
       .addCase(login.rejected, (state, action) => {
@@ -35,6 +52,7 @@ const authSlice = createSlice({
       .addCase(register.fulfilled, (state, action) => {
         state.accessToken = action.payload.accessToken
         state.isAuthenticated = true
+        state.hasSession = true
       })
 
       // ================= FETCH USER =================
@@ -44,12 +62,35 @@ const authSlice = createSlice({
 
       // ================= REFRESH TOKEN =================
       .addCase(refreshAccessToken.fulfilled, (state, action) => {
-        state.accessToken = action.payload.accessToken
+        state.accessToken = action.payload
+        state.isAuthenticated = Boolean(action.payload)
+      })
+      .addCase(refreshAccessToken.rejected, (state) => {
+        state.accessToken = null
+        state.isAuthenticated = false
       })
 
       // ================= LOGOUT =================
-      .addCase(logout.fulfilled, () => initialState)
+      .addCase(logout.fulfilled, (state) => {
+        return {
+          ...initialState,
+          hasSession: false,
+        }
+      })
+
+      // ================= AUTH BOOTSTRAP =================
+      .addCase(bootstrapAuth.pending, (state) => {
+        state.status = 'loading'
+      })
+      .addCase(bootstrapAuth.fulfilled, (state) => {
+        state.status = 'succeeded'
+        state.initialized = true
+      })
+      .addCase(bootstrapAuth.rejected, (state) => {
+        state.initialized = true
+      })
   },
 })
 
+export const { setHasSession, markInitialized } = authSlice.actions
 export default authSlice.reducer

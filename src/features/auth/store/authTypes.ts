@@ -1,7 +1,7 @@
 // Types => Type Definitions
 // User shape returned by /me
 export interface User {
-    id: number
+    id: string
     name: string
     email: string
 }
@@ -16,6 +16,8 @@ export interface AuthState {
     user: User | null
     accessToken: string | null
     isAuthenticated: boolean
+    hasSession: boolean
+    initialized: boolean 
     status: 'idle' | 'loading' | 'succeeded' | 'failed'
     error: string | null
 }
