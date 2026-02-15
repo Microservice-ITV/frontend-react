@@ -1,7 +1,7 @@
 import { createAsyncThunk } from '@reduxjs/toolkit'
 import type { RootState } from '@/app/store'
 import { orderService } from '@/services/orderService'
-import { CheckoutResponse } from '../types/checkoutTypes';
+import { CheckoutResponse, CheckoutStatusResponse } from '../types/checkoutTypes';
 
 export const checkoutCart = createAsyncThunk<
     CheckoutResponse,
@@ -56,4 +56,35 @@ export const checkoutCart = createAsyncThunk<
           return true
         },
       }
+)
+
+export const fetchCheckoutStatus = createAsyncThunk<
+    CheckoutStatusResponse,
+    string,
+    { rejectValue: string }
+>(
+    'checkout/fetchStatus',
+    async (checkoutId, { rejectWithValue }) => {
+        try {
+            const response = await orderService.getCheckoutSession(checkoutId)
+
+            console.log('response.data', response.data)
+            // Support both:
+            // 1) { checkout_id, status, client_secret, ... }
+            // 2) { success, data: { checkout_id, status, client_secret, ... } }
+            const payload = response.data?.data ?? response.data
+
+            return {
+                checkout_id: payload.checkout_id ?? checkoutId,
+                status: payload.status ?? 'PROCESSING',
+                client_secret: payload.client_secret ?? payload.payment?.client_secret,
+                expire_at: payload.expire_at ?? null,
+                message: payload.message,
+            }
+        } catch (error: any) {
+            return rejectWithValue(
+                error.response?.data?.error ?? 'Failed to fetch checkout status'
+            )
+        }
+    }
 )

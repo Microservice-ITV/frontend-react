@@ -1,4 +1,5 @@
 import { visaIcon } from '@/assets/icons'
+import { CardElement } from '@stripe/react-stripe-js'
 
 const CheckoutPayment = () => {
   return (
@@ -86,6 +87,24 @@ const CheckoutPayment = () => {
             <span className="text-lg leading-none">+</span>
             Pay With New Card
           </button>
+
+          {/* Stripe secure card input (keeps existing layout, adds real payment field) */}
+          <div className="mt-4 border rounded px-4 py-3">
+            <CardElement
+              options={{
+                hidePostalCode: true,
+                style: {
+                  base: {
+                    fontSize: '14px',
+                    color: '#111827',
+                    '::placeholder': {
+                      color: '#9ca3af',
+                    },
+                  },
+                },
+              }}
+            />
+          </div>
         </div>
       </div>
     </div>
