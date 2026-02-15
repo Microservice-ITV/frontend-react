@@ -4,8 +4,10 @@ import CheckoutItems from '../components/CheckoutItems'
 import CheckoutPayment from '../components/CheckoutPayment'
 import CheckoutSummary from '../components/CheckoutSummary'
 import { selectSelectedItems } from '@/features/cart/store/cartSelectors'
+import { removeSelectedItems } from '@/features/cart/store/cartSlice'
 import { calculateCheckout } from '../utils/checkoutCalculator'
 import { checkoutCart, fetchCheckoutStatus } from '@/features/checkout/store/checkoutThunks'
+import { clearCheckout } from '@/features/checkout/store/checkoutSlice'
 import { useEffect } from 'react'
 import { Elements } from '@stripe/react-stripe-js'
 import { stripePromise } from '@/lib/stripe'
@@ -61,9 +63,13 @@ const CheckoutPage = () => {
 
     useEffect(() => {
         if (paymentStatus === 'PAID' || paymentStatus === 'COMPLETED') {
+            // Payment is finalized by backend; clear checked-out items from cart.
+            dispatch(removeSelectedItems())
+            // Reset transient checkout session state.
+            dispatch(clearCheckout())
             navigate('/checkout/success', { replace: true })
         }
-    }, [paymentStatus, navigate])
+    }, [dispatch, paymentStatus, navigate])
 
     return (
         <Elements stripe={stripePromise}>
