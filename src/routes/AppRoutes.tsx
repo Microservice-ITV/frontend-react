@@ -7,6 +7,7 @@ import ProductListPage from '@/features/products/pages/ProductListPage'
 import ProductDetailPage from '@/features/products/pages/ProductDetailPage'
 import CartPage from '@/features/cart/pages/CartPage'
 import CheckoutPage from '@/features/checkout/pages/CheckoutPage'
+import CheckoutSuccessPage from '@/features/checkout/pages/CheckoutSuccessPage'
 
 const AppRoutes = () => {
     return (
@@ -20,6 +21,7 @@ const AppRoutes = () => {
             {/* Protected routes */}
             <Route element={<ProtectedRoute />}>
                 <Route path="/account" element={<div>My Account</div>} />
+                <Route path="/checkout/success" element={<CheckoutSuccessPage />} />
                 <Route path="/checkout" element={<CheckoutPage />} />
             </Route>
 

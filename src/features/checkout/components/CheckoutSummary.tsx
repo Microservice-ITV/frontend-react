@@ -1,10 +1,90 @@
 import { CheckoutTotals } from '../utils/checkoutCalculator'
+import { useAppDispatch, useAppSelector } from '@/app/hooks'
+import { CardElement, useElements, useStripe } from '@stripe/react-stripe-js'
+import {
+  setAwaitingFinalStatus,
+  setCheckoutError,
+  setCheckoutPaymentStatus,
+  setCheckoutPlacingOrder,
+} from '../store/checkoutSlice'
 
 interface CheckoutSummaryProps {
   checkout: CheckoutTotals
 }
 
 const CheckoutSummary = ({ checkout }: CheckoutSummaryProps) => {
+  const dispatch = useAppDispatch()
+  const stripe = useStripe()
+  const elements = useElements()
+  const { clientSecret, paymentStatus, isPlacingOrder, isAwaitingFinalStatus, error } = useAppSelector(
+    state => state.checkout
+  )
+
+  const user = useAppSelector(state => state.auth.user)
+
+  const handlePlaceOrder = async () => {
+    if (!stripe || !elements || !clientSecret) {
+      dispatch(setCheckoutError('Payment is not ready yet.'))
+      return
+    }
+
+    const card = elements.getElement(CardElement)
+    if (!card) {
+      dispatch(setCheckoutError('Card input is not available.'))
+      return
+    }
+
+    dispatch(setCheckoutError(null))
+    dispatch(setCheckoutPlacingOrder(true))
+
+
+    try {
+      const result = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: {
+          card,
+          billing_details: {
+            name: user?.name,
+            email: user?.email,
+          },
+        },
+      })
+
+      // Payment final state is webhook-driven; polling updates checkout status in store.
+      if (result.error) {
+        dispatch(setCheckoutError(result.error.message ?? 'Payment confirmation failed.'))
+        dispatch(setAwaitingFinalStatus(false))
+        dispatch(setCheckoutPlacingOrder(false))
+        return
+      }
+
+      // Switch to awaiting-final-status mode so checkout page resumes polling.
+      dispatch(setCheckoutPaymentStatus('PAYMENT_PENDING_CONFIRMATION'))
+      dispatch(setAwaitingFinalStatus(true))
+      dispatch(setCheckoutError(null))
+      dispatch(setCheckoutPlacingOrder(false))
+    } catch {
+      dispatch(setCheckoutError('Unable to confirm payment. Please try again.'))
+      dispatch(setAwaitingFinalStatus(false))
+      dispatch(setCheckoutPlacingOrder(false))
+    }
+  }
+
+  const isTerminal =
+    paymentStatus === 'PAID' ||
+    paymentStatus === 'COMPLETED' ||
+    paymentStatus === 'FAILED_PAYMENT' ||
+    paymentStatus === 'EXPIRED'
+
+  const canPlaceOrder =
+    !!clientSecret &&
+    !isPlacingOrder &&
+    !isAwaitingFinalStatus &&
+    !isTerminal &&
+    (!paymentStatus ||
+      paymentStatus === 'PAYMENT_INTENT_READY' ||
+      paymentStatus === 'PAYMENT_PENDING_CONFIRMATION' ||
+      paymentStatus === 'PENDING_PAYMENT')
+
   const {
     merchandiseSubtotal,
     shippingSubtotal,
@@ -64,9 +144,33 @@ const CheckoutSummary = ({ checkout }: CheckoutSummaryProps) => {
 
       {/* Place order */}
       <div className="mt-6 flex justify-end">
-        <button className="w-full md:w-auto px-12 py-3 bg-[#ee4d2d] text-white text-base font-medium rounded hover:bg-[#d73211] cursor-pointer">
-          Place Order
+        <button
+          onClick={() => void handlePlaceOrder()}
+          disabled={!canPlaceOrder}
+          className="w-full md:w-auto px-12 py-3 bg-[#ee4d2d] text-white text-base font-medium rounded hover:bg-[#d73211] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {isPlacingOrder
+            ? 'Processing...'
+            : isAwaitingFinalStatus
+              ? 'Waiting confirmation...'
+              : 'Place Order'}
         </button>
+      </div>
+
+      <div className="mt-2 flex justify-end">
+        <p className="text-xs text-gray-500">
+          {error
+            ? error
+            : paymentStatus === 'PAID' || paymentStatus === 'COMPLETED'
+              ? 'Order completed successfully.'
+              : paymentStatus === 'FAILED_PAYMENT'
+                ? 'Payment failed. Please try again.'
+                : paymentStatus === 'EXPIRED'
+                  ? 'Checkout expired. Please start a new checkout.'
+                  : clientSecret
+                    ? 'Payment ready. You can place your order.'
+                    : 'Preparing payment...'}
+        </p>
       </div>
     </div>
   )
