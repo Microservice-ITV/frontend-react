@@ -3,7 +3,7 @@ import { createAsyncThunk } from '@reduxjs/toolkit'
 import { authService } from '@/services/authService'
 import type { User, TokenPayload, AuthState } from './authTypes'
 import { markInitialized, setHasSession } from './authSlice'
-import { hasSessionCookie } from '@/utils/session'
+import { hasSessionCookie, setSessionCookie, clearSessionCookie } from '@/utils/session'
 import axios from 'axios'
 import { AUTH_SERVICE_BASE_URL } from '@/lib/api/apiConfig'
 
@@ -15,7 +15,7 @@ export const login = createAsyncThunk<
 >('auth/login', async (data, { dispatch, rejectWithValue }) => {
     try {
         const res = await authService.login(data)
-
+        setSessionCookie()
         return { accessToken: res.data.data.access_token }
     } catch {
         return rejectWithValue('Invalid credentials')
@@ -31,7 +31,7 @@ export const register = createAsyncThunk<
 >('auth/register', async (data, { rejectWithValue }) => {
     try {
         const res = await authService.register(data)
-
+        setSessionCookie()
         return {
             accessToken: res.data.data.access_token,
         }
@@ -79,10 +79,13 @@ export const refreshAccessToken = createAsyncThunk<
             return null
         }
 
+        setSessionCookie()
         dispatch(fetchMe())
 
         return accessToken
     } catch {
+        clearSessionCookie()
+        dispatch(setHasSession(false))
         return null
     }
 })
@@ -93,6 +96,7 @@ export const refreshAccessToken = createAsyncThunk<
 export const logout = createAsyncThunk(
     'auth/logout',
     async () => {
+        clearSessionCookie()
         try {
             await axios.post(
                 `${AUTH_SERVICE_BASE_URL}/logout`,

@@ -24,6 +24,12 @@ const authSlice = createSlice({
     markInitialized(state) {
       state.initialized = true
     },
+
+    setAccessToken(state, action) {
+      state.accessToken = action.payload
+      state.isAuthenticated = Boolean(action.payload)
+    },
+
     forceLogout(state) {
       state.user = null
       state.accessToken = null
@@ -92,5 +98,5 @@ const authSlice = createSlice({
   },
 })
 
-export const { setHasSession, markInitialized } = authSlice.actions
+export const { setHasSession, markInitialized, setAccessToken } = authSlice.actions
 export default authSlice.reducer

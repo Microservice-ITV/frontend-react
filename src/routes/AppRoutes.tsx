@@ -1,6 +1,8 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { LoginPage } from '@/features/auth/pages/LoginPage'
 import { RegisterPage } from '@/features/auth/pages/RegisterPage'
+import OAuthSuccessPage from '@/features/auth/pages/OAuthSuccessPage'
+import OAuthErrorPage from '@/features/auth/pages/OAuthErrorPage'
 import { GuestRoute, ProtectedRoute } from './RouteGuards'
 import HomePage from '@/features/home/HomePage'
 import ProductListPage from '@/features/products/pages/ProductListPage'
@@ -26,6 +28,8 @@ const AppRoutes = () => {
             </Route>
 
             {/* Public routes */}
+            <Route path="/oauth-success" element={<OAuthSuccessPage />} />
+            <Route path="/oauth-error" element={<OAuthErrorPage />} />
             <Route path="/" element={<HomePage />} />
             <Route path="/categories/:id" element={<ProductListPage />} />
             <Route path="/products/:id" element={<ProductDetailPage />} />
