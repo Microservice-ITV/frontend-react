@@ -15,6 +15,8 @@ export { default as visaIcon } from './payments/visa.jpeg'
 export { default as facebookIcon } from './social/facebook.jpeg'
 export { default as instagramIcon } from './social/instagram.jpeg'
 export { default as linkedIcon } from './social/linkedin.jpeg'
+export { default as socialFacebookIcon } from './social/social_facebook.svg'
+export { default as socialGoogleIcon } from './social/social_google.svg'
 
 
 // APPLICATIONS

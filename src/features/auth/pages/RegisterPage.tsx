@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { register } from '@/features/auth/store/authThunks'
@@ -6,6 +6,7 @@ import { getRecaptchaToken } from '@/utils/recaptcha'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
+import SocialAuthSection from '@/features/auth/components/SocialAuthSection'
 
 export const RegisterPage = () => {
   const dispatch = useAppDispatch()
@@ -30,27 +31,22 @@ export const RegisterPage = () => {
     }
 
     try {
-      // Get reCAPTCHA token
       const recaptchaToken = await getRecaptchaToken('register')
       if (!recaptchaToken) return
 
-      dispatch(
+      await dispatch(
         register({ ...normalizedForm, recaptchaToken })
-      )
+      ).unwrap()
+
+      // Only redirect when registration actually succeeded in this flow
+      navigate('/login', { replace: true })
     } catch {
       // optional: local error handling
     }
   }
 
-  // Redirect to login after successful registration
-  useEffect(() => {
-    if (status === 'succeeded') {
-      navigate('/login', { replace: true })
-    }
-  }, [status, navigate])
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen bg-gray-50 px-4 pt-8 pb-12 flex flex-col items-center">
       <Card className="w-full max-w-md p-8">
         {/* Title */}
         <h1 className="text-2xl font-semibold text-gray-900 text-center">Create an account</h1>
@@ -118,6 +114,9 @@ export const RegisterPage = () => {
           >
             Create Account
           </Button>
+
+          {/* Social Register */}
+          <SocialAuthSection />
         </form>
 
         {/* Footer */}

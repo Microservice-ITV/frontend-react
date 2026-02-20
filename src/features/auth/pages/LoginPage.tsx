@@ -6,6 +6,7 @@ import { getRecaptchaToken } from '@/utils/recaptcha'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
+import SocialAuthSection from '../components/SocialAuthSection'
 
 export const LoginPage = () => {
   const dispatch = useAppDispatch()
@@ -44,7 +45,7 @@ export const LoginPage = () => {
   }, [isAuthenticated, user, from, navigate])
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen bg-gray-50 px-4 pt-8 pb-12 flex flex-col items-center">
       <Card className="w-full max-w-md p-8">
         <h1 className="text-2xl font-semibold text-gray-900 text-center">
           Welcome back
@@ -101,6 +102,9 @@ export const LoginPage = () => {
           >
             Login
           </Button>
+
+          {/* Social Login */}
+          <SocialAuthSection />
         </form>
 
         <p className="mt-6 text-sm text-center text-gray-600">
