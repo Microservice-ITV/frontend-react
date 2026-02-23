@@ -11,19 +11,33 @@ const SocialAuthSection = () => {
         const left = Math.round((window.screen.width - POPUP_WIDTH) / 2)
         const top = Math.round((window.screen.height - POPUP_HEIGHT) / 2)
         const features = [
+            'popup=yes',
             `width=${POPUP_WIDTH}`,
             `height=${POPUP_HEIGHT}`,
             `left=${left}`,
             `top=${top}`,
-            'resizable=yes',
+            'toolbar=no',
+            'menubar=no',
+            'location=no',
+            'status=no',
             'scrollbars=yes',
+            'resizable=yes',
         ].join(',')
 
-        const popup = window.open(url, 'oauthPopup', features)
+        // Chrome often opens a new tab when the URL is cross-origin. Opening about:blank
+        // first with features can yield a real popup; then we navigate it to the OAuth URL.
+        const popup = window.open('about:blank', 'oauthPopup', features)
         if (popup) {
+            try {
+                popup.location.href = url
+            } catch {
+                // Cross-origin assign can throw; fallback to full redirect
+                popup.close()
+                window.location.href = url
+            }
             popup.focus()
         } else {
-            // Popup blocked – gracefully fall back to full redirect
+            // Popup blocked – fall back to full-page redirect
             window.location.href = url
         }
     }
