@@ -63,19 +63,17 @@ export const refreshAccessToken = createAsyncThunk<
     string | null,
     void,
     { state: { auth: AuthState } }
->('auth/refresh', async (_, { getState, dispatch }) => {
-    const { hasSession } = getState().auth
-
-    // NO SESSION → DO NOTHING (expected on first load)
-    if (!hasSession) {
-        return null
-    }
-
+>('auth/refresh', async (_, { dispatch }) => {
+    // Always call the API; backend returns 204 when no/invalid refresh_token cookie.
+    // This way we don't depend on has_session cookie (which may expire before refresh_token).
     try {
         const res = await authService.refresh()
-        const accessToken = res.data.data.access_token
+        // Backend returns 204 (no body) when refresh_token cookie is missing or invalid
+        const accessToken = res.data?.data?.access_token
 
         if (!accessToken) {
+            clearSessionCookie()
+            dispatch(setHasSession(false))
             return null
         }
 
@@ -117,13 +115,12 @@ export const logout = createAsyncThunk(
 export const bootstrapAuth = createAsyncThunk(
     'auth/bootstrap',
     async (_, { dispatch }) => {
-        const hasSession = hasSessionCookie()
+        dispatch(setHasSession(hasSessionCookie()))
 
-        dispatch(setHasSession(hasSession))
-
-        if (hasSession) {
-            await dispatch(refreshAccessToken())
-        }
+        // Always try refresh on load; backend returns 200 with token if refresh_token
+        // cookie is valid, 204 if missing/invalid. Stops relying on has_session cookie
+        // which may have a shorter TTL than refresh_token (e.g. 1h vs 7 days).
+        await dispatch(refreshAccessToken())
 
         dispatch(markInitialized())
     }
