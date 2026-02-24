@@ -1,6 +1,6 @@
 import HomeBanner from '@/features/home/components/HomeBanner'
 import HomeQuickActions from '@/features/home/components/HomeQuickActions'
-import Categories from '../categories/components/Categories'
+import CategoriesSection from '@/features/categories/components/CategoriesSection'
 
 const HomePage = () => {
     return (
@@ -13,7 +13,7 @@ const HomePage = () => {
 
             <section className="bg-[#f5f5f5]">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 bg-white my-4">
-                <Categories />
+                <CategoriesSection />
                 </div>
             </section>
         </>
