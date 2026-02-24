@@ -10,6 +10,7 @@ import ProductDetailPage from '@/features/products/pages/ProductDetailPage'
 import CartPage from '@/features/cart/pages/CartPage'
 import CheckoutPage from '@/features/checkout/pages/CheckoutPage'
 import CheckoutSuccessPage from '@/features/checkout/pages/CheckoutSuccessPage'
+import CategoriesPage from '@/features/categories/pages/CategoriesPage'
 
 const AppRoutes = () => {
     return (
@@ -31,6 +32,7 @@ const AppRoutes = () => {
             <Route path="/oauth-success" element={<OAuthSuccessPage />} />
             <Route path="/oauth-error" element={<OAuthErrorPage />} />
             <Route path="/" element={<HomePage />} />
+            <Route path="/all_categories" element={<CategoriesPage />} />
             <Route path="/categories/:id" element={<ProductListPage />} />
             <Route path="/products/:id" element={<ProductDetailPage />} />
             <Route path="/cart" element={<CartPage />} />

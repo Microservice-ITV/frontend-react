@@ -19,6 +19,10 @@ export { default as socialFacebookIcon } from './social/social_facebook.svg'
 export { default as socialGoogleIcon } from './social/social_google.svg'
 
 
+// CATEGORY
+export { default as allCategoriesIcon } from './category/all-categories.svg'
+export { default as caretRightIcon } from './category/caret-right.svg'
+
 // APPLICATIONS
 export { default as qrIcon } from './app/app-qr.jpeg'
 export { default as appGalleryIcon } from './app/appgallery.jpeg'
@@ -31,3 +35,4 @@ export { default as emptyCartIcon } from './app/empty-cart.png'
 export { default as shopBagIcon } from './app/shop-bag.png'
 export { default as chatIcon } from './app/chat-icon.png'
 export { default as fastDeliveryIcon } from './app/fast-delivery.svg'
+export { default as arrowDownIcon } from './app/arrow-down.svg'
