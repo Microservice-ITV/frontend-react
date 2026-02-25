@@ -20,4 +20,14 @@ export interface AuthState {
     initialized: boolean 
     status: 'idle' | 'loading' | 'succeeded' | 'failed'
     error: string | null
+    // Draft form data for auth flows (not persisted across reloads)
+    loginDraft: {
+        email: string
+        password: string
+    }
+    registerDraft: {
+        name: string
+        email: string
+        password: string
+    }
 }

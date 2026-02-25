@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { fetchProductsByCategory } from '@/features/products/store/productThunks'
+import { fetchCategories } from '@/features/categories/store/categoryThunks'
 import ProductSidebar from '../components/ProductSidebar'
 import ProductSortBar from '../components/ProductSortBar'
 import ProductGrid from '../components/ProductGrid'
@@ -10,9 +11,14 @@ const ProductListPage = () => {
   const { id } = useParams<{ id: string }>()
   const dispatch = useAppDispatch()
   const { items, status } = useAppSelector((s) => s.products)
-  const categories = useAppSelector((s) => s.categories.items)
+  const { items: categories, status: categoriesStatus } = useAppSelector((s) => s.categories)
 
-  const category = categories.find((c) => c.id === id)
+  // Ensure categories are loaded so the sidebar has data even on page refresh or deep link.
+  useEffect(() => {
+    if (categoriesStatus === 'idle' || categories.length === 0) {
+      void dispatch(fetchCategories())
+    }
+  }, [categoriesStatus, categories.length, dispatch])
 
   useEffect(() => {
     if (id) {

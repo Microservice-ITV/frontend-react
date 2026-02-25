@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { AlertCircle } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { register } from '@/features/auth/store/authThunks'
+import { setRegisterDraft } from '@/features/auth/store/authSlice'
 import { getRecaptchaToken } from '@/utils/recaptcha'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
@@ -12,9 +14,9 @@ export const RegisterPage = () => {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
 
-  const { status, error } = useAppSelector((s) => s.auth)
+  const { status, error, registerDraft } = useAppSelector((s) => s.auth)
 
-  const [form, setForm] = useState({ name: '', email: '', password: '' })
+  const [form, setForm] = useState(registerDraft)
 
   const isLoading = status === 'loading'
   const isFormValid = form.name.trim() && form.email.trim() && form.password.trim()
@@ -45,6 +47,13 @@ export const RegisterPage = () => {
     }
   }
 
+  // Keep register draft in Redux so values survive remounts (but reset on full reload).
+  useEffect(() => {
+    // storing password in-memory only (Redux is not persisted) so it clears on page reload
+    // and is cleared automatically when registration succeeds.
+    dispatch(setRegisterDraft(form))
+  }, [dispatch, form])
+
   return (
     <div className="min-h-screen bg-gray-50 px-4 pt-8 pb-12 flex flex-col items-center">
       <Card className="w-full max-w-md p-8">
@@ -53,8 +62,22 @@ export const RegisterPage = () => {
 
         <p className="mt-2 text-sm text-gray-600 text-center">Join us and start shopping today</p>
 
+        {/* Error message */}
+        {error && (
+          <div
+            className="mt-4 flex items-start gap-2 rounded-sm border border-red-200 bg-[#fff6f6] px-3 py-2 text-xs text-red-700"
+            role="alert"
+            aria-live="polite"
+          >
+            <AlertCircle className="mt-[1px] h-4 w-4 shrink-0 text-red-500" aria-hidden />
+            <p className="flex-1">
+              {error}
+            </p>
+          </div>
+        )}
+
         {/* Form */}
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <Input
             label="Name"
             placeholder="John Doe"
@@ -87,13 +110,6 @@ export const RegisterPage = () => {
             required
           />
           <p className="text-xs text-gray-500">Must be at least 8 characters</p>
-
-          {/* Error */}
-          {error && (
-            <p className="text-sm text-red-600 text-center" aria-live="polite" role="alert">
-              {error}
-            </p>
-          )}
 
           {/* reCAPTCHA Notice */}
           <div className="flex gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3">

@@ -36,3 +36,11 @@ export { default as shopBagIcon } from './app/shop-bag.png'
 export { default as chatIcon } from './app/chat-icon.png'
 export { default as fastDeliveryIcon } from './app/fast-delivery.svg'
 export { default as arrowDownIcon } from './app/arrow-down.svg'
+
+// ACCOUNT AREA
+export { default as myAccountIcon } from './app/my-account.png'
+export { default as myPurchaseIcon } from './app/my-purchase.png'
+export { default as myDniCoinsIcon } from './app/my-dni-coins.png'
+export { default as myVouchersIcon } from './app/my-vouchers.png'
+export { default as notificationsIcon } from './app/notifications.png'
+export { default as menuIcon } from './app/menu-icon.png'
