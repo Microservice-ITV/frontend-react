@@ -53,11 +53,11 @@ const NavbarNoSearch = () => {
                                 >
                                     <div className="absolute -top-2 right-6 w-4 h-4 bg-white rotate-45" />
 
-                                    <Link to="/account" className="block px-4 py-3 text-sm hover:bg-gray-100">
+                                    <Link to="/account/profile" className="block px-4 py-3 text-sm hover:bg-gray-100">
                                         My Account
                                     </Link>
 
-                                    <Link to="/orders" className="block px-4 py-3 text-sm hover:bg-gray-100">
+                                    <Link to="/account/orders" className="block px-4 py-3 text-sm hover:bg-gray-100">
                                         My Purchase
                                     </Link>
 

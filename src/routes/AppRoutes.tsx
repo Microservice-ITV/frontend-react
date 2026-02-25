@@ -11,6 +11,16 @@ import CartPage from '@/features/cart/pages/CartPage'
 import CheckoutPage from '@/features/checkout/pages/CheckoutPage'
 import CheckoutSuccessPage from '@/features/checkout/pages/CheckoutSuccessPage'
 import CategoriesPage from '@/features/categories/pages/CategoriesPage'
+import AccountLayout from '@/features/account/pages/AccountLayout'
+import ProfilePage from '@/features/account/pages/ProfilePage'
+import BanksCardsPage from '@/features/account/pages/BanksCardsPage'
+import AddressesPage from '@/features/account/pages/AddressesPage'
+import ChangePasswordPage from '@/features/account/pages/ChangePasswordPage'
+import NotificationsPage from '@/features/account/pages/NotificationsPage'
+import NotificationsCenterPage from '@/features/account/pages/NotificationsCenterPage'
+import OrdersPage from '@/features/account/pages/OrdersPage'
+import VouchersPage from '@/features/account/pages/VouchersPage'
+import CoinsPage from '@/features/account/pages/CoinsPage'
 
 const AppRoutes = () => {
     return (
@@ -23,7 +33,18 @@ const AppRoutes = () => {
 
             {/* Protected routes */}
             <Route element={<ProtectedRoute />}>
-                <Route path="/account" element={<div>My Account</div>} />
+                <Route path="/account" element={<AccountLayout />}>
+                    <Route index element={<ProfilePage />} />
+                    <Route path="profile" element={<ProfilePage />} />
+                    <Route path="banks-cards" element={<BanksCardsPage />} />
+                    <Route path="addresses" element={<AddressesPage />} />
+                    <Route path="change-password" element={<ChangePasswordPage />} />
+                    <Route path="notifications" element={<NotificationsPage />} />
+                    <Route path="notifications-center" element={<NotificationsCenterPage />} />
+                    <Route path="orders" element={<OrdersPage />} />
+                    <Route path="my-vouchers" element={<VouchersPage />} />
+                    <Route path="my-coins" element={<CoinsPage />} />
+                </Route>
                 <Route path="/checkout/success" element={<CheckoutSuccessPage />} />
                 <Route path="/checkout" element={<CheckoutPage />} />
             </Route>

@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
+import { AlertCircle } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { fetchMe, login } from '@/features/auth/store/authThunks'
+import { setLoginDraft } from '@/features/auth/store/authSlice'
 import { getRecaptchaToken } from '@/utils/recaptcha'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
@@ -15,10 +17,10 @@ export const LoginPage = () => {
 
   const from = location.state?.from?.pathname || '/'
 
-  const { status, isAuthenticated, user, error } = useAppSelector((s) => s.auth)
+  const { status, isAuthenticated, user, error, loginDraft } = useAppSelector((s) => s.auth)
 
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
+  const [email, setEmail] = useState(loginDraft.email)
+  const [password, setPassword] = useState(loginDraft.password)
 
   const isLoading = status === 'loading'
   const isFormValid = email.trim() !== '' && password.trim() !== ''
@@ -36,6 +38,11 @@ export const LoginPage = () => {
       // login failed → do NOT fetchMe
     }
   }
+
+  // Keep login draft in Redux so values survive remounts (but reset on full reload).
+  useEffect(() => {
+    dispatch(setLoginDraft({ email, password }))
+  }, [dispatch, email, password])
 
   // Redirect after login success
   useEffect(() => {
@@ -55,7 +62,21 @@ export const LoginPage = () => {
           Please enter your credentials to login
         </p>
 
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+        {/* Error message */}
+        {error && (
+          <div
+            className="mt-4 flex items-start gap-2 rounded-sm border border-red-200 bg-[#fff6f6] px-3 py-2 text-xs text-red-700"
+            role="alert"
+            aria-live="polite"
+          >
+            <AlertCircle className="mt-[1px] h-4 w-4 shrink-0 text-red-500" aria-hidden />
+            <p className="flex-1">
+              {error}
+            </p>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <Input
             label="Email"
             type="email"
@@ -77,12 +98,6 @@ export const LoginPage = () => {
             onChange={(e) => setPassword(e.target.value)}
             required
           />
-
-          {error && (
-            <p className="text-sm text-red-600 text-center" aria-live="polite" role="alert">
-              {error}
-            </p>
-          )}
 
           {/* reCAPTCHA Notice */}
           <div className="flex gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3">

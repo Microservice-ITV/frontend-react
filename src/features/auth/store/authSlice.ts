@@ -1,5 +1,5 @@
 // Slice => State & Reducers
-import { createSlice } from '@reduxjs/toolkit'
+import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { login, register, fetchMe, refreshAccessToken, logout, bootstrapAuth } from './authThunks'
 import type { AuthState } from './authTypes'
 
@@ -11,6 +11,15 @@ const initialState: AuthState = {
   initialized: false,
   status: 'idle',
   error: null,
+  loginDraft: {
+    email: '',
+    password: '',
+  },
+  registerDraft: {
+    name: '',
+    email: '',
+    password: '',
+  },
 }
 
 const authSlice = createSlice({
@@ -28,6 +37,17 @@ const authSlice = createSlice({
     setAccessToken(state, action) {
       state.accessToken = action.payload
       state.isAuthenticated = Boolean(action.payload)
+    },
+
+    setLoginDraft(state, action: PayloadAction<{ email: string; password: string }>) {
+      state.loginDraft = action.payload
+    },
+
+    setRegisterDraft(
+      state,
+      action: PayloadAction<{ name: string; email: string; password: string }>
+    ) {
+      state.registerDraft = action.payload
     },
 
     forceLogout(state) {
@@ -48,6 +68,7 @@ const authSlice = createSlice({
         state.isAuthenticated = true
         state.hasSession = true
         state.status = 'succeeded'
+        state.loginDraft = { email: '', password: '' }
       })
       .addCase(login.rejected, (state, action) => {
         state.status = 'failed'
@@ -59,6 +80,7 @@ const authSlice = createSlice({
         state.accessToken = action.payload.accessToken
         state.isAuthenticated = true
         state.hasSession = true
+        state.registerDraft = { name: '', email: '', password: '' }
       })
 
       // ================= FETCH USER =================
@@ -98,5 +120,11 @@ const authSlice = createSlice({
   },
 })
 
-export const { setHasSession, markInitialized, setAccessToken } = authSlice.actions
+export const {
+  setHasSession,
+  markInitialized,
+  setAccessToken,
+  setLoginDraft,
+  setRegisterDraft,
+} = authSlice.actions
 export default authSlice.reducer

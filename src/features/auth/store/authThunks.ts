@@ -18,7 +18,7 @@ export const login = createAsyncThunk<
         setSessionCookie()
         return { accessToken: res.data.data.access_token }
     } catch {
-        return rejectWithValue('Invalid credentials')
+        return rejectWithValue('Your email and/or password is incorrect. Please try again.')
     }
 })
 
@@ -36,7 +36,7 @@ export const register = createAsyncThunk<
             accessToken: res.data.data.access_token,
         }
     } catch {
-        return rejectWithValue('Registration failed')
+        return rejectWithValue('We could not create your account with those details. Please check your information and try again.')
     }
 })
 
