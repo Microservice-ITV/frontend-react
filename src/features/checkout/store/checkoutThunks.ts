@@ -1,7 +1,7 @@
 import { createAsyncThunk } from '@reduxjs/toolkit'
 import type { RootState } from '@/app/store'
-import { orderService } from '@/services/orderService'
-import { CheckoutResponse, CheckoutStatusResponse } from '../types/checkoutTypes';
+import { checkoutApi } from '../api/checkoutApi'
+import type { CheckoutResponse, CheckoutStatusResponse } from '../types/checkoutTypes';
 
 const generateIdempotencyKey = (userId: string) => {
     if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -35,7 +35,7 @@ export const checkoutCart = createAsyncThunk<
             // Keep idempotency key short (<255) to satisfy backend validation.
             const idempotencyKey = generateIdempotencyKey(String(userId))
 
-            const response = await orderService.createCheckoutSession({
+            const response = await checkoutApi.createCheckoutSession({
                 idempotency_key: idempotencyKey,
                 user_id: String(userId),
                 items: selectedItems.map(item => ({
@@ -73,12 +73,10 @@ export const fetchCheckoutStatus = createAsyncThunk<
     'checkout/fetchStatus',
     async (checkoutId, { rejectWithValue }) => {
         try {
-            const response = await orderService.getCheckoutSession(checkoutId)
-
-            // Support both:
-            // 1) { checkout_id, status, client_secret, ... }
-            // 2) { success, data: { checkout_id, status, client_secret, ... } }
-            const payload = response.data?.data ?? response.data
+            const response = await checkoutApi.getCheckoutSession(checkoutId)
+            const payload = response.data as CheckoutStatusResponse & {
+                payment?: { client_secret?: string }
+            }
 
             return {
                 checkout_id: payload.checkout_id ?? checkoutId,

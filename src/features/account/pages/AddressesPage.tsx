@@ -1,173 +1,115 @@
-import { FormEvent, useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
-import { useAppSelector } from '@/app/hooks'
+import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { selectAuthUser } from '@/features/auth/store/authSelectors'
-import { addressApi } from '../api/addressApi'
-import type { UpsertAddressPayload, UserAddressDto } from '../types/addressTypes'
+import { NewAddressModal } from '../components/NewAddressModal'
+import {
+  selectAccountAddresses,
+  selectAccountAddressesLoading,
+  selectAccountAddressesMutating,
+  selectAccountAddressesError,
+} from '../store/accountSelectors'
+import { fetchUserAddresses, deleteUserAddress, setDefaultUserAddress } from '../store/accountThunks'
+import type { UserAddress } from '../types/addressTypes'
 
 const AddressesPage = () => {
+  const dispatch = useAppDispatch()
   const { openModal } = useGlobalModal()
   const authUser = useAppSelector(selectAuthUser)
-
-  const [addresses, setAddresses] = useState<UserAddressDto[]>([])
-  const [loading, setLoading] = useState(false)
-
-  const [formValues, setFormValues] = useState({
-    fullName: '',
-    phoneNumber: '',
-    postalCode: '',
-    unitNo: '',
-    addressLine: '',
-    labelAs: 'HOME' as 'HOME' | 'OFFICE',
-    isDefault: false,
-  })
-
-  const fetchAddresses = async () => {
-    if (!authUser?.id) return
-    setLoading(true)
-    try {
-      const res = await addressApi.list(authUser.id)
-      setAddresses(res.data.data.addresses)
-    } catch {
-      // swallow for now; you can add toast here
-    } finally {
-      setLoading(false)
-    }
-  }
+  const addresses = useAppSelector(selectAccountAddresses)
+  const loading = useAppSelector(selectAccountAddressesLoading)
+  const mutating = useAppSelector(selectAccountAddressesMutating)
+  const accountError = useAppSelector(selectAccountAddressesError)
 
   useEffect(() => {
-    fetchAddresses()
-  }, [authUser?.id])
+    if (!authUser?.id) return
+    void dispatch(fetchUserAddresses(authUser.id))
+  }, [authUser?.id, dispatch])
 
-  const openNewAddressModal = () => {
-    setFormValues({
-      fullName: '',
-      phoneNumber: '',
-      postalCode: '',
-      unitNo: '',
-      addressLine: '',
-      labelAs: 'HOME',
-      isDefault: false,
-    })
+  const refreshAddresses = async () => {
+    if (!authUser?.id) return
+    await dispatch(fetchUserAddresses(authUser.id)).unwrap()
+  }
 
-    const handleSubmit = async (e?: FormEvent) => {
-      if (e) e.preventDefault()
-      if (!authUser?.id) return
+  const handleDeleteAddress = async (addressId: string) => {
+    if (!authUser?.id) return
 
-      const payload: UpsertAddressPayload = {
-        type: formValues.labelAs,
-        label: formValues.labelAs === 'HOME' ? 'Home' : 'Work',
-        full_name: formValues.fullName,
-        phone_number: formValues.phoneNumber,
-        line1: formValues.addressLine,
-        line2: formValues.unitNo || null,
-        line3: null,
-        postal_code: formValues.postalCode || null,
-        is_default: formValues.isDefault,
-        is_shipping: true,
-        is_billing: false,
-      }
+    const target = addresses.find((addr) => addr.address_id === addressId)
+    if (!target) return
 
-      await addressApi.create(authUser.id, payload)
-      await fetchAddresses()
-    }
+    const hasOtherAddresses = addresses.length > 1
+    const deletingDefaultAddress = target.is_default
 
     openModal({
-      title: 'New Address',
-      content: (
-        <form
-          className="space-y-4"
-          onSubmit={handleSubmit}
-        >
-          {/* Row 1: Full name / Phone number */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
-              type="text"
-              placeholder="Full Name"
-              value={formValues.fullName}
-              onChange={(e) => setFormValues((v) => ({ ...v, fullName: e.target.value }))}
-              className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-orange-500"
-            />
-            <input
-              type="text"
-              placeholder="Phone Number"
-              value={formValues.phoneNumber}
-              onChange={(e) => setFormValues((v) => ({ ...v, phoneNumber: e.target.value }))}
-              className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-orange-500"
-            />
-          </div>
-
-          {/* Row 2: Postal code / Unit no (2 columns) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
-              type="text"
-              placeholder="Postal Code"
-              value={formValues.postalCode}
-              onChange={(e) => setFormValues((v) => ({ ...v, postalCode: e.target.value }))}
-              className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-orange-500"
-            />
-            <input
-              type="text"
-              placeholder="Unit No (Optional)"
-              value={formValues.unitNo}
-              onChange={(e) => setFormValues((v) => ({ ...v, unitNo: e.target.value }))}
-              className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-orange-500"
-            />
-          </div>
-
-          {/* Row 3: Long address field spanning both columns */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
-              type="text"
-              placeholder="Building, Street, and etc."
-              value={formValues.addressLine}
-              onChange={(e) => setFormValues((v) => ({ ...v, addressLine: e.target.value }))}
-              className="md:col-span-2 w-full border border-gray-300 rounded-sm px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-orange-500"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <span className="text-xs font-medium text-gray-700">Label As:</span>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setFormValues((v) => ({ ...v, labelAs: 'HOME' }))}
-                className={`px-4 py-1 text-xs font-medium rounded-sm cursor-pointer border ${
-                  formValues.labelAs === 'HOME'
-                    ? 'bg-gray-50 border-gray-400 text-gray-900'
-                    : 'bg-white border-gray-300 text-gray-700'
-                }`}
-              >
-                Home
-              </button>
-              <button
-                type="button"
-                onClick={() => setFormValues((v) => ({ ...v, labelAs: 'OFFICE' }))}
-                className={`px-4 py-1 text-xs font-medium rounded-sm cursor-pointer border ${
-                  formValues.labelAs === 'OFFICE'
-                    ? 'bg-gray-50 border-gray-400 text-gray-900'
-                    : 'bg-white border-gray-300 text-gray-700'
-                }`}
-              >
-                Work
-              </button>
-            </div>
-          </div>
-
-          <label className="flex items-center gap-2 text-xs text-gray-700">
-            <input
-              type="checkbox"
-              checked={formValues.isDefault}
-              onChange={(e) => setFormValues((v) => ({ ...v, isDefault: e.target.checked }))}
-              className="h-4 w-4 border-gray-300 rounded-sm text-orange-500 focus:ring-orange-500"
-            />
-            <span>Set as Default Address</span>
-          </label>
-        </form>
-      ),
-      primaryLabel: 'Submit',
+      title: 'Delete Address',
+      primaryLabel: 'Delete',
       secondaryLabel: 'Cancel',
-      onPrimary: handleSubmit,
+      content: (
+        <div className="space-y-2 text-sm text-gray-700">
+          <p>Are you sure you want to delete this address?</p>
+          {deletingDefaultAddress && hasOtherAddresses && (
+            <p className="text-orange-600">
+              This is your default address. After deletion, we will set another saved address as default.
+            </p>
+          )}
+          {deletingDefaultAddress && !hasOtherAddresses && (
+            <p className="text-orange-600">
+              This is your only default address. After deletion, you will have no default address.
+            </p>
+          )}
+        </div>
+      ),
+      onPrimary: async () => {
+        const deleteAction = await dispatch(deleteUserAddress({ userId: authUser.id, addressId }))
+        if (deleteUserAddress.rejected.match(deleteAction)) {
+          throw new Error((deleteAction.payload as string) ?? 'Failed to delete address.')
+        }
+
+        const refreshAction = await dispatch(fetchUserAddresses(authUser.id))
+        if (fetchUserAddresses.rejected.match(refreshAction)) {
+          throw new Error((refreshAction.payload as string) ?? 'Failed to refresh addresses.')
+        }
+
+        const refreshed = refreshAction.payload
+        const hasDefault = refreshed.some((addr) => addr.is_default)
+
+        if (deletingDefaultAddress && refreshed.length > 0 && !hasDefault) {
+          const setDefaultAction = await dispatch(
+            setDefaultUserAddress({
+              userId: authUser.id,
+              addressId: refreshed[0].address_id,
+            }),
+          )
+          if (setDefaultUserAddress.rejected.match(setDefaultAction)) {
+            throw new Error((setDefaultAction.payload as string) ?? 'Failed to set fallback default address.')
+          }
+
+          await dispatch(fetchUserAddresses(authUser.id))
+        }
+      },
+    })
+  }
+
+  const handleSetDefaultAddress = async (addressId: string) => {
+    if (!authUser?.id) return
+    await dispatch(setDefaultUserAddress({ userId: authUser.id, addressId }))
+  }
+
+  const openNewAddressModal = () => {
+    openModal({
+      title: 'New Address',
+      content: <NewAddressModal mode="create" onSaved={refreshAddresses} />,
+      hidePrimary: true,
+      hideSecondary: true,
+    })
+  }
+
+  const openEditAddressModal = (address: UserAddress) => {
+    openModal({
+      title: 'Edit Address',
+      content: <NewAddressModal mode="edit" initialAddress={address} onSaved={refreshAddresses} />,
+      hidePrimary: true,
+      hideSecondary: true,
     })
   }
 
@@ -186,6 +128,12 @@ const AddressesPage = () => {
       </div>
 
       <div className="space-y-4">
+        {accountError && (
+          <div className="px-4 py-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-sm">
+            {accountError}
+          </div>
+        )}
+
         {/* Address list */}
         <section className="border border-gray-200 rounded-sm">
           <div className="px-5 py-3 border-b border-gray-200">
@@ -210,10 +158,15 @@ const AddressesPage = () => {
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-gray-900">{addr.full_name}</span>
-                      <span className="text-gray-600">{addr.phone_number}</span>
+                      <span className="text-gray-600">{addr.phone_no}</span>
                     </div>
-                    <p className="text-gray-700">{addr.line1}</p>
-                    {addr.line2 && <p className="text-gray-700">{addr.line2}</p>}
+                    <p className="text-gray-700">
+                      {[addr.state, addr.city, addr.district, addr.ward]
+                        .filter(Boolean)
+                        .join(', ')}
+                    </p>
+                    <p className="text-gray-700">{addr.address_line_1}</p>
+                    {addr.address_line_2 && <p className="text-gray-700">{addr.address_line_2}</p>}
                     {addr.postal_code && <p className="text-gray-700">{addr.postal_code}</p>}
                     {addr.is_default && (
                       <span className="inline-flex items-center px-2 py-[2px] text-[10px] font-medium text-orange-600 border border-orange-500 rounded-sm">
@@ -227,12 +180,16 @@ const AddressesPage = () => {
                       <button
                         type="button"
                         className="text-blue-500 hover:underline cursor-pointer"
+                        onClick={() => openEditAddressModal(addr)}
+                        disabled={mutating}
                       >
                         Edit
                       </button>
                       <button
                         type="button"
                         className="text-blue-500 hover:underline cursor-pointer"
+                        onClick={() => void handleDeleteAddress(addr.address_id)}
+                        disabled={mutating}
                       >
                         Delete
                       </button>
@@ -241,6 +198,8 @@ const AddressesPage = () => {
                       <button
                         type="button"
                         className="px-3 py-1 border border-gray-300 rounded-sm text-gray-700 hover:bg-gray-50 cursor-pointer"
+                        onClick={() => void handleSetDefaultAddress(addr.address_id)}
+                        disabled={mutating}
                       >
                         Set as default
                       </button>

@@ -30,11 +30,17 @@ type GlobalModalOptions = {
    * If true, hide the secondary button entirely.
    */
   hideSecondary?: boolean
+  /**
+   * If true, hide the primary button entirely.
+   * Useful when the modal body renders its own footer actions.
+   */
+  hidePrimary?: boolean
 }
 
 type GlobalModalState = GlobalModalOptions & {
   isOpen: boolean
   loading: boolean
+  error: string | null
 }
 
 type GlobalModalContextValue = {
@@ -51,6 +57,13 @@ type GlobalModalProviderProps = {
 export const GlobalModalProvider = ({ children }: GlobalModalProviderProps) => {
   const [modalState, setModalState] = useState<GlobalModalState | null>(null)
 
+  const getErrorMessage = (error: unknown): string => {
+    if (error instanceof Error && error.message.trim()) {
+      return error.message
+    }
+    return 'Action failed. Please try again.'
+  }
+
   const closeModal = useCallback(() => {
     setModalState((prev) => (prev ? { ...prev, isOpen: false } : prev))
     // Give exit animation a moment if we add one later
@@ -61,8 +74,10 @@ export const GlobalModalProvider = ({ children }: GlobalModalProviderProps) => {
     setModalState({
       isOpen: true,
       loading: false,
+      error: null,
       primaryLabel: 'Submit',
       secondaryLabel: 'Cancel',
+      hidePrimary: false,
       ...options,
     })
   }, [])
@@ -74,12 +89,15 @@ export const GlobalModalProvider = ({ children }: GlobalModalProviderProps) => {
     }
 
     try {
-      setModalState((prev) => (prev ? { ...prev, loading: true } : prev))
+      setModalState((prev) => (prev ? { ...prev, loading: true, error: null } : prev))
       const result = modalState.onPrimary()
       if (result instanceof Promise) {
         await result
       }
       closeModal()
+    } catch (error) {
+      // Keep the modal open and surface the error so users can retry confidently.
+      setModalState((prev) => (prev ? { ...prev, error: getErrorMessage(error) } : prev))
     } finally {
       setModalState((prev) => (prev ? { ...prev, loading: false } : prev))
     }
@@ -124,6 +142,10 @@ export const GlobalModalProvider = ({ children }: GlobalModalProviderProps) => {
               {/* Body */}
               <div className="px-8 py-4 text-sm text-gray-800">{modalState.content}</div>
 
+              {modalState.error && (
+                <div className="px-8 pb-1 text-sm text-red-600">{modalState.error}</div>
+              )}
+
               {/* Footer */}
               <div className="flex items-center justify-end gap-3 px-8 pb-6 pt-4 border-t border-gray-100">
                 {!modalState.hideSecondary && (
@@ -136,14 +158,16 @@ export const GlobalModalProvider = ({ children }: GlobalModalProviderProps) => {
                     {modalState.secondaryLabel ?? 'Cancel'}
                   </button>
                 )}
-                <button
-                  type="button"
-                  className="inline-flex items-center justify-center px-5 py-2 text-sm font-medium text-white bg-orange-500 rounded-sm hover:bg-orange-600 disabled:bg-orange-300 disabled:cursor-not-allowed cursor-pointer"
-                  onClick={handlePrimaryClick}
-                  disabled={modalState.loading}
-                >
-                  {modalState.loading ? 'Processing...' : modalState.primaryLabel ?? 'Submit'}
-                </button>
+                {!modalState.hidePrimary && (
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-center px-5 py-2 text-sm font-medium text-white bg-orange-500 rounded-sm hover:bg-orange-600 disabled:bg-orange-300 disabled:cursor-not-allowed cursor-pointer"
+                    onClick={handlePrimaryClick}
+                    disabled={modalState.loading}
+                  >
+                    {modalState.loading ? 'Processing...' : modalState.primaryLabel ?? 'Submit'}
+                  </button>
+                )}
               </div>
             </div>
           </div>

@@ -1,6 +1,25 @@
 import { MapPin } from 'lucide-react'
+import { useEffect } from 'react'
+import { useAppDispatch, useAppSelector } from '@/app/hooks'
+import { selectAuthUser } from '@/features/auth/store/authSelectors'
+import { fetchUserAddresses } from '@/features/account/store/accountThunks'
+import { selectDefaultAddress, selectAccountAddressesLoading } from '@/features/account/store/accountSelectors'
 
 const CheckoutAddress = () => {
+  const dispatch = useAppDispatch()
+  const authUser = useAppSelector(selectAuthUser)
+  const defaultAddress = useAppSelector(selectDefaultAddress)
+  const loading = useAppSelector(selectAccountAddressesLoading)
+
+  useEffect(() => {
+    if (!authUser?.id) return
+    void dispatch(fetchUserAddresses(authUser.id))
+  }, [authUser?.id, dispatch])
+
+  const locationText = [defaultAddress?.state, defaultAddress?.city, defaultAddress?.district, defaultAddress?.ward]
+    .filter(Boolean)
+    .join(', ')
+
   return (
     <div className="bg-white">
       {/* DNI dashed top border */}
@@ -12,23 +31,37 @@ const CheckoutAddress = () => {
           <span className="text-[#ee4d2d] text-base font-medium">Delivery Address</span>
         </div>
 
-        <div className="flex items-center text-sm text-gray-900">
-          <span className="font-semibold mr-6 whitespace-nowrap">
-            AUNG (+84) 385 591 842
-          </span>
+        {!loading && !defaultAddress && (
+          <div className="text-sm text-gray-600">No saved address yet. Please add one from My Addresses.</div>
+        )}
 
-          <span className="truncate max-w-[620px] mr-4">
-            57/11 Lê Hữu Trác, Phường An Hải Đông, Quận Sơn Trà, Đà Nẵng, #103, SG 550000
-          </span>
+        {(loading || defaultAddress) && (
+          <div className="flex items-center text-sm text-gray-900">
+            <span className="font-semibold mr-6 whitespace-nowrap">
+              {loading
+                ? 'Loading...'
+                : `${defaultAddress?.full_name ?? ''} ${defaultAddress?.phone_no ?? ''}`.trim()}
+            </span>
 
-          <span className="mr-6 text-xs text-[#ee4d2d] border border-[#ee4d2d] px-2 py-[1px]">
-            Default
-          </span>
+            <span className="truncate max-w-[620px] mr-4">
+              {loading
+                ? 'Loading delivery address...'
+                : [locationText, defaultAddress?.address_line_1, defaultAddress?.address_line_2, defaultAddress?.postal_code]
+                    .filter(Boolean)
+                    .join(', ')}
+            </span>
 
-          <button className="text-sm text-[#0055aa] cursor-pointer">
-            Change
-          </button>
-        </div>
+            {defaultAddress?.is_default && (
+              <span className="mr-6 text-xs text-[#ee4d2d] border border-[#ee4d2d] px-2 py-[1px]">
+                Default
+              </span>
+            )}
+
+            <button className="text-sm text-[#0055aa] cursor-pointer">
+              Change
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
