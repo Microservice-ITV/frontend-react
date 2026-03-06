@@ -2,6 +2,24 @@ import { orderClient } from '@/lib/api/orderClient'
 import type { AxiosResponse } from 'axios'
 import type { CheckoutResponse, CheckoutStatusResponse } from '../types/checkoutTypes'
 
+export type CheckoutAddressPayload = {
+  full_name: string
+  phone_no: string
+  email?: string | null
+  country_code: string
+  country: string
+  state: string
+  city: string
+  district: string
+  ward: string
+  address_line_1: string
+  address_line_2?: string | null
+  postal_code?: string | null
+  latitude?: number | null
+  longitude?: number | null
+  delivery_note?: string | null
+}
+
 export const checkoutApi = {
   createCheckoutSession(data: {
     user_id: string
@@ -13,6 +31,13 @@ export const checkoutApi = {
         'Idempotency-Key': data.idempotency_key,
       },
     })
+  },
+
+  updateCheckoutAddress(
+    checkoutId: string,
+    payload: CheckoutAddressPayload,
+  ): Promise<AxiosResponse<{ success: boolean; message?: string }>> {
+    return orderClient.put(`/orders/checkout/${checkoutId}/address`, payload)
   },
 
   async getCheckoutSession(checkoutId: string): Promise<AxiosResponse<CheckoutStatusResponse>> {

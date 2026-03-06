@@ -3,8 +3,6 @@ import { voucherIcon } from '@/assets/icons'
 import { selectIsAllSelected, selectSelectedItems } from '../store/cartSelectors'
 import { removeSelectedItems, toggleAllSelection } from '../store/cartSlice'
 import { useNavigate } from 'react-router-dom'
-import { useState } from 'react'
-// import { checkoutCart } from '@/features/checkout/store/checkoutThunks'
 
 interface CartSummaryProps {
   total: number

@@ -32,6 +32,9 @@ const checkoutSlice = createSlice({
     name: 'checkout',
     initialState,
     reducers: {
+        setCurrentCheckout(state, action: { payload: CheckoutResponse | null }) {
+            state.currentCheckout = action.payload
+        },
         clearCheckout(state) {
             state.currentCheckout = null
             state.currentStatus = null
@@ -93,6 +96,7 @@ const checkoutSlice = createSlice({
 })
 
 export const {
+    setCurrentCheckout,
     clearCheckout,
     setCheckoutPlacingOrder,
     setCheckoutError,

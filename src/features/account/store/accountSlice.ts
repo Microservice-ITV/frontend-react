@@ -15,6 +15,9 @@ interface AccountState {
   error: string | null
 }
 
+const sortAddressesByDefaultFirst = (addresses: UserAddress[]) =>
+  [...addresses].sort((a, b) => Number(b.is_default) - Number(a.is_default))
+
 const initialState: AccountState = {
   addresses: [],
   loading: false,
@@ -41,7 +44,7 @@ const accountSlice = createSlice({
       })
       .addCase(fetchUserAddresses.fulfilled, (state, action) => {
         state.loading = false
-        state.addresses = action.payload
+        state.addresses = sortAddressesByDefaultFirst(action.payload)
       })
       .addCase(fetchUserAddresses.rejected, (state, action) => {
         state.loading = false
@@ -58,7 +61,7 @@ const accountSlice = createSlice({
         if (created.is_default) {
           state.addresses = state.addresses.map((addr) => ({ ...addr, is_default: false }))
         }
-        state.addresses = [created, ...state.addresses]
+        state.addresses = sortAddressesByDefaultFirst([created, ...state.addresses])
       })
       .addCase(createUserAddress.rejected, (state, action) => {
         state.mutating = false
@@ -78,6 +81,7 @@ const accountSlice = createSlice({
         state.addresses = state.addresses.map((addr) =>
           addr.address_id === updated.address_id ? updated : addr,
         )
+        state.addresses = sortAddressesByDefaultFirst(state.addresses)
       })
       .addCase(updateUserAddress.rejected, (state, action) => {
         state.mutating = false
@@ -108,6 +112,7 @@ const accountSlice = createSlice({
           ...addr,
           is_default: addr.address_id === selectedId,
         }))
+        state.addresses = sortAddressesByDefaultFirst(state.addresses)
       })
       .addCase(setDefaultUserAddress.rejected, (state, action) => {
         state.mutating = false

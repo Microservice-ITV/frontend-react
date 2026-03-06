@@ -12,8 +12,17 @@ export const authClient = axios.create({
 })
 
 authClient.interceptors.request.use((config) => {
+  const isAuthEndpoint =
+    config.url?.includes('/login') ||
+    config.url?.includes('/register') ||
+    config.url?.includes('/refresh') ||
+    config.url?.includes('/logout')
+
   const token = store.getState().auth.accessToken
-  if (token && config.headers) {
+  // `/refresh` and `/logout` rely on HttpOnly cookies, not the current
+  // Authorization header. Skipping the header here avoids sending an already
+  // expired access token to endpoints that are meant to restore the session.
+  if (token && config.headers && !isAuthEndpoint) {
     config.headers.Authorization = `Bearer ${token}`
   }
   return config
@@ -55,7 +64,14 @@ authClient.interceptors.response.use(
       isRefreshing = true
 
       try {
-        await store.dispatch(refreshAccessToken()).unwrap()
+        // One refresh request restores the session for every queued request.
+        const newAccessToken = await store.dispatch(refreshAccessToken()).unwrap()
+        if (!newAccessToken) {
+          // If refresh returns no token, the server no longer considers this
+          // browser session valid, so we must fully log out on the client too.
+          await store.dispatch(logout())
+          throw new Error('Refresh token unavailable or expired')
+        }
         processQueue(null)
         return authClient(originalRequest)
       } catch (err) {

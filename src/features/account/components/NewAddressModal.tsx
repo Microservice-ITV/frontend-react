@@ -13,6 +13,7 @@ type Props = {
   onSaved: () => Promise<void> | void
   mode?: 'create' | 'edit'
   initialAddress?: UserAddress
+  description?: string
 }
 
 type AddressFormErrors = Partial<{
@@ -95,7 +96,7 @@ const getInitialFormValues = (mode: 'create' | 'edit', initialAddress?: UserAddr
   }
 }
 
-export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress }: Props) => {
+export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, description }: Props) => {
   const dispatch = useAppDispatch()
   const authUser = useAppSelector(selectAuthUser)
   const { closeModal } = useGlobalModal()
@@ -346,6 +347,10 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress }: Pr
       className="space-y-4"
       onSubmit={handleSubmit(onSubmit)}
     >
+      {description && (
+        <p className="text-xs text-gray-500 -mt-1">{description}</p>
+      )}
+
       {/* Row 1: Full name / Phone number */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>

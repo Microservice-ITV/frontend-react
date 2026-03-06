@@ -1,22 +1,14 @@
 import { MapPin } from 'lucide-react'
-import { useEffect } from 'react'
-import { useAppDispatch, useAppSelector } from '@/app/hooks'
-import { selectAuthUser } from '@/features/auth/store/authSelectors'
-import { fetchUserAddresses } from '@/features/account/store/accountThunks'
-import { selectDefaultAddress, selectAccountAddressesLoading } from '@/features/account/store/accountSelectors'
+import type { UserAddress } from '@/features/account/types/addressTypes'
 
-const CheckoutAddress = () => {
-  const dispatch = useAppDispatch()
-  const authUser = useAppSelector(selectAuthUser)
-  const defaultAddress = useAppSelector(selectDefaultAddress)
-  const loading = useAppSelector(selectAccountAddressesLoading)
+type CheckoutAddressProps = {
+  address: UserAddress | null
+  loading: boolean
+  onChangeAddress: () => void
+}
 
-  useEffect(() => {
-    if (!authUser?.id) return
-    void dispatch(fetchUserAddresses(authUser.id))
-  }, [authUser?.id, dispatch])
-
-  const locationText = [defaultAddress?.state, defaultAddress?.city, defaultAddress?.district, defaultAddress?.ward]
+const CheckoutAddress = ({ address, loading, onChangeAddress }: CheckoutAddressProps) => {
+  const locationText = [address?.state, address?.city, address?.district, address?.ward]
     .filter(Boolean)
     .join(', ')
 
@@ -31,33 +23,37 @@ const CheckoutAddress = () => {
           <span className="text-[#ee4d2d] text-base font-medium">Delivery Address</span>
         </div>
 
-        {!loading && !defaultAddress && (
+        {!loading && !address && (
           <div className="text-sm text-gray-600">No saved address yet. Please add one from My Addresses.</div>
         )}
 
-        {(loading || defaultAddress) && (
+        {(loading || address) && (
           <div className="flex items-center text-sm text-gray-900">
             <span className="font-semibold mr-6 whitespace-nowrap">
               {loading
                 ? 'Loading...'
-                : `${defaultAddress?.full_name ?? ''} ${defaultAddress?.phone_no ?? ''}`.trim()}
+                : `${address?.full_name ?? ''} ${address?.phone_no ?? ''}`.trim()}
             </span>
 
             <span className="truncate max-w-[620px] mr-4">
               {loading
                 ? 'Loading delivery address...'
-                : [locationText, defaultAddress?.address_line_1, defaultAddress?.address_line_2, defaultAddress?.postal_code]
+                : [locationText, address?.address_line_1, address?.address_line_2, address?.postal_code]
                     .filter(Boolean)
                     .join(', ')}
             </span>
 
-            {defaultAddress?.is_default && (
+            {address?.is_default && (
               <span className="mr-6 text-xs text-[#ee4d2d] border border-[#ee4d2d] px-2 py-[1px]">
                 Default
               </span>
             )}
 
-            <button className="text-sm text-[#0055aa] cursor-pointer">
+            <button
+              type="button"
+              className="text-sm text-[#0055aa] cursor-pointer"
+              onClick={onChangeAddress}
+            >
               Change
             </button>
           </div>
