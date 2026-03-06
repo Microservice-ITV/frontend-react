@@ -1,6 +1,6 @@
 // Thunks => Async Business Logic
 import { createAsyncThunk } from '@reduxjs/toolkit'
-import { authService } from '@/services/authService'
+import { authFeatureApi } from '../api/authApi'
 import type { User, TokenPayload, AuthState } from './authTypes'
 import { markInitialized, setHasSession } from './authSlice'
 import { hasSessionCookie, setSessionCookie, clearSessionCookie } from '@/utils/session'
@@ -14,7 +14,7 @@ export const login = createAsyncThunk<
     { rejectValue: string }
 >('auth/login', async (data, { dispatch, rejectWithValue }) => {
     try {
-        const res = await authService.login(data)
+        const res = await authFeatureApi.login(data)
         setSessionCookie()
         return { accessToken: res.data.data.access_token }
     } catch {
@@ -30,7 +30,7 @@ export const register = createAsyncThunk<
     { rejectValue: string }
 >('auth/register', async (data, { rejectWithValue }) => {
     try {
-        const res = await authService.register(data)
+        const res = await authFeatureApi.register(data)
         setSessionCookie()
         return {
             accessToken: res.data.data.access_token,
@@ -53,7 +53,7 @@ export const fetchMe = createAsyncThunk<
         return rejectWithValue(null)
     }
 
-    const res = await authService.me()
+    const res = await authFeatureApi.me()
     return res.data.data.user
 })
 
@@ -67,7 +67,7 @@ export const refreshAccessToken = createAsyncThunk<
     // Always call the API; backend returns 204 when no/invalid refresh_token cookie.
     // This way we don't depend on has_session cookie (which may expire before refresh_token).
     try {
-        const res = await authService.refresh()
+        const res = await authFeatureApi.refresh()
         // Backend returns 204 (no body) when refresh_token cookie is missing or invalid
         const accessToken = res.data?.data?.access_token
 

@@ -48,8 +48,6 @@ useEffect(() => {
     // } else if (sort === 'price-desc') {
     //   sortProductsHighToLow()
     // }
-
-    console.log('Sorting changed:', sort)
   }, [sort])
 
   return (

@@ -1,4 +1,4 @@
-import { publicApi } from '@/lib/api/publicApi'
+import { publicClient } from '@/lib/api/publicClient'
 import type { Category } from '../types/categoryTypes'
 
 interface CategoriesApiResponse {
@@ -13,5 +13,5 @@ interface CategoriesApiResponse {
 }
 
 export const categoryApi = {
-  getAll: () => publicApi.get<CategoriesApiResponse>('/categories'),
+  getAll: () => publicClient.get<CategoriesApiResponse>('/categories'),
 }

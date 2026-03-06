@@ -1,4 +1,4 @@
-import { productApi } from '@/lib/api/productApi'
+import { productClient } from '@/lib/api/productClient'
 import { AxiosResponse } from 'axios'
 
 // API RESPONSE TYPES (RAW BACKEND)
@@ -39,12 +39,12 @@ interface ProductDetailApiResponse {
     }
 }
 
-export const productQueries = {
+export const productApi = {
     getByCategory: (categoryId: string): Promise<AxiosResponse<ProductsApiResponse>> =>
-        productApi.get('/products', {
+        productClient.get('/products', {
             params: { categoryId },
         }),
 
     getDetail: (productId: string): Promise<AxiosResponse<ProductDetailApiResponse>> =>
-        productApi.get(`/products/${productId}`),
+        productClient.get(`/products/${productId}`),
 }

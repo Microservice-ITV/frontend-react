@@ -1,28 +1,62 @@
 import { CheckoutTotals } from '../utils/checkoutCalculator'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { CardElement, useElements, useStripe } from '@stripe/react-stripe-js'
+import { checkoutApi } from '../api/checkoutApi'
 import {
   setAwaitingFinalStatus,
   setCheckoutError,
   setCheckoutPaymentStatus,
   setCheckoutPlacingOrder,
 } from '../store/checkoutSlice'
+import type { UserAddress } from '@/features/account/types/addressTypes'
 
 interface CheckoutSummaryProps {
   checkout: CheckoutTotals
+  hasDeliveryAddress: boolean
+  onRequireAddress: () => void
+  deliveryAddress: UserAddress | null
 }
 
-const CheckoutSummary = ({ checkout }: CheckoutSummaryProps) => {
+const CheckoutSummary = ({ checkout, hasDeliveryAddress, onRequireAddress, deliveryAddress }: CheckoutSummaryProps) => {
   const dispatch = useAppDispatch()
   const stripe = useStripe()
   const elements = useElements()
-  const { clientSecret, paymentStatus, isPlacingOrder, isAwaitingFinalStatus, error } = useAppSelector(
+  const { currentCheckout, clientSecret, paymentStatus, isPlacingOrder, isAwaitingFinalStatus, error } = useAppSelector(
     state => state.checkout
   )
 
   const user = useAppSelector(state => state.auth.user)
 
+  const buildCheckoutAddressPayload = (address: UserAddress) => ({
+    full_name: address.full_name,
+    phone_no: address.phone_no,
+    email: address.email ?? user?.email ?? null,
+    country_code: address.country_code || 'MM',
+    country: address.country ?? '',
+    state: address.state ?? '',
+    city: address.city ?? '',
+    district: address.district ?? '',
+    ward: address.ward ?? '',
+    address_line_1: address.address_line_1,
+    address_line_2: address.address_line_2 ?? null,
+    postal_code: address.postal_code ?? null,
+    latitude: address.latitude ?? null,
+    longitude: address.longitude ?? null,
+    delivery_note: address.delivery_note ?? null,
+  })
+
   const handlePlaceOrder = async () => {
+    if (!hasDeliveryAddress || !deliveryAddress) {
+      dispatch(setCheckoutError('Please add a delivery address before placing your order.'))
+      onRequireAddress()
+      return
+    }
+
+    if (!currentCheckout?.checkout_id) {
+      dispatch(setCheckoutError('Checkout session is not ready yet. Please try again.'))
+      return
+    }
+
     if (!stripe || !elements || !clientSecret) {
       dispatch(setCheckoutError('Payment is not ready yet.'))
       return
@@ -39,6 +73,12 @@ const CheckoutSummary = ({ checkout }: CheckoutSummaryProps) => {
 
 
     try {
+      // Persist shipping snapshot to order-service before payment confirmation.
+      await checkoutApi.updateCheckoutAddress(
+        currentCheckout.checkout_id,
+        buildCheckoutAddressPayload(deliveryAddress),
+      )
+
       const result = await stripe.confirmCardPayment(clientSecret, {
         payment_method: {
           card,
@@ -167,6 +207,8 @@ const CheckoutSummary = ({ checkout }: CheckoutSummaryProps) => {
                 ? 'Payment failed. Please try again.'
                 : paymentStatus === 'EXPIRED'
                   ? 'Checkout expired. Please start a new checkout.'
+                  : !hasDeliveryAddress
+                    ? 'Please add your delivery address to continue.'
                   : clientSecret
                     ? 'Payment ready. You can place your order.'
                     : 'Preparing payment...'}

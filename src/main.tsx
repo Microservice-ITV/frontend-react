@@ -7,6 +7,7 @@ import { BrowserRouter } from 'react-router-dom'
 // 2. Absolute imports
 import { store } from '@/app/store'
 import { initCartSync } from '@/app/bootstrap'
+import { GlobalModalProvider } from '@/components/ui/GlobalModalProvider'
 import App from './App'
 
 // 3. Relative imports (styles)
@@ -23,7 +24,9 @@ createRoot(document.getElementById('root')!).render(
     {/* 2. Without Provider, React components cannot interact with Redux. */}
     <Provider store={store}>
       <BrowserRouter>
-        <App />
+        <GlobalModalProvider>
+          <App />
+        </GlobalModalProvider>
       </BrowserRouter>
     </Provider>
   </StrictMode>
