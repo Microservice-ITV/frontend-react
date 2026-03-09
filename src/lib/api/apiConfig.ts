@@ -15,3 +15,6 @@ export const ORDER_SERVICE_BASE_URL =
 
 export const PRODUCT_SERVICE_BASE_URL =
     import.meta.env.VITE_PRODUCT_SERVICE_URL ?? 'http://localhost:5001/api/v1'
+
+export const ECOMMERCE_READ_GRAPHQL_URL =
+    import.meta.env.VITE_ECOMMERCE_READ_GRAPHQL_URL ?? 'http://localhost:5004/graphql'
