@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { matchPath, useLocation, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { bootstrapAuth, fetchMe } from '@/features/auth/store/authThunks'
 import Navbar from '@/components/layouts/navbar/Navbar'
@@ -10,11 +10,19 @@ import { selectAuthStatus } from './features/auth/store/authSelectors'
 import ScrollToTop from './components/routing/ScrollToTop'
 import { setAccessToken, setHasSession } from './features/auth/store/authSlice'
 import { setSessionCookie } from '@/utils/session'
+import { extractRoleFromUser } from '@/app/rbac/normalizers'
+import { getDefaultLandingPathByRole } from '@/app/rbac/navigation'
 
 function App() {
   const dispatch = useAppDispatch() // Typed dispatch function to send actions
   const status = useAppSelector(selectAuthStatus) // Reads auth state from Redux store
   const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const hideGlobalChrome =
+    matchPath({ path: '/seller', end: true }, pathname) ||
+    matchPath({ path: '/seller/*' }, pathname) ||
+    matchPath({ path: '/super-admin', end: true }, pathname) ||
+    matchPath({ path: '/super-admin/*' }, pathname)
 
   /**
    * Bootstrap authentication on app load
@@ -42,8 +50,9 @@ function App() {
         dispatch(setAccessToken(token))
         dispatch(setHasSession(true))
         setSessionCookie()
-        await dispatch(fetchMe()).unwrap()
-        navigate('/', { replace: true })
+        const user = await dispatch(fetchMe()).unwrap()
+        const role = extractRoleFromUser(user)
+        navigate(getDefaultLandingPathByRole(role), { replace: true })
       } catch {
         // Ignore failures; user can retry login
       }
@@ -66,8 +75,8 @@ function App() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#f5f5f5]">
-      <Navbar />
-      <HeaderSpacer />
+      {!hideGlobalChrome && <Navbar />}
+      {!hideGlobalChrome && <HeaderSpacer />}
 
       <ScrollToTop />
 
@@ -76,7 +85,7 @@ function App() {
         <AppRoutes />
       </main>
 
-      <Footer />
+      {!hideGlobalChrome && <Footer />}
     </div>
   )
 }

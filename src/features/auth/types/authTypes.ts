@@ -4,6 +4,9 @@ export interface User {
     id: string
     name: string
     email: string
+    role?: string | null
+    role_name?: string | null
+    roles?: Array<string | { code?: string; name?: string }>
 }
 
 // Payload returned by login/register/refresh

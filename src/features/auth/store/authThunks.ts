@@ -1,7 +1,7 @@
 // Thunks => Async Business Logic
 import { createAsyncThunk } from '@reduxjs/toolkit'
 import { authFeatureApi } from '../api/authApi'
-import type { User, TokenPayload, AuthState } from './authTypes'
+import type { User, TokenPayload, AuthState } from '../types/authTypes'
 import { markInitialized, setHasSession } from './authSlice'
 import { hasSessionCookie, setSessionCookie, clearSessionCookie } from '@/utils/session'
 import axios from 'axios'

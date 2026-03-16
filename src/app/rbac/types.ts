@@ -1,0 +1,15 @@
+export type AppRole = 'SUPER_ADMIN' | 'SHOP_OWNER' | 'SHOP_ADMIN' | 'USER'
+
+export type Capability =
+  | 'account.view'
+  | 'account.profile.view'
+  | 'account.addresses.manage'
+  | 'account.orders.view'
+  | 'account.security.manage'
+  | 'checkout.view'
+  | 'checkout.place_order'
+  | 'seller.dashboard.view'
+  | 'platform.admin.view'
+  | 'seller.permissions.view'
+  | 'seller.permissions.manage'
+  | '*'

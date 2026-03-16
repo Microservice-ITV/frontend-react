@@ -5,6 +5,8 @@ import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { fetchMe, login } from '@/features/auth/store/authThunks'
 import { setLoginDraft } from '@/features/auth/store/authSlice'
 import { getRecaptchaToken } from '@/utils/recaptcha'
+import { extractRoleFromUser } from '@/app/rbac/normalizers'
+import { getDefaultLandingPathByRole } from '@/app/rbac/navigation'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
@@ -47,7 +49,9 @@ export const LoginPage = () => {
   // Redirect after login success
   useEffect(() => {
     if (isAuthenticated && user) {
-      navigate(from, { replace: true })
+      const role = extractRoleFromUser(user)
+      const nextPath = from !== '/' ? from : getDefaultLandingPathByRole(role)
+      navigate(nextPath, { replace: true })
     }
   }, [isAuthenticated, user, from, navigate])
 
