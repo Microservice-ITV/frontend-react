@@ -1,0 +1,48 @@
+import type { User } from '@/features/auth/types/authTypes'
+import type { AppRole } from './types'
+
+const ROLE_ALIASES: Record<string, AppRole> = {
+  SUPER_ADMIN: 'SUPER_ADMIN',
+  SHOP_OWNER: 'SHOP_OWNER',
+  SHOP_ADMIN: 'SHOP_ADMIN',
+  USER: 'USER',
+}
+
+const normalizeRoleString = (value: string): AppRole | null => {
+  const normalized = value.trim().toUpperCase().replace(/[\s-]+/g, '_')
+  return ROLE_ALIASES[normalized] ?? null
+}
+
+export const extractRoleFromUser = (user: User | null): AppRole => {
+  if (!user) return 'USER'
+
+  const candidates: string[] = []
+
+  if (user.role) candidates.push(user.role)
+  if (user.role_name) candidates.push(user.role_name)
+
+  for (const roleEntry of user.roles ?? []) {
+    if (typeof roleEntry === 'string') {
+      candidates.push(roleEntry)
+      continue
+    }
+
+    if (roleEntry.code) candidates.push(roleEntry.code)
+    if (roleEntry.name) candidates.push(roleEntry.name)
+  }
+
+  // Keep a deterministic precedence so privileged roles win if multiple roles exist.
+  const precedence: AppRole[] = ['SUPER_ADMIN', 'SHOP_OWNER', 'SHOP_ADMIN', 'USER']
+
+  const resolved = candidates
+    .map((candidate) => normalizeRoleString(candidate))
+    .filter((role): role is AppRole => role !== null)
+
+  for (const role of precedence) {
+    if (resolved.includes(role)) {
+      return role
+    }
+  }
+
+  return 'USER'
+}

@@ -4,6 +4,8 @@ import { useAppDispatch } from '@/app/hooks'
 import { fetchMe } from '@/features/auth/store/authThunks'
 import { setAccessToken, setHasSession } from '@/features/auth/store/authSlice'
 import { setSessionCookie } from '@/utils/session'
+import { extractRoleFromUser } from '@/app/rbac/normalizers'
+import { getDefaultLandingPathByRole } from '@/app/rbac/navigation'
 
 const OAuthSuccessPage = () => {
   const dispatch = useAppDispatch()
@@ -49,8 +51,9 @@ const OAuthSuccessPage = () => {
         dispatch(setAccessToken(token))
         dispatch(setHasSession(true))
         setSessionCookie()
-        await dispatch(fetchMe()).unwrap()
-        navigate('/', { replace: true })
+        const user = await dispatch(fetchMe()).unwrap()
+        const role = extractRoleFromUser(user)
+        navigate(getDefaultLandingPathByRole(role), { replace: true })
       } catch {
         navigate('/oauth-error', { replace: true })
       }

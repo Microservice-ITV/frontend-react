@@ -1,7 +1,7 @@
 // Slice => State & Reducers
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { login, register, fetchMe, refreshAccessToken, logout, bootstrapAuth } from './authThunks'
-import type { AuthState } from './authTypes'
+import type { AuthState } from '../types/authTypes'
 
 const initialState: AuthState = {
   user: null,
