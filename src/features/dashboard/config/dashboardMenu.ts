@@ -1,0 +1,218 @@
+import {
+  LayoutDashboard,
+  BarChart3,
+  ShoppingCart,
+  Package,
+  FileText,
+  Building2,
+  UserCog,
+  Server,
+  Shield,
+  Store,
+  Bell,
+  Settings,
+  HelpCircle,
+  Mail,
+  MessageCircle,
+  FolderOpen,
+  Tags,
+} from 'lucide-react'
+import { CAPABILITIES } from '@/app/rbac/capabilities'
+import type { DashboardMenuSection } from '../types/dashboardTypes'
+
+export const DASHBOARD_MENU_SELLER: DashboardMenuSection[] = [
+  {
+    title: 'OVERVIEW',
+    items: [
+      {
+        key: 'seller-overview',
+        label: 'Dashboard',
+        to: '/seller/overview',
+        area: 'seller',
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: LayoutDashboard,
+      },
+      {
+        key: 'seller-analytics',
+        label: 'Analytics',
+        to: '/seller/analytics',
+        area: 'seller',
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: BarChart3,
+      },
+    ],
+  },
+  {
+    title: 'COMMERCE',
+    items: [
+      {
+        key: 'seller-categories',
+        label: 'Categories',
+        to: '/seller/categories',
+        area: 'seller',
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: Tags,
+      },
+      {
+        key: 'seller-products',
+        label: 'Products',
+        to: '/seller/products',
+        area: 'seller',
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: Package,
+      },
+      {
+        key: 'seller-orders',
+        label: 'Orders',
+        to: '/seller/orders',
+        area: 'seller',
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: ShoppingCart,
+      },
+      {
+        key: 'seller-invoices',
+        label: 'Invoices',
+        to: '/seller/invoices',
+        area: 'seller',
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: FileText,
+      },
+    ],
+  },
+  {
+    title: 'APPS',
+    items: [
+      {
+        key: 'seller-mail',
+        label: 'Mail',
+        to: '/seller/mail',
+        area: 'seller',
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: Mail,
+      },
+      {
+        key: 'seller-chat',
+        label: 'Chat',
+        to: '/seller/chat',
+        area: 'seller',
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: MessageCircle,
+      },
+      {
+        key: 'seller-files',
+        label: 'Files',
+        to: '/seller/files',
+        area: 'seller',
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: FolderOpen,
+      },
+    ],
+  },
+  {
+    title: 'SYSTEM',
+    items: [
+      {
+        key: 'seller-users',
+        label: 'Users',
+        to: '/seller/users',
+        area: 'seller',
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: UserCog,
+      },
+      {
+        key: 'seller-notifications',
+        label: 'Notifications',
+        to: '/seller/notifications',
+        area: 'seller',
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: Bell,
+        badge: '3',
+      },
+      {
+        key: 'seller-settings',
+        label: 'Settings',
+        to: '/seller/settings',
+        area: 'seller',
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: Settings,
+      },
+      {
+        key: 'seller-help-support',
+        label: 'Help & Support',
+        to: '/seller/help-support',
+        area: 'seller',
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: HelpCircle,
+      },
+    ],
+  },
+]
+
+export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
+  {
+    title: 'OVERVIEW',
+    items: [
+      {
+        key: 'admin-overview',
+        label: 'Dashboard',
+        to: '/super-admin/overview',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: LayoutDashboard,
+      },
+      {
+        key: 'admin-analytics',
+        label: 'Analytics',
+        to: '/super-admin/analytics',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: BarChart3,
+      },
+    ],
+  },
+  {
+    title: 'PLATFORM',
+    items: [
+      {
+        key: 'admin-tenants',
+        label: 'Tenants',
+        to: '/super-admin/tenants',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: Building2,
+      },
+      {
+        key: 'admin-sellers',
+        label: 'Sellers',
+        to: '/super-admin/sellers',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: Store,
+      },
+      {
+        key: 'admin-users',
+        label: 'Users',
+        to: '/super-admin/users',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: UserCog,
+      },
+      {
+        key: 'admin-system',
+        label: 'System',
+        to: '/super-admin/system',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: Server,
+      },
+      {
+        key: 'admin-rbac',
+        label: 'RBAC',
+        to: '/super-admin/rbac',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: Shield,
+      },
+    ],
+  },
+]

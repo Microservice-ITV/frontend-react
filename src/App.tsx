@@ -6,16 +6,17 @@ import Navbar from '@/components/layouts/navbar/Navbar'
 import Footer from '@/components/layouts/Footer'
 import AppRoutes from '@/routes/AppRoutes'
 import HeaderSpacer from './components/layouts/HeaderSpacer'
-import { selectAuthStatus } from './features/auth/store/authSelectors'
+import { selectIsAuthBootstrapping } from './features/auth/store/authSelectors'
 import ScrollToTop from './components/routing/ScrollToTop'
 import { setAccessToken, setHasSession } from './features/auth/store/authSlice'
 import { setSessionCookie } from '@/utils/session'
 import { extractRoleFromUser } from '@/app/rbac/normalizers'
 import { getDefaultLandingPathByRole } from '@/app/rbac/navigation'
+import AuthBootstrapLoading from '@/components/ui/AuthBootstrapLoading'
 
 function App() {
   const dispatch = useAppDispatch() // Typed dispatch function to send actions
-  const status = useAppSelector(selectAuthStatus) // Reads auth state from Redux store
+  const isAuthBootstrapping = useAppSelector(selectIsAuthBootstrapping)
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const hideGlobalChrome =
@@ -65,13 +66,7 @@ function App() {
   /**
    * Prevent UI flicker during authentication bootstrap
    */
-  if (status === 'loading') {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <span className="text-gray-500">Loading...</span>
-      </div>
-    )
-  }
+  if (isAuthBootstrapping) return <AuthBootstrapLoading fullScreen />
 
   return (
     <div className="flex min-h-screen flex-col bg-[#f5f5f5]">
