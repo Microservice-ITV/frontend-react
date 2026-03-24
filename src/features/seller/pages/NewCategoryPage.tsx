@@ -1,0 +1,345 @@
+import { useEffect, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { z } from 'zod'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Link, useNavigate } from 'react-router-dom'
+import { ChevronDown, X } from 'lucide-react'
+
+const toSlug = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+
+const categoryFormSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required'),
+  description: z.string().trim(),
+  slug: z.string().trim().min(1, 'Slug is required'),
+  parentId: z.string().optional(),
+  isActive: z.enum(['true', 'false']),
+  image: z.string().trim(),
+})
+
+type CategoryFormValues = z.infer<typeof categoryFormSchema>
+
+// TODO: Replace with real data from API.
+const MOCK_PARENT_CATEGORIES = [
+  { id: 'cat-1', name: 'Pet Supplies' },
+  { id: 'cat-2', name: 'Sports' },
+  { id: 'cat-3', name: 'Gaming' },
+  { id: 'cat-4', name: 'Home Appliance' },
+]
+
+const NewCategoryPage = () => {
+  const navigate = useNavigate()
+  const [imageFiles, setImageFiles] = useState<File[]>([])
+  const [imagePreviews, setImagePreviews] = useState<string[]>([])
+  const [imageError, setImageError] = useState('')
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    watch,
+    setValue,
+  } = useForm<CategoryFormValues>({
+    resolver: zodResolver(categoryFormSchema),
+    defaultValues: {
+      name: '',
+      description: '',
+      slug: '',
+      parentId: '',
+      isActive: 'false',
+      image: '',
+    },
+  })
+
+  const name = watch('name')
+  const parentId = watch('parentId')
+  const isActive = watch('isActive')
+
+  useEffect(() => {
+    const newSlug = toSlug(name || '')
+    setValue('slug', newSlug)
+  }, [name, setValue])
+
+  useEffect(() => {
+    const urls = imageFiles.map((file) => URL.createObjectURL(file))
+    setImagePreviews(urls)
+    setValue(
+      'image',
+      imageFiles.map((f) => f.name).join(','),
+      { shouldValidate: true },
+    )
+    return () => {
+      urls.forEach((url) => URL.revokeObjectURL(url))
+    }
+  }, [imageFiles, setValue])
+
+  const onSubmit = (data: CategoryFormValues) => {
+    // TODO: Call API to create category
+    console.log('Create category:', {
+      ...data,
+      isActive: data.isActive === 'true',
+      parentId: data.parentId || null,
+      imageFiles,
+    })
+    navigate('/seller/categories')
+  }
+
+  return (
+    <div className="space-y-6">
+      <nav className="text-xs text-slate-500">
+        <Link to="/seller/overview" className="hover:text-slate-700">
+          Dashboard
+        </Link>
+        <span className="mx-1">/</span>
+        <Link to="/seller/categories" className="hover:text-slate-700">
+          Categories
+        </Link>
+        <span className="mx-1">/</span>
+        <span className="text-slate-900">New Category</span>
+      </nav>
+
+      <div>
+        <h1 className="text-xl font-bold text-slate-900">New Category</h1>
+        <p className="mt-0.5 text-sm text-slate-600">
+          Add a new category to the catalog.
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
+              <h2 className="text-base font-bold text-slate-900">
+                Category Information
+              </h2>
+              <p className="mt-0.5 text-xs text-slate-600">
+                Enter the details for the new category.
+              </p>
+
+              <div className="mt-6 space-y-4">
+                <div>
+                  <label
+                    htmlFor="name"
+                    className="mb-1.5 block text-xs font-medium text-slate-700"
+                  >
+                    Name
+                  </label>
+                  <input
+                    id="name"
+                    type="text"
+                    placeholder="Category name"
+                    {...register('name')}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none placeholder:text-slate-400 focus:border-emerald-500"
+                  />
+                  {errors.name && (
+                    <p className="mt-1 text-xs text-red-600">
+                      {errors.name.message}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="slug"
+                    className="mb-1.5 block text-xs font-medium text-slate-700"
+                  >
+                    Slug
+                  </label>
+                  <input
+                    id="slug"
+                    type="text"
+                    readOnly
+                    placeholder="category-slug"
+                    {...register('slug')}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none placeholder:text-slate-400 focus:border-emerald-500"
+                  />
+                  {errors.slug && (
+                    <p className="mt-1 text-xs text-red-600">
+                      {errors.slug.message}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="image"
+                    className="mb-1.5 block text-xs font-medium text-slate-700"
+                  >
+                    Images (max 3)
+                  </label>
+                  <input
+                    id="image"
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={(e) => {
+                      const incomingFiles = Array.from(e.target.files ?? [])
+                      const merged = [...imageFiles, ...incomingFiles]
+                      const uniqueByKey = merged.filter(
+                        (file, index, arr) =>
+                          arr.findIndex(
+                            (item) =>
+                              item.name === file.name &&
+                              item.size === file.size &&
+                              item.lastModified === file.lastModified,
+                          ) === index,
+                      )
+
+                      if (uniqueByKey.length > 3) {
+                        setImageError('You can upload up to 3 images only.')
+                      } else {
+                        setImageError('')
+                      }
+
+                      setImageFiles(uniqueByKey.slice(0, 3))
+                      e.currentTarget.value = ''
+                    }}
+                    className="w-full cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                  />
+                  <input type="hidden" {...register('image')} />
+                  {imageError && (
+                    <p className="mt-1 text-xs text-red-600">{imageError}</p>
+                  )}
+                  {imagePreviews.length > 0 && (
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                      {imagePreviews.map((preview, index) => (
+                        <div
+                          key={`${imageFiles[index]?.name ?? 'preview'}-${index}`}
+                          className="relative overflow-hidden rounded-lg border border-slate-200 bg-slate-50"
+                        >
+                          <img
+                            src={preview}
+                            alt={imageFiles[index]?.name ?? `Image ${index + 1}`}
+                            className="h-24 w-full object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setImageFiles((prev) =>
+                                prev.filter((_, fileIndex) => fileIndex !== index),
+                              )
+                              setImageError('')
+                            }}
+                            className="absolute right-1 top-1 rounded-full bg-black/70 p-1 text-white hover:bg-black/80"
+                            aria-label="Remove image"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="description"
+                    className="mb-1.5 block text-xs font-medium text-slate-700"
+                  >
+                    Description
+                  </label>
+                  <textarea
+                    id="description"
+                    rows={4}
+                    placeholder="Category description"
+                    {...register('description')}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none placeholder:text-slate-400 focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
+              <h2 className="text-base font-bold text-slate-900">
+                Organization
+              </h2>
+
+              <div className="mt-6 space-y-4">
+                <div>
+                  <label
+                    htmlFor="parentId"
+                    className="mb-1.5 block text-xs font-medium text-slate-700"
+                  >
+                    Parent Category
+                  </label>
+                  <div className="relative">
+                    <select
+                      id="parentId"
+                      {...register('parentId')}
+                      value={parentId}
+                      onChange={(e) => setValue('parentId', e.target.value)}
+                      className="w-full appearance-none rounded-lg border border-slate-200 bg-white px-3 py-2 pr-10 text-sm outline-none focus:border-emerald-500"
+                    >
+                      <option value="">None</option>
+                      {MOCK_PARENT_CATEGORIES.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown
+                      size={16}
+                      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="isActive"
+                    className="mb-1.5 block text-xs font-medium text-slate-700"
+                  >
+                    Status
+                  </label>
+                  <div className="relative">
+                    <select
+                      id="isActive"
+                      {...register('isActive')}
+                      value={isActive}
+                      onChange={(e) =>
+                        setValue('isActive', e.target.value as CategoryFormValues['isActive'])
+                      }
+                      className="w-full appearance-none rounded-lg border border-slate-200 bg-white px-3 py-2 pr-10 text-sm outline-none focus:border-emerald-500"
+                    >
+                      <option value="true">Active</option>
+                      <option value="false">Inactive</option>
+                    </select>
+                    <ChevronDown
+                      size={16}
+                      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <button
+                type="submit"
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700"
+              >
+                Create Category
+              </button>
+              <Link
+                to="/seller/categories"
+                className="flex w-full items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </Link>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+export default NewCategoryPage

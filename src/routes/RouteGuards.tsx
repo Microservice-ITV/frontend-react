@@ -1,17 +1,21 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAppSelector } from '@/app/hooks'
-import { selectAuthUser, selectIsAuthenticated } from '@/features/auth/store/authSelectors'
+import { selectAuthUser, selectIsAuthenticated, selectIsAuthBootstrapping } from '@/features/auth/store/authSelectors'
 import type { Capability } from '@/app/rbac/types'
 import { canAny } from '@/app/rbac/selectors'
 import { extractRoleFromUser } from '@/app/rbac/normalizers'
-import { getDefaultLandingPathByRole } from '@/app/rbac/navigation'
+import { getDefaultLandingPathByRole, resolvePostLoginPath } from '@/app/rbac/navigation'
 import type { ReactNode } from 'react'
+import AuthBootstrapLoading from '@/components/ui/AuthBootstrapLoading'
 
 // ================= GuestRoute =================
 export const GuestRoute = () => {
+  const isAuthBootstrapping = useAppSelector(selectIsAuthBootstrapping)
   const isAuthenticated = useAppSelector(selectIsAuthenticated)
   const authUser = useAppSelector(selectAuthUser)
   const location = useLocation()
+
+  if (isAuthBootstrapping) return <AuthBootstrapLoading />
 
   // Keep users on guest pages until profile is loaded; this avoids redirecting
   // to "/" before role resolution is available right after login.
@@ -26,8 +30,7 @@ export const GuestRoute = () => {
 
   if (isAuthenticated && authUser) {
     const role = extractRoleFromUser(authUser)
-    const fallback = getDefaultLandingPathByRole(role)
-    const target = from !== '/' ? from : fallback
+    const target = resolvePostLoginPath(role, from)
     return <Navigate to={target} replace />
   }
 
@@ -46,9 +49,13 @@ export const ProtectedRoute = ({
   unauthorizedRedirectTo = '/forbidden',
   children,
 }: ProtectedRouteProps) => {
+  const isAuthBootstrapping = useAppSelector(selectIsAuthBootstrapping)
   const isAuthenticated = useAppSelector(selectIsAuthenticated)
+  const authUser = useAppSelector(selectAuthUser)
   const hasRequiredCapabilities = useAppSelector((state) => canAny(state, requiredCapabilities))
   const location = useLocation()
+
+  if (isAuthBootstrapping) return <AuthBootstrapLoading />
 
   if (!isAuthenticated) {
     return (
@@ -58,6 +65,12 @@ export const ProtectedRoute = ({
         state={{ from: location }}
       />
     )
+  }
+
+  // User data still loading (fetchMe in flight after refresh). Don't redirect to 403 yet —
+  // we default to USER role when authUser is null, which would incorrectly deny seller/admin routes.
+  if (requiredCapabilities.length > 0 && !authUser) {
+    return <AuthBootstrapLoading />
   }
 
   if (requiredCapabilities.length > 0 && !hasRequiredCapabilities) {
@@ -77,8 +90,11 @@ type BuyerHomeRouteProps = {
 }
 
 export const BuyerHomeRoute = ({ children }: BuyerHomeRouteProps) => {
+  const isAuthBootstrapping = useAppSelector(selectIsAuthBootstrapping)
   const isAuthenticated = useAppSelector(selectIsAuthenticated)
   const authUser = useAppSelector(selectAuthUser)
+
+  if (isAuthBootstrapping) return <AuthBootstrapLoading />
 
   if (!isAuthenticated || !authUser) {
     return <>{children}</>

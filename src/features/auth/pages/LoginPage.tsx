@@ -6,7 +6,7 @@ import { fetchMe, login } from '@/features/auth/store/authThunks'
 import { setLoginDraft } from '@/features/auth/store/authSlice'
 import { getRecaptchaToken } from '@/utils/recaptcha'
 import { extractRoleFromUser } from '@/app/rbac/normalizers'
-import { getDefaultLandingPathByRole } from '@/app/rbac/navigation'
+import { resolvePostLoginPath } from '@/app/rbac/navigation'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
@@ -50,7 +50,7 @@ export const LoginPage = () => {
   useEffect(() => {
     if (isAuthenticated && user) {
       const role = extractRoleFromUser(user)
-      const nextPath = from !== '/' ? from : getDefaultLandingPathByRole(role)
+      const nextPath = resolvePostLoginPath(role, from)
       navigate(nextPath, { replace: true })
     }
   }, [isAuthenticated, user, from, navigate])

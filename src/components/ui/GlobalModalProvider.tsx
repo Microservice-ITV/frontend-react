@@ -13,6 +13,13 @@ type GlobalModalOptions = {
    */
   primaryLabel?: string
   /**
+   * Visual style for the primary button.
+   * - default: existing orange
+   * - success: emerald (same tone as Add Category button)
+   * - danger: red
+   */
+  primaryVariant?: 'default' | 'success' | 'danger'
+  /**
    * Optional label for the secondary (left) button.
    * Defaults to "Cancel".
    */
@@ -77,6 +84,7 @@ export const GlobalModalProvider = ({ children }: GlobalModalProviderProps) => {
       error: null,
       primaryLabel: 'Submit',
       secondaryLabel: 'Cancel',
+      primaryVariant: 'default',
       hidePrimary: false,
       ...options,
     })
@@ -109,6 +117,13 @@ export const GlobalModalProvider = ({ children }: GlobalModalProviderProps) => {
     }
     closeModal()
   }
+
+  const primaryButtonClass =
+    modalState?.primaryVariant === 'success'
+      ? 'inline-flex items-center justify-center px-5 py-2 text-sm font-medium text-white bg-emerald-600 rounded-sm hover:bg-emerald-700 disabled:bg-emerald-300 disabled:cursor-not-allowed cursor-pointer'
+      : modalState?.primaryVariant === 'danger'
+      ? 'inline-flex items-center justify-center px-5 py-2 text-sm font-medium text-white bg-red-600 rounded-sm hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed cursor-pointer'
+      : 'inline-flex items-center justify-center px-5 py-2 text-sm font-medium text-white bg-orange-500 rounded-sm hover:bg-orange-600 disabled:bg-orange-300 disabled:cursor-not-allowed cursor-pointer'
 
   return (
     <GlobalModalContext.Provider value={{ openModal, closeModal }}>
@@ -161,7 +176,7 @@ export const GlobalModalProvider = ({ children }: GlobalModalProviderProps) => {
                 {!modalState.hidePrimary && (
                   <button
                     type="button"
-                    className="inline-flex items-center justify-center px-5 py-2 text-sm font-medium text-white bg-orange-500 rounded-sm hover:bg-orange-600 disabled:bg-orange-300 disabled:cursor-not-allowed cursor-pointer"
+                    className={primaryButtonClass}
                     onClick={handlePrimaryClick}
                     disabled={modalState.loading}
                   >
