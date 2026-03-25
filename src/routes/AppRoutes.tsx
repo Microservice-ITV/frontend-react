@@ -317,12 +317,56 @@ const AppRoutes = () => {
                             }
                         />
                         <Route
+                            path="mail"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminMail}>
+                                    <DashboardPlaceholderPage
+                                        title="Admin Mail"
+                                        description="Administrative inbox and internal communications will be managed here."
+                                    />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="chat"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminChat}>
+                                    <DashboardPlaceholderPage
+                                        title="Admin Chat"
+                                        description="Internal admin chat and collaboration threads will be managed here."
+                                    />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="files"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminFiles}>
+                                    <DashboardPlaceholderPage
+                                        title="Admin Files"
+                                        description="Platform-level file assets and documents will be managed here."
+                                    />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
                             path="settings"
                             element={
                                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminSettings}>
                                     <DashboardPlaceholderPage
                                         title="Admin Settings"
                                         description="Global admin settings will be managed here."
+                                    />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="help-support"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminHelpSupport}>
+                                    <DashboardPlaceholderPage
+                                        title="Admin Help & Support"
+                                        description="Support resources and incident assistance for platform administrators."
                                     />
                                 </ProtectedRoute>
                             }
