@@ -10,3 +10,9 @@ export type Product = {
   price: string
   created: string
 }
+
+export type SellerProductsState = {
+  items: Product[]
+  status: 'idle' | 'loading' | 'succeeded' | 'failed'
+  error: string | null
+}

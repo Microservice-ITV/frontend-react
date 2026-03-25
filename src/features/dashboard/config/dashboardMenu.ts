@@ -215,4 +215,63 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
       },
     ],
   },
+  {
+    title: 'APPS',
+    items: [
+      {
+        key: 'admin-mail',
+        label: 'Mail',
+        to: '/super-admin/mail',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: Mail,
+      },
+      {
+        key: 'admin-chat',
+        label: 'Chat',
+        to: '/super-admin/chat',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: MessageCircle,
+      },
+      {
+        key: 'admin-files',
+        label: 'Files',
+        to: '/super-admin/files',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: FolderOpen,
+      },
+    ],
+  },
+  {
+    title: 'SYSTEM',
+    items: [
+      {
+        key: 'admin-notifications',
+        label: 'Notifications',
+        to: '/super-admin/notifications',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: Bell,
+        badge: '3',
+      },
+      {
+        key: 'admin-settings',
+        label: 'Settings',
+        to: '/super-admin/settings',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: Settings,
+      },
+      {
+        key: 'admin-help-support',
+        label: 'Help & Support',
+        to: '/super-admin/help-support',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: HelpCircle,
+      },
+    ],
+  },
 ]

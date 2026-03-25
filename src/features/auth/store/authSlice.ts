@@ -55,6 +55,8 @@ const authSlice = createSlice({
       state.accessToken = null
       state.isAuthenticated = false
       state.hasSession = false
+      state.initialized = true
+      state.status = 'idle'
     },
   },
   extraReducers: (builder) => {
@@ -103,6 +105,8 @@ const authSlice = createSlice({
         return {
           ...initialState,
           hasSession: false,
+          initialized: true,
+          status: 'idle',
         }
       })
 

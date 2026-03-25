@@ -1,7 +1,15 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
+import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
 import type { Product, ProductStatus } from '../types/productTypes'
+import {
+  fetchSellerProductsByShop,
+  removeProductsLocally,
+  selectSellerProducts,
+  selectSellerProductsError,
+  selectSellerProductsStatus,
+} from '../store'
 import {
   Plus,
   Search,
@@ -16,110 +24,6 @@ import {
   X,
 } from 'lucide-react'
 
-// TODO: Replace with real data from API.
-const MOCK_PRODUCTS: Product[] = [
-  {
-    id: 'prod-1',
-    title: 'CRM Module',
-    description: 'Customer relationship management module...',
-    category: 'Modules',
-    status: 'draft',
-    stock: 999,
-    price: '$349.00',
-    created: 'Sep 25, 2025',
-  },
-  {
-    id: 'prod-2',
-    title: 'Landing Page Builder',
-    description: 'Build responsive landing pages for campaigns.',
-    category: 'Templates',
-    status: 'draft',
-    stock: 999,
-    price: '$179.00',
-    created: 'Sep 24, 2025',
-  },
-  {
-    id: 'prod-3',
-    title: 'Chat Widget',
-    description: 'Customer support chat widget for your site.',
-    category: 'Modules',
-    status: 'archived',
-    stock: 999,
-    price: '$89.00',
-    created: 'Sep 23, 2025',
-  },
-  {
-    id: 'prod-4',
-    title: 'Legacy Dashboard v1',
-    description: 'Original dashboard template (legacy).',
-    category: 'Templates',
-    status: 'archived',
-    stock: 999,
-    price: '$39.00',
-    created: 'Sep 22, 2025',
-  },
-  {
-    id: 'prod-5',
-    title: 'Pro Dashboard License',
-    description: 'Professional dashboard with advanced analytics.',
-    category: 'Templates',
-    status: 'active',
-    stock: 999,
-    price: '$299.00',
-    created: 'Sep 21, 2025',
-  },
-  {
-    id: 'prod-6',
-    title: 'Team Plan Upgrade',
-    description: 'Upgrade to team plan for collaboration.',
-    category: 'Plans',
-    status: 'active',
-    stock: 999,
-    price: '$599.00',
-    created: 'Sep 20, 2025',
-  },
-  {
-    id: 'prod-7',
-    title: 'Enterprise License',
-    description: 'Enterprise-grade license for large organizations.',
-    category: 'Licenses',
-    status: 'active',
-    stock: 999,
-    price: '$1,499.00',
-    created: 'Sep 19, 2025',
-  },
-  {
-    id: 'prod-8',
-    title: 'Starter Kit',
-    description: 'Starter kit for new projects.',
-    category: 'Templates',
-    status: 'draft',
-    stock: 999,
-    price: '$99.00',
-    created: 'Sep 18, 2025',
-  },
-  {
-    id: 'prod-9',
-    title: 'API Module',
-    description: 'REST API integration module.',
-    category: 'Modules',
-    status: 'active',
-    stock: 999,
-    price: '$199.00',
-    created: 'Sep 17, 2025',
-  },
-  {
-    id: 'prod-10',
-    title: 'Analytics Plugin',
-    description: 'Advanced analytics and reporting.',
-    category: 'Modules',
-    status: 'archived',
-    stock: 999,
-    price: '$149.00',
-    created: 'Sep 16, 2025',
-  },
-]
-
 const STATUS_STYLES: Record<ProductStatus, string> = {
   draft: 'bg-amber-100 text-amber-700',
   archived: 'bg-slate-100 text-slate-600',
@@ -133,15 +37,18 @@ const FILTER_TABS: { key: 'all' | ProductStatus; label: string }[] = [
   { key: 'archived', label: 'Archived' },
 ]
 
-const CATEGORIES = ['All', 'Modules', 'Templates', 'Plans', 'Licenses']
-
 const SellerProductsPage = () => {
+  const dispatch = useAppDispatch()
+  const authUser = useAppSelector((state) => state.auth.user)
+  const activeTenantId = authUser?.active_tenant_id ?? null
+  const products = useAppSelector(selectSellerProducts)
+  const productsStatus = useAppSelector(selectSellerProductsStatus)
+  const productsError = useAppSelector(selectSellerProductsError)
   const { openModal } = useGlobalModal()
   const [activeFilter, setActiveFilter] = useState<'all' | ProductStatus>('all')
   const [categoryFilter, setCategoryFilter] = useState<'All' | string>('All')
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false)
   const [search, setSearch] = useState('')
-  const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [page, setPage] = useState(1)
   const [rowsPerPage, setRowsPerPage] = useState(10)
@@ -162,6 +69,26 @@ const SellerProductsPage = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [openMenuId, categoryDropdownOpen])
 
+  useEffect(() => {
+    if (!activeTenantId) return
+    dispatch(fetchSellerProductsByShop({ shopId: activeTenantId }))
+  }, [activeTenantId, dispatch])
+
+  useEffect(() => {
+    setPage(1)
+    setSelectedIds(new Set())
+  }, [activeTenantId, products.length])
+
+  const categoryOptions = useMemo(
+    () => ['All', ...Array.from(new Set(products.map((product) => product.category))).filter(Boolean)],
+    [products],
+  )
+  const missingShopContext = !activeTenantId
+  const isLoadingProducts = productsStatus === 'loading'
+  const effectiveProductsError = missingShopContext
+    ? 'No active shop context found for this account.'
+    : productsError
+
   const filteredProducts = products.filter((product) => {
     const matchesFilter =
       activeFilter === 'all' || product.status === activeFilter
@@ -175,7 +102,7 @@ const SellerProductsPage = () => {
     return matchesFilter && matchesCategory && matchesSearch
   })
 
-  const totalPages = Math.ceil(filteredProducts.length / rowsPerPage)
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / rowsPerPage))
   const paginatedProducts = filteredProducts.slice(
     (page - 1) * rowsPerPage,
     page * rowsPerPage
@@ -206,7 +133,7 @@ const SellerProductsPage = () => {
   }
 
   const handleBulkDelete = () => {
-    setProducts((prev) => prev.filter((product) => !selectedIds.has(product.id)))
+    dispatch(removeProductsLocally(Array.from(selectedIds)))
     setSelectedIds(new Set())
     setPage(1)
   }
@@ -322,7 +249,7 @@ const SellerProductsPage = () => {
                 </button>
                 {categoryDropdownOpen && (
                   <div className="absolute left-0 top-full z-50 mt-1 min-w-[140px] rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
-                    {CATEGORIES.map((cat) => (
+                    {categoryOptions.map((cat) => (
                       <button
                         key={cat}
                         type="button"
@@ -401,7 +328,25 @@ const SellerProductsPage = () => {
               </tr>
             </thead>
             <tbody>
-              {paginatedProducts.map((product, index) => {
+              {isLoadingProducts ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-500">
+                    Loading products...
+                  </td>
+                </tr>
+              ) : effectiveProductsError ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-sm text-red-600">
+                    {effectiveProductsError}
+                  </td>
+                </tr>
+              ) : paginatedProducts.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-500">
+                    No products found for this shop.
+                  </td>
+                </tr>
+              ) : paginatedProducts.map((product, index) => {
                 const openUpward = index >= paginatedProducts.length - 2
                 return (
                   <tr
