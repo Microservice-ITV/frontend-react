@@ -174,9 +174,9 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
     title: 'PLATFORM',
     items: [
       {
-        key: 'admin-tenants',
-        label: 'Tenants',
-        to: '/super-admin/tenants',
+        key: 'admin-shops',
+        label: 'Shops',
+        to: '/super-admin/shops',
         area: 'super_admin',
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
         icon: Building2,

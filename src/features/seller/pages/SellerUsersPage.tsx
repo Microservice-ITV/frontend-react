@@ -1,13 +1,12 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import DataTablePagination from '@/components/ui/DataTablePagination'
 import type { UserRole, UserRow, UserStatus } from '../types/userTypes'
 import {
   Plus,
   Search,
   Columns3,
   Download,
-  ChevronUp,
-  ChevronDown,
   Pencil,
   Trash2,
 } from 'lucide-react'
@@ -122,11 +121,11 @@ const SellerUsersPage = () => {
           />
         </div>
         <div className="flex gap-2">
-          <button type="button" className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 hover:bg-slate-50">
+          <button type="button" className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 cursor-pointer">
             <Columns3 size={16} />
             Columns
           </button>
-          <button type="button" className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 hover:bg-slate-50">
+          <button type="button" className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 cursor-pointer">
             <Download size={16} />
             Export
           </button>
@@ -138,11 +137,21 @@ const SellerUsersPage = () => {
           <table className="w-full min-w-[900px]">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600"><span className="flex items-center gap-1">Name<ChevronUp size={14} className="opacity-50" /><ChevronDown size={14} className="-ml-3 opacity-50" /></span></th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600"><span className="flex items-center gap-1">Role<ChevronUp size={14} className="opacity-50" /><ChevronDown size={14} className="-ml-3 opacity-50" /></span></th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600"><span className="flex items-center gap-1">Department<ChevronUp size={14} className="opacity-50" /><ChevronDown size={14} className="-ml-3 opacity-50" /></span></th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600"><span className="flex items-center gap-1">Status<ChevronUp size={14} className="opacity-50" /><ChevronDown size={14} className="-ml-3 opacity-50" /></span></th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600"><span className="flex items-center gap-1">Last Active<ChevronUp size={14} className="opacity-50" /><ChevronDown size={14} className="-ml-3 opacity-50" /></span></th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
+                  <span className="flex items-center gap-1">Name</span>
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
+                  <span className="flex items-center gap-1">Role</span>
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
+                  <span className="flex items-center gap-1">Department</span>
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
+                  <span className="flex items-center gap-1">Status</span>
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
+                  <span className="flex items-center gap-1">Last Active</span>
+                </th>
                 <th className="w-16 px-4 py-3" />
               </tr>
             </thead>
@@ -188,37 +197,18 @@ const SellerUsersPage = () => {
           </table>
         </div>
 
-        <div className="flex flex-col gap-4 border-t border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-slate-600">
-            Showing {(page - 1) * rowsPerPage + 1}-{Math.min(page * rowsPerPage, filteredUsers.length)} of {filteredUsers.length} results
-          </p>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-600">Rows</span>
-              <select
-                value={rowsPerPage}
-                onChange={(e) => {
-                  setRowsPerPage(Number(e.target.value))
-                  setPage(1)
-                }}
-                className="rounded border border-slate-200 bg-white px-2 py-1 text-xs"
-              >
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={25}>25</option>
-              </select>
-            </div>
-            <div className="flex items-center gap-1">
-              <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="rounded px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 disabled:opacity-50">Previous</button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                <button key={p} type="button" onClick={() => setPage(p)} className={`rounded px-3 py-1.5 text-xs ${page === p ? 'bg-emerald-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
-                  {p}
-                </button>
-              ))}
-              <button type="button" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="rounded px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 disabled:opacity-50">Next</button>
-            </div>
-          </div>
-        </div>
+        <DataTablePagination
+          page={page}
+          totalPages={totalPages}
+          rowsPerPage={rowsPerPage}
+          totalItems={filteredUsers.length}
+          rowsPerPageOptions={[10, 20, 25]}
+          onPageChange={setPage}
+          onRowsPerPageChange={(value) => {
+            setRowsPerPage(value)
+            setPage(1)
+          }}
+        />
       </div>
     </div>
   )

@@ -15,4 +15,5 @@ export type SellerProductsState = {
   items: Product[]
   status: 'idle' | 'loading' | 'succeeded' | 'failed'
   error: string | null
+  activeShopId: string | null
 }

@@ -6,3 +6,11 @@ export {
   selectSellerProductsStatus,
   selectSellerProductsError,
 } from './sellerProductsSelectors'
+export { default as sellerCategoriesReducer } from './sellerCategoriesSlice'
+export { removeCategoriesLocally } from './sellerCategoriesSlice'
+export { fetchSellerCategories } from './sellerCategoriesThunks'
+export {
+  selectSellerCategories,
+  selectSellerCategoriesStatus,
+  selectSellerCategoriesError,
+} from './sellerCategoriesSelectors'

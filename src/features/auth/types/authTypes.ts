@@ -6,8 +6,8 @@ export interface User {
     email: string
     role?: string | null
     role_name?: string | null
-    active_tenant_id?: string | null
-    active_tenant_name?: string | null
+    active_shop_id?: string | null
+    active_shop_name?: string | null
     roles?: Array<string | { code?: string; name?: string }>
 }
 

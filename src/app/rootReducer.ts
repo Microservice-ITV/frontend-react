@@ -7,6 +7,8 @@ import categoryReducer from '@/features/categories/store/categorySlice'
 import cartReducer from '@/features/cart/store/cartSlice'
 import checkoutReducer from '@/features/checkout/store/checkoutSlice'
 import sellerProductsReducer from '@/features/seller/store/sellerProductsSlice'
+import sellerCategoriesReducer from '@/features/seller/store/sellerCategoriesSlice'
+import adminShopsReducer from '@/features/admin/store/adminShopsSlice'
 
 // Single source of truth for all state
 const rootReducer = combineReducers({
@@ -17,6 +19,8 @@ const rootReducer = combineReducers({
   cart: cartReducer,
   checkout: checkoutReducer,
   sellerProducts: sellerProductsReducer,
+  sellerCategories: sellerCategoriesReducer,
+  adminShops: adminShopsReducer,
 })
 
 export default rootReducer
