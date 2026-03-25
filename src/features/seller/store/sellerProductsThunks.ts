@@ -1,6 +1,7 @@
 import { createAsyncThunk } from '@reduxjs/toolkit'
 import { sellerProductApi, type CatalogProductReadItem } from '../api/sellerProductApi'
 import type { Product, ProductStatus } from '../types/productTypes'
+import type { RootState } from '@/app/store'
 
 const PAGE_LIMIT = 100
 
@@ -37,10 +38,13 @@ const mapCatalogProductToUi = (item: CatalogProductReadItem): Product => {
   }
 }
 
+const resolveShopId = (item: CatalogProductReadItem): string | null =>
+  item.shopId ?? item.shop_id ?? item.shop?.id ?? null
+
 export const fetchSellerProductsByShop = createAsyncThunk<
   Product[],
   { shopId: string },
-  { rejectValue: string }
+  { rejectValue: string; state: RootState }
 >(
   'sellerProducts/fetchByShop',
   async ({ shopId }, { rejectWithValue }) => {
@@ -67,7 +71,7 @@ export const fetchSellerProductsByShop = createAsyncThunk<
       } while (collected.length < total)
 
       return collected
-        .filter((item) => item.shopId === shopId)
+        .filter((item) => resolveShopId(item) === shopId)
         .map(mapCatalogProductToUi)
     } catch (error: any) {
       const message =
@@ -76,5 +80,17 @@ export const fetchSellerProductsByShop = createAsyncThunk<
         'Unable to load products right now. Please try again.'
       return rejectWithValue(message)
     }
+  },
+  {
+    condition: ({ shopId }, { getState }) => {
+      const state = getState()
+      const productsState = state.sellerProducts
+
+      // Deduplicate redundant calls in development/strict-mode.
+      if (productsState.status === 'loading' && productsState.activeShopId === shopId) {
+        return false
+      }
+      return true
+    },
   },
 )

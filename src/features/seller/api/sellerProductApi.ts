@@ -10,7 +10,11 @@ export type CatalogProductReadItem = {
   stock: number
   currency: string
   categoryId: string
-  shopId: string
+  shopId?: string
+  shop_id?: string
+  shop?: {
+    id?: string
+  }
   isActive: boolean
   createdAt?: string
   updatedAt?: string

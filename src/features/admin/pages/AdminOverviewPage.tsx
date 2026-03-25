@@ -16,7 +16,7 @@ const AdminOverviewPage = () => {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title="Active Tenants"
+          title="Active Shops"
           value="128"
           trend={{ value: '+5.2% vs last month', isPositive: true }}
           icon={Building2}

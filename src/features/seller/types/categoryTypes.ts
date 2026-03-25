@@ -9,3 +9,9 @@ export type Category = {
   updatedAt: string
   image: string
 }
+
+export type SellerCategoriesState = {
+  items: Category[]
+  status: 'idle' | 'loading' | 'succeeded' | 'failed'
+  error: string | null
+}

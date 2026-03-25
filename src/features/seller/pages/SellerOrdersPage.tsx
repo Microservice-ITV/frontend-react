@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
+import DataTablePagination from '@/components/ui/DataTablePagination'
 import type { Order, OrderStatus } from '../types/orderTypes'
 import {
   Plus,
@@ -367,7 +368,11 @@ const SellerOrdersPage = () => {
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
                   Amount
                 </th>
-                <th className="w-12 px-4 py-3" />
+                <th className="w-16 px-2 py-3 text-left text-xs font-medium text-slate-600">
+                  <span className="flex items-center gap-1">
+                    Actions
+                  </span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -420,7 +425,7 @@ const SellerOrdersPage = () => {
                   <td className="px-4 py-3 text-xs font-medium text-slate-900">
                     {order.amount}
                   </td>
-                  <td className="relative px-4 py-3">
+                  <td className="relative w-16 px-2 py-3">
                     <div
                       className="relative inline-block"
                       ref={openMenuId === order.id ? menuRef : undefined}
@@ -484,65 +489,17 @@ const SellerOrdersPage = () => {
           </table>
         </div>
 
-        {/* Pagination */}
-        <div className="flex flex-col gap-4 border-t border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-slate-600">
-            Showing {(page - 1) * rowsPerPage + 1}-
-            {Math.min(page * rowsPerPage, filteredOrders.length)} of{' '}
-            {filteredOrders.length} results
-          </p>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-600">Rows</span>
-              <select
-                value={rowsPerPage}
-                onChange={(e) => {
-                  setRowsPerPage(Number(e.target.value))
-                  setPage(1)
-                }}
-                className="rounded border border-slate-200 bg-white px-2 py-1 text-xs"
-              >
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-              </select>
-            </div>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="rounded px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 disabled:opacity-50"
-              >
-                Previous
-              </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                (p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => setPage(p)}
-                    className={`rounded px-3 py-1.5 text-xs ${
-                      page === p
-                        ? 'bg-emerald-600 text-white'
-                        : 'text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    {p}
-                  </button>
-                )
-              )}
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="rounded px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        </div>
+        <DataTablePagination
+          page={page}
+          totalPages={totalPages}
+          rowsPerPage={rowsPerPage}
+          totalItems={filteredOrders.length}
+          onPageChange={setPage}
+          onRowsPerPageChange={(value) => {
+            setRowsPerPage(value)
+            setPage(1)
+          }}
+        />
       </div>
     </div>
   )

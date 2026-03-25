@@ -1,13 +1,20 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
+import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
+import DataTablePagination from '@/components/ui/DataTablePagination'
 import type { Category } from '../types/categoryTypes'
+import {
+  fetchSellerCategories,
+  removeCategoriesLocally,
+  selectSellerCategories,
+  selectSellerCategoriesError,
+  selectSellerCategoriesStatus,
+} from '../store'
 import {
   Plus,
   Search,
   Download,
-  ChevronUp,
-  ChevronDown,
   MoreHorizontal,
   Eye,
   Pencil,
@@ -16,142 +23,6 @@ import {
   X,
 } from 'lucide-react'
 
-// TODO: Replace with real data from API.
-const MOCK_CATEGORIES: Category[] = [
-  {
-    id: '1987d8d0-1234-5678-9abc-def012345678',
-    name: 'Pet Supplies',
-    description: 'Pet Supplies category',
-    slug: 'pet-supplies',
-    parentId: null,
-    isActive: true,
-    createdAt: '2026-03-18 07:37:34',
-    updatedAt: '2026-03-18 07:37:34',
-    image: '/uploads/categories/pet-supplies',
-  },
-  {
-    id: '2b40462a-1234-5678-9abc-def012345679',
-    name: 'Sports',
-    description: 'Sports category',
-    slug: 'sports',
-    parentId: null,
-    isActive: true,
-    createdAt: '2026-03-18 07:37:34',
-    updatedAt: '2026-03-18 07:37:34',
-    image: '/uploads/categories/sports',
-  },
-  {
-    id: '3c51573b-1234-5678-9abc-def012345680',
-    name: 'Gaming',
-    description: 'Gaming category',
-    slug: 'gaming',
-    parentId: null,
-    isActive: true,
-    createdAt: '2026-03-18 07:37:34',
-    updatedAt: '2026-03-18 07:37:34',
-    image: '/uploads/categories/gaming',
-  },
-  {
-    id: '4d62684c-1234-5678-9abc-def012345681',
-    name: 'Home Appliance',
-    description: 'Home Appliance category',
-    slug: 'home-appliance',
-    parentId: null,
-    isActive: true,
-    createdAt: '2026-03-18 07:37:34',
-    updatedAt: '2026-03-18 07:37:34',
-    image: '/uploads/categories/home-appliance',
-  },
-  {
-    id: '5e73795d-1234-5678-9abc-def012345682',
-    name: 'Automotive',
-    description: 'Automotive category',
-    slug: 'automotive',
-    parentId: null,
-    isActive: true,
-    createdAt: '2026-03-18 07:37:34',
-    updatedAt: '2026-03-18 07:37:34',
-    image: '/uploads/categories/automotive',
-  },
-  {
-    id: '6f848a6e-1234-5678-9abc-def012345683',
-    name: 'Outdoors',
-    description: 'Outdoors category',
-    slug: 'outdoors',
-    parentId: null,
-    isActive: true,
-    createdAt: '2026-03-18 07:37:34',
-    updatedAt: '2026-03-18 07:37:34',
-    image: '/uploads/categories/outdoors',
-  },
-  {
-    id: '7a959b7f-1234-5678-9abc-def012345684',
-    name: 'Watches',
-    description: 'Watches category',
-    slug: 'watches',
-    parentId: null,
-    isActive: false,
-    createdAt: '2026-03-18 07:37:34',
-    updatedAt: '2026-03-18 07:37:34',
-    image: '/uploads/categories/watches',
-  },
-  {
-    id: '8ba6ac80-1234-5678-9abc-def012345685',
-    name: 'Travel',
-    description: 'Travel category',
-    slug: 'travel',
-    parentId: null,
-    isActive: true,
-    createdAt: '2026-03-18 07:37:34',
-    updatedAt: '2026-03-18 07:37:34',
-    image: '/uploads/categories/travel',
-  },
-  {
-    id: '9cb7bd91-1234-5678-9abc-def012345686',
-    name: 'Music',
-    description: 'Music category',
-    slug: 'music',
-    parentId: null,
-    isActive: true,
-    createdAt: '2026-03-18 07:37:34',
-    updatedAt: '2026-03-18 07:37:34',
-    image: '/uploads/categories/music',
-  },
-  {
-    id: 'adc8ce02-1234-5678-9abc-def012345687',
-    name: 'Jewelry',
-    description: 'Jewelry category',
-    slug: 'jewelry',
-    parentId: null,
-    isActive: true,
-    createdAt: '2026-03-18 07:37:34',
-    updatedAt: '2026-03-18 07:37:34',
-    image: '/uploads/categories/jewelry',
-  },
-  {
-    id: 'bed9df13-1234-5678-9abc-def012345688',
-    name: 'Furniture',
-    description: 'Furniture category',
-    slug: 'furniture',
-    parentId: null,
-    isActive: true,
-    createdAt: '2026-03-18 07:37:34',
-    updatedAt: '2026-03-18 07:37:34',
-    image: '/uploads/categories/furniture',
-  },
-  {
-    id: 'cfe0e024-1234-5678-9abc-def012345689',
-    name: 'Toys',
-    description: 'Toys category',
-    slug: 'toys',
-    parentId: null,
-    isActive: true,
-    createdAt: '2026-03-18 07:37:34',
-    updatedAt: '2026-03-18 07:37:34',
-    image: '/uploads/categories/toys',
-  },
-]
-
 const FILTER_TABS: { key: 'all' | 'active' | 'inactive'; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'active', label: 'Active' },
@@ -159,15 +30,24 @@ const FILTER_TABS: { key: 'all' | 'active' | 'inactive'; label: string }[] = [
 ]
 
 const SellerCategoriesPage = () => {
+  const dispatch = useAppDispatch()
   const { openModal } = useGlobalModal()
+  const categories = useAppSelector(selectSellerCategories)
+  const categoriesStatus = useAppSelector(selectSellerCategoriesStatus)
+  const categoriesError = useAppSelector(selectSellerCategoriesError)
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [search, setSearch] = useState('')
-  const [categories, setCategories] = useState<Category[]>(MOCK_CATEGORIES)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [page, setPage] = useState(1)
   const [rowsPerPage, setRowsPerPage] = useState(10)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (categoriesStatus === 'idle') {
+      dispatch(fetchSellerCategories())
+    }
+  }, [dispatch, categoriesStatus])
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -194,10 +74,15 @@ const SellerCategoriesPage = () => {
     return matchesFilter && matchesSearch
   })
 
-  const totalPages = Math.ceil(filteredCategories.length / rowsPerPage)
+  const totalPages = Math.max(1, Math.ceil(filteredCategories.length / rowsPerPage))
   const paginatedCategories = filteredCategories.slice(
     (page - 1) * rowsPerPage,
     page * rowsPerPage
+  )
+
+  const categoriesById = useMemo(
+    () => new Map(categories.map((category) => [category.id, category])),
+    [categories],
   )
 
   const allSelectedOnPage =
@@ -225,7 +110,7 @@ const SellerCategoriesPage = () => {
   }
 
   const handleBulkDelete = () => {
-    setCategories((prev) => prev.filter((category) => !selectedIds.has(category.id)))
+    dispatch(removeCategoriesLocally(Array.from(selectedIds)))
     setSelectedIds(new Set())
     setPage(1)
   }
@@ -342,7 +227,7 @@ const SellerCategoriesPage = () => {
           <button
             type="button"
             autoFocus
-            className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 hover:bg-slate-50"
+            className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
           >
             <Download size={16} />
             Export
@@ -367,50 +252,63 @@ const SellerCategoriesPage = () => {
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
                   <span className="flex items-center gap-1">
                     Category
-                    <ChevronUp size={14} className="opacity-50" />
-                    <ChevronDown size={14} className="-ml-3 opacity-50" />
                   </span>
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
                   <span className="flex items-center gap-1">
                     Slug
-                    <ChevronUp size={14} className="opacity-50" />
-                    <ChevronDown size={14} className="-ml-3 opacity-50" />
                   </span>
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
                   <span className="flex items-center gap-1">
                     Status
-                    <ChevronUp size={14} className="opacity-50" />
-                    <ChevronDown size={14} className="-ml-3 opacity-50" />
                   </span>
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
                   <span className="flex items-center gap-1">
                     Parent
-                    <ChevronUp size={14} className="opacity-50" />
-                    <ChevronDown size={14} className="-ml-3 opacity-50" />
                   </span>
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
                   <span className="flex items-center gap-1">
                     Created
-                    <ChevronUp size={14} className="opacity-50" />
-                    <ChevronDown size={14} className="-ml-3 opacity-50" />
                   </span>
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
                   <span className="flex items-center gap-1">
                     Updated
-                    <ChevronUp size={14} className="opacity-50" />
-                    <ChevronDown size={14} className="-ml-3 opacity-50" />
                   </span>
                 </th>
-                <th className="w-12 px-4 py-3" />
+                <th className="w-16 px-2 py-3 text-left text-xs font-medium text-slate-600">
+                  <span className="flex items-center gap-1">
+                    Actions
+                  </span>
+                </th>
               </tr>
             </thead>
             <tbody>
-              {paginatedCategories.map((category, index) => {
+              {categoriesStatus === 'loading' && (
+                <tr>
+                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-slate-500">
+                    Loading categories...
+                  </td>
+                </tr>
+              )}
+              {categoriesStatus === 'failed' && (
+                <tr>
+                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-red-600">
+                    {categoriesError ?? 'Unable to load categories.'}
+                  </td>
+                </tr>
+              )}
+              {categoriesStatus !== 'loading' && categoriesStatus !== 'failed' && paginatedCategories.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-slate-500">
+                    No categories found.
+                  </td>
+                </tr>
+              )}
+              {categoriesStatus !== 'loading' && categoriesStatus !== 'failed' && paginatedCategories.map((category, index) => {
                 const openUpward = index >= paginatedCategories.length - 2
                 return (
                   <tr
@@ -456,7 +354,7 @@ const SellerCategoriesPage = () => {
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-500">
                       {category.parentId ? (
-                        MOCK_CATEGORIES.find((c) => c.id === category.parentId)?.name ?? '—'
+                        categoriesById.get(category.parentId)?.name ?? '—'
                       ) : (
                         '—'
                       )}
@@ -467,7 +365,7 @@ const SellerCategoriesPage = () => {
                     <td className="px-4 py-3 text-xs text-slate-600">
                       {formatDate(category.updatedAt)}
                     </td>
-                    <td className="relative px-4 py-3">
+                    <td className="relative w-16 px-2 py-3">
                       <div
                         className="relative inline-block"
                         ref={openMenuId === category.id ? menuRef : undefined}
@@ -537,65 +435,17 @@ const SellerCategoriesPage = () => {
           </table>
         </div>
 
-        {/* Pagination */}
-        <div className="flex flex-col gap-4 border-t border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-slate-600">
-            Showing {(page - 1) * rowsPerPage + 1}-
-            {Math.min(page * rowsPerPage, filteredCategories.length)} of{' '}
-            {filteredCategories.length} results
-          </p>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-600">Rows</span>
-              <select
-                value={rowsPerPage}
-                onChange={(e) => {
-                  setRowsPerPage(Number(e.target.value))
-                  setPage(1)
-                }}
-                className="rounded border border-slate-200 bg-white px-2 py-1 text-xs"
-              >
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-              </select>
-            </div>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="rounded px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 disabled:opacity-50"
-              >
-                Previous
-              </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                (p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => setPage(p)}
-                    className={`rounded px-3 py-1.5 text-xs ${
-                      page === p
-                        ? 'bg-emerald-600 text-white'
-                        : 'text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    {p}
-                  </button>
-                )
-              )}
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="rounded px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        </div>
+        <DataTablePagination
+          page={page}
+          totalPages={totalPages}
+          rowsPerPage={rowsPerPage}
+          totalItems={filteredCategories.length}
+          onPageChange={setPage}
+          onRowsPerPageChange={(value) => {
+            setRowsPerPage(value)
+            setPage(1)
+          }}
+        />
       </div>
     </div>
   )

@@ -33,10 +33,15 @@ import NewProductPage from '@/features/seller/pages/NewProductPage'
 import NewCategoryPage from '@/features/seller/pages/NewCategoryPage'
 import SellerUsersPage from '@/features/seller/pages/SellerUsersPage'
 import SellerNotificationsPage from '@/features/seller/pages/SellerNotificationsPage'
-import SellerHelpSupportPage from '@/features/seller/pages/SellerHelpSupportPage'
 import SellerInvoicesPage from '@/features/seller/pages/SellerInvoicesPage'
 import SellerChatPage from '@/features/seller/pages/SellerChatPage'
+import SellerHelpSupportPage from '@/features/seller/pages/SellerHelpSupportPage'
 import AdminOverviewPage from '@/features/admin/pages/AdminOverviewPage'
+import AdminShopsPage from '@/features/admin/pages/AdminShopsPage'
+import CommonNotificationsPage from '@/features/common/pages/CommonNotificationsPage'
+import CommonChatPage from '@/features/common/pages/CommonChatPage'
+import CommonHelpSupportPage from '@/features/common/pages/CommonHelpSupportPage'
+import CommonSettingsPage from '@/features/common/pages/CommonSettingsPage'
 
 const AppRoutes = () => {
     return (
@@ -219,10 +224,7 @@ const AppRoutes = () => {
                             path="settings"
                             element={
                                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerSettings}>
-                                    <DashboardPlaceholderPage
-                                        title="Settings"
-                                        description="Account settings and preferences will be implemented here."
-                                    />
+                                    <CommonSettingsPage area="seller" />
                                 </ProtectedRoute>
                             }
                         />
@@ -256,19 +258,16 @@ const AppRoutes = () => {
                                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
                                     <DashboardPlaceholderPage
                                         title="Platform Analytics"
-                                        description="Cross-tenant analytics, usage trends, and performance metrics will be implemented here."
+                                        description="Cross-shop analytics, usage trends, and performance metrics will be implemented here."
                                     />
                                 </ProtectedRoute>
                             }
                         />
                         <Route
-                            path="tenants"
+                            path="shops"
                             element={
-                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminTenants}>
-                                    <DashboardPlaceholderPage
-                                        title="Tenant Management"
-                                        description="Tenant lifecycle, plans, and health controls will be implemented in this module."
-                                    />
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminShops}>
+                                    <AdminShopsPage />
                                 </ProtectedRoute>
                             }
                         />
@@ -309,10 +308,7 @@ const AppRoutes = () => {
                             path="notifications"
                             element={
                                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminNotifications}>
-                                    <DashboardPlaceholderPage
-                                        title="Admin Notifications"
-                                        description="Platform-wide notifications and alerts will be managed here."
-                                    />
+                                    <CommonNotificationsPage area="super_admin" />
                                 </ProtectedRoute>
                             }
                         />
@@ -331,10 +327,7 @@ const AppRoutes = () => {
                             path="chat"
                             element={
                                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminChat}>
-                                    <DashboardPlaceholderPage
-                                        title="Admin Chat"
-                                        description="Internal admin chat and collaboration threads will be managed here."
-                                    />
+                                    <CommonChatPage area="super_admin" />
                                 </ProtectedRoute>
                             }
                         />
@@ -353,10 +346,7 @@ const AppRoutes = () => {
                             path="settings"
                             element={
                                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminSettings}>
-                                    <DashboardPlaceholderPage
-                                        title="Admin Settings"
-                                        description="Global admin settings will be managed here."
-                                    />
+                                    <CommonSettingsPage area="super_admin" />
                                 </ProtectedRoute>
                             }
                         />
@@ -364,10 +354,7 @@ const AppRoutes = () => {
                             path="help-support"
                             element={
                                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminHelpSupport}>
-                                    <DashboardPlaceholderPage
-                                        title="Admin Help & Support"
-                                        description="Support resources and incident assistance for platform administrators."
-                                    />
+                                    <CommonHelpSupportPage area="super_admin" />
                                 </ProtectedRoute>
                             }
                         />

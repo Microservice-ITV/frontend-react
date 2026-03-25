@@ -6,6 +6,7 @@ const initialState: SellerProductsState = {
   items: [],
   status: 'idle',
   error: null,
+  activeShopId: null,
 }
 
 const sellerProductsSlice = createSlice({
@@ -19,18 +20,21 @@ const sellerProductsSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchSellerProductsByShop.pending, (state) => {
+      .addCase(fetchSellerProductsByShop.pending, (state, action) => {
         state.status = 'loading'
         state.error = null
+        state.activeShopId = action.meta.arg.shopId
       })
       .addCase(fetchSellerProductsByShop.fulfilled, (state, action) => {
         state.status = 'succeeded'
         state.items = action.payload
+        state.activeShopId = action.meta.arg.shopId
       })
       .addCase(fetchSellerProductsByShop.rejected, (state, action) => {
         state.status = 'failed'
         state.items = []
         state.error = (action.payload as string) ?? 'Unable to load products right now. Please try again.'
+        state.activeShopId = action.meta.arg.shopId
       })
   },
 })
