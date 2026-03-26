@@ -93,7 +93,7 @@ const ProfilePage = () => {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-sm focus:outline-none focus:border-orange-500"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-sm focus:outline-none focus:border-emerald-600"
               />
             </div>
           </div>
@@ -149,7 +149,7 @@ const ProfilePage = () => {
                   value="male"
                   checked={gender === 'male'}
                   onChange={() => setGender('male')}
-                  className="accent-orange-500"
+                  className="accent-emerald-600"
                 />
                 <span>Male</span>
               </label>
@@ -160,7 +160,7 @@ const ProfilePage = () => {
                   value="female"
                   checked={gender === 'female'}
                   onChange={() => setGender('female')}
-                  className="accent-orange-500"
+                  className="accent-emerald-600"
                 />
                 <span>Female</span>
               </label>
@@ -171,7 +171,7 @@ const ProfilePage = () => {
                   value="other"
                   checked={gender === 'other'}
                   onChange={() => setGender('other')}
-                  className="accent-orange-500"
+                  className="accent-emerald-600"
                 />
                 <span>Other</span>
               </label>
@@ -185,7 +185,7 @@ const ProfilePage = () => {
             </label>
             <div className="col-span-8 lg:col-span-5 flex gap-2">
               <select
-                className="w-1/3 px-2 py-2 text-sm border border-gray-300 rounded-sm focus:outline-none focus:border-orange-500"
+                className="w-1/3 px-2 py-2 text-sm border border-gray-300 rounded-sm focus:outline-none focus:border-emerald-600"
                 value={dob.day}
                 onChange={(e) => setDob((d) => ({ ...d, day: e.target.value }))}
               >
@@ -197,7 +197,7 @@ const ProfilePage = () => {
                 ))}
               </select>
               <select
-                className="w-1/3 px-2 py-2 text-sm border border-gray-300 rounded-sm focus:outline-none focus:border-orange-500"
+                className="w-1/3 px-2 py-2 text-sm border border-gray-300 rounded-sm focus:outline-none focus:border-emerald-600"
                 value={dob.month}
                 onChange={(e) => setDob((d) => ({ ...d, month: e.target.value }))}
               >
@@ -209,7 +209,7 @@ const ProfilePage = () => {
                 ))}
               </select>
               <select
-                className="w-1/3 px-2 py-2 text-sm border border-gray-300 rounded-sm focus:outline-none focus:border-orange-500"
+                className="w-1/3 px-2 py-2 text-sm border border-gray-300 rounded-sm focus:outline-none focus:border-emerald-600"
                 value={dob.year}
                 onChange={(e) => setDob((d) => ({ ...d, year: e.target.value }))}
               >
@@ -232,7 +232,7 @@ const ProfilePage = () => {
             <div className="col-span-8 lg:col-span-5">
               <button
                 type="submit"
-                className="mt-2 inline-flex items-center justify-center px-6 py-2 text-sm font-medium text-white bg-orange-500 rounded-sm hover:bg-orange-600 transition-colors cursor-pointer"
+                className="mt-2 inline-flex items-center justify-center px-6 py-2 text-sm font-medium text-white bg-emerald-600 rounded-sm hover:bg-emerald-700 transition-colors cursor-pointer"
               >
                 Save
               </button>

@@ -19,8 +19,8 @@ const CheckoutAddress = ({ address, loading, onChangeAddress }: CheckoutAddressP
 
       <div className="px-6 py-4">
         <div className="flex items-center gap-2 mb-3">
-          <MapPin className="w-4 h-4 text-[#ee4d2d]" />
-          <span className="text-[#ee4d2d] text-base font-medium">Delivery Address</span>
+          <MapPin className="w-4 h-4 text-emerald-600" />
+          <span className="text-emerald-600 text-base font-medium">Delivery Address</span>
         </div>
 
         {!loading && !address && (
@@ -44,7 +44,7 @@ const CheckoutAddress = ({ address, loading, onChangeAddress }: CheckoutAddressP
             </span>
 
             {address?.is_default && (
-              <span className="mr-6 text-xs text-[#ee4d2d] border border-[#ee4d2d] px-2 py-[1px]">
+              <span className="mr-6 text-xs text-emerald-600 border border-emerald-600 px-2 py-[1px]">
                 Default
               </span>
             )}

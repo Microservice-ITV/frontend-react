@@ -48,7 +48,7 @@ const CustomTooltip = ({ active, payload, label, metric }: CustomTooltipProps) =
     <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-lg">
       <p className="text-xs font-medium text-slate-900">{label}</p>
       <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-600">
-        <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+        <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--dni-primary-500)]" />
         {labelText}: {formatValue(metric, value)}
       </p>
     </div>
@@ -121,8 +121,8 @@ const OverviewChart = () => {
             <CartesianGrid strokeDasharray="0" stroke="#e2e8f0" horizontal vertical={false} />
             <defs>
               <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#10b981" stopOpacity={0.4} />
-                <stop offset="100%" stopColor="#10b981" stopOpacity={0.05} />
+                <stop offset="0%" stopColor="var(--dni-primary-500)" stopOpacity={0.4} />
+                <stop offset="100%" stopColor="var(--dni-primary-500)" stopOpacity={0.05} />
               </linearGradient>
             </defs>
             <XAxis
@@ -149,10 +149,10 @@ const OverviewChart = () => {
             <Area
               type="monotone"
               dataKey={dataKey}
-              stroke="#10b981"
+              stroke="var(--dni-primary-500)"
               strokeWidth={2}
               fill="url(#areaFill)"
-              activeDot={{ r: 4, fill: '#10b981', stroke: '#fff', strokeWidth: 2 }}
+              activeDot={{ r: 4, fill: 'var(--dni-primary-500)', stroke: '#fff', strokeWidth: 2 }}
             />
           </AreaChart>
         </ResponsiveContainer>

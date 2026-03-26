@@ -48,12 +48,12 @@ const AddressesPage = () => {
         <div className="space-y-2 text-sm text-gray-700">
           <p>Are you sure you want to delete this address?</p>
           {deletingDefaultAddress && hasOtherAddresses && (
-            <p className="text-orange-600">
+            <p className="text-emerald-700">
               This is your default address. After deletion, we will set another saved address as default.
             </p>
           )}
           {deletingDefaultAddress && !hasOtherAddresses && (
-            <p className="text-orange-600">
+            <p className="text-emerald-700">
               This is your only default address. After deletion, you will have no default address.
             </p>
           )}
@@ -120,7 +120,7 @@ const AddressesPage = () => {
         <h1 className="text-lg font-medium text-gray-900">My Addresses</h1>
         <button
           type="button"
-          className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded-sm hover:bg-orange-600 transition-colors cursor-pointer"
+          className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-sm hover:bg-emerald-700 transition-colors cursor-pointer"
           onClick={openNewAddressModal}
         >
           + Add New Address
@@ -169,7 +169,7 @@ const AddressesPage = () => {
                     {addr.address_line_2 && <p className="text-gray-700">{addr.address_line_2}</p>}
                     {addr.postal_code && <p className="text-gray-700">{addr.postal_code}</p>}
                     {addr.is_default && (
-                      <span className="inline-flex items-center px-2 py-[2px] text-[10px] font-medium text-orange-600 border border-orange-500 rounded-sm">
+                      <span className="inline-flex items-center px-2 py-[2px] text-[10px] font-medium text-emerald-700 border border-emerald-600 rounded-sm">
                         Default
                       </span>
                     )}

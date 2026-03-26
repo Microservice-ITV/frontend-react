@@ -11,7 +11,7 @@ const ForbiddenPage = () => {
         <div className="mt-6">
           <Link
             to="/"
-            className="inline-flex items-center justify-center px-5 py-2 text-sm font-medium text-white bg-orange-500 rounded-sm hover:bg-orange-600"
+            className="inline-flex items-center justify-center px-5 py-2 text-sm font-medium text-white bg-emerald-600 rounded-sm hover:bg-emerald-700"
           >
             Go to Home
           </Link>

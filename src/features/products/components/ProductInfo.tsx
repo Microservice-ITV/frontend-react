@@ -40,7 +40,7 @@ const ProductInfo = ({ product }: Props) => {
         <div
           className="flex items-center justify-between px-3 sm:px-4 py-2 text-white"
           style={{
-            background: 'linear-gradient(to right, #ff5f2e, #ff7337)',
+            background: 'linear-gradient(to right, var(--dni-primary), var(--dni-primary-500))',
           }}
         >
           <div className="flex items-center gap-1.5 sm:gap-2 font-semibold text-xs sm:text-sm">
@@ -71,7 +71,7 @@ const ProductInfo = ({ product }: Props) => {
           }}
         >
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            <span className="text-2xl sm:text-3xl lg:text-4xl font-semibold text-[#d0011b]">
+            <span className="text-2xl sm:text-3xl lg:text-4xl font-semibold text-emerald-700">
               ${product.price.toFixed(2)}
             </span>
 
@@ -79,7 +79,7 @@ const ProductInfo = ({ product }: Props) => {
               $29.52
             </span>
 
-            <span className="text-xs sm:text-sm font-semibold text-[#d0011b] bg-[#ffece8] px-2 py-0.5 rounded">
+            <span className="text-xs sm:text-sm font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
               -22%
             </span>
           </div>

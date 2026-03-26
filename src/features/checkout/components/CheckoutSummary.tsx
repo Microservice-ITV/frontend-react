@@ -153,7 +153,7 @@ const CheckoutSummary = ({ checkout, hasDeliveryAddress, onRequireAddress, deliv
           {/* Discount */}
           <div className="flex justify-between mb-4">
             <span className="text-gray-600">Shipping Discount Subtotal</span>
-            <span className="text-[#ee4d2d]">-{shippingDiscount.toFixed(2)}</span>
+            <span className="text-emerald-600">-{shippingDiscount.toFixed(2)}</span>
           </div>
 
           {/* Total */}
@@ -161,7 +161,7 @@ const CheckoutSummary = ({ checkout, hasDeliveryAddress, onRequireAddress, deliv
             <span className="text-gray-900 font-medium">
               Total Payment:
             </span>
-            <span className="text-3xl font-semibold text-[#ee4d2d] text-center md:text-right">
+            <span className="text-3xl font-semibold text-emerald-600 text-center md:text-right">
               ${totalPayment.toFixed(2)}
             </span>
           </div>
@@ -187,7 +187,7 @@ const CheckoutSummary = ({ checkout, hasDeliveryAddress, onRequireAddress, deliv
         <button
           onClick={() => void handlePlaceOrder()}
           disabled={!canPlaceOrder}
-          className="w-full md:w-auto px-12 py-3 bg-[#ee4d2d] text-white text-base font-medium rounded hover:bg-[#d73211] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+          className="w-full md:w-auto px-12 py-3 bg-emerald-600 text-white text-base font-medium rounded hover:bg-emerald-700 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {isPlacingOrder
             ? 'Processing...'

@@ -21,15 +21,15 @@ const CheckoutPayment = () => {
               className={`
                 relative px-4 py-2 border rounded text-sm whitespace-nowrap cursor-pointer
                 ${disabled && 'text-gray-400 bg-gray-50 cursor-not-allowed'}
-                ${selected && 'border-[#ee4d2d] text-[#ee4d2d]'}
-                ${!disabled && !selected && 'hover:border-[#ee4d2d]'}
+                ${selected && 'border-emerald-600 text-emerald-600'}
+                ${!disabled && !selected && 'hover:border-emerald-600'}
               `}
             >
               {label}
 
               {/* tick */}
               {selected && (
-                <span className="absolute bottom-0 right-0 w-4 h-4 bg-[#ee4d2d] flex items-center justify-center">
+                <span className="absolute bottom-0 right-0 w-4 h-4 bg-emerald-600 flex items-center justify-center">
                   <svg viewBox="0 0 12 12" className="w-3 h-3 fill-white">
                     <path d="M5.2 10.9L.3 7c-.4-.4-.5-1-.1-1.4s1-.5 1.4-.1l3.4 3 5.1-7c.3-.4 1-.5 1.4-.2s.5 1 .2 1.4l-5.7 7.9z" />
                   </svg>
@@ -49,7 +49,7 @@ const CheckoutPayment = () => {
 
         {/* RIGHT */}
         <div>
-          <span className="inline-flex items-center gap-2 bg-[#fff4f1] text-[#ee4d2d] text-sm px-3 py-1 rounded">
+          <span className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-600 text-sm px-3 py-1 rounded">
             Shipping Discount
           </span>
         </div>
@@ -67,8 +67,8 @@ const CheckoutPayment = () => {
           {/* Card row */}
           <div className="flex items-center gap-4 mb-4 cursor-pointer">
             {/* Radio */}
-            <div className="w-4 h-4 rounded-full border-2 border-[#ee4d2d] flex items-center justify-center">
-              <div className="w-2 h-2 bg-[#ee4d2d] rounded-full" />
+            <div className="w-4 h-4 rounded-full border-2 border-emerald-600 flex items-center justify-center">
+              <div className="w-2 h-2 bg-emerald-600 rounded-full" />
             </div>
 
             {/* Card */}
@@ -83,7 +83,7 @@ const CheckoutPayment = () => {
           </div>
 
           {/* Add new card */}
-          <button className="w-full md:w-auto inline-flex justify-center items-center gap-2 px-4 py-3 border rounded text-sm text-gray-700 hover:border-[#ee4d2d] cursor-pointer">
+          <button className="w-full md:w-auto inline-flex justify-center items-center gap-2 px-4 py-3 border rounded text-sm text-gray-700 hover:border-emerald-600 cursor-pointer">
             <span className="text-lg leading-none">+</span>
             Pay With New Card
           </button>

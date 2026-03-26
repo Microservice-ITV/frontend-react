@@ -21,7 +21,7 @@ const CartHeader = () => {
                     onChange={e =>
                         dispatch(toggleAllSelection(e.target.checked))
                     }
-                    className="h-4 w-4 accent-orange-500 border-gray-300"
+                    className="h-4 w-4 accent-emerald-600 border-gray-300"
                 />
             </div>
 

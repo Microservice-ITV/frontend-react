@@ -4,7 +4,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 // TODO: Replace with real data from API.
 const TRAFFIC_DATA = [
   { name: 'Direct', value: 35, color: '#0d9488' },
-  { name: 'Organic', value: 28, color: '#10b981' },
+  { name: 'Organic', value: 28, color: 'var(--dni-primary-500)' },
   { name: 'Referral', value: 22, color: '#3b82f6' },
   { name: 'Social', value: 15, color: '#8b5cf6' },
 ]

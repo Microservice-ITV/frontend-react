@@ -11,7 +11,7 @@ const MainNavbar = () => {
     const cartCount = useAppSelector(selectCartCount)
 
     return (
-        <header className="fixed top-0 left-0 right-0 z-50 bg-[#fff7ed]">
+        <header className="fixed top-0 left-0 right-0 z-50 bg-emerald-50">
             {/* ===== Top Utility Bar ===== */}
             <div className="bg-gray-50 text-xs text-gray-600 overflow-visible">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 flex justify-between h-8 items-center">
@@ -84,7 +84,7 @@ const MainNavbar = () => {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6">
                     <div className="flex h-20 items-center gap-6">
 
-                        <Link to="/" className="text-2xl font-bold text-orange-500 flex items-center">
+                        <Link to="/" className="text-2xl font-bold text-emerald-600 flex items-center">
                             <span className="block md:hidden tracking-wide">DNI</span>
                             <span className="hidden md:block">Daily Need Items</span>
                         </Link>
@@ -97,7 +97,7 @@ const MainNavbar = () => {
                                     placeholder="Search products, brands and more"
                                     className="flex-1 min-w-0 px-4 py-2 text-sm outline-none"
                                 />
-                                <button className="bg-orange-500 px-4 py-2 text-white cursor-pointer">
+                                <button className="bg-emerald-600 px-4 py-2 text-white cursor-pointer">
                                     <Search size={18} />
                                 </button>
                             </div>
@@ -111,7 +111,7 @@ const MainNavbar = () => {
                                 <span
                                     className="
                                     absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] flex items-center justify-center
-                                    rounded-full bg-orange-500 text-white text-[10px] leading-none px-[3px]"
+                                    rounded-full bg-emerald-600 text-white text-[10px] leading-none px-[3px]"
                                 >
                                     {cartCount}
                                 </span>

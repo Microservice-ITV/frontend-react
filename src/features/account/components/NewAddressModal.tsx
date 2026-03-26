@@ -361,7 +361,7 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
             className={`w-full border rounded-sm px-3 py-2 text-sm focus:outline-none focus:ring-1 ${
               getFieldError('fullName') && (isSubmitted || !!fullName)
                 ? 'border-red-500 focus:ring-red-500'
-                : 'border-gray-300 focus:ring-orange-500'
+                : 'border-gray-300 focus:ring-emerald-600'
             }`}
           />
           {getFieldError('fullName') && (isSubmitted || !!fullName) && (
@@ -377,7 +377,7 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
             className={`w-full border rounded-sm px-3 py-2 text-sm focus:outline-none focus:ring-1 ${
               getFieldError('phoneNumber') && (isSubmitted || !!phoneNumber)
                 ? 'border-red-500 focus:ring-red-500'
-                : 'border-gray-300 focus:ring-orange-500'
+                : 'border-gray-300 focus:ring-emerald-600'
             }`}
           />
           {getFieldError('phoneNumber') && (isSubmitted || !!phoneNumber) && (
@@ -391,7 +391,7 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
         <button
           type="button"
           onClick={() => setLocationDropdownOpen((open) => !open)}
-          className="w-full flex justify-between items-center border border-gray-300 rounded-sm px-3 py-2 text-sm bg-white text-left focus:outline-none focus:ring-1 focus:ring-orange-500 cursor-pointer"
+          className="w-full flex justify-between items-center border border-gray-300 rounded-sm px-3 py-2 text-sm bg-white text-left focus:outline-none focus:ring-1 focus:ring-emerald-600 cursor-pointer"
         >
           <span className={locationLabel ? 'text-gray-900' : 'text-gray-400'}>
             {locationLabel || 'State, City, District, Ward'}
@@ -420,7 +420,7 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
                     }`}
                   >
                     <span>{tab}</span>
-                    {isActive && <div className="mt-1 h-[2px] w-full bg-orange-500" />}
+                    {isActive && <div className="mt-1 h-[2px] w-full bg-emerald-600" />}
                   </button>
                 )
               })}
@@ -515,7 +515,7 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
             className={`w-full border rounded-sm px-3 py-2 text-sm focus:outline-none focus:ring-1 ${
               getFieldError('addressLine') && isSubmitted
                 ? 'border-red-500 focus:ring-red-500'
-                : 'border-gray-300 focus:ring-orange-500'
+                : 'border-gray-300 focus:ring-emerald-600'
             } ${
               !canEditAddressDetails ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'
             }`}
@@ -552,7 +552,7 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
             onClick={() => setValue('labelAs', 'HOME', { shouldDirty: true })}
             className={`px-4 py-1 text-xs font-medium rounded-sm cursor-pointer border ${
               labelAs === 'HOME'
-                ? 'bg-orange-50 border-orange-500 text-orange-600'
+                ? 'bg-emerald-50 border-emerald-600 text-emerald-700'
                 : 'bg-white border-gray-300 text-gray-700'
             }`}
           >
@@ -563,7 +563,7 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
             onClick={() => setValue('labelAs', 'OFFICE', { shouldDirty: true })}
             className={`px-4 py-1 text-xs font-medium rounded-sm cursor-pointer border ${
               labelAs === 'OFFICE'
-                ? 'bg-orange-50 border-orange-500 text-orange-600'
+                ? 'bg-emerald-50 border-emerald-600 text-emerald-700'
                 : 'bg-white border-gray-300 text-gray-700'
             }`}
           >
@@ -577,7 +577,7 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
           type="checkbox"
           checked={isDefault}
           onChange={(e) => setValue('isDefault', e.target.checked, { shouldDirty: true })}
-          className="h-4 w-4 border-gray-300 rounded-sm focus:ring-orange-500 accent-orange-500"
+          className="h-4 w-4 border-gray-300 rounded-sm focus:ring-emerald-600 accent-emerald-600"
         />
         <span>Set as Default Address</span>
       </label>
@@ -593,7 +593,7 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
         </button>
         <button
           type="submit"
-          className="px-5 py-2 text-sm font-medium text-white bg-orange-500 rounded-sm hover:bg-orange-600 cursor-pointer"
+          className="px-5 py-2 text-sm font-medium text-white bg-emerald-600 rounded-sm hover:bg-emerald-700 cursor-pointer"
         >
           Submit
         </button>
