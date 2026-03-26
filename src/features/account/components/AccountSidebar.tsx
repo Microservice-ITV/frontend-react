@@ -10,12 +10,12 @@ const AccountSidebar = ({ onNavigate }: AccountSidebarProps) => {
   const { user } = useAppSelector((s) => s.auth)
 
   const accountLinkBase = 'block px-10 py-1 text-sm'
-  const accountLinkActive = 'text-orange-600'
-  const accountLinkInactive = 'text-gray-700 hover:text-orange-600'
+  const accountLinkActive = 'text-emerald-700'
+  const accountLinkInactive = 'text-gray-700 hover:text-emerald-700'
 
   const bottomLinkBase = 'flex items-center gap-2 px-5 py-1.5 text-sm'
-  const bottomLinkActive = 'text-orange-600'
-  const bottomLinkInactive = 'text-gray-700 hover:text-orange-600'
+  const bottomLinkActive = 'text-emerald-700'
+  const bottomLinkInactive = 'text-gray-700 hover:text-emerald-700'
 
   return (
     <aside className="w-full md:w-64">
@@ -30,7 +30,7 @@ const AccountSidebar = ({ onNavigate }: AccountSidebarProps) => {
           </span>
           <NavLink
             to="/account/profile"
-            className="mt-0.5 inline-flex items-center gap-1 text-xs text-gray-500 hover:text-orange-600 transition-colors"
+            className="mt-0.5 inline-flex items-center gap-1 text-xs text-gray-500 hover:text-emerald-700 transition-colors"
             onClick={() => onNavigate?.()}
           >
             <span className="inline-block w-3 h-3 rounded-full border border-gray-400 flex items-center justify-center text-[9px]">

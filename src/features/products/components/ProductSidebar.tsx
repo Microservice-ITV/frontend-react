@@ -21,7 +21,7 @@ const ProductSidebar = ({ activeCategoryId }: Props) => {
         <div className="bg-white rounded-sm border border-gray-200">
             <Link
                 to="/all_categories"
-                className="flex items-center gap-2 px-4 py-3 font-semibold text-sm border-b border-gray-200 hover:text-orange-600 transition-colors"
+                className="flex items-center gap-2 px-4 py-3 font-semibold text-sm border-b border-gray-200 hover:text-emerald-700 transition-colors"
             >
                 <img
                     src={allCategoriesIcon}
@@ -41,8 +41,8 @@ const ProductSidebar = ({ activeCategoryId }: Props) => {
                                 to={`/categories/${cat.id}`}
                                 className={`
                                     flex items-center px-4 py-2 text-sm
-                                    ${isActive ? 'text-orange-600 font-medium' : 'text-gray-700'}
-                                    hover:text-orange-600 transition-colors
+                                    ${isActive ? 'text-emerald-700 font-medium' : 'text-gray-700'}
+                                    hover:text-emerald-700 transition-colors
                                 `}
                             >
                                 <img
@@ -63,7 +63,7 @@ const ProductSidebar = ({ activeCategoryId }: Props) => {
                     <button
                         type="button"
                         onClick={() => setExpanded((e) => !e)}
-                        className="flex items-center justify-center w-full py-1.5 text-sm text-gray-600 hover:text-orange-600 transition-colors cursor-pointer"
+                        className="flex items-center justify-center w-full py-1.5 text-sm text-gray-600 hover:text-emerald-700 transition-colors cursor-pointer"
                     >
                         {expanded ? (
                             <>

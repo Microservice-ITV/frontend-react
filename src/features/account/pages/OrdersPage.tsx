@@ -104,12 +104,12 @@ const OrdersPage = () => {
                 onClick={() => setActiveTab(tab.id)}
                 className={`
                   relative pb-2 cursor-pointer
-                  ${isActive ? 'text-orange-500 font-medium' : 'text-gray-700 hover:text-orange-500'}
+                  ${isActive ? 'text-emerald-600 font-medium' : 'text-gray-700 hover:text-emerald-600'}
                 `}
               >
                 {tab.label}
                 {isActive && (
-                  <span className="absolute left-0 right-0 -bottom-[1px] h-[2px] bg-orange-500 rounded-full" />
+                  <span className="absolute left-0 right-0 -bottom-[1px] h-[2px] bg-emerald-600 rounded-full" />
                 )}
               </button>
             )
@@ -123,7 +123,7 @@ const OrdersPage = () => {
             placeholder="You can search by Seller Name, Order ID or Product Name"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full px-3 py-2 text-xs md:text-sm border border-gray-200 rounded-sm focus:outline-none focus:border-orange-500"
+            className="w-full px-3 py-2 text-xs md:text-sm border border-gray-200 rounded-sm focus:outline-none focus:border-emerald-600"
           />
         </div>
       </div>
@@ -183,7 +183,7 @@ const OrdersPage = () => {
                       </div>
                     </div>
                     <div className="flex flex-col items-end text-xs md:text-sm">
-                      <span className="text-sm text-orange-500 font-semibold">
+                      <span className="text-sm text-emerald-600 font-semibold">
                         {formatMoney(item.lineTotal, item.currency)}
                       </span>
                     </div>
@@ -194,7 +194,7 @@ const OrdersPage = () => {
               <div className="px-4 py-2 border-b border-gray-100 flex justify-end">
                 <div className="flex items-center gap-2 text-sm">
                   <span className="text-gray-600">Order Total:</span>
-                  <span className="text-orange-500 font-semibold">
+                  <span className="text-emerald-600 font-semibold">
                     {formatMoney(order.totals.total, order.totals.currency)}
                   </span>
                 </div>

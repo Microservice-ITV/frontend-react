@@ -46,7 +46,7 @@ const CartItemLists = ({ items }: CartItemListProps) => {
                 onChange={e =>
                   dispatch(toggleShopSelection({ shopId: shop.shopId, selected: e.target.checked }))
                 }
-                className="h-4 w-4 accent-orange-500"
+                className="h-4 w-4 accent-emerald-600"
               />
             </div>
 

@@ -33,7 +33,7 @@ const CheckoutSuccessPage = () => {
         <div className="mt-6">
           <Link
             to="/"
-            className="inline-flex items-center justify-center px-8 py-3 bg-[#ee4d2d] text-white text-base font-medium rounded hover:bg-[#d73211]"
+            className="inline-flex items-center justify-center px-8 py-3 bg-emerald-600 text-white text-base font-medium rounded hover:bg-emerald-700"
           >
             Go to Home
           </Link>

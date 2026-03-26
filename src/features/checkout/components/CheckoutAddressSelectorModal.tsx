@@ -30,15 +30,15 @@ export const CheckoutAddressSelectorModal = ({
               type="button"
               onClick={() => onSelectAddress(address.address_id)}
               className={`w-full text-left p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer ${
-                isSelected ? 'bg-orange-50/40' : 'bg-white'
+                isSelected ? 'bg-emerald-50/50' : 'bg-white'
               }`}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-2">
                   <span className={`mt-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full border ${
-                    isSelected ? 'border-orange-500' : 'border-gray-300'
+                    isSelected ? 'border-emerald-600' : 'border-gray-300'
                   }`}>
-                    {isSelected && <span className="h-2 w-2 rounded-full bg-orange-500" />}
+                    {isSelected && <span className="h-2 w-2 rounded-full bg-emerald-600" />}
                   </span>
 
                   <div>
@@ -52,7 +52,7 @@ export const CheckoutAddressSelectorModal = ({
                         .join(', ')}
                     </p>
                     {address.is_default && (
-                      <span className="mt-2 inline-flex items-center px-2 py-[2px] text-[10px] font-medium text-orange-600 border border-orange-500 rounded-sm">
+                      <span className="mt-2 inline-flex items-center px-2 py-[2px] text-[10px] font-medium text-emerald-700 border border-emerald-600 rounded-sm">
                         Default
                       </span>
                     )}
@@ -78,7 +78,7 @@ export const CheckoutAddressSelectorModal = ({
       <div className="border-t border-gray-200 pt-3 px-2 flex justify-end">
         <button
           type="button"
-          className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded-sm hover:bg-orange-600 cursor-pointer"
+          className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-sm hover:bg-emerald-700 cursor-pointer"
           onClick={onAddNewAddress}
         >
           + Add New Address

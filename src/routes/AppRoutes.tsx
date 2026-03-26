@@ -31,6 +31,7 @@ import SellerProductsPage from '@/features/seller/pages/SellerProductsPage'
 import SellerCategoriesPage from '@/features/seller/pages/SellerCategoriesPage'
 import NewProductPage from '@/features/seller/pages/NewProductPage'
 import NewCategoryPage from '@/features/seller/pages/NewCategoryPage'
+import EditCategoryPage from '@/features/seller/pages/EditCategoryPage'
 import SellerUsersPage from '@/features/seller/pages/SellerUsersPage'
 import SellerNotificationsPage from '@/features/seller/pages/SellerNotificationsPage'
 import SellerInvoicesPage from '@/features/seller/pages/SellerInvoicesPage'
@@ -139,6 +140,14 @@ const AppRoutes = () => {
                             element={
                                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerCategories}>
                                     <NewCategoryPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="categories/:id/edit"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerCategories}>
+                                    <EditCategoryPage />
                                 </ProtectedRoute>
                             }
                         />

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
 import DataTablePagination from '@/components/ui/DataTablePagination'
@@ -31,6 +31,7 @@ const FILTER_TABS: { key: 'all' | 'active' | 'inactive'; label: string }[] = [
 
 const SellerCategoriesPage = () => {
   const dispatch = useAppDispatch()
+  const navigate = useNavigate()
   const { openModal } = useGlobalModal()
   const categories = useAppSelector(selectSellerCategories)
   const categoriesStatus = useAppSelector(selectSellerCategoriesStatus)
@@ -406,7 +407,7 @@ const SellerCategoriesPage = () => {
                               type="button"
                               onClick={() => {
                                 setOpenMenuId(null)
-                                // TODO: Navigate to category edit
+                                navigate(`/seller/categories/${category.id}/edit`)
                               }}
                               className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50"
                             >

@@ -33,7 +33,7 @@ const CartSummary = ({ total }: CartSummaryProps) => {
         <div className="flex-1" />
         <button
           type="button"
-          className="text-blue-600 hover:text-orange-500 whitespace-nowrap"
+          className="text-blue-600 hover:text-emerald-600 whitespace-nowrap"
         >
           Select
         </button>
@@ -42,7 +42,7 @@ const CartSummary = ({ total }: CartSummaryProps) => {
       {/* ================= COINS ================= */}
       <div className="flex items-center px-4 md:px-6 py-3 text-xs md:text-sm text-gray-400 border-b border-dashed border-[var(--dni-cart-border)]">
         <input type="checkbox" disabled className="mr-3 h-4 w-4" />
-        <span className="mr-2 text-orange-400">Ⓢ</span>
+        <span className="mr-2 text-emerald-400">Ⓢ</span>
         <span className="flex-1">DNI Coins</span>
         <span className="hidden sm:inline">No item selected</span>
         <span className="ml-2 sm:ml-4">-$0.00</span>
@@ -58,12 +58,12 @@ const CartSummary = ({ total }: CartSummaryProps) => {
                 type="checkbox"
                 checked={isAllSelected}
                 onChange={e => dispatch(toggleAllSelection(e.target.checked))}
-                className="h-4 w-4 accent-orange-500 border-gray-300"
+                className="h-4 w-4 accent-emerald-600 border-gray-300"
               />
               <span>Select All ({selectedCount})</span>
             </label>
 
-            <span className="text-orange-600 font-semibold text-lg">
+            <span className="text-emerald-700 font-semibold text-lg">
               ${total.toFixed(2)}
             </span>
           </div>
@@ -75,7 +75,7 @@ const CartSummary = ({ total }: CartSummaryProps) => {
             className={`
               w-full py-3 rounded-sm text-sm font-medium
               ${isCheckoutDisabled
-                ? 'bg-orange-300 text-orange-400 cursor-not-allowed'
+                ? 'bg-emerald-300 text-emerald-500 cursor-not-allowed'
                 : 'bg-[var(--dni-primary)] text-white hover:opacity-90 cursor-pointer'}
               `}
           >
@@ -90,14 +90,14 @@ const CartSummary = ({ total }: CartSummaryProps) => {
               type="checkbox"
               checked={isAllSelected}
               onChange={e => dispatch(toggleAllSelection(e.target.checked))}
-              className="h-4 w-4 accent-orange-500 border-gray-300"
+              className="h-4 w-4 accent-emerald-600 border-gray-300"
             />
-            <button className="hover:text-orange-500">Select All ({selectedCount})</button>
+            <button className="hover:text-emerald-600">Select All ({selectedCount})</button>
             <button
               disabled={selectedCount === 0}
               onClick={() => dispatch(removeSelectedItems())}
               className={`
-                hover:text-orange-500
+                hover:text-emerald-600
                 ${selectedCount === 0 ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
               `}
             >Delete</button>
@@ -110,7 +110,7 @@ const CartSummary = ({ total }: CartSummaryProps) => {
               <span className="text-sm text-gray-500">
                 Total ({selectedCount} {itemLabel}):
               </span>
-              <span className="text-2xl text-orange-600 font-semibold leading-none">
+              <span className="text-2xl text-emerald-700 font-semibold leading-none">
                 ${total.toFixed(2)}
               </span>
             </div>
@@ -122,7 +122,7 @@ const CartSummary = ({ total }: CartSummaryProps) => {
               className={`
                 px-10 py-3 rounded-sm text-sm font-medium
                 ${isCheckoutDisabled
-                  ? 'bg-orange-300 text-orange-400 cursor-not-allowed'
+                  ? 'bg-emerald-300 text-emerald-500 cursor-not-allowed'
                   : 'bg-[var(--dni-primary)] text-white hover:opacity-90 cursor-pointer'}
               `}
             >

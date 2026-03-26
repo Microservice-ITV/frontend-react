@@ -14,7 +14,7 @@ type GlobalModalOptions = {
   primaryLabel?: string
   /**
    * Visual style for the primary button.
-   * - default: existing orange
+   * - default: green (app primary)
    * - success: emerald (same tone as Add Category button)
    * - danger: red
    */
@@ -123,7 +123,7 @@ export const GlobalModalProvider = ({ children }: GlobalModalProviderProps) => {
       ? 'inline-flex items-center justify-center px-5 py-2 text-sm font-medium text-white bg-emerald-600 rounded-sm hover:bg-emerald-700 disabled:bg-emerald-300 disabled:cursor-not-allowed cursor-pointer'
       : modalState?.primaryVariant === 'danger'
       ? 'inline-flex items-center justify-center px-5 py-2 text-sm font-medium text-white bg-red-600 rounded-sm hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed cursor-pointer'
-      : 'inline-flex items-center justify-center px-5 py-2 text-sm font-medium text-white bg-orange-500 rounded-sm hover:bg-orange-600 disabled:bg-orange-300 disabled:cursor-not-allowed cursor-pointer'
+      : 'inline-flex items-center justify-center px-5 py-2 text-sm font-medium text-white bg-emerald-600 rounded-sm hover:bg-emerald-700 disabled:bg-emerald-300 disabled:cursor-not-allowed cursor-pointer'
 
   return (
     <GlobalModalContext.Provider value={{ openModal, closeModal }}>

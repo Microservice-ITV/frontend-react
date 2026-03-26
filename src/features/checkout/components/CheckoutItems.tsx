@@ -37,9 +37,9 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
             {/* Shop row */}
             <div className="flex items-center justify-between px-6 py-3">
               <div className="flex items-center gap-3">
-                <span className="bg-[#ee4d2d] text-white text-xs px-2 py-[1px] rounded">Shop</span>
+                <span className="bg-emerald-600 text-white text-xs px-2 py-[1px] rounded">Shop</span>
                 <span className="font-medium text-gray-900">{shopItems[0].shopName}</span>
-                <button className="flex items-center gap-1 text-sm text-[#26aa99] cursor-pointer">
+                  <button className="flex items-center gap-1 text-sm text-emerald-600 cursor-pointer">
                   <img src={chatIcon} className="w-4 h-4" />
                   chat now
                 </button>
@@ -106,7 +106,7 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
 
                 <button className="
                   w-full text-left bg-[#f0faf7] border border-[#b7e3d5] rounded-md p-3
-                  hover:border-[#26aa99] transition focus:outline-none cursor-pointer"
+                  hover:border-emerald-600 transition focus:outline-none cursor-pointer"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="text-sm font-medium text-gray-900">Next Day Doorstep Delivery</div>
@@ -114,7 +114,7 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
                     <span className="text-sm font-medium whitespace-nowrap">$1.99</span>
                   </div>
 
-                  <div className="mt-2 flex items-center gap-1 text-sm text-[#26aa99]">
+                  <div className="mt-2 flex items-center gap-1 text-sm text-emerald-600">
                     <img src={fastDeliveryIcon} className="w-4 h-4" />
                     Guaranteed to get by <span className="font-medium">7 Feb</span>
                   </div>
@@ -140,7 +140,7 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
               <div className="px-6 py-4 border-t border-dashed border-black/10 flex justify-between items-center">
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-gray-700">Allow to leave at doorstep</span>
-                  <span className="text-xs bg-[#ee4d2d] text-white px-2 py-[1px] rounded">New</span>
+                  <span className="text-xs bg-emerald-600 text-white px-2 py-[1px] rounded">New</span>
                 </div>
 
                 <div className="w-10 h-5 bg-green-500 rounded-full relative cursor-pointer">
@@ -152,7 +152,7 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
             {/* ================= ORDER TOTAL ================= */}
             <div className="flex justify-end items-center px-6 py-5 bg-[#fafdff]">
               <span className="text-sm text-gray-600 mr-3">Order Total ({shopQuantity} Items):</span>
-              <span className="text-xl font-semibold text-[#ee4d2d]">${shopTotal.toFixed(2)}</span>
+              <span className="text-xl font-semibold text-emerald-600">${shopTotal.toFixed(2)}</span>
             </div>
           </div>
         )

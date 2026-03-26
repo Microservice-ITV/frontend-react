@@ -28,7 +28,7 @@ const CartItemRow = ({ item }: CartItemRowProps) => {
                         onChange={() =>
                             dispatch(toggleItemSelection({ productId: item.productId }))
                         }
-                        className="h-4 w-4 accent-orange-500 border-gray-300"
+                        className="h-4 w-4 accent-emerald-600 border-gray-300"
                     />
                 </div>
 
@@ -47,7 +47,7 @@ const CartItemRow = ({ item }: CartItemRowProps) => {
 
                         {/* MOBILE PRICE + QTY */}
                         <div className="flex justify-between items-center md:hidden">
-                            <span className="text-orange-600 font-medium">
+                            <span className="text-emerald-700 font-medium">
                                 ${(item.price * item.quantity).toFixed(2)}
                             </span>
                             <CartQuantityInput item={item} />
@@ -66,7 +66,7 @@ const CartItemRow = ({ item }: CartItemRowProps) => {
                 </div>
 
                 {/* DESKTOP TOTAL */}
-                <div className="hidden md:block text-center font-medium text-orange-600">
+                <div className="hidden md:block text-center font-medium text-emerald-700">
                     ${(item.price * item.quantity).toFixed(2)}
                 </div>
 
@@ -82,7 +82,7 @@ const CartItemRow = ({ item }: CartItemRowProps) => {
             {/* SHOP VOUCHER */}
             <div className="flex items-center gap-3 px-4 py-3 border-t border-[var(--dni-cart-border)] text-sm">
                 <img src={voucherIcon} alt="Voucher" className="w-5 h-5" />
-                <button className="text-gray-500 hover:text-orange-500">
+                <button className="text-gray-500 hover:text-emerald-600">
                     Add shop voucher code
                 </button>
             </div>
