@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
 import DataTablePagination from '@/components/ui/DataTablePagination'
+import { sellerProductApi } from '../api/sellerProductApi'
+import { truncateText } from '@/utils/text'
 import type { Product, ProductStatus } from '../types/productTypes'
 import {
   fetchSellerProductsByShop,
@@ -39,6 +41,7 @@ const FILTER_TABS: { key: 'all' | ProductStatus; label: string }[] = [
 
 const SellerProductsPage = () => {
   const dispatch = useAppDispatch()
+  const navigate = useNavigate()
   const authUser = useAppSelector((state) => state.auth.user)
   const activeShopId = authUser?.active_shop_id ?? null
   const products = useAppSelector(selectSellerProducts)
@@ -80,7 +83,7 @@ const SellerProductsPage = () => {
   }, [activeShopId, products.length])
 
   const categoryOptions = useMemo(
-    () => ['All', ...Array.from(new Set(products.map((product) => product.category))).filter(Boolean)],
+    () => ['All', ...Array.from(new Set(products.map((product) => product.categoryName))).filter(Boolean)],
     [products],
   )
   const missingShopContext = !activeShopId
@@ -93,12 +96,13 @@ const SellerProductsPage = () => {
     const matchesFilter =
       activeFilter === 'all' || product.status === activeFilter
     const matchesCategory =
-      categoryFilter === 'All' || product.category === categoryFilter
+      categoryFilter === 'All' || product.categoryName === categoryFilter
     const matchesSearch =
       !search ||
       product.title.toLowerCase().includes(search.toLowerCase()) ||
       product.description.toLowerCase().includes(search.toLowerCase()) ||
-      product.category.toLowerCase().includes(search.toLowerCase())
+      product.categoryName.toLowerCase().includes(search.toLowerCase()) ||
+      product.categoryId.toLowerCase().includes(search.toLowerCase())
     return matchesFilter && matchesCategory && matchesSearch
   })
 
@@ -132,10 +136,30 @@ const SellerProductsPage = () => {
     })
   }
 
-  const handleBulkDelete = () => {
-    dispatch(removeProductsLocally(Array.from(selectedIds)))
-    setSelectedIds(new Set())
+  const deleteProductsByIds = async (ids: string[]) => {
+    if (ids.length === 0) return
+
+    const results = await Promise.allSettled(ids.map((id) => sellerProductApi.deleteProduct(id)))
+    const deletedIds = ids.filter((_, index) => results[index]?.status === 'fulfilled')
+    const failedCount = results.length - deletedIds.length
+
+    if (deletedIds.length > 0) {
+      dispatch(removeProductsLocally(deletedIds))
+    }
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      deletedIds.forEach((id) => next.delete(id))
+      return next
+    })
     setPage(1)
+
+    if (failedCount > 0) {
+      throw new Error(`${failedCount} product deletion(s) failed. Please try again.`)
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    await deleteProductsByIds(Array.from(selectedIds))
   }
 
   const confirmBulkDelete = () => {
@@ -151,6 +175,23 @@ const SellerProductsPage = () => {
       primaryVariant: 'success',
       secondaryLabel: 'Cancel',
       onPrimary: handleBulkDelete,
+    })
+  }
+
+  const confirmSingleDelete = (product: Product) => {
+    openModal({
+      title: 'Delete product?',
+      content: (
+        <p>
+          Are you sure you want to delete <strong>{product.title}</strong>? This action cannot be undone.
+        </p>
+      ),
+      primaryLabel: 'Delete',
+      primaryVariant: 'success',
+      secondaryLabel: 'Cancel',
+      onPrimary: async () => {
+        await deleteProductsByIds([product.id])
+      },
     })
   }
 
@@ -355,13 +396,15 @@ const SellerProductsPage = () => {
                 return (
                   <tr
                     key={product.id}
-                    className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
+                    className="cursor-pointer border-b border-slate-100 last:border-0 hover:bg-slate-50"
+                    onClick={() => navigate(`/seller/products/${product.id}`)}
                   >
                     <td className="px-4 py-3">
                       <input
                         type="checkbox"
                         checked={selectedIds.has(product.id)}
                         onChange={() => toggleSelect(product.id)}
+                        onClick={(e) => e.stopPropagation()}
                         className="rounded border-slate-300"
                       />
                     </td>
@@ -375,14 +418,14 @@ const SellerProductsPage = () => {
                             {product.title}
                           </p>
                           <p className="text-xs text-slate-500">
-                            {product.description}
+                            {truncateText(product.description, 50)}
                           </p>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-3">
                       <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
-                        {product.category}
+                        {product.categoryName}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -408,12 +451,14 @@ const SellerProductsPage = () => {
                       >
                         <button
                           type="button"
-                          onClick={() =>
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation()
                             setOpenMenuId((id) =>
                               id === product.id ? null : product.id
                             )
-                          }
-                          className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                          }}
+                          className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
                           aria-label="Actions"
                           aria-expanded={openMenuId === product.id}
                         >
@@ -429,33 +474,36 @@ const SellerProductsPage = () => {
                           >
                             <button
                               type="button"
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation()
                                 setOpenMenuId(null)
-                                // TODO: Navigate to product view
+                                navigate(`/seller/products/${product.id}`)
                               }}
-                              className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50"
+                              className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
                             >
                               <Eye size={16} className="shrink-0 text-slate-500" />
                               View
                             </button>
                             <button
                               type="button"
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation()
                                 setOpenMenuId(null)
-                                // TODO: Navigate to product edit
+                                navigate(`/seller/products/${product.id}/edit`)
                               }}
-                              className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50"
+                              className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
                             >
                               <Pencil size={16} className="shrink-0 text-slate-500" />
                               Edit
                             </button>
                             <button
                               type="button"
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation()
                                 setOpenMenuId(null)
-                                // TODO: Handle delete
+                                confirmSingleDelete(product)
                               }}
-                              className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-red-600 hover:bg-slate-50"
+                              className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-red-600 hover:bg-slate-50 cursor-pointer"
                             >
                               <Trash2 size={16} className="shrink-0 text-slate-500" />
                               Delete

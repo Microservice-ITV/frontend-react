@@ -41,8 +41,8 @@ type CategoryCreatePayload = {
   description?: string
   parentId?: string
   isActive: boolean
-  imageFiles?: File[]
-  existingImageUrls?: string[]
+  imageFile?: File
+  existingImageUrl?: string | null
 }
 
 type CategoryUpdatePayload = Partial<{
@@ -51,15 +51,9 @@ type CategoryUpdatePayload = Partial<{
   description: string
   parentId: string
   isActive: boolean
-  imageFiles: File[]
-  existingImageUrls: string[]
+  imageFile: File
+  existingImageUrl: string | null
 }>
-
-const isUnexpectedUploadFieldError = (error: any): boolean => {
-  const status = error?.response?.status
-  const message = String(error?.response?.data?.message ?? error?.message ?? '')
-  return status === 400 && /unexpected field/i.test(message)
-}
 
 const appendCategoryPayloadFields = (
   formData: FormData,
@@ -76,10 +70,9 @@ const appendExistingFallbackImage = (
   formData: FormData,
   payload: CategoryCreatePayload | CategoryUpdatePayload,
 ) => {
-  const firstExisting = payload.existingImageUrls?.[0]
-  if (firstExisting) {
+  if (payload.existingImageUrl) {
     // Keep an existing image reference when no new file is provided.
-    formData.append('image', firstExisting)
+    formData.append('image', payload.existingImageUrl)
   }
 }
 
@@ -96,23 +89,13 @@ export const sellerCategoryApi = {
     const formData = new FormData()
     appendCategoryPayloadFields(formData, payload)
 
-    if (payload.imageFiles?.length) {
-      // Forward-compatible request for multi-image category upload.
-      payload.imageFiles.forEach((file) => formData.append('images', file))
+    if (payload.imageFile) {
+      formData.append('image', payload.imageFile)
     } else {
       appendExistingFallbackImage(formData, payload)
     }
 
-    return productClient.post('/categories', formData).catch(async (error) => {
-      if (!payload.imageFiles?.length || !isUnexpectedUploadFieldError(error)) {
-        throw error
-      }
-      // Backward-compat fallback for current backend (`upload.single('image')`).
-      const fallback = new FormData()
-      appendCategoryPayloadFields(fallback, payload)
-      fallback.append('image', payload.imageFiles[0])
-      return productClient.post('/categories', fallback)
-    })
+    return productClient.post('/categories', formData)
   },
 
   getCategoryById(
@@ -127,22 +110,16 @@ export const sellerCategoryApi = {
   ): Promise<AxiosResponse<{ success?: boolean; data?: CategoryReadItem }>> {
     const formData = new FormData()
     appendCategoryPayloadFields(formData, payload)
-    if (payload.imageFiles?.length) {
-      // Forward-compatible request for multi-image category upload.
-      payload.imageFiles.forEach((file) => formData.append('images', file))
+    if (payload.imageFile) {
+      formData.append('image', payload.imageFile)
     } else {
       appendExistingFallbackImage(formData, payload)
     }
 
-    return productClient.patch(`/categories/${id}`, formData).catch(async (error) => {
-      if (!payload.imageFiles?.length || !isUnexpectedUploadFieldError(error)) {
-        throw error
-      }
-      // Backward-compat fallback for current backend (`upload.single('image')`).
-      const fallback = new FormData()
-      appendCategoryPayloadFields(fallback, payload)
-      fallback.append('image', payload.imageFiles[0])
-      return productClient.patch(`/categories/${id}`, fallback)
-    })
+    return productClient.patch(`/categories/${id}`, formData)
+  },
+
+  deleteCategory(id: string): Promise<AxiosResponse<{ success?: boolean; message?: string }>> {
+    return productClient.delete(`/categories/${id}`)
   },
 }

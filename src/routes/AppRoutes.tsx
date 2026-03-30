@@ -30,9 +30,11 @@ import SellerOrdersPage from '@/features/seller/pages/SellerOrdersPage'
 import SellerProductsPage from '@/features/seller/pages/SellerProductsPage'
 import SellerCategoriesPage from '@/features/seller/pages/SellerCategoriesPage'
 import NewProductPage from '@/features/seller/pages/NewProductPage'
+import EditProductPage from '@/features/seller/pages/EditProductPage'
+import SellerProductDetailPage from '@/features/seller/pages/SellerProductDetailPage'
 import NewCategoryPage from '@/features/seller/pages/NewCategoryPage'
 import EditCategoryPage from '@/features/seller/pages/EditCategoryPage'
-import SellerUsersPage from '@/features/seller/pages/SellerUsersPage'
+import SellerCategoryDetailPage from '@/features/seller/pages/SellerCategoryDetailPage'
 import SellerNotificationsPage from '@/features/seller/pages/SellerNotificationsPage'
 import SellerInvoicesPage from '@/features/seller/pages/SellerInvoicesPage'
 import SellerChatPage from '@/features/seller/pages/SellerChatPage'
@@ -104,7 +106,12 @@ const AppRoutes = () => {
                 />
                 <Route
                     path="/seller"
-                    element={<ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerDashboard} />}
+                    element={
+                        <ProtectedRoute
+                            requiredCapabilities={ROUTE_ACCESS.sellerDashboard}
+                            allowedRoles={['SHOP_OWNER', 'SHOP_ADMIN']}
+                        />
+                    }
                 >
                     <Route element={<DashboardLayout area="seller" />}>
                         <Route index element={<Navigate to="overview" replace />} />
@@ -152,6 +159,14 @@ const AppRoutes = () => {
                             }
                         />
                         <Route
+                            path="categories/:id"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerCategories}>
+                                    <SellerCategoryDetailPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
                             path="categories"
                             element={
                                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerCategories}>
@@ -164,6 +179,22 @@ const AppRoutes = () => {
                             element={
                                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerProducts}>
                                     <NewProductPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="products/:id/edit"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerProducts}>
+                                    <EditProductPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="products/:id"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerProducts}>
+                                    <SellerProductDetailPage />
                                 </ProtectedRoute>
                             }
                         />
@@ -214,14 +245,6 @@ const AppRoutes = () => {
                             }
                         />
                         <Route
-                            path="users"
-                            element={
-                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerUsers}>
-                                    <SellerUsersPage />
-                                </ProtectedRoute>
-                            }
-                        />
-                        <Route
                             path="notifications"
                             element={
                                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerNotifications}>
@@ -249,7 +272,12 @@ const AppRoutes = () => {
                 </Route>
                 <Route
                     path="/super-admin"
-                    element={<ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminDashboard} />}
+                    element={
+                        <ProtectedRoute
+                            requiredCapabilities={ROUTE_ACCESS.superAdminDashboard}
+                            allowedRoles={['SUPER_ADMIN']}
+                        />
+                    }
                 >
                     <Route element={<DashboardLayout area="super_admin" />}>
                         <Route index element={<Navigate to="overview" replace />} />

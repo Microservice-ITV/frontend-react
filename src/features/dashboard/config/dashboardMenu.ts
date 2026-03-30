@@ -112,14 +112,6 @@ export const DASHBOARD_MENU_SELLER: DashboardMenuSection[] = [
     title: 'SYSTEM',
     items: [
       {
-        key: 'seller-users',
-        label: 'Users',
-        to: '/seller/users',
-        area: 'seller',
-        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
-        icon: UserCog,
-      },
-      {
         key: 'seller-notifications',
         label: 'Notifications',
         to: '/seller/notifications',
