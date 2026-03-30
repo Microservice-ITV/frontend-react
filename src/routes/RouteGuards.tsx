@@ -2,6 +2,7 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAppSelector } from '@/app/hooks'
 import { selectAuthUser, selectIsAuthenticated, selectIsAuthBootstrapping } from '@/features/auth/store/authSelectors'
 import type { Capability } from '@/app/rbac/types'
+import type { AppRole } from '@/app/rbac/types'
 import { canAny } from '@/app/rbac/selectors'
 import { extractRoleFromUser } from '@/app/rbac/normalizers'
 import { getDefaultLandingPathByRole, resolvePostLoginPath } from '@/app/rbac/navigation'
@@ -40,12 +41,14 @@ export const GuestRoute = () => {
 // ================= ProtectedRoute =================
 type ProtectedRouteProps = {
   requiredCapabilities?: readonly Capability[]
+  allowedRoles?: readonly AppRole[]
   unauthorizedRedirectTo?: string
   children?: ReactNode
 }
 
 export const ProtectedRoute = ({
   requiredCapabilities = [],
+  allowedRoles,
   unauthorizedRedirectTo = '/forbidden',
   children,
 }: ProtectedRouteProps) => {
@@ -73,8 +76,19 @@ export const ProtectedRoute = ({
     return <AuthBootstrapLoading />
   }
 
+  if (allowedRoles && !authUser) {
+    return <AuthBootstrapLoading />
+  }
+
   if (requiredCapabilities.length > 0 && !hasRequiredCapabilities) {
     return <Navigate to={unauthorizedRedirectTo} replace />
+  }
+
+  if (allowedRoles && authUser) {
+    const role = extractRoleFromUser(authUser)
+    if (!allowedRoles.includes(role)) {
+      return <Navigate to={unauthorizedRedirectTo} replace />
+    }
   }
 
   if (children) {

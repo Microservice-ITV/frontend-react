@@ -17,22 +17,50 @@ const formatPrice = (price: number, currency: string) => {
   }
 }
 
-const formatCreatedDate = (value?: string) => {
-  if (!value) return '—'
-  const parsed = new Date(value)
+const normalizeIsoDate = (
+  value?: string | { $date?: string },
+): string | undefined => {
+  if (!value) return undefined
+  if (typeof value === 'string') return value
+  if (typeof value === 'object' && typeof value.$date === 'string') return value.$date
+  return undefined
+}
+
+const formatCreatedDate = (value?: string | { $date?: string }) => {
+  const normalized = normalizeIsoDate(value)
+  if (!normalized) return '—'
+  const parsed = new Date(normalized)
   if (Number.isNaN(parsed.getTime())) return '—'
   return parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+const resolveStock = (item: CatalogProductReadItem): number => {
+  const candidate =
+    typeof item.stock === 'number'
+      ? item.stock
+      : typeof item.shopAvailableStock === 'number'
+        ? item.shopAvailableStock
+        : 0
+  return Number.isFinite(candidate) ? Number(candidate) : 0
+}
+
 const mapCatalogProductToUi = (item: CatalogProductReadItem): Product => {
   const computedStatus: ProductStatus = item.isActive ? 'active' : 'archived'
+  const resolvedCategoryId = item.categoryId ?? item.category?.id ?? ''
+  const resolvedCategoryName =
+    item.categoryName ??
+    item.category?.name ??
+    item.category?.title ??
+    'Uncategorized'
+
   return {
     id: item.productId,
     title: item.title || item.slug,
     description: item.description || 'No description',
-    category: item.categoryId || 'Uncategorized',
+    categoryId: resolvedCategoryId,
+    categoryName: resolvedCategoryName,
     status: computedStatus,
-    stock: Number.isFinite(item.stock) ? item.stock : 0,
+    stock: resolveStock(item),
     price: formatPrice(Number(item.price || 0), item.currency || 'USD'),
     created: formatCreatedDate(item.createdAt),
   }

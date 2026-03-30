@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
 import DataTablePagination from '@/components/ui/DataTablePagination'
+import { sellerCategoryApi } from '../api/sellerCategoryApi'
+import { truncateText } from '@/utils/text'
 import type { Category } from '../types/categoryTypes'
 import {
   fetchSellerCategories,
@@ -110,10 +112,30 @@ const SellerCategoriesPage = () => {
     })
   }
 
-  const handleBulkDelete = () => {
-    dispatch(removeCategoriesLocally(Array.from(selectedIds)))
-    setSelectedIds(new Set())
+  const deleteCategoriesByIds = async (ids: string[]) => {
+    if (ids.length === 0) return
+
+    const results = await Promise.allSettled(ids.map((id) => sellerCategoryApi.deleteCategory(id)))
+    const deletedIds = ids.filter((_, index) => results[index]?.status === 'fulfilled')
+    const failedCount = results.length - deletedIds.length
+
+    if (deletedIds.length > 0) {
+      dispatch(removeCategoriesLocally(deletedIds))
+    }
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      deletedIds.forEach((id) => next.delete(id))
+      return next
+    })
     setPage(1)
+
+    if (failedCount > 0) {
+      throw new Error(`${failedCount} category deletion(s) failed. Please try again.`)
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    await deleteCategoriesByIds(Array.from(selectedIds))
   }
 
   const confirmBulkDelete = () => {
@@ -129,6 +151,23 @@ const SellerCategoriesPage = () => {
       primaryVariant: 'success',
       secondaryLabel: 'Cancel',
       onPrimary: handleBulkDelete,
+    })
+  }
+
+  const confirmSingleDelete = (category: Category) => {
+    openModal({
+      title: 'Delete category?',
+      content: (
+        <p>
+          Are you sure you want to delete <strong>{category.name}</strong>? This action cannot be undone.
+        </p>
+      ),
+      primaryLabel: 'Delete',
+      primaryVariant: 'success',
+      secondaryLabel: 'Cancel',
+      onPrimary: async () => {
+        await deleteCategoriesByIds([category.id])
+      },
     })
   }
 
@@ -314,13 +353,15 @@ const SellerCategoriesPage = () => {
                 return (
                   <tr
                     key={category.id}
-                    className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
+                    className="cursor-pointer border-b border-slate-100 last:border-0 hover:bg-slate-50"
+                    onClick={() => navigate(`/seller/categories/${category.id}`)}
                   >
                     <td className="px-4 py-3">
                       <input
                         type="checkbox"
                         checked={selectedIds.has(category.id)}
                         onChange={() => toggleSelect(category.id)}
+                        onClick={(e) => e.stopPropagation()}
                         className="rounded border-slate-300"
                       />
                     </td>
@@ -334,7 +375,7 @@ const SellerCategoriesPage = () => {
                             {category.name}
                           </p>
                           <p className="text-xs text-slate-500">
-                            {category.description}
+                            {truncateText(category.description, 50)}
                           </p>
                         </div>
                       </div>
@@ -373,12 +414,14 @@ const SellerCategoriesPage = () => {
                       >
                         <button
                           type="button"
-                          onClick={() =>
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation()
                             setOpenMenuId((id) =>
                               id === category.id ? null : category.id
                             )
-                          }
-                          className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                          }}
+                          className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
                           aria-label="Actions"
                           aria-expanded={openMenuId === category.id}
                         >
@@ -394,33 +437,36 @@ const SellerCategoriesPage = () => {
                           >
                             <button
                               type="button"
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation()
                                 setOpenMenuId(null)
-                                // TODO: Navigate to category view
+                                navigate(`/seller/categories/${category.id}`)
                               }}
-                              className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50"
+                              className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
                             >
                               <Eye size={16} className="shrink-0 text-slate-500" />
                               View
                             </button>
                             <button
                               type="button"
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation()
                                 setOpenMenuId(null)
                                 navigate(`/seller/categories/${category.id}/edit`)
                               }}
-                              className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50"
+                              className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
                             >
                               <Pencil size={16} className="shrink-0 text-slate-500" />
                               Edit
                             </button>
                             <button
                               type="button"
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation()
                                 setOpenMenuId(null)
-                                // TODO: Handle delete
+                                confirmSingleDelete(category)
                               }}
-                              className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-red-600 hover:bg-slate-50"
+                              className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-red-600 hover:bg-slate-50 cursor-pointer"
                             >
                               <Trash2 size={16} className="shrink-0 text-slate-500" />
                               Delete

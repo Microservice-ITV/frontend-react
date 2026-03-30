@@ -326,7 +326,7 @@ const AdminShopsPage = () => {
                         <button
                           type="button"
                           onClick={() => setOpenMenuId((id) => (id === shop.id ? null : shop.id))}
-                          className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                          className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
                           aria-label="Actions"
                           aria-expanded={openMenuId === shop.id}
                         >
@@ -341,7 +341,7 @@ const AdminShopsPage = () => {
                             <button
                               type="button"
                               onClick={() => setOpenMenuId(null)}
-                              className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50"
+                              className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
                             >
                               <Eye size={16} className="shrink-0 text-slate-500" />
                               View
@@ -349,7 +349,7 @@ const AdminShopsPage = () => {
                             <button
                               type="button"
                               onClick={() => setOpenMenuId(null)}
-                              className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50"
+                              className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
                             >
                               <Pencil size={16} className="shrink-0 text-slate-500" />
                               Edit
@@ -357,7 +357,7 @@ const AdminShopsPage = () => {
                             <button
                               type="button"
                               onClick={() => setOpenMenuId(null)}
-                              className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-red-600 hover:bg-slate-50"
+                              className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-red-600 hover:bg-slate-50 cursor-pointer"
                             >
                               <Trash2 size={16} className="shrink-0 text-slate-500" />
                               Delete

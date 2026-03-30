@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useAppDispatch } from '@/app/hooks'
 import { sellerCategoryApi, type CategoryReadItem } from '@/features/seller/api/sellerCategoryApi'
+import { fetchSellerCategories } from '@/features/seller/store'
 import CategoryForm, {
   categoryFormSchema,
   type CategoryFormValues,
@@ -13,20 +15,22 @@ const normalizeCategoryId = (item: CategoryReadItem): string =>
 const normalizeCategoryName = (item: CategoryReadItem): string =>
   item.name ?? item.title ?? 'Untitled Category'
 
-const normalizeImageUrls = (item: CategoryReadItem): string[] => {
+const normalizeImageUrl = (item: CategoryReadItem): string | null => {
   const candidates = [
     ...(Array.isArray(item.images) ? item.images : []),
     ...(Array.isArray(item.imageUrls) ? item.imageUrls : []),
     item.image,
     item.imageUrl,
   ]
-  return candidates
+  const normalized = candidates
     .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
     .filter((value, index, arr) => arr.indexOf(value) === index)
+  return normalized[0] ?? null
 }
 
 const EditCategoryPage = () => {
   const { id } = useParams<{ id: string }>()
+  const dispatch = useAppDispatch()
   const navigate = useNavigate()
 
   const [parentCategories, setParentCategories] = useState<Array<{ id: string; name: string }>>([])
@@ -36,7 +40,7 @@ const EditCategoryPage = () => {
   const [loadError, setLoadError] = useState('')
   const [loadingCategory, setLoadingCategory] = useState(true)
   const [initialValues, setInitialValues] = useState<CategoryFormValues | null>(null)
-  const [existingImageUrls, setExistingImageUrls] = useState<string[]>([])
+  const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) {
@@ -61,7 +65,7 @@ const EditCategoryPage = () => {
         }
 
         if (!isCancelled) {
-          setExistingImageUrls(normalizeImageUrls(item))
+          setExistingImageUrl(normalizeImageUrl(item))
           setInitialValues({
             name: (item.name ?? item.title ?? '').trim(),
             description: (item.description ?? '').trim(),
@@ -144,12 +148,12 @@ const EditCategoryPage = () => {
 
   const onSubmit = async ({
     values,
-    imageFiles,
-    existingImageUrls,
+    imageFile,
+    existingImageUrl,
   }: {
     values: CategoryFormValues
-    imageFiles: File[]
-    existingImageUrls: string[]
+    imageFile: File | null
+    existingImageUrl: string | null
   }) => {
     if (!id) return
 
@@ -162,9 +166,14 @@ const EditCategoryPage = () => {
         description: values.description.trim(),
         parentId: values.parentId?.trim() || undefined,
         isActive: values.isActive === 'true',
-        imageFiles,
-        existingImageUrls,
+        imageFile: imageFile ?? undefined,
+        existingImageUrl,
       })
+      try {
+        await dispatch(fetchSellerCategories()).unwrap()
+      } catch {
+        // Update succeeded; keep navigation flow even if list refresh fails.
+      }
       navigate('/seller/categories')
     } catch (error: any) {
       const fallback = 'Failed to update category. Please try again.'
@@ -205,7 +214,7 @@ const EditCategoryPage = () => {
           mode="edit"
           resolver={zodResolver(categoryFormSchema)}
           initialValues={initialValues}
-          existingImageUrls={existingImageUrls}
+          existingImageUrl={existingImageUrl}
           parentCategories={parentCategories}
           parentCategoriesLoading={parentCategoriesLoading}
           onSubmit={onSubmit}

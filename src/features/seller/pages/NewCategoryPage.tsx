@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useAppDispatch } from '@/app/hooks'
 import { sellerCategoryApi, type CategoryReadItem } from '@/features/seller/api/sellerCategoryApi'
 import CategoryForm, {
   categoryFormSchema,
   type CategoryFormValues,
 } from '@/features/seller/components/CategoryForm'
+import { fetchSellerCategories } from '@/features/seller/store'
 
 const normalizeCategoryId = (item: CategoryReadItem): string =>
   item.id ?? item.categoryId ?? item._id ?? ''
@@ -14,6 +16,7 @@ const normalizeCategoryName = (item: CategoryReadItem): string =>
   item.name ?? item.title ?? 'Untitled Category'
 
 const NewCategoryPage = () => {
+  const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const [parentCategories, setParentCategories] = useState<Array<{ id: string; name: string }>>([])
   const [parentCategoriesLoading, setParentCategoriesLoading] = useState(false)
@@ -62,12 +65,12 @@ const NewCategoryPage = () => {
 
   const onSubmit = async ({
     values,
-    imageFiles,
-    existingImageUrls,
+    imageFile,
+    existingImageUrl,
   }: {
     values: CategoryFormValues
-    imageFiles: File[]
-    existingImageUrls: string[]
+    imageFile: File | null
+    existingImageUrl: string | null
   }) => {
     setSubmitError('')
     setIsSubmitting(true)
@@ -79,9 +82,14 @@ const NewCategoryPage = () => {
         description: values.description.trim() || undefined,
         parentId: values.parentId?.trim() || undefined,
         isActive: values.isActive === 'true',
-        imageFiles,
-        existingImageUrls,
+        imageFile: imageFile ?? undefined,
+        existingImageUrl,
       })
+      try {
+        await dispatch(fetchSellerCategories()).unwrap()
+      } catch {
+        // Category was created successfully; navigate even if list refresh fails.
+      }
       navigate('/seller/categories')
     } catch (error: any) {
       const fallback = 'Failed to create category. Please try again.'
@@ -115,7 +123,7 @@ const NewCategoryPage = () => {
           isActive: 'false',
           image: '',
         }}
-        existingImageUrls={[]}
+        existingImageUrl={null}
         parentCategories={parentCategories}
         parentCategoriesLoading={parentCategoriesLoading}
         onSubmit={onSubmit}

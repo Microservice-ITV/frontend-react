@@ -26,15 +26,15 @@ export type CategoryFormValues = z.infer<typeof categoryFormSchema>
 
 type CategoryFormSubmitPayload = {
   values: CategoryFormValues
-  imageFiles: File[]
-  existingImageUrls: string[]
+  imageFile: File | null
+  existingImageUrl: string | null
 }
 
 type CategoryFormProps = {
   mode: 'create' | 'edit'
   resolver: Resolver<CategoryFormValues>
   initialValues: CategoryFormValues
-  existingImageUrls?: string[]
+  existingImageUrl?: string | null
   parentCategories: Array<{ id: string; name: string }>
   parentCategoriesLoading?: boolean
   onSubmit: (payload: CategoryFormSubmitPayload) => Promise<void> | void
@@ -49,7 +49,7 @@ const CategoryForm = ({
   mode,
   resolver,
   initialValues,
-  existingImageUrls = [],
+  existingImageUrl = null,
   parentCategories,
   parentCategoriesLoading = false,
   onSubmit,
@@ -59,10 +59,10 @@ const CategoryForm = ({
   submitError = '',
   autoSlug = true,
 }: CategoryFormProps) => {
-  const [imageFiles, setImageFiles] = useState<File[]>([])
-  const [imagePreviews, setImagePreviews] = useState<string[]>([])
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string>('')
   const [imageError, setImageError] = useState('')
-  const [editableExistingImages, setEditableExistingImages] = useState<string[]>(existingImageUrls)
+  const [editableExistingImage, setEditableExistingImage] = useState<string | null>(existingImageUrl)
 
   const {
     register,
@@ -80,8 +80,8 @@ const CategoryForm = ({
   const isActive = watch('isActive')
 
   useEffect(() => {
-    setEditableExistingImages(existingImageUrls)
-  }, [existingImageUrls])
+    setEditableExistingImage(existingImageUrl)
+  }, [existingImageUrl])
 
   useEffect(() => {
     if (!autoSlug) return
@@ -90,17 +90,15 @@ const CategoryForm = ({
   }, [autoSlug, name, setValue])
 
   useEffect(() => {
-    const urls = imageFiles.map((file) => URL.createObjectURL(file))
-    setImagePreviews(urls)
-    setValue(
-      'image',
-      imageFiles.map((f) => f.name).join(','),
-      { shouldValidate: true },
-    )
+    const preview = imageFile ? URL.createObjectURL(imageFile) : ''
+    setImagePreview(preview)
+    setValue('image', imageFile?.name ?? '', { shouldValidate: true })
     return () => {
-      urls.forEach((url) => URL.revokeObjectURL(url))
+      if (preview) {
+        URL.revokeObjectURL(preview)
+      }
     }
-  }, [imageFiles, setValue])
+  }, [imageFile, setValue])
 
   const title = useMemo(
     () => (mode === 'create' ? 'New Category' : 'Edit Category'),
@@ -115,11 +113,7 @@ const CategoryForm = ({
   )
 
   const handleFormSubmit = async (values: CategoryFormValues) => {
-    if (imageFiles.length > 3) {
-      setImageError('You can upload up to 3 images only.')
-      return
-    }
-    await onSubmit({ values, imageFiles, existingImageUrls: editableExistingImages })
+    await onSubmit({ values, imageFile, existingImageUrl: editableExistingImage })
   }
 
   return (
@@ -189,99 +183,79 @@ const CategoryForm = ({
                     htmlFor="image"
                     className="mb-1.5 block text-xs font-medium text-slate-700"
                   >
-                    Images (max 3)
+                    Image
                   </label>
                   <input
                     id="image"
                     type="file"
-                    multiple
+                    multiple={false}
                     accept="image/*"
                     onChange={(e) => {
-                      const incomingFiles = Array.from(e.target.files ?? [])
-                      const merged = [...imageFiles, ...incomingFiles]
-                      const uniqueByKey = merged.filter(
-                        (file, index, arr) =>
-                          arr.findIndex(
-                            (item) =>
-                              item.name === file.name &&
-                              item.size === file.size &&
-                              item.lastModified === file.lastModified,
-                          ) === index,
-                      )
+                      const files = Array.from(e.target.files ?? [])
+                      const file = files[0] ?? null
 
-                      if (uniqueByKey.length > 3) {
-                        setImageError('You can upload up to 3 images only.')
+                      if (files.length > 1) {
+                        setImageError('Only one image is allowed.')
                       } else {
                         setImageError('')
                       }
 
-                      setImageFiles(uniqueByKey.slice(0, 3))
+                      // Edit behavior: new selection replaces existing image.
+                      if (file) {
+                        setEditableExistingImage(null)
+                      }
+
+                      setImageFile(file)
                       e.currentTarget.value = ''
                     }}
                     className="w-full cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500"
                   />
                   <input type="hidden" {...register('image')} />
-                  {editableExistingImages.length > 0 && (
+                  {editableExistingImage && (
                     <div className="mt-3">
-                      <p className="mb-2 text-xs font-medium text-slate-600">Current images</p>
+                      <p className="mb-2 text-xs font-medium text-slate-600">Current image</p>
                       <div className="grid grid-cols-3 gap-2">
-                        {editableExistingImages.map((url, index) => (
-                          <div
-                            key={`${url}-${index}`}
-                            className="relative overflow-hidden rounded-lg border border-slate-200 bg-slate-50"
+                        <div className="relative overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                          <img
+                            src={editableExistingImage}
+                            alt="Current category image"
+                            className="h-24 w-full object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setEditableExistingImage(null)}
+                            className="absolute right-1 top-1 rounded-full bg-black/70 p-1 text-white hover:bg-black/80"
+                            aria-label="Remove existing image"
                           >
-                            <img
-                              src={url}
-                              alt={`Current category image ${index + 1}`}
-                              className="h-24 w-full object-cover"
-                            />
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setEditableExistingImages((prev) =>
-                                  prev.filter((_, imageIndex) => imageIndex !== index),
-                                )
-                              }
-                              className="absolute right-1 top-1 rounded-full bg-black/70 p-1 text-white hover:bg-black/80"
-                              aria-label="Remove existing image"
-                            >
-                              <X size={12} />
-                            </button>
-                          </div>
-                        ))}
+                            <X size={12} />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}
                   {imageError && (
                     <p className="mt-1 text-xs text-red-600">{imageError}</p>
                   )}
-                  {imagePreviews.length > 0 && (
+                  {imagePreview && (
                     <div className="mt-3 grid grid-cols-3 gap-2">
-                      {imagePreviews.map((preview, index) => (
-                        <div
-                          key={`${imageFiles[index]?.name ?? 'preview'}-${index}`}
-                          className="relative overflow-hidden rounded-lg border border-slate-200 bg-slate-50"
+                      <div className="relative overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                        <img
+                          src={imagePreview}
+                          alt={imageFile?.name ?? 'Selected image'}
+                          className="h-24 w-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setImageFile(null)
+                            setImageError('')
+                          }}
+                          className="absolute right-1 top-1 rounded-full bg-black/70 p-1 text-white hover:bg-black/80"
+                          aria-label="Remove image"
                         >
-                          <img
-                            src={preview}
-                            alt={imageFiles[index]?.name ?? `Image ${index + 1}`}
-                            className="h-24 w-full object-cover"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setImageFiles((prev) =>
-                                prev.filter((_, fileIndex) => fileIndex !== index),
-                              )
-                              setImageError('')
-                            }}
-                            className="absolute right-1 top-1 rounded-full bg-black/70 p-1 text-white hover:bg-black/80"
-                            aria-label="Remove image"
-                          >
-                            <X size={12} />
-                          </button>
-                        </div>
-                      ))}
+                          <X size={12} />
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -327,7 +301,7 @@ const CategoryForm = ({
                       onChange={(e) => setValue('parentId', e.target.value)}
                       className="w-full appearance-none rounded-lg border border-slate-200 bg-white px-3 py-2 pr-10 text-sm outline-none focus:border-emerald-500"
                     >
-                      <option value="">None</option>
+                      <option value="">None (Top-level category)</option>
                       {parentCategories.map((cat) => (
                         <option key={cat.id} value={cat.id}>
                           {cat.name}
