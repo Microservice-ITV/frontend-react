@@ -7,9 +7,8 @@ export const fetchCategories = createAsyncThunk<Category[], void, {rejectValue: 
     async (_, { rejectWithValue }) => { // "_" => no argument is passed
         try {
             const response = await categoryApi.getAll()
-
-            // Extract the data array from the API response structure
-            return response.data.data
+            const payload = response.data
+            return payload.data ?? payload.items ?? []
         } catch (error: any) {
             const message = error?.response?.data?.message || error.message || 'Failed to load categories'
             return rejectWithValue(message)
