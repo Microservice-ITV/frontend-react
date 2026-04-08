@@ -12,4 +12,6 @@ export type Capability =
   | 'platform.admin.view'
   | 'seller.permissions.view'
   | 'seller.permissions.manage'
+  | 'categories.view'
+  | 'categories.manage'
   | '*'

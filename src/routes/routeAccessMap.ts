@@ -10,7 +10,10 @@ export const ROUTE_ACCESS = {
   sellerOverview: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
   sellerAnalytics: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
   sellerOrders: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
-  sellerCategories: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+  /** Seller dashboard: browse categories only (list + detail) */
+  sellerCategoriesView: [CAPABILITIES.CATEGORIES_VIEW],
+  /** Super admin: full category CRUD */
+  categoriesManage: [CAPABILITIES.CATEGORIES_MANAGE],
   sellerProducts: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
   sellerInvoices: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
   sellerMail: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
@@ -24,7 +27,6 @@ export const ROUTE_ACCESS = {
   superAdminOverview: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   superAdminAnalytics: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   superAdminShops: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
-  superAdminSellers: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   superAdminUsers: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   superAdminSystem: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   superAdminMail: [CAPABILITIES.PLATFORM_ADMIN_VIEW],

@@ -8,7 +8,6 @@ import {
   UserCog,
   Server,
   Shield,
-  Store,
   Bell,
   Settings,
   HelpCircle,
@@ -50,7 +49,7 @@ export const DASHBOARD_MENU_SELLER: DashboardMenuSection[] = [
         label: 'Categories',
         to: '/seller/categories',
         area: 'seller',
-        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        requiredCapabilities: [CAPABILITIES.CATEGORIES_VIEW],
         icon: Tags,
       },
       {
@@ -174,12 +173,12 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         icon: Building2,
       },
       {
-        key: 'admin-sellers',
-        label: 'Sellers',
-        to: '/super-admin/sellers',
+        key: 'admin-categories',
+        label: 'Categories',
+        to: '/super-admin/categories',
         area: 'super_admin',
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
-        icon: Store,
+        icon: Tags,
       },
       {
         key: 'admin-users',

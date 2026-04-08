@@ -10,5 +10,9 @@ export const CAPABILITIES = {
   PLATFORM_ADMIN_VIEW: 'platform.admin.view',
   SELLER_PERMISSIONS_VIEW: 'seller.permissions.view',
   SELLER_PERMISSIONS_MANAGE: 'seller.permissions.manage',
+  /** Browse platform categories (list + detail) — shop roles */
+  CATEGORIES_VIEW: 'categories.view',
+  /** Create / update / delete categories — super admin */
+  CATEGORIES_MANAGE: 'categories.manage',
   ALL: '*',
 } as const
