@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { getCategoriesDashboardPaths } from '@/features/seller/utils/categoriesDashboardPaths'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useAppDispatch } from '@/app/hooks'
 import { sellerCategoryApi, type CategoryReadItem } from '@/features/seller/api/sellerCategoryApi'
@@ -18,6 +19,8 @@ const normalizeCategoryName = (item: CategoryReadItem): string =>
 const NewCategoryPage = () => {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
+  const location = useLocation()
+  const paths = getCategoriesDashboardPaths(location.pathname)
   const [parentCategories, setParentCategories] = useState<Array<{ id: string; name: string }>>([])
   const [parentCategoriesLoading, setParentCategoriesLoading] = useState(false)
   const [submitError, setSubmitError] = useState('')
@@ -90,7 +93,7 @@ const NewCategoryPage = () => {
       } catch {
         // Category was created successfully; navigate even if list refresh fails.
       }
-      navigate('/seller/categories')
+      navigate(paths.categoriesList)
     } catch (error: any) {
       const fallback = 'Failed to create category. Please try again.'
       setSubmitError(error?.response?.data?.message ?? error?.message ?? fallback)
@@ -102,11 +105,11 @@ const NewCategoryPage = () => {
   return (
     <div className="space-y-6">
       <nav className="text-xs text-slate-500">
-        <Link to="/seller/overview" className="hover:text-slate-700">
+        <Link to={paths.overview} className="hover:text-slate-700">
           Dashboard
         </Link>
         <span className="mx-1">/</span>
-        <Link to="/seller/categories" className="hover:text-slate-700">
+        <Link to={paths.categoriesList} className="hover:text-slate-700">
           Categories
         </Link>
         <span className="mx-1">/</span>
@@ -128,7 +131,7 @@ const NewCategoryPage = () => {
         parentCategoriesLoading={parentCategoriesLoading}
         onSubmit={onSubmit}
         submitLabel="Create Category"
-        cancelTo="/seller/categories"
+        cancelTo={paths.categoriesList}
         isSubmitting={isSubmitting}
         submitError={submitError}
       />

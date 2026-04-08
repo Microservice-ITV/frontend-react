@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { Link } from 'react-router-dom'
 import { ChevronDown, X } from 'lucide-react'
+import { SearchableSelect } from '@/components/ui/SearchableSelect'
 
 const toSlug = (value: string) =>
   value
@@ -105,6 +106,7 @@ const ProductForm = ({
 
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors },
     watch,
@@ -124,9 +126,7 @@ const ProductForm = ({
     )
   }, [existingImageUrlsKey, existingImageUrls])
 
-  const [categoryId, brandId, colorId, sizeId, isActive, name] = watch([
-    'categoryId',
-    'brandId',
+  const [colorId, sizeId, isActive, name] = watch([
     'colorId',
     'sizeId',
     'isActive',
@@ -370,51 +370,53 @@ const ProductForm = ({
               <h2 className="text-base font-bold text-slate-900">Organization</h2>
               <div className="mt-6 space-y-4">
                 <div>
-                  <label htmlFor="categoryId" className="mb-1.5 block text-xs font-medium text-slate-700">
-                    Category
-                  </label>
-                  <div className="relative">
-                    <select
-                      id="categoryId"
-                      {...register('categoryId')}
-                      value={categoryId}
-                      onChange={(e) => setValue('categoryId', e.target.value)}
-                      className="w-full appearance-none rounded-lg border border-slate-200 bg-white px-3 py-2 pr-10 text-sm outline-none focus:border-emerald-500"
-                    >
-                      <option value="">Select category</option>
-                      {categoryOptions.map((cat) => (
-                        <option key={cat.id} value={cat.id}>
-                          {cat.name}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  </div>
+                  <p className="mb-1.5 block text-xs font-medium text-slate-700">Category</p>
+                  <Controller
+                    name="categoryId"
+                    control={control}
+                    render={({ field }) => (
+                      <SearchableSelect
+                        id="categoryId"
+                        value={field.value}
+                        onChange={(v) => field.onChange(v)}
+                        onBlur={field.onBlur}
+                        options={categoryOptions.map((cat) => ({
+                          value: cat.id,
+                          label: cat.name,
+                        }))}
+                        mode="search-and-scroll"
+                        emptyLabel="Select category"
+                        placeholder="Search categories…"
+                        aria-invalid={!!errors.categoryId}
+                      />
+                    )}
+                  />
                   {errors.categoryId && <p className="mt-1 text-xs text-red-600">{errors.categoryId.message}</p>}
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
-                    <label htmlFor="brandId" className="mb-1.5 block text-xs font-medium text-slate-700">
-                      Brand
-                    </label>
-                    <div className="relative">
-                      <select
-                        id="brandId"
-                        {...register('brandId')}
-                        value={brandId}
-                        onChange={(e) => setValue('brandId', e.target.value)}
-                        className="w-full appearance-none rounded-lg border border-slate-200 bg-white px-3 py-2 pr-10 text-sm outline-none focus:border-emerald-500"
-                      >
-                        <option value="">Select brand</option>
-                        {brandOptions.map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {item.name}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    </div>
+                    <p className="mb-1.5 block text-xs font-medium text-slate-700">Brand</p>
+                    <Controller
+                      name="brandId"
+                      control={control}
+                      render={({ field }) => (
+                        <SearchableSelect
+                          id="brandId"
+                          value={field.value}
+                          onChange={(v) => field.onChange(v)}
+                          onBlur={field.onBlur}
+                          options={brandOptions.map((item) => ({
+                            value: item.id,
+                            label: item.name,
+                          }))}
+                          mode="search-and-scroll"
+                          emptyLabel="Select brand"
+                          placeholder="Search brands…"
+                          aria-invalid={!!errors.brandId}
+                        />
+                      )}
+                    />
                     {errors.brandId && <p className="mt-1 text-xs text-red-600">{errors.brandId.message}</p>}
                   </div>
 

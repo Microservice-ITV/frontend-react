@@ -144,24 +144,16 @@ const AppRoutes = () => {
                         />
                         <Route
                             path="categories/new"
-                            element={
-                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerCategories}>
-                                    <NewCategoryPage />
-                                </ProtectedRoute>
-                            }
+                            element={<Navigate to="/seller/categories" replace />}
                         />
                         <Route
                             path="categories/:id/edit"
-                            element={
-                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerCategories}>
-                                    <EditCategoryPage />
-                                </ProtectedRoute>
-                            }
+                            element={<Navigate to="/seller/categories" replace />}
                         />
                         <Route
                             path="categories/:id"
                             element={
-                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerCategories}>
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerCategoriesView}>
                                     <SellerCategoryDetailPage />
                                 </ProtectedRoute>
                             }
@@ -169,7 +161,7 @@ const AppRoutes = () => {
                         <Route
                             path="categories"
                             element={
-                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerCategories}>
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerCategoriesView}>
                                     <SellerCategoriesPage />
                                 </ProtectedRoute>
                             }
@@ -309,15 +301,40 @@ const AppRoutes = () => {
                             }
                         />
                         <Route
-                            path="sellers"
+                            path="categories/new"
                             element={
-                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminSellers}>
-                                    <DashboardPlaceholderPage
-                                        title="Sellers"
-                                        description="Application sellers and shop management will be implemented here."
-                                    />
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.categoriesManage}>
+                                    <NewCategoryPage />
                                 </ProtectedRoute>
                             }
+                        />
+                        <Route
+                            path="categories/:id/edit"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.categoriesManage}>
+                                    <EditCategoryPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="categories/:id"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.categoriesManage}>
+                                    <SellerCategoryDetailPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="categories"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.categoriesManage}>
+                                    <SellerCategoriesPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="sellers"
+                            element={<Navigate to="/super-admin/shops" replace />}
                         />
                         <Route
                             path="users"

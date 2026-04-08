@@ -291,13 +291,6 @@ const EditProductPage = () => {
         <span className="text-slate-900">Edit Product</span>
       </nav>
 
-      <div>
-        <h1 className="text-xl font-bold text-slate-900">Edit Product</h1>
-        <p className="mt-0.5 text-sm text-slate-600">
-          Update product information in the catalog.
-        </p>
-      </div>
-
       {loadingProduct && (
         <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
           Loading product details...

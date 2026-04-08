@@ -185,12 +185,6 @@ const NewProductPage = () => {
         <span className="text-slate-900">New Product</span>
       </nav>
 
-      {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold text-slate-900">New Product</h1>
-        <p className="mt-0.5 text-sm text-slate-600">Add a new product to the catalog.</p>
-      </div>
-
       <ProductForm
         mode="create"
         initialValues={{

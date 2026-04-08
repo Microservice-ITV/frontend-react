@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
+import { CAPABILITIES } from '@/app/rbac/capabilities'
+import { useCan } from '@/app/rbac/hooks'
+import { getCategoriesDashboardPaths } from '@/features/seller/utils/categoriesDashboardPaths'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
 import DataTablePagination from '@/components/ui/DataTablePagination'
 import { sellerCategoryApi } from '../api/sellerCategoryApi'
@@ -34,6 +37,9 @@ const FILTER_TABS: { key: 'all' | 'active' | 'inactive'; label: string }[] = [
 const SellerCategoriesPage = () => {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
+  const location = useLocation()
+  const paths = getCategoriesDashboardPaths(location.pathname)
+  const canManageCategories = useCan(CAPABILITIES.CATEGORIES_MANAGE)
   const { openModal } = useGlobalModal()
   const categories = useAppSelector(selectSellerCategories)
   const categoriesStatus = useAppSelector(selectSellerCategoriesStatus)
@@ -84,7 +90,7 @@ const SellerCategoriesPage = () => {
   )
 
   const categoriesById = useMemo(
-    () => new Map(categories.map((category) => [category.id, category])),
+    () => new Map<string, Category>(categories.map((category) => [category.id, category])),
     [categories],
   )
 
@@ -171,6 +177,8 @@ const SellerCategoriesPage = () => {
     })
   }
 
+  const tableColSpan = canManageCategories ? 8 : 6
+
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr)
     return d.toLocaleDateString('en-US', {
@@ -184,7 +192,7 @@ const SellerCategoriesPage = () => {
     <div className="space-y-6">
       {/* Breadcrumbs */}
       <nav className="text-xs text-slate-500">
-        <Link to="/seller/overview" className="hover:text-slate-700">
+        <Link to={paths.overview} className="hover:text-slate-700">
           Dashboard
         </Link>
         <span className="mx-1">/</span>
@@ -196,16 +204,20 @@ const SellerCategoriesPage = () => {
         <div>
           <h1 className="text-xl font-bold text-slate-900">Categories</h1>
           <p className="mt-0.5 text-sm text-slate-600">
-            Browse and manage your product categories.
+            {canManageCategories
+              ? 'Create and manage platform product categories.'
+              : 'Browse platform categories to assign when listing products.'}
           </p>
         </div>
-        <Link
-          to="/seller/categories/new"
-          className="flex shrink-0 items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-        >
-          <Plus size={18} />
-          Add Category
-        </Link>
+        {canManageCategories && (
+          <Link
+            to={paths.newCategory}
+            className="flex shrink-0 items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+          >
+            <Plus size={18} />
+            Add Category
+          </Link>
+        )}
       </div>
 
       {/* Filter tabs */}
@@ -228,7 +240,7 @@ const SellerCategoriesPage = () => {
 
       {/* Search & tools */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        {selectedIds.size > 0 ? (
+        {canManageCategories && selectedIds.size > 0 ? (
           <div className="flex flex-wrap items-center gap-3">
             <p className="text-sm text-slate-700">{selectedIds.size} selected</p>
             <button
@@ -248,7 +260,7 @@ const SellerCategoriesPage = () => {
               Clear
             </button>
           </div>
-        ) : (
+        ) : selectedIds.size === 0 || !canManageCategories ? (
           <div className="relative w-full max-w-md">
             <Search
               size={18}
@@ -262,17 +274,19 @@ const SellerCategoriesPage = () => {
               className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm outline-none placeholder:text-slate-400 focus:border-emerald-500"
             />
           </div>
+        ) : null}
+        {canManageCategories && (
+          <div className="flex gap-2">
+            <button
+              type="button"
+              autoFocus
+              className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
+            >
+              <Download size={16} />
+              Export
+            </button>
+          </div>
         )}
-        <div className="flex gap-2">
-          <button
-            type="button"
-            autoFocus
-            className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
-          >
-            <Download size={16} />
-            Export
-          </button>
-        </div>
       </div>
 
       {/* Table */}
@@ -281,14 +295,16 @@ const SellerCategoriesPage = () => {
           <table className="w-full min-w-[900px]">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
-                <th className="w-12 px-4 py-3 text-left">
-                  <input
-                    type="checkbox"
-                    checked={allSelectedOnPage}
-                    onChange={toggleSelectAll}
-                    className="rounded border-slate-300"
-                  />
-                </th>
+                {canManageCategories && (
+                  <th className="w-12 px-4 py-3 text-left">
+                    <input
+                      type="checkbox"
+                      checked={allSelectedOnPage}
+                      onChange={toggleSelectAll}
+                      className="rounded border-slate-300"
+                    />
+                  </th>
+                )}
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
                   <span className="flex items-center gap-1">
                     Category
@@ -319,31 +335,33 @@ const SellerCategoriesPage = () => {
                     Updated
                   </span>
                 </th>
-                <th className="w-16 px-2 py-3 text-left text-xs font-medium text-slate-600">
-                  <span className="flex items-center gap-1">
-                    Actions
-                  </span>
-                </th>
+                {canManageCategories && (
+                  <th className="w-16 px-2 py-3 text-left text-xs font-medium text-slate-600">
+                    <span className="flex items-center gap-1">
+                      Actions
+                    </span>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
               {categoriesStatus === 'loading' && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-slate-500">
+                  <td colSpan={tableColSpan} className="px-4 py-10 text-center text-sm text-slate-500">
                     Loading categories...
                   </td>
                 </tr>
               )}
               {categoriesStatus === 'failed' && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-red-600">
+                  <td colSpan={tableColSpan} className="px-4 py-10 text-center text-sm text-red-600">
                     {categoriesError ?? 'Unable to load categories.'}
                   </td>
                 </tr>
               )}
               {categoriesStatus !== 'loading' && categoriesStatus !== 'failed' && paginatedCategories.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-slate-500">
+                  <td colSpan={tableColSpan} className="px-4 py-10 text-center text-sm text-slate-500">
                     No categories found.
                   </td>
                 </tr>
@@ -354,17 +372,19 @@ const SellerCategoriesPage = () => {
                   <tr
                     key={category.id}
                     className="cursor-pointer border-b border-slate-100 last:border-0 hover:bg-slate-50"
-                    onClick={() => navigate(`/seller/categories/${category.id}`)}
+                    onClick={() => navigate(paths.detailCategory(category.id))}
                   >
-                    <td className="px-4 py-3">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(category.id)}
-                        onChange={() => toggleSelect(category.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="rounded border-slate-300"
-                      />
-                    </td>
+                    {canManageCategories && (
+                      <td className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(category.id)}
+                          onChange={() => toggleSelect(category.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="rounded border-slate-300"
+                        />
+                      </td>
+                    )}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-slate-200 text-slate-500">
@@ -407,74 +427,76 @@ const SellerCategoriesPage = () => {
                     <td className="px-4 py-3 text-xs text-slate-600">
                       {formatDate(category.updatedAt)}
                     </td>
-                    <td className="relative w-16 px-2 py-3">
-                      <div
-                        className="relative inline-block"
-                        ref={openMenuId === category.id ? menuRef : undefined}
-                      >
-                        <button
-                          type="button"
-                          onMouseDown={(e) => e.stopPropagation()}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setOpenMenuId((id) =>
-                              id === category.id ? null : category.id
-                            )
-                          }}
-                          className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
-                          aria-label="Actions"
-                          aria-expanded={openMenuId === category.id}
+                    {canManageCategories && (
+                      <td className="relative w-16 px-2 py-3">
+                        <div
+                          className="relative inline-block"
+                          ref={openMenuId === category.id ? menuRef : undefined}
                         >
-                          <MoreHorizontal size={18} />
-                        </button>
-                        {openMenuId === category.id && (
-                          <div
-                            className={`absolute right-0 z-50 min-w-[140px] rounded-lg border border-slate-200 bg-white py-1 shadow-lg ${
-                              openUpward
-                                ? 'bottom-full mb-1'
-                                : 'top-full mt-1'
-                            }`}
+                          <button
+                            type="button"
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setOpenMenuId((id) =>
+                                id === category.id ? null : category.id
+                              )
+                            }}
+                            className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
+                            aria-label="Actions"
+                            aria-expanded={openMenuId === category.id}
                           >
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setOpenMenuId(null)
-                                navigate(`/seller/categories/${category.id}`)
-                              }}
-                              className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
+                            <MoreHorizontal size={18} />
+                          </button>
+                          {openMenuId === category.id && (
+                            <div
+                              className={`absolute right-0 z-50 min-w-[140px] rounded-lg border border-slate-200 bg-white py-1 shadow-lg ${
+                                openUpward
+                                  ? 'bottom-full mb-1'
+                                  : 'top-full mt-1'
+                              }`}
                             >
-                              <Eye size={16} className="shrink-0 text-slate-500" />
-                              View
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setOpenMenuId(null)
-                                navigate(`/seller/categories/${category.id}/edit`)
-                              }}
-                              className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
-                            >
-                              <Pencil size={16} className="shrink-0 text-slate-500" />
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setOpenMenuId(null)
-                                confirmSingleDelete(category)
-                              }}
-                              className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-red-600 hover:bg-slate-50 cursor-pointer"
-                            >
-                              <Trash2 size={16} className="shrink-0 text-slate-500" />
-                              Delete
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </td>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setOpenMenuId(null)
+                                  navigate(paths.detailCategory(category.id))
+                                }}
+                                className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
+                              >
+                                <Eye size={16} className="shrink-0 text-slate-500" />
+                                View
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setOpenMenuId(null)
+                                  navigate(paths.editCategory(category.id))
+                                }}
+                                className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
+                              >
+                                <Pencil size={16} className="shrink-0 text-slate-500" />
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setOpenMenuId(null)
+                                  confirmSingleDelete(category)
+                                }}
+                                className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-red-600 hover:bg-slate-50 cursor-pointer"
+                              >
+                                <Trash2 size={16} className="shrink-0 text-slate-500" />
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 )
               })}

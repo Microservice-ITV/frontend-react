@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { CAPABILITIES } from '@/app/rbac/capabilities'
+import { useCan } from '@/app/rbac/hooks'
+import { getCategoriesDashboardPaths } from '@/features/seller/utils/categoriesDashboardPaths'
 import { CalendarDays, Pencil, Tag, Trash2 } from 'lucide-react'
 import { useAppDispatch } from '@/app/hooks'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
@@ -32,6 +35,9 @@ const normalizeCategoryName = (item: CategoryReadItem): string =>
 const SellerCategoryDetailPage = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
+  const paths = getCategoriesDashboardPaths(location.pathname)
+  const canManageCategories = useCan(CAPABILITIES.CATEGORIES_MANAGE)
   const dispatch = useAppDispatch()
   const { openModal } = useGlobalModal()
 
@@ -127,7 +133,7 @@ const SellerCategoryDetailPage = () => {
         } catch {
           // Keep delete flow successful even if list refresh fails.
         }
-        navigate('/seller/categories')
+        navigate(paths.categoriesList)
       },
     })
   }
@@ -135,11 +141,11 @@ const SellerCategoryDetailPage = () => {
   return (
     <div className="space-y-6">
       <nav className="text-xs text-slate-500">
-        <Link to="/seller/overview" className="hover:text-slate-700">
+        <Link to={paths.overview} className="hover:text-slate-700">
           Dashboard
         </Link>
         <span className="mx-1">/</span>
-        <Link to="/seller/categories" className="hover:text-slate-700">
+        <Link to={paths.categoriesList} className="hover:text-slate-700">
           Categories
         </Link>
         <span className="mx-1">/</span>
@@ -164,24 +170,26 @@ const SellerCategoryDetailPage = () => {
             <h1 className="text-xl font-bold tracking-tight text-slate-900">
               {displayName}
             </h1>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => navigate(`/seller/categories/${id}/edit`)}
-                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
-              >
-                <Pencil size={16} />
-                Edit
-              </button>
-              <button
-                type="button"
-                onClick={confirmDelete}
-                className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 cursor-pointer"
-              >
-                <Trash2 size={16} />
-                Delete
-              </button>
-            </div>
+            {canManageCategories && id && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => navigate(paths.editCategory(id))}
+                  className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
+                >
+                  <Pencil size={16} />
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDelete}
+                  className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 cursor-pointer"
+                >
+                  <Trash2 size={16} />
+                  Delete
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
