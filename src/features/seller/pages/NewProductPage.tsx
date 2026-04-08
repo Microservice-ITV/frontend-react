@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useAppSelector } from '@/app/hooks'
+import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { selectAuthUser } from '@/features/auth/store/authSelectors'
 import { sellerCategoryApi, type CategoryReadItem } from '@/features/seller/api/sellerCategoryApi'
 import { sellerProductApi } from '@/features/seller/api/sellerProductApi'
-import ProductForm, { type ProductFormValues } from '@/features/seller/components/ProductForm'
+import ProductForm, { defaultVariantRow, type ProductFormValues } from '@/features/seller/components/ProductForm'
+import { fetchSellerProductsByShop } from '@/features/seller/store'
+import { mapProductFormToVariantsPayload } from '@/features/seller/utils/mapProductVariantsPayload'
 
 type Option = { id: string; name: string }
 type RawCategoryOption = { id: string; name: string; parentId: string | null; isActive: boolean }
@@ -19,6 +21,7 @@ const normalizeCategoryParentId = (item: CategoryReadItem): string | null => {
 }
 
 const NewProductPage = () => {
+  const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const authUser = useAppSelector(selectAuthUser)
   const activeShopId = authUser?.active_shop_id ?? ''
@@ -149,18 +152,15 @@ const NewProductPage = () => {
         categoryId: values.categoryId,
         shopId: values.shopId,
         brandId: values.brandId,
-        variants: [
-          {
-            colorId: values.colorId,
-            sizeId: values.sizeId,
-            price: Number(values.price),
-            stock: Number(values.stock),
-            isPrimary: true,
-          },
-        ],
+        variants: mapProductFormToVariantsPayload(values),
         isActive: values.isActive === 'true',
         imageFiles,
       })
+      try {
+        await dispatch(fetchSellerProductsByShop({ shopId: values.shopId })).unwrap()
+      } catch {
+        // Create succeeded; still navigate even if list refresh fails.
+      }
       navigate('/seller/products')
     } catch (error: any) {
       const fallback = 'Failed to create product. Please check inputs and try again.'
@@ -193,10 +193,8 @@ const NewProductPage = () => {
           slug: '',
           categoryId: '',
           brandId: '',
-          colorId: '',
-          sizeId: '',
-          price: '',
-          stock: '',
+          primaryVariantIndex: 0,
+          variants: [defaultVariantRow()],
           shopId: activeShopId,
           images: '',
           isActive: 'false',

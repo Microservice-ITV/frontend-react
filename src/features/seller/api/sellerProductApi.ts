@@ -35,10 +35,47 @@ type CatalogProductsApiResponse = {
   total: number
 }
 
+/** Row from product-service `GET /products` (Prisma; `createdAt` desc). */
+export type ProductServiceProductListItem = {
+  id: string
+  name: string
+  description?: string | null
+  slug: string
+  price: number | string
+  stock?: number
+  categoryId: string
+  category?: { id?: string; name?: string; title?: string }
+  isActive: boolean
+  createdAt?: string
+}
+
+type ProductServicePaginatedResponse = {
+  success?: boolean
+  data?: ProductServiceProductListItem[]
+  pagination?: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+}
+
 type CatalogRefItem = {
   id: string
   name: string
   code?: string
+}
+
+/** Matches product-service `variantInputSchema` / Postman (basePrice + optional markup/discount). */
+export type SellerProductVariantPayload = {
+  id?: string
+  colorId: string
+  sizeId: string
+  basePrice: number
+  profitThresholdPercent?: number
+  discountPercent?: number
+  stock: number
+  isPrimary?: boolean
 }
 
 type CreateSellerProductPayload = {
@@ -48,13 +85,7 @@ type CreateSellerProductPayload = {
   categoryId: string
   shopId: string
   brandId: string
-  variants: Array<{
-    colorId: string
-    sizeId: string
-    price: number
-    stock: number
-    isPrimary?: boolean
-  }>
+  variants: SellerProductVariantPayload[]
   isActive: boolean
   imageFiles?: File[]
 }
@@ -66,14 +97,7 @@ type UpdateSellerProductPayload = Partial<{
   categoryId: string
   shopId: string
   brandId: string
-  variants: Array<{
-    id?: string
-    colorId: string
-    sizeId: string
-    price: number
-    stock: number
-    isPrimary?: boolean
-  }>
+  variants: SellerProductVariantPayload[]
   isActive: boolean
   imageFiles: File[]
   existingImageUrls: string[]
@@ -102,6 +126,11 @@ export type ProductDetailReadItem = {
     variantId?: string
     colorId?: string
     sizeId?: string
+    basePrice?: number | string
+    profitThresholdPercent?: number | string
+    discountPercent?: number | string
+    effectiveSellingPrice?: number | string
+    /** Customer-facing unit price (same as effectiveSellingPrice from API formatter). */
     price?: number | string
     stock?: number | string
     shopStock?: number | string
@@ -186,6 +215,18 @@ export const sellerProductApi = {
         }
         throw error
       })
+  },
+
+  /**
+   * Lists products for a shop from product-service (source of truth after create/update).
+   * Prefer this over {@link listCatalogProducts} for the seller dashboard list so new products appear immediately.
+   */
+  listProductsByShop(params: { shopId: string; page?: number; limit?: number }) {
+    const page = params.page ?? 1
+    const limit = Math.min(params.limit ?? 100, 100)
+    return productClient.get<ProductServicePaginatedResponse>('/products', {
+      params: { shopId: params.shopId, page, limit },
+    })
   },
 
   listBrands() {
