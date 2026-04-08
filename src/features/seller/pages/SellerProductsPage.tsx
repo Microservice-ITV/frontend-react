@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
 import DataTablePagination from '@/components/ui/DataTablePagination'
@@ -42,6 +42,7 @@ const FILTER_TABS: { key: 'all' | ProductStatus; label: string }[] = [
 const SellerProductsPage = () => {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
+  const location = useLocation()
   const authUser = useAppSelector((state) => state.auth.user)
   const activeShopId = authUser?.active_shop_id ?? null
   const products = useAppSelector(selectSellerProducts)
@@ -75,7 +76,7 @@ const SellerProductsPage = () => {
   useEffect(() => {
     if (!activeShopId) return
     dispatch(fetchSellerProductsByShop({ shopId: activeShopId }))
-  }, [activeShopId, dispatch])
+  }, [activeShopId, dispatch, location.pathname])
 
   useEffect(() => {
     setPage(1)

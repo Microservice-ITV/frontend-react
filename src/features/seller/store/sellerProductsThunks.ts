@@ -1,5 +1,5 @@
 import { createAsyncThunk } from '@reduxjs/toolkit'
-import { sellerProductApi, type CatalogProductReadItem } from '../api/sellerProductApi'
+import { sellerProductApi, type ProductServiceProductListItem } from '../api/sellerProductApi'
 import type { Product, ProductStatus } from '../types/productTypes'
 import type { RootState } from '@/app/store'
 
@@ -17,9 +17,7 @@ const formatPrice = (price: number, currency: string) => {
   }
 }
 
-const normalizeIsoDate = (
-  value?: string | { $date?: string },
-): string | undefined => {
+const normalizeIsoDate = (value?: string | { $date?: string }): string | undefined => {
   if (!value) return undefined
   if (typeof value === 'string') return value
   if (typeof value === 'object' && typeof value.$date === 'string') return value.$date
@@ -34,40 +32,31 @@ const formatCreatedDate = (value?: string | { $date?: string }) => {
   return parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-const resolveStock = (item: CatalogProductReadItem): number => {
-  const candidate =
-    typeof item.stock === 'number'
-      ? item.stock
-      : typeof item.shopAvailableStock === 'number'
-        ? item.shopAvailableStock
-        : 0
-  return Number.isFinite(candidate) ? Number(candidate) : 0
-}
-
-const mapCatalogProductToUi = (item: CatalogProductReadItem): Product => {
+const mapProductServiceRowToUi = (item: ProductServiceProductListItem): Product => {
   const computedStatus: ProductStatus = item.isActive ? 'active' : 'archived'
   const resolvedCategoryId = item.categoryId ?? item.category?.id ?? ''
   const resolvedCategoryName =
-    item.categoryName ??
-    item.category?.name ??
-    item.category?.title ??
-    'Uncategorized'
+    item.category?.name ?? item.category?.title ?? 'Uncategorized'
+  const stockRaw = item.stock
+  const stock =
+    typeof stockRaw === 'number' && Number.isFinite(stockRaw)
+      ? stockRaw
+      : Number.isFinite(Number(stockRaw))
+        ? Number(stockRaw)
+        : 0
 
   return {
-    id: item.productId,
-    title: item.title || item.slug,
-    description: item.description || 'No description',
+    id: item.id,
+    title: item.name || item.slug,
+    description: item.description ?? 'No description',
     categoryId: resolvedCategoryId,
     categoryName: resolvedCategoryName,
     status: computedStatus,
-    stock: resolveStock(item),
-    price: formatPrice(Number(item.price || 0), item.currency || 'USD'),
+    stock,
+    price: formatPrice(Number(item.price ?? 0), 'USD'),
     created: formatCreatedDate(item.createdAt),
   }
 }
-
-const resolveShopId = (item: CatalogProductReadItem): string | null =>
-  item.shopId ?? item.shop_id ?? item.shop?.id ?? null
 
 export const fetchSellerProductsByShop = createAsyncThunk<
   Product[],
@@ -81,26 +70,26 @@ export const fetchSellerProductsByShop = createAsyncThunk<
     }
 
     try {
-      let pageCursor = 1
-      let total = 0
-      const collected: CatalogProductReadItem[] = []
+      const collected: ProductServiceProductListItem[] = []
+      let page = 1
+      let totalPages = 1
 
       do {
-        const response = await sellerProductApi.listCatalogProducts({
-          page: pageCursor,
+        const response = await sellerProductApi.listProductsByShop({
+          shopId,
+          page,
           limit: PAGE_LIMIT,
         })
 
-        const payload = response.data
-        const items = payload.items ?? []
-        total = payload.total ?? items.length
+        const body = response.data
+        const items = body.data ?? []
+        const pagination = body.pagination
         collected.push(...items)
-        pageCursor += 1
-      } while (collected.length < total)
+        totalPages = Math.max(1, pagination?.totalPages ?? 1)
+        page += 1
+      } while (page <= totalPages)
 
-      return collected
-        .filter((item) => resolveShopId(item) === shopId)
-        .map(mapCatalogProductToUi)
+      return collected.map(mapProductServiceRowToUi)
     } catch (error: any) {
       const message =
         error?.response?.data?.message ||
@@ -108,17 +97,5 @@ export const fetchSellerProductsByShop = createAsyncThunk<
         'Unable to load products right now. Please try again.'
       return rejectWithValue(message)
     }
-  },
-  {
-    condition: ({ shopId }, { getState }) => {
-      const state = getState()
-      const productsState = state.sellerProducts
-
-      // Deduplicate redundant calls in development/strict-mode.
-      if (productsState.status === 'loading' && productsState.activeShopId === shopId) {
-        return false
-      }
-      return true
-    },
   },
 )

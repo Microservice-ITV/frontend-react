@@ -5,7 +5,11 @@ import { selectAuthUser } from '@/features/auth/store/authSelectors'
 import { sellerCategoryApi, type CategoryReadItem } from '@/features/seller/api/sellerCategoryApi'
 import { sellerProductApi, type ProductDetailReadItem } from '@/features/seller/api/sellerProductApi'
 import { fetchSellerProductsByShop } from '@/features/seller/store'
-import ProductForm, { type ProductFormValues } from '@/features/seller/components/ProductForm'
+import ProductForm, { defaultVariantRow, type ProductFormValues } from '@/features/seller/components/ProductForm'
+import {
+  mapApiProductVariantsToFormShape,
+  mapProductFormToVariantsPayload,
+} from '@/features/seller/utils/mapProductVariantsPayload'
 type Option = { id: string; name: string }
 type RawCategoryOption = {
   id: string
@@ -55,17 +59,14 @@ const EditProductPage = () => {
   const [sizeOptions, setSizeOptions] = useState<Option[]>([])
   const [loadingProduct, setLoadingProduct] = useState(true)
   const [loadError, setLoadError] = useState('')
-  const [primaryVariantId, setPrimaryVariantId] = useState<string | null>(null)
   const [initialValues, setInitialValues] = useState<ProductFormValues>({
     name: '',
     description: undefined,
     slug: '',
     categoryId: '',
     brandId: '',
-    colorId: '',
-    sizeId: '',
-    price: '',
-    stock: '',
+    primaryVariantIndex: 0,
+    variants: [defaultVariantRow()],
     shopId: '',
     images: '',
     isActive: 'false',
@@ -95,13 +96,9 @@ const EditProductPage = () => {
           return
         }
 
-        const variants = Array.isArray(item.variants) ? item.variants : []
-        const primaryVariant = variants.find((variant) => variant.isPrimary) ?? variants[0]
-        const priceValue = primaryVariant?.price
-        const stockValue = primaryVariant?.stock ?? primaryVariant?.shopStock
+        const variantShape = mapApiProductVariantsToFormShape(item)
 
         if (!isCancelled) {
-          setPrimaryVariantId(primaryVariant?.id ?? primaryVariant?.variantId ?? null)
           setEditableExistingImages(normalizeProductImages(item))
           setInitialValues({
             name: (item.name ?? item.title ?? '').trim(),
@@ -109,10 +106,7 @@ const EditProductPage = () => {
             slug: (item.slug ?? '').trim(),
             categoryId: item.categoryId ?? '',
             brandId: item.brandId ?? '',
-            colorId: primaryVariant?.colorId ?? '',
-            sizeId: primaryVariant?.sizeId ?? '',
-            price: priceValue !== undefined ? String(priceValue) : '',
-            stock: stockValue !== undefined ? String(stockValue) : '',
+            ...variantShape,
             isActive: item.isActive ? 'true' : 'false',
             shopId: item.shopId ?? activeShopId,
             images: '',
@@ -248,16 +242,7 @@ const EditProductPage = () => {
         categoryId: values.categoryId,
         shopId: values.shopId,
         brandId: values.brandId,
-        variants: [
-          {
-            ...(primaryVariantId ? { id: primaryVariantId } : {}),
-            colorId: values.colorId,
-            sizeId: values.sizeId,
-            price: Number(values.price),
-            stock: Number(values.stock),
-            isPrimary: true,
-          },
-        ],
+        variants: mapProductFormToVariantsPayload(values),
         isActive: values.isActive === 'true',
         imageFiles,
         existingImageUrls,
