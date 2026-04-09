@@ -41,6 +41,7 @@ export const checkoutCart = createAsyncThunk<
                 items: selectedItems.map(item => ({
                     product_id: item.productId,
                     qty: item.quantity,
+                    ...(item.variantId ? { variant_id: item.variantId } : {}),
                 })),
             })
 

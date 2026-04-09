@@ -16,7 +16,7 @@ const ProductBreadcrumb = ({ product }: Props) => {
                 <>
                     <span className="mx-2">{'>'}</span>
                     <Link
-                        to={`/categories/${product.category.slug}`}
+                        to={`/categories/${product.category.id}`}
                         className="hover:text-blue-600"
                     >
                         {product.category.name}

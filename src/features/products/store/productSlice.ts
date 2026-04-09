@@ -7,6 +7,7 @@ const initialState: ProductsState = {
     selectedProduct: null,
     status: 'idle',
     error: null,
+    detailRequestedId: null,
 }
 
 const productSlice = createSlice({
@@ -15,6 +16,7 @@ const productSlice = createSlice({
     reducers: {
         clearSelectedProduct(state) {
             state.selectedProduct = null
+            state.detailRequestedId = null
         },
     },
     extraReducers: (builder) => {
@@ -33,18 +35,29 @@ const productSlice = createSlice({
                 state.error = (action.payload as string) ?? 'Failed to load products'
             })
 
-            // DETAIL
-            .addCase(fetchProductDetail.pending, (state) => {
+            // DETAIL — clear previous PDP so we never flash the wrong product; track request id for races
+            .addCase(fetchProductDetail.pending, (state, action) => {
+                state.detailRequestedId = action.meta.arg
+                state.selectedProduct = null
                 state.status = 'loading'
+                state.error = null
             })
             .addCase(fetchProductDetail.fulfilled, (state, action) => {
+                if (String(action.meta.arg) !== String(state.detailRequestedId)) {
+                    return
+                }
                 state.status = 'succeeded'
                 state.selectedProduct = action.payload
+                state.error = null
             })
             .addCase(fetchProductDetail.rejected, (state, action) => {
+                if (String(action.meta.arg) !== String(state.detailRequestedId)) {
+                    return
+                }
                 state.status = 'failed'
-                state.error =
-                (action.payload as string) ?? 'Failed to load product'
+                state.error = (action.payload as string) ?? 'Failed to load product'
+                state.selectedProduct = null
+                state.detailRequestedId = null
             })
     },
 })

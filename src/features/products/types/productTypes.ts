@@ -7,6 +7,25 @@ export interface Product {
   categoryId: string
 }
 
+/** One SKU row from ecommerce-read `product_reads.variants`. */
+export interface ProductVariant {
+  variantId: string
+  sku: string
+  /** Customer-facing unit price */
+  price: number
+  listPrice: number
+  compareAtPrice: number | null
+  effectiveSellingPrice: number
+  shopStock: number
+  isPrimary: boolean
+  colorId: string
+  colorName: string
+  colorCode: string
+  sizeId: string
+  sizeName: string
+  sizeCode: string
+}
+
 // Product used in DETAILS page
 export interface ProductDetail {
   id: string
@@ -14,6 +33,7 @@ export interface ProductDetail {
   slug: string
   description?: string
   sku?: string
+  /** Aggregate / default when no variant selection */
   stock?: number
   price: number
   images: string[]
@@ -30,6 +50,13 @@ export interface ProductDetail {
     name: string
     slug: string
   }
+
+  currency: string
+  minPrice: number
+  maxPrice: number
+  brandName: string
+  primaryVariantId: string | null
+  variants: ProductVariant[]
 }
 
 // Redux state
@@ -38,4 +65,6 @@ export interface ProductsState {
   selectedProduct: ProductDetail | null
   status: 'idle' | 'loading' | 'succeeded' | 'failed'
   error: string | null
+  /** Latest `fetchProductDetail(id)` request id — ignores stale fulfilled/rejected from slower responses */
+  detailRequestedId: string | null
 }

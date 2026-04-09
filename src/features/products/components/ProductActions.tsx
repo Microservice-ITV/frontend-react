@@ -1,54 +1,61 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useAppDispatch } from '@/app/hooks'
 import { addToCart } from '@/features/cart/store/cartSlice'
 import { addToCartIcon } from '@/assets/icons'
-import type { ProductDetail } from '@/features/products/types/productTypes'
+import type { ProductDetail, ProductVariant } from '@/features/products/types/productTypes'
 import { useNavigate } from 'react-router-dom'
+import { pickDefaultVariant, variantDisplayLabel } from './ProductVariantSelector'
 
 type ProductActionsProps = {
   product: ProductDetail
+  selectedVariant: ProductVariant | null
 }
 
-const ProductActions = ({ product }: ProductActionsProps) => {
+const ProductActions = ({ product, selectedVariant }: ProductActionsProps) => {
   const dispatch = useAppDispatch()
   const [quantity, setQuantity] = useState(1)
 
   const navigate = useNavigate()
 
-  const increase = () => setQuantity((q) => q + 1)
+  const effective = useMemo(
+    () => selectedVariant ?? pickDefaultVariant(product.variants),
+    [product.variants, selectedVariant],
+  )
+
+  const unitPrice = effective?.price ?? product.price
+  const maxStock = effective ? effective.shopStock : product.stock ?? 0
+  const maxQty = Math.min(99, Math.max(0, maxStock))
+  const outOfStock = maxStock <= 0
+
+  useEffect(() => {
+    setQuantity((q) => (maxQty > 0 ? Math.min(q, maxQty) : 1))
+  }, [maxQty, product.id])
+
+  const increase = () =>
+    setQuantity((q) => (maxQty > 0 ? Math.min(q + 1, maxQty) : q))
   const decrease = () => setQuantity((q) => (q > 1 ? q - 1 : 1))
 
-  const handleAddToCart = () => {
-    dispatch(
-      addToCart({
-        productId: product.id,
-        name: product.name,
-        price: product.price,
-        image: product.images?.[0],
-        quantity,
-        shopId: product.shop.id,
-        shopName: product.shop.name,
+  const cartPayload = () => ({
+    productId: product.id,
+    variantId: effective?.variantId ?? '',
+    variantLabel: effective ? variantDisplayLabel(effective) : undefined,
+    name: product.name,
+    price: unitPrice,
+    image: product.images?.[0],
+    quantity,
+    shopId: product.shop.id,
+    shopName: product.shop.name,
+    selected: true,
+  })
 
-        selected: true,
-      })
-    )
+  const handleAddToCart = () => {
+    if (outOfStock) return
+    dispatch(addToCart(cartPayload()))
   }
 
   const handleBuyNow = () => {
-    dispatch(
-      addToCart({
-        productId: product.id,
-        name: product.name,
-        price: product.price,
-        image: product.images?.[0],
-        quantity,
-        shopId: product.shop.id,
-        shopName: product.shop.name,
-
-        selected: true,
-      })
-    )
-
+    if (outOfStock) return
+    dispatch(addToCart(cartPayload()))
     navigate('/cart')
   }
 
@@ -62,10 +69,10 @@ const ProductActions = ({ product }: ProductActionsProps) => {
           {/* DECREASE */}
           <button
             onClick={decrease}
-            disabled={quantity === 1}
+            disabled={quantity === 1 || outOfStock}
             className={`
               w-8 h-8 flex items-center justify-center border-r
-              ${quantity === 1 ? 'cursor-not-allowed text-gray-300' : 'hover:bg-gray-100 cursor-pointer'}
+              ${quantity === 1 || outOfStock ? 'cursor-not-allowed text-gray-300' : 'hover:bg-gray-100 cursor-pointer'}
             `}
             aria-label="Decrease"
           >
@@ -85,7 +92,12 @@ const ProductActions = ({ product }: ProductActionsProps) => {
           {/* INCREASE */}
           <button
             onClick={increase}
-            className="w-8 h-8 flex items-center justify-center border-l hover:bg-gray-100 cursor-pointer"
+            disabled={outOfStock || quantity >= maxQty}
+            className={`w-8 h-8 flex items-center justify-center border-l ${
+              outOfStock || quantity >= maxQty
+                ? 'cursor-not-allowed text-gray-300'
+                : 'hover:bg-gray-100 cursor-pointer'
+            }`}
             aria-label="Increase"
           >
             <svg viewBox="0 0 10 10" className="w-3 h-3 fill-current">
@@ -100,15 +112,17 @@ const ProductActions = ({ product }: ProductActionsProps) => {
         {/* ADD TO CART */}
         <button
           onClick={handleAddToCart}
+          disabled={outOfStock}
           className="
             flex items-center justify-center gap-2
-            h-11 sm:h-12 px-6 sm:px-10 w-full sm:w-auto sm:min-w-[180px]
+            h-10 sm:h-11 px-6 sm:px-10 w-full sm:w-auto sm:min-w-[180px]
             border border-[var(--dni-primary)]
             bg-[rgba(255,87,34,0.08)]
             text-[var(--dni-primary)]
             font-medium text-sm sm:text-base
             hover:bg-[rgba(255,87,34,0.15)]
             transition cursor-pointer
+            disabled:opacity-50 disabled:cursor-not-allowed
           "
         >
           <img
@@ -122,14 +136,16 @@ const ProductActions = ({ product }: ProductActionsProps) => {
         {/* BUY NOW */}
         <button
           onClick={handleBuyNow}
+          disabled={outOfStock}
           className="
-            h-11 sm:h-12 px-6 sm:px-10 w-full sm:w-auto sm:min-w-[180px]
+            h-10 sm:h-11 px-6 sm:px-10 w-full sm:w-auto sm:min-w-[180px]
             bg-[var(--dni-primary)]
             text-white
             font-medium text-sm sm:text-base
             hover:opacity-90
             transition
             cursor-pointer
+            disabled:opacity-50 disabled:cursor-not-allowed
           "
         >
           Buy Now

@@ -59,14 +59,16 @@ const CartItemLists = ({ items }: CartItemListProps) => {
           <div>
             {shop.items.map(item => (
               <div
-                key={item.productId}
+                key={`${item.productId}::${item.variantId ?? ''}`}
                 className="grid grid-cols-[40px_1fr] md:grid-cols-[48px_1fr_140px_140px_140px_100px] px-3 md:px-4 py-4 border-b border-[var(--dni-cart-border)]"
               >
                 <div className="flex justify-center pt-1 md:pt-0 md:items-center">
                   <input
                     type="checkbox"
                     checked={item.selected}
-                    onChange={() => dispatch(toggleItemSelection({ productId: item.productId }))}
+                    onChange={() =>
+                      dispatch(toggleItemSelection({ productId: item.productId, variantId: item.variantId }))
+                    }
                     className="h-4 w-4 accent-emerald-600 border-gray-300"
                   />
                 </div>
@@ -79,7 +81,11 @@ const CartItemLists = ({ items }: CartItemListProps) => {
                   />
                   <div className="min-w-0">
                     <div className="line-clamp-2 text-sm text-gray-800">{item.name}</div>
-                    <div className="mt-1 text-xs text-gray-500">Variation: Default</div>
+                    <div className="mt-1 text-xs text-gray-500">
+                      {item.variantLabel?.trim()
+                        ? `Variation: ${item.variantLabel}`
+                        : 'Variation: Standard'}
+                    </div>
                     <div className="mt-2 md:hidden flex items-center justify-between gap-3">
                       <span className="text-sm font-medium text-emerald-700">
                         ${(item.price * item.quantity).toFixed(2)}
@@ -104,7 +110,9 @@ const CartItemLists = ({ items }: CartItemListProps) => {
                 <div className="hidden md:flex flex-col items-center justify-center text-sm">
                   <button
                     className="text-gray-600 hover:text-red-500 cursor-pointer"
-                    onClick={() => dispatch(removeFromCart(item.productId))}
+                    onClick={() =>
+                      dispatch(removeFromCart({ productId: item.productId, variantId: item.variantId }))
+                    }
                   >
                     Delete
                   </button>
