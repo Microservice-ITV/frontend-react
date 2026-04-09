@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { fetchProductDetail } from '@/features/products/store/productThunks'
 import { clearSelectedProduct } from '@/features/products/store/productSlice'
@@ -12,9 +12,7 @@ const ProductDetailPage = () => {
   const { id } = useParams<{ id: string }>()
   const dispatch = useAppDispatch()
 
-  const { selectedProduct, status } = useAppSelector(
-    (state) => state.products
-  )
+  const { selectedProduct, status, error } = useAppSelector((state) => state.products)
 
   useEffect(() => {
     if (id) dispatch(fetchProductDetail(id))
@@ -24,8 +22,38 @@ const ProductDetailPage = () => {
     }
   }, [id, dispatch])
 
-  if (status === 'loading' || !selectedProduct) {
-    return <div className="p-6">Loading...</div>
+  if (!id) {
+    return (
+      <div className="bg-[#f5f5f5] min-h-screen p-6">
+        <p className="text-sm text-red-600">Invalid product link.</p>
+        <Link to="/" className="mt-2 inline-block text-sm text-emerald-700 underline">
+          Back to home
+        </Link>
+      </div>
+    )
+  }
+
+  if (status === 'failed') {
+    return (
+      <div className="bg-[#f5f5f5] min-h-screen">
+        <div className="max-w-6xl mx-auto px-4 py-10">
+          <p className="text-sm text-red-600">{error ?? 'Failed to load product.'}</p>
+          <Link to="/" className="mt-4 inline-block text-sm text-emerald-700 underline">
+            Back to home
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  const loading = status === 'loading' || !selectedProduct || selectedProduct.id !== id
+
+  if (loading) {
+    return (
+      <div className="bg-[#f5f5f5] min-h-screen p-6">
+        <p className="text-sm text-gray-600">Loading product…</p>
+      </div>
+    )
   }
 
   return (

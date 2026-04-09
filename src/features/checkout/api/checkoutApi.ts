@@ -23,7 +23,7 @@ export type CheckoutAddressPayload = {
 export const checkoutApi = {
   createCheckoutSession(data: {
     user_id: string
-    items: { product_id: string; qty: number }[]
+    items: { product_id: string; qty: number; variant_id?: string }[]
     idempotency_key: string
   }): Promise<AxiosResponse<CheckoutResponse>> {
     return orderClient.post<CheckoutResponse>('/orders/checkout', data, {
@@ -73,4 +73,3 @@ export const checkoutApi = {
     }
   },
 }
-

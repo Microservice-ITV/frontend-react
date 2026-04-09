@@ -1,7 +1,6 @@
 import { createAsyncThunk } from '@reduxjs/toolkit'
 import { productApi } from '../api/productApi'
 import type { Product, ProductDetail } from '../types/productTypes'
-// import { AxiosResponse } from 'axios'
 
 /* ------------------------------
    LIST PRODUCTS BY CATEGORY
@@ -13,7 +12,6 @@ export const fetchProductsByCategory = createAsyncThunk<
 >('products/fetchByCategory', async (categoryId, { rejectWithValue }) => {
     try {
         const response = await productApi.getByCategory(categoryId)
-        // Extract the data array and normalize price from string to number
         const products: Product[] = response.data.data.map((product) => ({
             id: product.id,
             name: product.name,
@@ -22,14 +20,13 @@ export const fetchProductsByCategory = createAsyncThunk<
             categoryId: product.categoryId,
         }))
         return products
-    } catch (error: any) {
+    } catch (error: unknown) {
         const message =
-            error?.response?.data?.message || error.message || 'Failed to load products'
+            (error as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+            (error instanceof Error ? error.message : 'Failed to load products')
         return rejectWithValue(message)
     }
 })
-
-
 
 /* ------------------------------
    PRODUCT DETAIL
@@ -40,7 +37,7 @@ export const fetchProductDetail = createAsyncThunk<
     { rejectValue: string }
 >('products/productDetail', async (productId, { rejectWithValue }) => {
     try {
-        const response = await productApi.getDetail(productId) // as AxiosResponse<ProductDetailApiResponse> // ()
+        const response = await productApi.getDetail(productId)
         const product = response.data.data
 
         return {
@@ -53,20 +50,29 @@ export const fetchProductDetail = createAsyncThunk<
             price: Number(product.price),
             images: product.images ?? [],
             categoryId: product.categoryId,
-            category: {
-                id: product.category.id,
-                name: product.category.name,
-                slug: product.category.slug,
-                parentId: product.category.parentId ?? null,
-            },
-
+            category: product.category
+                ? {
+                      id: product.category.id,
+                      name: product.category.name,
+                      slug: product.category.slug,
+                      parentId: product.category.parentId ?? null,
+                  }
+                : undefined,
             shop: {
                 id: product.shop.id,
                 name: product.shop.name,
                 slug: product.shop.slug,
             },
+            currency: product.currency,
+            minPrice: product.minPrice,
+            maxPrice: product.maxPrice,
+            brandName: product.brandName,
+            primaryVariantId: product.primaryVariantId,
+            variants: product.variants ?? [],
         }
-    } catch (err: any) {
-        return rejectWithValue(err.message || 'Failed to load product')
+    } catch (err: unknown) {
+        const message =
+            err instanceof Error ? err.message : 'Failed to load product'
+        return rejectWithValue(message)
     }
 })

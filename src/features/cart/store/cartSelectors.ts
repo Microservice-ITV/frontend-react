@@ -1,6 +1,7 @@
 import { createSelector } from '@reduxjs/toolkit'
 import type { RootState } from '@/app/store'
 import type { CartItem } from '@/features/cart/types/cartTypes'
+import { cartLineKey } from './cartLine'
 
 /* ================================
    BASE SELECTOR
@@ -115,6 +116,6 @@ export const selectCartItemMap = createSelector(
     selectCartItems,
     items =>
         Object.fromEntries(
-            items.map(i => [i.productId, i])
+            items.map(i => [cartLineKey(i), i])
         )
 )

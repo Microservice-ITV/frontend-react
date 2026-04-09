@@ -48,7 +48,7 @@ const CheckoutPage = () => {
     const checkout = calculateCheckout(items)
     const selectedItemsFingerprint = useMemo(() => (
         items
-            .map(item => `${item.productId}:${item.quantity}`)
+            .map(item => `${item.productId}:${item.variantId ?? ''}:${item.quantity}`)
             .sort()
             .join('|')
     ), [items])

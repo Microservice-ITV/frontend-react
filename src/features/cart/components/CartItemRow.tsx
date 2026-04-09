@@ -26,7 +26,9 @@ const CartItemRow = ({ item }: CartItemRowProps) => {
                         type="checkbox"
                         checked={item.selected}
                         onChange={() =>
-                            dispatch(toggleItemSelection({ productId: item.productId }))
+                            dispatch(
+                                toggleItemSelection({ productId: item.productId, variantId: item.variantId }),
+                            )
                         }
                         className="h-4 w-4 accent-emerald-600 border-gray-300"
                     />
@@ -73,7 +75,9 @@ const CartItemRow = ({ item }: CartItemRowProps) => {
                 {/* DESKTOP ACTIONS */}
                 <button
                     className="hidden md:block text-gray-500 hover:text-red-500 cursor-pointer"
-                    onClick={() => dispatch(removeFromCart(item.productId))}
+                    onClick={() =>
+                        dispatch(removeFromCart({ productId: item.productId, variantId: item.variantId }))
+                    }
                 >
                     Delete
                 </button>

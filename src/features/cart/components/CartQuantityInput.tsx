@@ -14,7 +14,13 @@ const CartQuantityInput = ({ item }: CartQuantiryInputProps) => {
             <button
                 className="h-9 px-3 border border-r-0 border-[var(--dni-cart-border)] rounded-l text-sm hover:bg-gray-50 cursor-pointer"
                 onClick={() =>
-                    dispatch(updateQuantity({ productId: item.productId, quantity: item.quantity - 1 }))
+                    dispatch(
+                        updateQuantity({
+                            productId: item.productId,
+                            variantId: item.variantId,
+                            quantity: item.quantity - 1,
+                        }),
+                    )
                 }
             >
                 -
@@ -29,7 +35,13 @@ const CartQuantityInput = ({ item }: CartQuantiryInputProps) => {
             <button
                 className="h-9 px-3 border border-l-0 border-[var(--dni-cart-border)] rounded-r text-sm hover:bg-gray-50 cursor-pointer"
                 onClick={() =>
-                    dispatch(updateQuantity({ productId: item.productId, quantity: item.quantity + 1 }))
+                    dispatch(
+                        updateQuantity({
+                            productId: item.productId,
+                            variantId: item.variantId,
+                            quantity: item.quantity + 1,
+                        }),
+                    )
                 }
             >
                 +

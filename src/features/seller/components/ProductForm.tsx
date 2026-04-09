@@ -211,11 +211,11 @@ const ProductForm = ({
     'primaryVariantIndex',
   ])
 
+  // Slug is read-only; keep it in sync with the name on both create and edit.
   useEffect(() => {
-    if (mode !== 'create') return
     const newSlug = toSlug(name || '')
     setValue('slug', newSlug)
-  }, [mode, name, setValue])
+  }, [name, setValue])
 
   useEffect(() => {
     const urls = imageFiles.map((file) => URL.createObjectURL(file))

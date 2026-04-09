@@ -1,5 +1,13 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 import type { CartItem, CartState } from '../types/cartTypes'
+import { normalizeVariantId, sameCartLine } from './cartLine'
+
+function normalizeIncomingItem(payload: CartItem): CartItem {
+    return {
+        ...payload,
+        variantId: normalizeVariantId(payload.variantId),
+    }
+}
 
 const initialState: CartState = {
     items: [],
@@ -10,16 +18,16 @@ const cartSlice = createSlice({
     initialState,
     reducers: {
         addToCart(state, action: PayloadAction<CartItem>) {
-            const existing = state.items.find(
-                i => i.productId === action.payload.productId
-            )
+            const payload = normalizeIncomingItem(action.payload)
+            const existing = state.items.find(i => sameCartLine(i, payload))
 
             if (existing) {
-                existing.quantity = Math.min(existing.quantity + action.payload.quantity, 99)
+                existing.quantity = Math.min(existing.quantity + payload.quantity, 99)
+                if (payload.variantLabel) existing.variantLabel = payload.variantLabel
             } else {
                 state.items.push({
-                    ...action.payload,
-                    quantity: Math.min(action.payload.quantity, 99),
+                    ...payload,
+                    quantity: Math.min(payload.quantity, 99),
                     selected: false,
                 })
             }
@@ -27,22 +35,28 @@ const cartSlice = createSlice({
 
         updateQuantity(
             state,
-            action: PayloadAction<{ productId: string; quantity: number }>
+            action: PayloadAction<{ productId: string; variantId?: string; quantity: number }>
         ) {
+            const vid = normalizeVariantId(action.payload.variantId)
             const item = state.items.find(
-                i => i.productId === action.payload.productId
+                i => i.productId === action.payload.productId && normalizeVariantId(i.variantId) === vid
             )
             if (!item) return
 
             if (action.payload.quantity <= 0) {
-                state.items = state.items.filter(i => i.productId !== action.payload.productId)
+                state.items = state.items.filter(
+                    i => !(i.productId === action.payload.productId && normalizeVariantId(i.variantId) === vid)
+                )
             } else {
                 item.quantity = Math.min(action.payload.quantity, 99)
             }
         },
 
-        removeFromCart(state, action: PayloadAction<string>) {
-            state.items = state.items.filter(i => i.productId !== action.payload)
+        removeFromCart(state, action: PayloadAction<{ productId: string; variantId?: string }>) {
+            const vid = normalizeVariantId(action.payload.variantId)
+            state.items = state.items.filter(
+                i => !(i.productId === action.payload.productId && normalizeVariantId(i.variantId) === vid)
+            )
         },
 
         // DELETE SELECTED ITEMS (checkout footer "Delete")
@@ -61,16 +75,19 @@ const cartSlice = createSlice({
                 console.warn('Invalid cart payload, ignoring', action.payload)
                 return
             }
-            state.items = action.payload
+            state.items = action.payload.map(i => normalizeIncomingItem({ ...i, variantId: i.variantId ?? '' }))
         },
 
         // CART CHECKBOXES
         // Toggle a single item
         toggleItemSelection(
             state,
-            action: PayloadAction<{ productId: string }>
+            action: PayloadAction<{ productId: string; variantId?: string }>
         ) {
-            const item = state.items.find(i => i.productId === action.payload.productId)
+            const vid = normalizeVariantId(action.payload.variantId)
+            const item = state.items.find(
+                i => i.productId === action.payload.productId && normalizeVariantId(i.variantId) === vid
+            )
             if (item) item.selected = !item.selected
         },
         // Toggle a whole shop

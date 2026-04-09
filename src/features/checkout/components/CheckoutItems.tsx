@@ -52,13 +52,17 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
 
               return (
                 <div
-                  key={`${item.productId}-${item.shopId}`}
+                  key={`${item.productId}-${item.variantId ?? ''}-${item.shopId}`}
                   className="grid md:grid-cols-[1fr_140px_100px_160px] gap-3 px-4 md:px-6 py-5 items-start"
                 >
                   <div className="flex gap-3">
                     <img src={item.image} alt={item.name} className="w-10 h-10 object-cover" />
                     <div className="text-sm text-gray-900">{item.name}</div>
-                    <div className="text-xs text-gray-500 mt-1">Variation: 20w</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {item.variantLabel?.trim()
+                        ? `Variation: ${item.variantLabel}`
+                        : 'Variation: Standard'}
+                    </div>
                   </div>
 
                   <div className="text-right">
