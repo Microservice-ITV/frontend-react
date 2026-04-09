@@ -70,25 +70,36 @@ const CheckoutPage = () => {
         await dispatch(fetchUserAddresses(authUser.id)).unwrap()
     }, [authUser?.id, dispatch])
 
-    const openCreateAddressModal = useCallback((requiredForCheckout = false) => {
-        openModal({
-            title: 'New Address',
-            content: (
-                <NewAddressModal
-                    mode="create"
-                    onSaved={refreshAddresses}
-                    description="To place order, please add a delivery address."
-                />
-            ),
-            hidePrimary: true,
-            hideSecondary: true,
-            onSecondary: () => {
-                if (requiredForCheckout) {
-                    navigate('/cart')
-                }
-            },
-        })
-    }, [openModal, refreshAddresses, navigate])
+    const abandonCheckoutAndGoToCart = useCallback(() => {
+        dispatch(clearCheckout())
+        if (checkoutStorageKey) {
+            sessionStorage.removeItem(checkoutStorageKey)
+        }
+        navigate('/cart')
+    }, [dispatch, checkoutStorageKey, navigate])
+
+    const openCreateAddressModal = useCallback(
+        (requiredForCheckout?: boolean) => {
+            // Must use === true: if this is passed directly to onClick, React passes a SyntheticEvent as arg 1,
+            // which is truthy and would wrongly enable "abandon → cart" on Cancel.
+            const handleAbandon = requiredForCheckout === true ? abandonCheckoutAndGoToCart : undefined
+            openModal({
+                title: 'New Address',
+                content: (
+                    <NewAddressModal
+                        mode="create"
+                        onSaved={refreshAddresses}
+                        description="To place order, please add a delivery address."
+                        onCancel={handleAbandon}
+                    />
+                ),
+                hidePrimary: true,
+                hideSecondary: true,
+                onSecondary: handleAbandon,
+            })
+        },
+        [abandonCheckoutAndGoToCart, openModal, refreshAddresses],
+    )
 
     const openEditAddressModal = useCallback((address: UserAddress) => {
         openModal({
@@ -108,7 +119,7 @@ const CheckoutPage = () => {
 
     const openAddressSelectionModal = useCallback(() => {
         if (addresses.length === 0) {
-            openCreateAddressModal()
+            openCreateAddressModal(true)
             return
         }
 
@@ -123,7 +134,7 @@ const CheckoutPage = () => {
                         closeModal()
                     }}
                     onEditAddress={(address) => openEditAddressModal(address)}
-                    onAddNewAddress={openCreateAddressModal}
+                    onAddNewAddress={() => openCreateAddressModal()}
                 />
             ),
             hidePrimary: true,
@@ -164,6 +175,16 @@ const CheckoutPage = () => {
             setSelectedAddressId(null)
         }
     }, [addresses, selectedAddressId])
+
+    // Drop any stale checkout session from Redux/storage when the user has no saved addresses yet.
+    useEffect(() => {
+        if (!hasResolvedInitialAddressFetch || addressesLoading) return
+        if (addresses.length > 0) return
+        dispatch(clearCheckout())
+        if (checkoutStorageKey) {
+            sessionStorage.removeItem(checkoutStorageKey)
+        }
+    }, [addresses.length, addressesLoading, checkoutStorageKey, dispatch, hasResolvedInitialAddressFetch])
 
     useEffect(() => {
         setCheckoutSessionBootstrapped(false)
@@ -260,6 +281,10 @@ const CheckoutPage = () => {
     }, [dispatch, currentCheckout, loading, hasDeliveryAddress, checkoutSessionBootstrapped])
 
     useEffect(() => {
+        if (!hasDeliveryAddress) {
+            return
+        }
+
         if (!currentCheckout?.checkout_id) {
             return
         }
@@ -286,7 +311,14 @@ const CheckoutPage = () => {
         }, 2000)
 
         return () => window.clearInterval(intervalId)
-    }, [dispatch, currentCheckout?.checkout_id, paymentStatus, clientSecret, isAwaitingFinalStatus])
+    }, [
+        dispatch,
+        hasDeliveryAddress,
+        currentCheckout?.checkout_id,
+        paymentStatus,
+        clientSecret,
+        isAwaitingFinalStatus,
+    ])
 
     useEffect(() => {
         if (paymentStatus === 'PAID' || paymentStatus === 'COMPLETED') {

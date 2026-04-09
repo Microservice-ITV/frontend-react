@@ -14,6 +14,8 @@ type Props = {
   mode?: 'create' | 'edit'
   initialAddress?: UserAddress
   description?: string
+  /** Runs when user clicks Cancel (modal body button). GlobalModal backdrop/X use separate onSecondary on CheckoutPage. */
+  onCancel?: () => void
 }
 
 type AddressFormErrors = Partial<{
@@ -96,7 +98,7 @@ const getInitialFormValues = (mode: 'create' | 'edit', initialAddress?: UserAddr
   }
 }
 
-export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, description }: Props) => {
+export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, description, onCancel }: Props) => {
   const dispatch = useAppDispatch()
   const authUser = useAppSelector(selectAuthUser)
   const { closeModal } = useGlobalModal()
@@ -587,7 +589,10 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
         <button
           type="button"
           className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-sm hover:bg-gray-50 cursor-pointer"
-          onClick={closeModal}
+          onClick={() => {
+            onCancel?.()
+            closeModal()
+          }}
         >
           Cancel
         </button>
