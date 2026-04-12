@@ -22,6 +22,8 @@ import {
 import { fetchUserAddresses } from '@/features/account/store/accountThunks'
 import { NewAddressModal } from '@/features/account/components/NewAddressModal'
 import type { UserAddress } from '@/features/account/types/addressTypes'
+import { clearShippingCalculate } from '@/features/shipping/store/shippingSlice'
+import { fetchCheckoutShippingCalculation } from '@/features/shipping/store/shippingThunks'
 
 type StoredCheckoutSession = {
     checkoutId: string
@@ -45,13 +47,28 @@ const CheckoutPage = () => {
 
     // Only grab selected items for checkout
     const items = useAppSelector(selectSelectedItems)
-    const checkout = calculateCheckout(items)
-    const selectedItemsFingerprint = useMemo(() => (
-        items
-            .map(item => `${item.productId}:${item.variantId ?? ''}:${item.quantity}`)
-            .sort()
-            .join('|')
-    ), [items])
+    const feesByShopId = useAppSelector(state => state.shipping.feesByShopId)
+    const shippingCalculateStatus = useAppSelector(state => state.shipping.calculateStatus)
+
+    const checkout = useMemo(
+        () =>
+            calculateCheckout(
+                items,
+                shippingCalculateStatus === 'succeeded' && Object.keys(feesByShopId).length > 0
+                    ? { feesByShop: feesByShopId }
+                    : undefined,
+            ),
+        [items, shippingCalculateStatus, feesByShopId],
+    )
+    const selectedItemsFingerprint = useMemo(
+        () =>
+            items
+                .map(item => `${item.productId}:${item.variantId ?? ''}:${item.quantity}`)
+                .sort()
+                .join('|'),
+        [items],
+    )
+
     const selectedDeliveryAddress = useMemo(() => {
         const selected = selectedAddressId
             ? addresses.find((address) => address.address_id === selectedAddressId) ?? null
@@ -59,6 +76,11 @@ const CheckoutPage = () => {
         return selected ?? defaultAddress ?? null
     }, [addresses, selectedAddressId, defaultAddress])
     const hasDeliveryAddress = !!selectedDeliveryAddress
+
+    const shippingCalculateCacheKey = useMemo(() => {
+        if (!selectedDeliveryAddress?.address_id) return ''
+        return `${selectedDeliveryAddress.address_id}|${selectedItemsFingerprint}`
+    }, [selectedDeliveryAddress?.address_id, selectedItemsFingerprint])
 
     const { currentCheckout, loading, paymentStatus, clientSecret, isAwaitingFinalStatus } = useAppSelector(
         state => state.checkout
@@ -175,6 +197,22 @@ const CheckoutPage = () => {
             setSelectedAddressId(null)
         }
     }, [addresses, selectedAddressId])
+
+    useEffect(() => {
+        if (!hasDeliveryAddress || !selectedDeliveryAddress || items.length === 0) {
+            dispatch(clearShippingCalculate())
+            return
+        }
+        if (!shippingCalculateCacheKey) return
+
+        void dispatch(
+            fetchCheckoutShippingCalculation({
+                address: selectedDeliveryAddress,
+                items,
+                cacheKey: shippingCalculateCacheKey,
+            }),
+        )
+    }, [dispatch, hasDeliveryAddress, selectedDeliveryAddress, items, shippingCalculateCacheKey])
 
     // Drop any stale checkout session from Redux/storage when the user has no saved addresses yet.
     useEffect(() => {

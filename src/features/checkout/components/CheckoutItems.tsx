@@ -1,5 +1,8 @@
 import { chatIcon, fastDeliveryIcon } from '@/assets/icons'
 import { CheckoutTotals } from '../utils/checkoutCalculator'
+import { useAppSelector } from '@/app/hooks'
+
+const DEFAULT_SHIPPING_DISPLAY = 1.99
 
 interface CheckoutItemsProps {
   checkout: CheckoutTotals
@@ -7,6 +10,8 @@ interface CheckoutItemsProps {
 
 const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
   const { groupedByShop } = checkout
+  const feesByShopId = useAppSelector(state => state.shipping.feesByShopId)
+  const calculateStatus = useAppSelector(state => state.shipping.calculateStatus)
 
   return (
     <div className="mt-3">
@@ -29,7 +34,12 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
           (sum, item) => sum + item.quantity,
           0
         )
-        const shippingFee = 1.99
+        const feeRow = feesByShopId[shopId]
+        const shippingFee =
+          calculateStatus === 'succeeded' && feeRow?.amount != null && feeRow.amount >= 0
+            ? feeRow.amount
+            : DEFAULT_SHIPPING_DISPLAY
+        const methodTitle = feeRow?.methodLabel?.trim() || 'Next Day Doorstep Delivery'
         const shopTotal = shopSubtotal + shippingFee
 
         return (
@@ -113,14 +123,26 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
                   hover:border-emerald-600 transition focus:outline-none cursor-pointer"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="text-sm font-medium text-gray-900">Next Day Doorstep Delivery</div>
+                    <div className="text-sm font-medium text-gray-900">{methodTitle}</div>
 
-                    <span className="text-sm font-medium whitespace-nowrap">$1.99</span>
+                    <span className="text-sm font-medium whitespace-nowrap">
+                      {calculateStatus === 'loading' ? (
+                        <span className="text-gray-400">…</span>
+                      ) : (
+                        `$${shippingFee.toFixed(2)}`
+                      )}
+                    </span>
                   </div>
 
                   <div className="mt-2 flex items-center gap-1 text-sm text-emerald-600">
                     <img src={fastDeliveryIcon} className="w-4 h-4" />
-                    Guaranteed to get by <span className="font-medium">7 Feb</span>
+                    {feeRow?.etaHint?.trim() ? (
+                      <span>{feeRow.etaHint.trim()}</span>
+                    ) : (
+                      <>
+                        Guaranteed to get by <span className="font-medium">7 Feb</span>
+                      </>
+                    )}
                   </div>
 
                   <div className="mt-1 text-sm text-gray-600">

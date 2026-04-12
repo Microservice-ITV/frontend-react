@@ -1,4 +1,5 @@
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
+import { formatProfileShippingLine } from '@/features/shipping/utils/normalizeShipping'
 import type { CartItem } from '../types/cartTypes'
 import { selectShopSelectionMap } from '../store/cartSelectors'
 import { removeFromCart, toggleItemSelection, toggleShopSelection } from '../store/cartSlice'
@@ -11,6 +12,8 @@ interface CartItemListProps {
 const CartItemLists = ({ items }: CartItemListProps) => {
   const dispatch = useAppDispatch()
   const shopSelectionMap = useAppSelector(selectShopSelectionMap)
+  const profilesByShopId = useAppSelector(state => state.shipping.profilesByShopId)
+  const batchStatus = useAppSelector(state => state.shipping.batchStatus)
 
   // Group items by shop
   const groupedByShop = items.reduce<Record<
@@ -132,7 +135,11 @@ const CartItemLists = ({ items }: CartItemListProps) => {
             </div>
           </div>
           <div className="px-4 py-3 text-sm text-gray-600 bg-[#fafcff]">
-            Up to $1.99 off shipping on orders from $20.00
+            {batchStatus === 'loading' ? (
+              <span className="text-gray-400">Loading shipping info…</span>
+            ) : (
+              formatProfileShippingLine(profilesByShopId[shop.shopId])
+            )}
           </div>
         </section>
       ))}

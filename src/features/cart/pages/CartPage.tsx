@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
-import { useAppSelector } from '@/app/hooks'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useAppDispatch, useAppSelector } from '@/app/hooks'
+import { fetchShopProfilesForCurrentCart } from '@/features/shipping/store/shippingThunks'
 import { selectCartItems, selectCartTotal } from '@/features/cart/store/cartSelectors'
 
 import CartHeader from '../components/CartHeader'
@@ -8,11 +9,21 @@ import CartSummary from '../components/CartSummary'
 import CartEmptyState from '../components/CartEmptyState'
 
 const CartPage = () => {
+    const dispatch = useAppDispatch()
     const items = useAppSelector(selectCartItems)
     const total = useAppSelector(selectCartTotal)
+    const cartShopIdsKey = useMemo(
+        () => [...new Set(items.map((i) => i.shopId).filter(Boolean))].sort().join(','),
+        [items],
+    )
 
     const contentRef = useRef<HTMLDivElement>(null)
     const [isFloating, setIsFloating] = useState(false)
+
+    useEffect(() => {
+        if (!cartShopIdsKey) return
+        void dispatch(fetchShopProfilesForCurrentCart())
+    }, [dispatch, cartShopIdsKey])
 
     useEffect(() => {
         const onScroll = () => {
