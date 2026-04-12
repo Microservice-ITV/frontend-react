@@ -5,6 +5,7 @@ import { addToCartIcon } from '@/assets/icons'
 import type { ProductDetail, ProductVariant } from '@/features/products/types/productTypes'
 import { useNavigate } from 'react-router-dom'
 import { pickDefaultVariant, variantDisplayLabel } from './ProductVariantSelector'
+import { fetchShopProfilesForCurrentCart } from '@/features/shipping/store/shippingThunks'
 
 type ProductActionsProps = {
   product: ProductDetail
@@ -51,11 +52,13 @@ const ProductActions = ({ product, selectedVariant }: ProductActionsProps) => {
   const handleAddToCart = () => {
     if (outOfStock) return
     dispatch(addToCart(cartPayload()))
+    void dispatch(fetchShopProfilesForCurrentCart())
   }
 
   const handleBuyNow = () => {
     if (outOfStock) return
     dispatch(addToCart(cartPayload()))
+    void dispatch(fetchShopProfilesForCurrentCart())
     navigate('/cart')
   }
 
