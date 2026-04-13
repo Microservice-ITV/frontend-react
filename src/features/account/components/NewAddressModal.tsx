@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -8,6 +8,8 @@ import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
 import { createUserAddress, updateUserAddress } from '../store/accountThunks'
 import { locationApi, type StateOption, type CityOption, type DistrictOption, type WardOption } from '../api/locationApi'
 import type { UpsertAddressPayload, UserAddress } from '../types/addressTypes'
+import { MapLocationPicker } from '@/components/maps/MapLocationPicker'
+import { forwardGeocodeNominatim } from '@/lib/geocoding/nominatim'
 
 type Props = {
   onSaved: () => Promise<void> | void
@@ -130,6 +132,16 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
   const [selectedDistrict, setSelectedDistrict] = useState<DistrictOption | null>(null)
   const [selectedWard, setSelectedWard] = useState<WardOption | null>(null)
 
+  const [latitude, setLatitude] = useState<number | null>(initialAddress?.latitude ?? null)
+  const [longitude, setLongitude] = useState<number | null>(initialAddress?.longitude ?? null)
+  const mapSectionRef = useRef<HTMLDivElement | null>(null)
+  /** Ward id we already matched to coordinates (geocode or server). */
+  const geocodeWardRef = useRef<number | null>(null)
+  /** Increments when the user moves the pin on the map (skip stale geocode overwrites). */
+  const userMapInteractionRef = useRef(0)
+  /** Bumps each time we schedule a new Nominatim request so stale responses are ignored. */
+  const geocodeSeqRef = useRef(0)
+
   const fullName = watch('fullName')
   const phoneNumber = watch('phoneNumber')
   const labelAs = watch('labelAs')
@@ -230,6 +242,66 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
   }, [mode, initialAddress, states, setValue])
 
   useEffect(() => {
+    if (mode === 'edit' && initialAddress) {
+      setLatitude(initialAddress.latitude ?? null)
+      setLongitude(initialAddress.longitude ?? null)
+      return
+    }
+    setLatitude(null)
+    setLongitude(null)
+  }, [mode, initialAddress?.address_id])
+
+  useEffect(() => {
+    geocodeWardRef.current = null
+  }, [mode, initialAddress?.address_id])
+
+  /**
+   * Pin + coords only existed after a map tap or saved address — the dropdown has no lat/lng.
+   * After the user picks a ward, we suggest a pin via OSM Nominatim (approximate area center).
+   */
+  useEffect(() => {
+    if (!selectedState || !selectedCity || !selectedDistrict || !selectedWard) return
+
+    if (geocodeWardRef.current === selectedWard.id) return
+
+    if (
+      mode === 'edit' &&
+      initialAddress?.latitude != null &&
+      initialAddress?.longitude != null &&
+      geocodeWardRef.current === null
+    ) {
+      geocodeWardRef.current = selectedWard.id
+      return
+    }
+
+    const epoch = userMapInteractionRef.current
+    geocodeSeqRef.current += 1
+    const seq = geocodeSeqRef.current
+    const wardId = selectedWard.id
+    const geocodeParts = {
+      ward: selectedWard.name,
+      district: selectedDistrict.name,
+      city: selectedCity.name,
+      state: selectedState.name,
+    }
+    let cancelled = false
+    const t = window.setTimeout(() => {
+      void forwardGeocodeNominatim(geocodeParts).then((pt) => {
+        if (cancelled || !pt) return
+        if (seq !== geocodeSeqRef.current) return
+        if (userMapInteractionRef.current !== epoch) return
+        setLatitude(pt.lat)
+        setLongitude(pt.lng)
+        geocodeWardRef.current = wardId
+      })
+    }, 450)
+    return () => {
+      cancelled = true
+      window.clearTimeout(t)
+    }
+  }, [selectedState, selectedCity, selectedDistrict, selectedWard, mode, initialAddress?.address_id, initialAddress?.latitude, initialAddress?.longitude])
+
+  useEffect(() => {
     const locationValue = hasSelectedFullLocation ? 'selected' : ''
     setValue('location', locationValue, { shouldDirty: true, shouldValidate: isSubmitted })
     if (isSubmitted) {
@@ -319,6 +391,8 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
       is_default: values.isDefault,
       is_shipping: true,
       is_billing: false,
+      latitude,
+      longitude,
     }
 
     if (mode === 'edit' && initialAddress?.address_id) {
@@ -530,6 +604,7 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
         <button
           type="button"
           disabled={!canEditAddressDetails}
+          onClick={() => mapSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })}
           className={`mt-1 inline-flex items-center px-3 py-1 text-xs border rounded-sm ${
             canEditAddressDetails
               ? 'border-gray-400 text-gray-700 bg-white cursor-pointer'
@@ -540,8 +615,28 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
         </button>
 
         {canEditAddressDetails && (
-          <div className="mt-2 h-32 w-full bg-gray-100 border border-gray-200 rounded-sm flex items-center justify-center text-[11px] text-gray-500">
-            Map preview (placeholder)
+          <div ref={mapSectionRef} className="mt-2 space-y-1">
+            <p className="text-[10px] text-gray-500">
+              After you choose a ward, we search OpenStreetMap and pick the best matching area (not always the exact
+              doorway). Drag the pin to fine-tune.
+            </p>
+            {latitude != null && longitude != null && (
+              <p className="text-[10px] text-gray-600 font-mono">
+                Pin: {latitude.toFixed(6)}, {longitude.toFixed(6)}
+              </p>
+            )}
+            <div className="overflow-hidden rounded-sm border border-gray-200">
+              <MapLocationPicker
+                key={initialAddress?.address_id ?? 'new-address'}
+                latitude={latitude}
+                longitude={longitude}
+                onChange={(lat, lng) => {
+                  userMapInteractionRef.current += 1
+                  setLatitude(lat)
+                  setLongitude(lng)
+                }}
+              />
+            </div>
           </div>
         )}
       </div>
