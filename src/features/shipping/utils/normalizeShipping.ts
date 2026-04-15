@@ -61,13 +61,16 @@ export function normalizeBatchShopProfiles(data: unknown): Record<string, ShopSh
 /** Extract per-shop shipping fee + label from calculate API (best-effort). */
 export function normalizeCalculateResponse(data: unknown): {
     byShopId: Record<string, ShopCalculatedShipping>
+    totalShippingFee: number | null
     raw: unknown
 } {
     const byShopId: Record<string, ShopCalculatedShipping> = {}
-    if (data === null || data === undefined) return { byShopId, raw: data }
+    if (data === null || data === undefined)
+        return { byShopId, totalShippingFee: null, raw: data }
 
     const root = typeof data === 'object' && data !== null ? (data as Record<string, unknown>) : {}
     let list: unknown[] = []
+    let totalShippingFee = num(root.totalShippingFee)
 
     if (Array.isArray(data)) {
         list = data
@@ -77,6 +80,7 @@ export function normalizeCalculateResponse(data: unknown): {
         list = root.results as unknown[]
     } else if (root.data && typeof root.data === 'object') {
         const d = root.data as Record<string, unknown>
+        if (totalShippingFee == null) totalShippingFee = num(d.totalShippingFee)
         if (Array.isArray(d.shops)) list = d.shops as unknown[]
         else if (Array.isArray(d.results)) list = d.results as unknown[]
     }
@@ -90,31 +94,37 @@ export function normalizeCalculateResponse(data: unknown): {
         const amount = num(
             r.shippingFee ?? r.fee ?? r.amount ?? r.totalShipping ?? r.calculatedFee ?? r.price,
         )
+        const estimatedDays = num(r.estimatedDays)
         const methodLabel =
-            typeof r.methodName === 'string'
-                ? r.methodName
-                : typeof r.optionName === 'string'
-                  ? r.optionName
-                  : typeof r.label === 'string'
-                    ? r.label
-                    : undefined
+            typeof r.method === 'string'
+                ? r.method
+                : typeof r.methodName === 'string'
+                  ? r.methodName
+                  : typeof r.optionName === 'string'
+                    ? r.optionName
+                    : typeof r.label === 'string'
+                      ? r.label
+                      : undefined
         const etaHint =
             typeof r.estimatedDelivery === 'string'
                 ? r.estimatedDelivery
                 : typeof r.eta === 'string'
                   ? r.eta
-                  : undefined
+                  : estimatedDays != null && estimatedDays > 0
+                    ? `Estimated ${estimatedDays} business day${estimatedDays === 1 ? '' : 's'}`
+                    : undefined
 
         byShopId[shopId] = {
             shopId,
             amount,
             methodLabel,
             etaHint,
+            estimatedDays,
             raw: row,
         }
     }
 
-    return { byShopId, raw: data }
+    return { byShopId, totalShippingFee, raw: data }
 }
 
 export function formatProfileShippingLine(profile: ShopShippingProfileRow | undefined): string {

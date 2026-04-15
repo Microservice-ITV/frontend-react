@@ -70,7 +70,7 @@ export const fetchCheckoutShippingCalculation = createAsyncThunk(
     async ({ address, items, cacheKey }: FetchCalculateArgs, { rejectWithValue }) => {
         try {
             if (items.length === 0) {
-                return { byShopId: {}, cacheKey, raw: null as unknown }
+                return { byShopId: {}, totalShippingFee: null, cacheKey, raw: null as unknown }
             }
             const payload = buildCalculatePayload(address, items)
             const res = await shippingApi.calculateShipping(payload)
@@ -83,8 +83,8 @@ export const fetchCheckoutShippingCalculation = createAsyncThunk(
                     ? (body as Record<string, unknown>).data
                     : body
 
-            const { byShopId, raw } = normalizeCalculateResponse(inner)
-            return { byShopId, cacheKey, raw }
+            const { byShopId, totalShippingFee, raw } = normalizeCalculateResponse(inner)
+            return { byShopId, totalShippingFee, cacheKey, raw }
         } catch (e: unknown) {
             const msg =
                 e && typeof e === 'object' && 'response' in e

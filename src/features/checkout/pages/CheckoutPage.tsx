@@ -48,6 +48,7 @@ const CheckoutPage = () => {
     // Only grab selected items for checkout
     const items = useAppSelector(selectSelectedItems)
     const feesByShopId = useAppSelector(state => state.shipping.feesByShopId)
+    const totalShippingFee = useAppSelector(state => state.shipping.totalShippingFee)
     const shippingCalculateStatus = useAppSelector(state => state.shipping.calculateStatus)
 
     const checkout = useMemo(
@@ -55,10 +56,10 @@ const CheckoutPage = () => {
             calculateCheckout(
                 items,
                 shippingCalculateStatus === 'succeeded' && Object.keys(feesByShopId).length > 0
-                    ? { feesByShop: feesByShopId }
+                    ? { feesByShop: feesByShopId, totalShippingFee }
                     : undefined,
             ),
-        [items, shippingCalculateStatus, feesByShopId],
+        [items, shippingCalculateStatus, feesByShopId, totalShippingFee],
     )
     const selectedItemsFingerprint = useMemo(
         () =>

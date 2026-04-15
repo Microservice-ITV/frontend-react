@@ -11,6 +11,8 @@ export type ShippingState = {
 
     calculateKey: string
     feesByShopId: Record<string, ShopCalculatedShipping>
+    /** From calculate API `data.totalShippingFee` when present */
+    totalShippingFee: number | null
     calculateStatus: 'idle' | 'loading' | 'succeeded' | 'failed'
     calculateError: string | null
     calculateRaw: unknown | null
@@ -24,6 +26,7 @@ const initialState: ShippingState = {
 
     calculateKey: '',
     feesByShopId: {},
+    totalShippingFee: null,
     calculateStatus: 'idle',
     calculateError: null,
     calculateRaw: null,
@@ -36,6 +39,7 @@ const shippingSlice = createSlice({
         clearShippingCalculate(state) {
             state.calculateKey = ''
             state.feesByShopId = {}
+            state.totalShippingFee = null
             state.calculateStatus = 'idle'
             state.calculateError = null
             state.calculateRaw = null
@@ -69,12 +73,15 @@ const shippingSlice = createSlice({
             .addCase(fetchCheckoutShippingCalculation.fulfilled, (state, action) => {
                 state.calculateStatus = 'succeeded'
                 state.feesByShopId = action.payload.byShopId
+                state.totalShippingFee = action.payload.totalShippingFee
                 state.calculateKey = action.payload.cacheKey
                 state.calculateRaw = action.payload.raw
             })
             .addCase(fetchCheckoutShippingCalculation.rejected, (state, action) => {
                 state.calculateStatus = 'failed'
                 state.calculateError = (action.payload as string) ?? action.error.message ?? 'Failed'
+                state.feesByShopId = {}
+                state.totalShippingFee = null
             })
     },
 })

@@ -8,7 +8,6 @@ export type BatchShopProfilesRequest = {
 
 export type CalculateShippingShopPayload = {
     shopId: string
-    shopSubtotal: number
     items: Array<{
         productId: string
         variantId?: string
@@ -24,6 +23,8 @@ export type CalculateShippingRequest = {
         lng: number
     }
     shops: CalculateShippingShopPayload[]
+    /** e.g. STANDARD — default for checkout */
+    methodCode: string
 }
 
 export function buildCalculatePayload(
@@ -39,10 +40,8 @@ export function buildCalculatePayload(
 
     const shops: CalculateShippingShopPayload[] = []
     for (const [shopId, rows] of byShop) {
-        const shopSubtotal = rows.reduce((s, i) => s + i.price * i.quantity, 0)
         shops.push({
             shopId,
-            shopSubtotal,
             items: rows.map((i) => ({
                 productId: i.productId,
                 variantId: i.variantId || undefined,
@@ -59,6 +58,7 @@ export function buildCalculatePayload(
             lng: address.longitude ?? 0,
         },
         shops,
+        methodCode: 'STANDARD',
     }
 }
 

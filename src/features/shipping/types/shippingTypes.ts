@@ -16,5 +16,7 @@ export type ShopCalculatedShipping = {
     amount: number | null
     methodLabel?: string
     etaHint?: string
+    /** Business days from shipping service calculate API */
+    estimatedDays?: number | null
     raw?: unknown
 }
