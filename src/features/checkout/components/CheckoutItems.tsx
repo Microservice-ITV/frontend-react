@@ -39,7 +39,15 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
           calculateStatus === 'succeeded' && feeRow?.amount != null && feeRow.amount >= 0
             ? feeRow.amount
             : DEFAULT_SHIPPING_DISPLAY
-        const methodTitle = feeRow?.methodLabel?.trim() || 'Next Day Doorstep Delivery'
+        const rawMethod = feeRow?.methodLabel?.trim()
+        const methodTitle =
+          rawMethod === 'STANDARD'
+            ? 'Standard shipping'
+            : rawMethod || 'Standard shipping'
+        const etaLine =
+          feeRow?.estimatedDays != null && feeRow.estimatedDays > 0
+            ? `Estimated ${feeRow.estimatedDays} business day${feeRow.estimatedDays === 1 ? '' : 's'}`
+            : feeRow?.etaHint?.trim() || null
         const shopTotal = shopSubtotal + shippingFee
 
         return (
@@ -136,12 +144,12 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
 
                   <div className="mt-2 flex items-center gap-1 text-sm text-emerald-600">
                     <img src={fastDeliveryIcon} className="w-4 h-4" />
-                    {feeRow?.etaHint?.trim() ? (
-                      <span>{feeRow.etaHint.trim()}</span>
+                    {calculateStatus === 'succeeded' && etaLine ? (
+                      <span>{etaLine}</span>
+                    ) : calculateStatus === 'loading' ? (
+                      <span className="text-gray-400">Calculating delivery time…</span>
                     ) : (
-                      <>
-                        Guaranteed to get by <span className="font-medium">7 Feb</span>
-                      </>
+                      <span className="text-gray-500">Delivery estimate unavailable</span>
                     )}
                   </div>
 

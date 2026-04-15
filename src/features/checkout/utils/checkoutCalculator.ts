@@ -13,7 +13,11 @@ const DEFAULT_SHOP_SHIPPING = 1.99
 
 export const calculateCheckout = (
     items: CartItem[],
-    opts?: { feesByShop?: Record<string, Pick<ShopCalculatedShipping, 'amount'>> },
+    opts?: {
+        feesByShop?: Record<string, Pick<ShopCalculatedShipping, 'amount'>>
+        /** Prefer API aggregate when provided (matches payment summary). */
+        totalShippingFee?: number | null
+    },
 ): CheckoutTotals => {
     const groupedByShop = items.reduce<Record<string, CartItem[]>>(
         (acc, item) => {
@@ -31,16 +35,21 @@ export const calculateCheckout = (
 
     const shopIds = Object.keys(groupedByShop)
     const useApiFees = opts?.feesByShop && Object.keys(opts.feesByShop).length > 0
+    const apiTotal = opts?.totalShippingFee
 
     let shippingSubtotal: number
     let shippingDiscount: number
 
     if (useApiFees && opts?.feesByShop) {
         const fees = opts.feesByShop
-        shippingSubtotal = shopIds.reduce((sum, id) => {
-            const amount = fees[id]?.amount
-            return sum + (amount != null && amount >= 0 ? amount : DEFAULT_SHOP_SHIPPING)
-        }, 0)
+        if (apiTotal != null && apiTotal >= 0) {
+            shippingSubtotal = apiTotal
+        } else {
+            shippingSubtotal = shopIds.reduce((sum, id) => {
+                const amount = fees[id]?.amount
+                return sum + (amount != null && amount >= 0 ? amount : DEFAULT_SHOP_SHIPPING)
+            }, 0)
+        }
         shippingDiscount = 0
     } else {
         shippingSubtotal = shopIds.length * DEFAULT_SHOP_SHIPPING

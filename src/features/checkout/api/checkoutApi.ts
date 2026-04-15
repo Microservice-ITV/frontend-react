@@ -2,6 +2,11 @@ import { orderClient } from '@/lib/api/orderClient'
 import type { AxiosResponse } from 'axios'
 import type { CheckoutResponse, CheckoutStatusResponse } from '../types/checkoutTypes'
 
+export type CheckoutShopShippingPayload = {
+  shop_id: string
+  shipping_fee: number
+}
+
 export type CheckoutAddressPayload = {
   full_name: string
   phone_no: string
@@ -18,6 +23,10 @@ export type CheckoutAddressPayload = {
   latitude?: number | null
   longitude?: number | null
   delivery_note?: string | null
+  /** Aggregate shipping from calculate API (`totalShippingFee`) or checkout totals */
+  shipping_total: number
+  /** Per-shop fees from calculate API, aligned with cart shops */
+  shop_shippings: CheckoutShopShippingPayload[]
 }
 
 export const checkoutApi = {

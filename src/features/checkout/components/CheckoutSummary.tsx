@@ -26,24 +26,52 @@ const CheckoutSummary = ({ checkout, hasDeliveryAddress, onRequireAddress, deliv
   )
 
   const user = useAppSelector(state => state.auth.user)
+  const feesByShopId = useAppSelector(state => state.shipping.feesByShopId)
+  const totalShippingFee = useAppSelector(state => state.shipping.totalShippingFee)
+  const shippingCalculateStatus = useAppSelector(state => state.shipping.calculateStatus)
 
-  const buildCheckoutAddressPayload = (address: UserAddress) => ({
-    full_name: address.full_name,
-    phone_no: address.phone_no,
-    email: address.email ?? user?.email ?? null,
-    country_code: address.country_code || 'MM',
-    country: address.country ?? '',
-    state: address.state ?? '',
-    city: address.city ?? '',
-    district: address.district ?? '',
-    ward: address.ward ?? '',
-    address_line_1: address.address_line_1,
-    address_line_2: address.address_line_2 ?? null,
-    postal_code: address.postal_code ?? null,
-    latitude: address.latitude ?? null,
-    longitude: address.longitude ?? null,
-    delivery_note: address.delivery_note ?? null,
-  })
+  const buildCheckoutAddressPayload = (address: UserAddress) => {
+    const shopIds = Object.keys(checkout.groupedByShop)
+    const shopCount = shopIds.length
+    const perShopFallback = shopCount > 0 ? checkout.shippingSubtotal / shopCount : 0
+
+    const shipping_total =
+      shippingCalculateStatus === 'succeeded' && totalShippingFee != null && totalShippingFee >= 0
+        ? totalShippingFee
+        : checkout.shippingSubtotal
+
+    const shop_shippings = shopIds.map((shopId) => {
+      const row = feesByShopId[shopId]
+      const fromApi =
+        shippingCalculateStatus === 'succeeded' && row?.amount != null && row.amount >= 0
+          ? row.amount
+          : null
+      return {
+        shop_id: shopId,
+        shipping_fee: fromApi ?? perShopFallback,
+      }
+    })
+
+    return {
+      full_name: address.full_name,
+      phone_no: address.phone_no,
+      email: address.email ?? user?.email ?? null,
+      country_code: address.country_code || 'MM',
+      country: address.country ?? '',
+      state: address.state ?? '',
+      city: address.city ?? '',
+      district: address.district ?? '',
+      ward: address.ward ?? '',
+      address_line_1: address.address_line_1,
+      address_line_2: address.address_line_2 ?? null,
+      postal_code: address.postal_code ?? null,
+      latitude: address.latitude ?? null,
+      longitude: address.longitude ?? null,
+      delivery_note: address.delivery_note ?? null,
+      shipping_total,
+      shop_shippings,
+    }
+  }
 
   const handlePlaceOrder = async () => {
     if (!hasDeliveryAddress || !deliveryAddress) {
@@ -144,7 +172,7 @@ const CheckoutSummary = ({ checkout, hasDeliveryAddress, onRequireAddress, deliv
             <span className="text-gray-900">${merchandiseSubtotal.toFixed(2)}</span>
           </div>
 
-          {/* Shipping */}
+          {/* Shipping subtotal uses API `totalShippingFee` when calculate succeeds */}
           <div className="flex justify-between mb-3">
             <span className="text-gray-600">Shipping Subtotal</span>
             <span className="text-gray-900">${shippingSubtotal.toFixed(2)}</span>
