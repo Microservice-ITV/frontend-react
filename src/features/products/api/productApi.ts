@@ -88,6 +88,7 @@ type CatalogVariantGraph = {
     sizeId: string
     sizeName: string
     sizeCode: string
+    imageIndexes?: number[] | null
 }
 
 type CatalogProductDetailGraph = {
@@ -176,6 +177,7 @@ const CATALOG_PRODUCT_BY_ID_QUERY = `
         sizeId
         sizeName
         sizeCode
+        imageIndexes
       }
     }
   }
@@ -251,6 +253,16 @@ function shopPlaceholder(shopId: string): { id: string; name: string; slug: stri
     }
 }
 
+function normalizeImageIndexes(raw: unknown): number[] | undefined {
+    if (!Array.isArray(raw) || raw.length === 0) return undefined
+    const out: number[] = []
+    for (const x of raw) {
+        const n = typeof x === 'number' ? x : Number(x)
+        if (Number.isFinite(n) && Number.isInteger(n) && n >= 0) out.push(n)
+    }
+    return out.length > 0 ? out : undefined
+}
+
 function mapGraphVariant(v: CatalogVariantGraph): ProductVariant {
     const price = Number(v.effectiveSellingPrice ?? v.price ?? 0)
     const listPrice = Number(v.listPrice ?? price)
@@ -259,6 +271,7 @@ function mapGraphVariant(v: CatalogVariantGraph): ProductVariant {
         compareRaw !== null && compareRaw !== undefined && !Number.isNaN(Number(compareRaw))
             ? Number(compareRaw)
             : null
+    const imageIndexes = normalizeImageIndexes(v.imageIndexes)
 
     return {
         variantId: v.variantId,
@@ -275,6 +288,7 @@ function mapGraphVariant(v: CatalogVariantGraph): ProductVariant {
         sizeId: v.sizeId ?? '',
         sizeName: v.sizeName ?? '',
         sizeCode: v.sizeCode ?? '',
+        ...(imageIndexes ? { imageIndexes } : {}),
     }
 }
 
