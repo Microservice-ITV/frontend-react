@@ -12,7 +12,8 @@ import { MapLocationPicker } from '@/components/maps/MapLocationPicker'
 import { forwardGeocodeNominatim } from '@/lib/geocoding/nominatim'
 
 type Props = {
-  onSaved: () => Promise<void> | void
+  /** Called after a successful create/update; receives the saved address from the API. */
+  onSaved?: (savedAddress?: UserAddress) => Promise<void> | void
   mode?: 'create' | 'edit'
   initialAddress?: UserAddress
   description?: string
@@ -28,6 +29,17 @@ type AddressFormErrors = Partial<{
 }>
 
 const LOCATION_REQUIRED_ERROR = 'Please select State, City, District, and Ward.'
+
+/** Backend / JSON may return lat/lng as strings; map + `toFixed` need real numbers. */
+const parseCoordinate = (value: unknown): number | null => {
+  if (value == null || value === '') return null
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string') {
+    const n = Number(value.trim())
+    return Number.isFinite(n) ? n : null
+  }
+  return null
+}
 
 const resolveLabelAs = (type: string | null | undefined): 'HOME' | 'OFFICE' => {
   if (type === 'OFFICE') return 'OFFICE'
@@ -132,8 +144,10 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
   const [selectedDistrict, setSelectedDistrict] = useState<DistrictOption | null>(null)
   const [selectedWard, setSelectedWard] = useState<WardOption | null>(null)
 
-  const [latitude, setLatitude] = useState<number | null>(initialAddress?.latitude ?? null)
-  const [longitude, setLongitude] = useState<number | null>(initialAddress?.longitude ?? null)
+  const [latitude, setLatitude] = useState<number | null>(() => parseCoordinate(initialAddress?.latitude))
+  const [longitude, setLongitude] = useState<number | null>(() => parseCoordinate(initialAddress?.longitude))
+  const pinLat = parseCoordinate(latitude)
+  const pinLng = parseCoordinate(longitude)
   const mapSectionRef = useRef<HTMLDivElement | null>(null)
   /** Ward id we already matched to coordinates (geocode or server). */
   const geocodeWardRef = useRef<number | null>(null)
@@ -243,8 +257,8 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
 
   useEffect(() => {
     if (mode === 'edit' && initialAddress) {
-      setLatitude(initialAddress.latitude ?? null)
-      setLongitude(initialAddress.longitude ?? null)
+      setLatitude(parseCoordinate(initialAddress.latitude))
+      setLongitude(parseCoordinate(initialAddress.longitude))
       return
     }
     setLatitude(null)
@@ -266,8 +280,8 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
 
     if (
       mode === 'edit' &&
-      initialAddress?.latitude != null &&
-      initialAddress?.longitude != null &&
+      parseCoordinate(initialAddress?.latitude) != null &&
+      parseCoordinate(initialAddress?.longitude) != null &&
       geocodeWardRef.current === null
     ) {
       geocodeWardRef.current = selectedWard.id
@@ -391,12 +405,13 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
       is_default: values.isDefault,
       is_shipping: true,
       is_billing: false,
-      latitude,
-      longitude,
+      latitude: pinLat,
+      longitude: pinLng,
     }
 
+    let savedAddress: UserAddress
     if (mode === 'edit' && initialAddress?.address_id) {
-      await dispatch(
+      savedAddress = await dispatch(
         updateUserAddress({
           userId: authUser.id,
           addressId: initialAddress.address_id,
@@ -404,7 +419,7 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
         }),
       ).unwrap()
     } else {
-      await dispatch(
+      savedAddress = await dispatch(
         createUserAddress({
           userId: authUser.id,
           payload,
@@ -412,7 +427,7 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
       ).unwrap()
     }
 
-    await Promise.resolve(onSaved())
+    await Promise.resolve(onSaved?.(savedAddress))
     closeModal()
   }
 
@@ -620,16 +635,16 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
               After you choose a ward, we search OpenStreetMap and pick the best matching area (not always the exact
               doorway). Drag the pin to fine-tune.
             </p>
-            {latitude != null && longitude != null && (
+            {pinLat != null && pinLng != null && (
               <p className="text-[10px] text-gray-600 font-mono">
-                Pin: {latitude.toFixed(6)}, {longitude.toFixed(6)}
+                Pin: {pinLat.toFixed(6)}, {pinLng.toFixed(6)}
               </p>
             )}
             <div className="overflow-hidden rounded-sm border border-gray-200">
               <MapLocationPicker
                 key={initialAddress?.address_id ?? 'new-address'}
-                latitude={latitude}
-                longitude={longitude}
+                latitude={pinLat}
+                longitude={pinLng}
                 onChange={(lat, lng) => {
                   userMapInteractionRef.current += 1
                   setLatitude(lat)

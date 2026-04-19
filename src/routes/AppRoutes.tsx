@@ -39,6 +39,7 @@ import SellerNotificationsPage from '@/features/seller/pages/SellerNotifications
 import SellerInvoicesPage from '@/features/seller/pages/SellerInvoicesPage'
 import SellerChatPage from '@/features/seller/pages/SellerChatPage'
 import SellerHelpSupportPage from '@/features/seller/pages/SellerHelpSupportPage'
+import SellerRegisterPage from '@/features/seller/pages/SellerRegisterPage'
 import AdminOverviewPage from '@/features/admin/pages/AdminOverviewPage'
 import AdminShopsPage from '@/features/admin/pages/AdminShopsPage'
 import CommonNotificationsPage from '@/features/common/pages/CommonNotificationsPage'
@@ -101,6 +102,14 @@ const AppRoutes = () => {
                     element={
                         <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.checkout}>
                             <CheckoutPage />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/become-a-seller"
+                    element={
+                        <ProtectedRoute>
+                            <SellerRegisterPage />
                         </ProtectedRoute>
                     }
                 />
