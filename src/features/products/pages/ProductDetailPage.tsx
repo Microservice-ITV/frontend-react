@@ -1,18 +1,36 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { fetchProductDetail } from '@/features/products/store/productThunks'
 import { clearSelectedProduct } from '@/features/products/store/productSlice'
+import type { ProductVariant } from '@/features/products/types/productTypes'
+import { getGalleryImagesForVariant } from '@/features/products/utils/variantGallery'
 
 import ProductBreadcrumb from '../components/ProductBreadcrumb'
 import ProductGallery from '../components/ProductGallery'
 import ProductInfo from '../components/ProductInfo'
+import { pickDefaultVariant } from '../components/ProductVariantSelector'
 
 const ProductDetailPage = () => {
   const { id } = useParams<{ id: string }>()
   const dispatch = useAppDispatch()
 
   const { selectedProduct, status, error } = useAppSelector((state) => state.products)
+  const [galleryVariant, setGalleryVariant] = useState<ProductVariant | null>(null)
+
+  const onGalleryVariantChange = useCallback((v: ProductVariant | null) => {
+    setGalleryVariant(v)
+  }, [])
+
+  const galleryImages = useMemo(() => {
+    if (!selectedProduct) return []
+    const variantForGallery =
+      galleryVariant &&
+      selectedProduct.variants.some((x) => x.variantId === galleryVariant.variantId)
+        ? galleryVariant
+        : pickDefaultVariant(selectedProduct.variants)
+    return getGalleryImagesForVariant(selectedProduct.images, variantForGallery)
+  }, [selectedProduct, galleryVariant])
 
   useEffect(() => {
     if (id) dispatch(fetchProductDetail(id))
@@ -62,8 +80,8 @@ const ProductDetailPage = () => {
         <ProductBreadcrumb product={selectedProduct} />
 
         <section className="bg-white rounded-sm p-3 sm:p-4 flex flex-col lg:flex-row gap-4 lg:gap-6">
-          <ProductGallery images={selectedProduct.images} />
-          <ProductInfo product={selectedProduct} />
+          <ProductGallery images={galleryImages} />
+          <ProductInfo product={selectedProduct} onSelectedVariantChange={onGalleryVariantChange} />
         </section>
       </div>
     </div>

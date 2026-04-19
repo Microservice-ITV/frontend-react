@@ -52,6 +52,8 @@ type Props = {
     variants: ProductVariant[]
     /** First gallery image for chip thumbnails when per-variant images are unavailable */
     thumbnailUrl?: string
+    /** Prefer per-SKU thumb (e.g. from `imageIndexes`) over `thumbnailUrl` */
+    getVariantThumbnail?: (v: ProductVariant) => string | undefined
     /** Called when the resolved variant changes (price/stock for parent UI). */
     onVariantChange: (variant: ProductVariant | null) => void
 }
@@ -60,7 +62,13 @@ type Props = {
  * Shopee-style Color / Size rows, or a fallback "Option" row when SKUs share empty/duplicate dimension IDs.
  * Single source of truth: `selectedVariantId`.
  */
-const ProductVariantSelector = ({ productId, variants, thumbnailUrl, onVariantChange }: Props) => {
+const ProductVariantSelector = ({
+    productId,
+    variants,
+    thumbnailUrl,
+    getVariantThumbnail,
+    onVariantChange,
+}: Props) => {
     const variantSig = useMemo(
         () => variants.map((v) => v.variantId).sort().join(','),
         [variants],
@@ -143,17 +151,23 @@ const ProductVariantSelector = ({ productId, variants, thumbnailUrl, onVariantCh
                   : 'cursor-pointer border-gray-200 bg-white text-gray-800 hover:border-gray-300',
         ].join(' ')
 
-    const thumb = (key: string) => (
-        <span className="relative h-8 w-8 shrink-0 overflow-hidden rounded border border-gray-100 bg-gray-50">
-            {thumbnailUrl ? (
-                <img src={thumbnailUrl} alt="" className="h-full w-full object-cover" />
-            ) : (
-                <span className="flex h-full w-full items-center justify-center text-[10px] text-gray-400">
-                    ·
-                </span>
-            )}
-        </span>
-    )
+    const thumbForVariant = (v: ProductVariant) =>
+        getVariantThumbnail?.(v)?.trim() || thumbnailUrl?.trim() || ''
+
+    const thumb = (v: ProductVariant) => {
+        const src = thumbForVariant(v)
+        return (
+            <span className="relative h-8 w-8 shrink-0 overflow-hidden rounded border border-gray-100 bg-gray-50">
+                {src ? (
+                    <img src={src} alt="" className="h-full w-full object-cover" />
+                ) : (
+                    <span className="flex h-full w-full items-center justify-center text-[10px] text-gray-400">
+                        ·
+                    </span>
+                )}
+            </span>
+        )
+    }
 
     return (
         <div className="space-y-3 text-xs sm:text-sm">
@@ -173,7 +187,7 @@ const ProductVariantSelector = ({ productId, variants, thumbnailUrl, onVariantCh
                                     onClick={() => !disabled && setSelectedVariantId(v.variantId)}
                                     className={pillClass(active, disabled)}
                                 >
-                                    {thumb(v.variantId)}
+                                    {thumb(v)}
                                     <span className="max-w-[200px] text-left leading-tight">{label}</span>
                                     {active && !disabled ? <SelectedCheck /> : null}
                                 </button>
@@ -202,7 +216,7 @@ const ProductVariantSelector = ({ productId, variants, thumbnailUrl, onVariantCh
                                     onClick={() => !disabled && handleColor(v.colorId)}
                                     className={pillClass(active, disabled)}
                                 >
-                                    {thumb(`c-${v.colorId}`)}
+                                    {thumb(v)}
                                     <span className="max-w-[200px] text-left leading-tight">{label}</span>
                                     {active && !disabled ? <SelectedCheck /> : null}
                                 </button>

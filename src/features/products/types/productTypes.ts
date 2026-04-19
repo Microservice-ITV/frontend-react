@@ -24,6 +24,8 @@ export interface ProductVariant {
   sizeId: string
   sizeName: string
   sizeCode: string
+  /** Indices into `ProductDetail.images` for this SKU’s gallery */
+  imageIndexes?: number[]
 }
 
 // Product used in DETAILS page

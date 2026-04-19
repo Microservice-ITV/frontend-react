@@ -3,9 +3,12 @@ import ProductActions from './ProductActions'
 import ProductVariantSelector, { pickDefaultVariant } from './ProductVariantSelector'
 import { deliveryIcon, guaranteeIcon } from '@/assets/icons'
 import type { ProductDetail, ProductVariant } from '@/features/products/types/productTypes'
+import { getGalleryImagesForVariant } from '@/features/products/utils/variantGallery'
 
 interface Props {
   product: ProductDetail
+  /** Fired when the active SKU changes (including initial default) — drives variant-specific gallery. */
+  onSelectedVariantChange?: (variant: ProductVariant | null) => void
 }
 
 function formatMoney(n: number, currency: string) {
@@ -20,20 +23,26 @@ function formatMoney(n: number, currency: string) {
   }
 }
 
-const ProductInfo = ({ product }: Props) => {
+const ProductInfo = ({ product, onSelectedVariantChange }: Props) => {
   const [activeVariant, setActiveVariant] = useState<ProductVariant | null>(null)
 
-  const handleVariantChange = useCallback((v: ProductVariant | null) => {
-    setActiveVariant(v)
-  }, [])
+  const handleVariantChange = useCallback(
+    (v: ProductVariant | null) => {
+      setActiveVariant(v)
+      onSelectedVariantChange?.(v)
+    },
+    [onSelectedVariantChange],
+  )
 
   const variantSig = useMemo(
     () => product.variants.map((v) => v.variantId).sort().join(','),
     [product.variants],
   )
   useEffect(() => {
-    setActiveVariant(pickDefaultVariant(product.variants))
-  }, [product.id, variantSig])
+    const def = pickDefaultVariant(product.variants)
+    setActiveVariant(def)
+    onSelectedVariantChange?.(def)
+  }, [product.id, variantSig, onSelectedVariantChange])
 
   const displayPrice = activeVariant?.price ?? product.price
   const listPrice = activeVariant?.listPrice ?? displayPrice
@@ -167,6 +176,7 @@ const ProductInfo = ({ product }: Props) => {
         productId={product.id}
         variants={product.variants}
         thumbnailUrl={product.images[0]}
+        getVariantThumbnail={(v) => getGalleryImagesForVariant(product.images, v)[0]}
         onVariantChange={handleVariantChange}
       />
 
