@@ -41,6 +41,8 @@ import SellerChatPage from '@/features/seller/pages/SellerChatPage'
 import SellerHelpSupportPage from '@/features/seller/pages/SellerHelpSupportPage'
 import SellerRegisterPage from '@/features/seller/pages/SellerRegisterPage'
 import AdminOverviewPage from '@/features/admin/pages/AdminOverviewPage'
+import AdminShopDetailPage from '@/features/admin/pages/AdminShopDetailPage'
+import AdminShopEditPage from '@/features/admin/pages/AdminShopEditPage'
 import AdminShopsPage from '@/features/admin/pages/AdminShopsPage'
 import CommonNotificationsPage from '@/features/common/pages/CommonNotificationsPage'
 import CommonChatPage from '@/features/common/pages/CommonChatPage'
@@ -306,6 +308,22 @@ const AppRoutes = () => {
                             element={
                                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminShops}>
                                     <AdminShopsPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="shops/:shopId/edit"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminShops}>
+                                    <AdminShopEditPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="shops/:shopId"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminShops}>
+                                    <AdminShopDetailPage />
                                 </ProtectedRoute>
                             }
                         />

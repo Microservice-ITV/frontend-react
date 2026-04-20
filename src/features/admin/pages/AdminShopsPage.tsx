@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
 import DataTablePagination from '@/components/ui/DataTablePagination'
 import type { AdminShopRow } from '../types/shopTypes'
+import { adminShopApi } from '../api/adminShopApi'
 import { fetchAdminShops, setShopApproval } from '../store/adminShopsThunks'
 import { removeShopsLocally } from '../store/adminShopsSlice'
 import {
@@ -35,6 +36,7 @@ const FILTER_TABS: { key: 'all' | 'pending' | 'active' | 'inactive'; label: stri
 
 const AdminShopsPage = () => {
   const dispatch = useAppDispatch()
+  const navigate = useNavigate()
   const { openModal } = useGlobalModal()
   const shops = useAppSelector(selectAdminShops)
   const shopsStatus = useAppSelector(selectAdminShopsStatus)
@@ -135,6 +137,25 @@ const AdminShopsPage = () => {
       primaryVariant: 'success',
       secondaryLabel: 'Cancel',
       onPrimary: handleBulkDelete,
+    })
+  }
+
+  const confirmSingleDelete = (shop: AdminShopRow) => {
+    openModal({
+      title: 'Delete shop?',
+      content: (
+        <p>
+          Are you sure you want to delete <strong>{shop.name}</strong>? This cannot be undone. Shops with products
+          cannot be deleted until products are removed.
+        </p>
+      ),
+      primaryLabel: 'Delete',
+      primaryVariant: 'success',
+      secondaryLabel: 'Cancel',
+      onPrimary: async () => {
+        await adminShopApi.deleteShop(shop.id)
+        await dispatch(fetchAdminShops()).unwrap()
+      },
     })
   }
 
@@ -351,7 +372,11 @@ const AdminShopsPage = () => {
                       >
                         <button
                           type="button"
-                          onClick={() => setOpenMenuId((id) => (id === shop.id ? null : shop.id))}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setOpenMenuId((id) => (id === shop.id ? null : shop.id))
+                          }}
                           className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
                           aria-label="Actions"
                           aria-expanded={openMenuId === shop.id}
@@ -360,7 +385,7 @@ const AdminShopsPage = () => {
                         </button>
                         {openMenuId === shop.id && (
                           <div
-                            className={`absolute right-0 z-50 min-w-[180px] rounded-lg border border-slate-200 bg-white py-1 shadow-lg ${
+                            className={`absolute right-0 z-50 min-w-[140px] rounded-lg border border-slate-200 bg-white py-1 shadow-lg ${
                               openUpward ? 'bottom-full mb-1' : 'top-full mt-1'
                             }`}
                           >
@@ -368,7 +393,9 @@ const AdminShopsPage = () => {
                               <>
                                 <button
                                   type="button"
-                                  onClick={() => {
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
                                     setOpenMenuId(null)
                                     openModal({
                                       title: `Approve “${shop.name}”?`,
@@ -395,7 +422,9 @@ const AdminShopsPage = () => {
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => {
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
                                     setOpenMenuId(null)
                                     openModal({
                                       title: `Reject “${shop.name}”?`,
@@ -424,32 +453,43 @@ const AdminShopsPage = () => {
                             )}
                             <button
                               type="button"
-                              onClick={() => setOpenMenuId(null)}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setOpenMenuId(null)
+                                navigate(`/super-admin/shops/${shop.id}`)
+                              }}
                               className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
                             >
                               <Eye size={16} className="shrink-0 text-slate-500" />
                               View
                             </button>
-                            {shop.status !== 'pending' && (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => setOpenMenuId(null)}
-                                  className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
-                                >
-                                  <Pencil size={16} className="shrink-0 text-slate-500" />
-                                  Edit
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setOpenMenuId(null)}
-                                  className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-red-600 hover:bg-slate-50 cursor-pointer"
-                                >
-                                  <Trash2 size={16} className="shrink-0 text-slate-500" />
-                                  Delete
-                                </button>
-                              </>
-                            )}
+                            <button
+                              type="button"
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setOpenMenuId(null)
+                                navigate(`/super-admin/shops/${shop.id}/edit`)
+                              }}
+                              className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
+                            >
+                              <Pencil size={16} className="shrink-0 text-slate-500" />
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setOpenMenuId(null)
+                                confirmSingleDelete(shop)
+                              }}
+                              className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-red-600 hover:bg-slate-50 cursor-pointer"
+                            >
+                              <Trash2 size={16} className="shrink-0 text-slate-500" />
+                              Delete
+                            </button>
                           </div>
                         )}
                       </div>

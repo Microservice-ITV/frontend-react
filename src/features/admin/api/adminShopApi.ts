@@ -69,5 +69,20 @@ export const adminShopApi = {
     return productClient.patch(`/shops/${shopId}/approval`, { approved })
   },
 
+  getShop(shopId: string): Promise<AxiosResponse<{ success: boolean; data: ShopReadItem }>> {
+    return productClient.get(`/shops/${shopId}`)
+  },
+
+  updateShop(
+    shopId: string,
+    body: Record<string, unknown>,
+  ): Promise<AxiosResponse<{ success: boolean; data: ShopReadItem }>> {
+    return productClient.patch(`/shops/${shopId}`, body)
+  },
+
+  deleteShop(shopId: string): Promise<AxiosResponse<{ success: boolean; message?: string }>> {
+    return productClient.delete(`/shops/${shopId}`)
+  },
+
   getApiErrorMessage,
 }
