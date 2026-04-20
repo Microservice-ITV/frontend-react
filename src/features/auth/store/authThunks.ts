@@ -41,20 +41,27 @@ export const register = createAsyncThunk<
 })
 
 
+type FetchMeReject = 'SKIP' | 'API_ERROR'
+
 // ============== FETCH AUTHENTICATED | Uses Authorization header =================
 export const fetchMe = createAsyncThunk<
     User,
     void,
-    { state: { auth: AuthState } }
+    { state: { auth: AuthState }; rejectValue: FetchMeReject }
 >('auth/me', async (_, { getState, rejectWithValue }) => {
     const { accessToken, hasSession } = getState().auth
 
     if (!accessToken || !hasSession) {
-        return rejectWithValue(null)
+        return rejectWithValue('SKIP')
     }
 
-    const res = await authFeatureApi.me()
-    return res.data.data.user
+    try {
+        const res = await authFeatureApi.me()
+        return res.data.data.user
+    } catch {
+        clearSessionCookie()
+        return rejectWithValue('API_ERROR')
+    }
 })
 
 
