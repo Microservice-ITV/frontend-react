@@ -3,6 +3,7 @@ import { useForm, type Resolver } from 'react-hook-form'
 import { z } from 'zod'
 import { Link } from 'react-router-dom'
 import { ChevronDown, X } from 'lucide-react'
+import { productServiceAssetUrl } from '@/lib/api/apiConfig'
 
 const toSlug = (value: string) =>
   value
@@ -217,7 +218,7 @@ const CategoryForm = ({
                       <div className="grid grid-cols-3 gap-2">
                         <div className="relative overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
                           <img
-                            src={editableExistingImage}
+                            src={productServiceAssetUrl(editableExistingImage)}
                             alt="Current category image"
                             className="h-24 w-full object-cover"
                           />

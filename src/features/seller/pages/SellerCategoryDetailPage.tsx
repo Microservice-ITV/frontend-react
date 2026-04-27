@@ -8,6 +8,7 @@ import { useAppDispatch } from '@/app/hooks'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
 import { fetchSellerCategories } from '@/features/seller/store'
 import { sellerCategoryApi, type CategoryReadItem } from '@/features/seller/api/sellerCategoryApi'
+import { productServiceAssetUrl } from '@/lib/api/apiConfig'
 
 const formatDate = (value?: string) => {
   if (!value) return '—'
@@ -244,7 +245,7 @@ const SellerCategoryDetailPage = () => {
               <div className="mt-4 overflow-hidden rounded-xl border border-slate-100 bg-slate-100">
                 {imageUrl ? (
                   <img
-                    src={imageUrl}
+                    src={productServiceAssetUrl(imageUrl)}
                     alt={displayName}
                     className="h-[280px] w-full object-cover"
                   />

@@ -1,3 +1,4 @@
+import { productServiceAssetUrl } from '@/lib/api/apiConfig'
 import { ecommerceReadRestClient } from '@/lib/api/ecommerceReadRestClient'
 import type { AxiosResponse } from 'axios'
 import type { ProductVariant } from '@/features/products/types/productTypes'
@@ -54,6 +55,8 @@ type CatalogProductGraphItem = {
     title: string
     price: number
     images?: string[]
+    /** Read model may set this while `images` is still empty (event ordering). */
+    imageUrl?: string
     categoryId: string
 }
 
@@ -125,6 +128,7 @@ const CATALOG_PRODUCTS_BY_CATEGORY_QUERY = `
         title
         price
         images
+        imageUrl
         categoryId
       }
       page
@@ -233,10 +237,21 @@ async function fetchCatalogProductsGraphQL(categoryId: string): Promise<CatalogP
 
 function buildImages(p: CatalogProductDetailGraph): string[] {
     if (Array.isArray(p.images) && p.images.length > 0) {
-        return p.images.map(String)
+        return p.images.map((u) => productServiceAssetUrl(String(u)))
     }
     if (p.imageUrl && String(p.imageUrl).trim() !== '') {
-        return [String(p.imageUrl)]
+        return [productServiceAssetUrl(String(p.imageUrl))]
+    }
+    return []
+}
+
+/** Catalog list: same as detail — `images` may be empty while `imageUrl` is set in Mongo read model. */
+function buildCatalogListImages(row: CatalogProductGraphItem): string[] {
+    if (Array.isArray(row.images) && row.images.length > 0) {
+        return row.images.map((u) => productServiceAssetUrl(String(u)))
+    }
+    if (row.imageUrl && String(row.imageUrl).trim() !== '') {
+        return [productServiceAssetUrl(String(row.imageUrl))]
     }
     return []
 }
@@ -309,7 +324,7 @@ export const productApi = {
                 id: row.productId,
                 name: row.title,
                 price: row.price,
-                images: row.images ?? [],
+                images: buildCatalogListImages(row),
                 categoryId: row.categoryId ?? '',
             })),
         }

@@ -1,0 +1,26 @@
+# Dependencies & output
+node_modules
+dist
+dist-ssr
+
+# Env (build args come from Compose / CI; do not bake host .env)
+.env
+.env.*
+!.env.example
+
+# Git / IDE
+.git
+.github
+.vscode
+.idea
+*.md
+
+# Tests & tooling
+coverage
+eslint.config.js
+**/*.test.*
+**/*.spec.*
+
+# Misc
+.DS_Store
+*.log
