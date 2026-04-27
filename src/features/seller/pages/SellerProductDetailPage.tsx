@@ -6,6 +6,7 @@ import { selectAuthUser } from '@/features/auth/store/authSelectors'
 import { fetchSellerProductsByShop } from '@/features/seller/store'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
 import { sellerProductApi, type ProductDetailReadItem } from '@/features/seller/api/sellerProductApi'
+import { productServiceAssetUrl } from '@/lib/api/apiConfig'
 
 const formatDate = (value?: string) => {
   if (!value) return '—'
@@ -232,7 +233,7 @@ const SellerProductDetailPage = () => {
                 <div className="mt-4 overflow-hidden rounded-xl border border-slate-100 bg-slate-100">
                   {selectedImage || imageUrl ? (
                     <img
-                      src={selectedImage || imageUrl}
+                      src={productServiceAssetUrl(selectedImage || imageUrl)}
                       alt={displayName}
                       className="h-[280px] w-full object-cover"
                     />
@@ -257,7 +258,7 @@ const SellerProductDetailPage = () => {
                         aria-label={`View product image ${index + 1}`}
                       >
                         <img
-                          src={url}
+                          src={productServiceAssetUrl(url)}
                           alt={`${displayName} thumbnail ${index + 1}`}
                           className="h-14 w-full object-cover"
                         />

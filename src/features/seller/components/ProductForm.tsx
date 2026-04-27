@@ -15,6 +15,7 @@ import {
   computeListPrice,
   parseOptionalPercent,
 } from '@/utils/variantPricing'
+import { productServiceAssetUrl } from '@/lib/api/apiConfig'
 
 const toSlug = (value: string) =>
   value
@@ -358,7 +359,7 @@ const ProductForm = ({
                             className="relative overflow-hidden rounded-lg border border-slate-200 bg-slate-50"
                           >
                             <img
-                              src={imageUrl}
+                              src={productServiceAssetUrl(imageUrl)}
                               alt={`Current product image ${index + 1}`}
                               className="h-24 w-full object-cover"
                             />
