@@ -89,6 +89,13 @@ const authSlice = createSlice({
       .addCase(fetchMe.fulfilled, (state, action) => {
         state.user = action.payload
       })
+      .addCase(fetchMe.rejected, (state, action) => {
+        if (action.payload !== 'API_ERROR') return
+        state.user = null
+        state.accessToken = null
+        state.isAuthenticated = false
+        state.hasSession = false
+      })
 
       // ================= REFRESH TOKEN =================
       .addCase(refreshAccessToken.fulfilled, (state, action) => {

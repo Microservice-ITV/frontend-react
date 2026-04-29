@@ -70,13 +70,9 @@ export const ProtectedRoute = ({
     )
   }
 
-  // User data still loading (fetchMe in flight after refresh). Don't redirect to 403 yet —
-  // we default to USER role when authUser is null, which would incorrectly deny seller/admin routes.
-  if (requiredCapabilities.length > 0 && !authUser) {
-    return <AuthBootstrapLoading />
-  }
-
-  if (allowedRoles && !authUser) {
+  // Access token present (e.g. after refresh) but /me not loaded yet — avoid rendering
+  // protected pages while the navbar still shows Login/Register.
+  if (!authUser) {
     return <AuthBootstrapLoading />
   }
 

@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
 import DataTablePagination from '@/components/ui/DataTablePagination'
 import type { AdminShopRow } from '../types/shopTypes'
-import { fetchAdminShops } from '../store/adminShopsThunks'
+import { adminShopApi } from '../api/adminShopApi'
+import { fetchAdminShops, setShopApproval } from '../store/adminShopsThunks'
 import { removeShopsLocally } from '../store/adminShopsSlice'
 import {
   selectAdminShops,
   selectAdminShopsError,
+  selectAdminShopsModerationError,
   selectAdminShopsStatus,
 } from '../store/adminShopsSelectors'
 import {
@@ -21,21 +23,26 @@ import {
   Trash2,
   Building2,
   X,
+  Check,
+  XCircle,
 } from 'lucide-react'
 
-const FILTER_TABS: { key: 'all' | 'active' | 'inactive'; label: string }[] = [
+const FILTER_TABS: { key: 'all' | 'pending' | 'active' | 'inactive'; label: string }[] = [
   { key: 'all', label: 'All' },
-  { key: 'active', label: 'Active' },
+  { key: 'pending', label: 'Pending approval' },
+  { key: 'active', label: 'Live' },
   { key: 'inactive', label: 'Inactive' },
 ]
 
 const AdminShopsPage = () => {
   const dispatch = useAppDispatch()
+  const navigate = useNavigate()
   const { openModal } = useGlobalModal()
   const shops = useAppSelector(selectAdminShops)
   const shopsStatus = useAppSelector(selectAdminShopsStatus)
   const shopsError = useAppSelector(selectAdminShopsError)
-  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('all')
+  const moderationError = useAppSelector(selectAdminShopsModerationError)
+  const [activeFilter, setActiveFilter] = useState<'all' | 'pending' | 'active' | 'inactive'>('all')
   const [search, setSearch] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [page, setPage] = useState(1)
@@ -64,6 +71,7 @@ const AdminShopsPage = () => {
   const filteredShops = shops.filter((shop) => {
     const matchesFilter =
       activeFilter === 'all' ||
+      (activeFilter === 'pending' && shop.status === 'pending') ||
       (activeFilter === 'active' && shop.status === 'active') ||
       (activeFilter === 'inactive' && shop.status === 'inactive')
 
@@ -72,7 +80,8 @@ const AdminShopsPage = () => {
       !query ||
       shop.name.toLowerCase().includes(query) ||
       shop.description.toLowerCase().includes(query) ||
-      shop.slug.toLowerCase().includes(query)
+      shop.slug.toLowerCase().includes(query) ||
+      shop.ownerLabel.toLowerCase().includes(query)
 
     return matchesFilter && matchesSearch
   })
@@ -80,12 +89,13 @@ const AdminShopsPage = () => {
   const totalPages = Math.max(1, Math.ceil(filteredShops.length / rowsPerPage))
   const paginatedShops = filteredShops.slice((page - 1) * rowsPerPage, page * rowsPerPage)
 
+  const selectableOnPage = paginatedShops.filter((s) => s.status !== 'pending')
   const allSelectedOnPage =
-    paginatedShops.length > 0 &&
-    paginatedShops.every((shop) => selectedIds.has(shop.id))
+    selectableOnPage.length > 0 &&
+    selectableOnPage.every((shop) => selectedIds.has(shop.id))
 
   const toggleSelectAll = () => {
-    const pageIds = paginatedShops.map((s) => s.id)
+    const pageIds = selectableOnPage.map((s) => s.id)
     setSelectedIds((prev) => {
       const next = new Set(prev)
       const allPageSelected = pageIds.every((id) => next.has(id))
@@ -105,7 +115,11 @@ const AdminShopsPage = () => {
   }
 
   const handleBulkDelete = () => {
-    dispatch(removeShopsLocally(Array.from(selectedIds)))
+    const ids = Array.from(selectedIds).filter(
+      (id) => shops.find((s) => s.id === id)?.status !== 'pending',
+    )
+    if (ids.length === 0) return
+    dispatch(removeShopsLocally(ids))
     setSelectedIds(new Set())
     setPage(1)
   }
@@ -126,6 +140,25 @@ const AdminShopsPage = () => {
     })
   }
 
+  const confirmSingleDelete = (shop: AdminShopRow) => {
+    openModal({
+      title: 'Delete shop?',
+      content: (
+        <p>
+          Are you sure you want to delete <strong>{shop.name}</strong>? This cannot be undone. Shops with products
+          cannot be deleted until products are removed.
+        </p>
+      ),
+      primaryLabel: 'Delete',
+      primaryVariant: 'success',
+      secondaryLabel: 'Cancel',
+      onPrimary: async () => {
+        await adminShopApi.deleteShop(shop.id)
+        await dispatch(fetchAdminShops()).unwrap()
+      },
+    })
+  }
+
   return (
     <div className="space-y-6">
       <nav className="text-xs text-slate-500">
@@ -140,7 +173,7 @@ const AdminShopsPage = () => {
         <div>
           <h1 className="text-xl font-bold text-slate-900">Shops</h1>
           <p className="mt-0.5 text-sm text-slate-600">
-            Browse and manage all shops from product-service.
+            Pending seller applications and live shops from product-service. Approve or reject from the row menu.
           </p>
         </div>
         <Link
@@ -151,6 +184,12 @@ const AdminShopsPage = () => {
           Add Shop
         </Link>
       </div>
+
+      {moderationError && (
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+          {moderationError}
+        </p>
+      )}
 
       <div className="flex flex-wrap gap-1">
         {FILTER_TABS.map((tab) => (
@@ -294,9 +333,11 @@ const AdminShopsPage = () => {
                     <td className="px-4 py-3">
                       <input
                         type="checkbox"
+                        disabled={shop.status === 'pending'}
+                        title={shop.status === 'pending' ? 'Use Approve / Reject for pending shops' : undefined}
                         checked={selectedIds.has(shop.id)}
                         onChange={() => toggleSelect(shop.id)}
-                        className="rounded border-slate-300"
+                        className="rounded border-slate-300 disabled:opacity-40"
                       />
                     </td>
                     <td className="px-4 py-3">
@@ -308,12 +349,18 @@ const AdminShopsPage = () => {
                     <td className="px-4 py-3">
                       <span
                         className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          shop.status === 'active'
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : 'bg-slate-100 text-slate-600'
+                          shop.status === 'pending'
+                            ? 'bg-amber-100 text-amber-800'
+                            : shop.status === 'active'
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : 'bg-slate-100 text-slate-600'
                         }`}
                       >
-                        {shop.status === 'active' ? 'Active' : 'Inactive'}
+                        {shop.status === 'pending'
+                          ? 'Pending approval'
+                          : shop.status === 'active'
+                            ? 'Live'
+                            : 'Inactive'}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-600">{shop.created}</td>
@@ -325,7 +372,11 @@ const AdminShopsPage = () => {
                       >
                         <button
                           type="button"
-                          onClick={() => setOpenMenuId((id) => (id === shop.id ? null : shop.id))}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setOpenMenuId((id) => (id === shop.id ? null : shop.id))
+                          }}
                           className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
                           aria-label="Actions"
                           aria-expanded={openMenuId === shop.id}
@@ -338,9 +389,76 @@ const AdminShopsPage = () => {
                               openUpward ? 'bottom-full mb-1' : 'top-full mt-1'
                             }`}
                           >
+                            {shop.status === 'pending' && (
+                              <>
+                                <button
+                                  type="button"
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setOpenMenuId(null)
+                                    openModal({
+                                      title: `Approve “${shop.name}”?`,
+                                      content: (
+                                        <p className="text-sm text-slate-600">
+                                          The shop becomes live in the public catalogue. The owner can manage products
+                                          from the seller dashboard.
+                                        </p>
+                                      ),
+                                      primaryLabel: 'Approve shop',
+                                      primaryVariant: 'success',
+                                      secondaryLabel: 'Cancel',
+                                      onPrimary: async () => {
+                                        await dispatch(
+                                          setShopApproval({ shopId: shop.id, approved: true }),
+                                        ).unwrap()
+                                      },
+                                    })
+                                  }}
+                                  className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs font-medium text-emerald-700 hover:bg-slate-50 cursor-pointer"
+                                >
+                                  <Check size={16} className="shrink-0" />
+                                  Approve
+                                </button>
+                                <button
+                                  type="button"
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setOpenMenuId(null)
+                                    openModal({
+                                      title: `Reject “${shop.name}”?`,
+                                      content: (
+                                        <p className="text-sm text-slate-600">
+                                          The application is marked rejected. The owner may submit a new registration
+                                          later if you allow it.
+                                        </p>
+                                      ),
+                                      primaryLabel: 'Reject application',
+                                      primaryVariant: 'danger',
+                                      secondaryLabel: 'Cancel',
+                                      onPrimary: async () => {
+                                        await dispatch(
+                                          setShopApproval({ shopId: shop.id, approved: false }),
+                                        ).unwrap()
+                                      },
+                                    })
+                                  }}
+                                  className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs font-medium text-red-600 hover:bg-slate-50 cursor-pointer"
+                                >
+                                  <XCircle size={16} className="shrink-0" />
+                                  Reject
+                                </button>
+                              </>
+                            )}
                             <button
                               type="button"
-                              onClick={() => setOpenMenuId(null)}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setOpenMenuId(null)
+                                navigate(`/super-admin/shops/${shop.id}`)
+                              }}
                               className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
                             >
                               <Eye size={16} className="shrink-0 text-slate-500" />
@@ -348,7 +466,12 @@ const AdminShopsPage = () => {
                             </button>
                             <button
                               type="button"
-                              onClick={() => setOpenMenuId(null)}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setOpenMenuId(null)
+                                navigate(`/super-admin/shops/${shop.id}/edit`)
+                              }}
                               className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
                             >
                               <Pencil size={16} className="shrink-0 text-slate-500" />
@@ -356,7 +479,12 @@ const AdminShopsPage = () => {
                             </button>
                             <button
                               type="button"
-                              onClick={() => setOpenMenuId(null)}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setOpenMenuId(null)
+                                confirmSingleDelete(shop)
+                              }}
                               className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-red-600 hover:bg-slate-50 cursor-pointer"
                             >
                               <Trash2 size={16} className="shrink-0 text-slate-500" />
@@ -397,6 +525,9 @@ const ShopCell = ({ shop }: { shop: AdminShopRow }) => (
     <div>
       <p className="text-xs font-semibold text-slate-900">{shop.name}</p>
       <p className="text-xs text-slate-500">{shop.description}</p>
+      {shop.status === 'pending' && shop.ownerLabel !== '—' && (
+        <p className="mt-0.5 text-[11px] text-slate-400">Owner / contact: {shop.ownerLabel}</p>
+      )}
     </div>
   </div>
 )
