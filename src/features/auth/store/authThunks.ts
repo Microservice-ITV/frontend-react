@@ -1,5 +1,6 @@
 // Thunks => Async Business Logic
 import { createAsyncThunk } from '@reduxjs/toolkit'
+import type { AxiosResponse } from 'axios'
 import { authFeatureApi } from '../api/authApi'
 import type { User, TokenPayload, AuthState } from '../types/authTypes'
 import { markInitialized, setHasSession } from './authSlice'
@@ -7,15 +8,31 @@ import { hasSessionCookie, setSessionCookie, clearSessionCookie } from '@/utils/
 import axios from 'axios'
 import { AUTH_SERVICE_BASE_URL } from '@/lib/api/apiConfig'
 
+/** Pull refresh TTL hint from auth-service JSON — canonical policy lives there (`JWT_REFRESH_TTL`). */
+const refreshTtlSecondsFromAuthResponse = (res: AxiosResponse<{ data?: { refresh_ttl_seconds?: unknown } }>): number | undefined => {
+    const raw = res.data?.data?.refresh_ttl_seconds
+    if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) return Math.floor(raw)
+    if (typeof raw === 'string') {
+        const n = Number.parseInt(raw, 10)
+        if (Number.isFinite(n) && n > 0) return n
+    }
+    return undefined
+}
+
+const applySessionCookieFromAuthResponse = (res: AxiosResponse<{ data?: { refresh_ttl_seconds?: unknown } }>): void => {
+    const sec = refreshTtlSecondsFromAuthResponse(res)
+    setSessionCookie(sec)
+}
+
 // ============== LOGIN Backend returns ONLY access_token =================
 export const login = createAsyncThunk<
     TokenPayload,
     { email: string; password: string; recaptchaToken: string },
     { rejectValue: string }
->('auth/login', async (data, { dispatch, rejectWithValue }) => {
+>('auth/login', async (data, { rejectWithValue }) => {
     try {
         const res = await authFeatureApi.login(data)
-        setSessionCookie()
+        applySessionCookieFromAuthResponse(res)
         return { accessToken: res.data.data.access_token }
     } catch {
         return rejectWithValue('Your email and/or password is incorrect. Please try again.')
@@ -31,7 +48,7 @@ export const register = createAsyncThunk<
 >('auth/register', async (data, { rejectWithValue }) => {
     try {
         const res = await authFeatureApi.register(data)
-        setSessionCookie()
+        applySessionCookieFromAuthResponse(res)
         return {
             accessToken: res.data.data.access_token,
         }
@@ -84,7 +101,7 @@ export const refreshAccessToken = createAsyncThunk<
             return null
         }
 
-        setSessionCookie()
+        applySessionCookieFromAuthResponse(res)
         dispatch(fetchMe())
 
         return accessToken
