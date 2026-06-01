@@ -1,43 +1,52 @@
-# Vite + React: static `dist/` served by Nginx. VITE_* = build args (baked in at `npm run build`).
-# Local API URLs must match your machine (e.g. auth on :8000).
-#
-#   cp docker/compose.env.example docker/compose.env
-#   # fill VITE_*
-#   docker compose --env-file docker/compose.env up -d --build
-#
-# UI: http://localhost:${FRONTEND_HTTP_PORT:-3000}  health: /health
-#
-# `env_file` below does NOT set build args. Use `docker compose --env-file docker/compose.env` so
-# ${VITE_*} in this file resolve when building.
-
 name: frontend-react
 
+networks:
+  app-network:
+    name: ${NETWORK_NAME}
+    driver: bridge
+
 services:
-  web:
+  node:
     build:
       context: .
-      dockerfile: Dockerfile
-      target: web
-      args:
-        VITE_AUTH_SERVICE_URL: ${VITE_AUTH_SERVICE_URL:-http://localhost:8000/api/v1}
-        VITE_ORDER_SERVICE_URL: ${VITE_ORDER_SERVICE_URL:-http://localhost:8001/api}
-        VITE_PRODUCT_SERVICE_URL: ${VITE_PRODUCT_SERVICE_URL:-http://localhost:5001/api/v1}
-        VITE_ECOMMERCE_READ_SERVICE_URL: ${VITE_ECOMMERCE_READ_SERVICE_URL:-http://localhost:5004}
-        VITE_ECOMMERCE_READ_GRAPHQL_URL: ${VITE_ECOMMERCE_READ_GRAPHQL_URL:-http://localhost:5004/graphql}
-        VITE_SHIPPING_SERVICE_URL: ${VITE_SHIPPING_SERVICE_URL:-http://localhost:5005/api/v1}
-        VITE_STRIPE_PUBLIC_KEY: ${VITE_STRIPE_PUBLIC_KEY:-}
-        VITE_RECAPTCHA_SITE_KEY: ${VITE_RECAPTCHA_SITE_KEY:-}
-        VITE_MAP_PROVIDER: ${VITE_MAP_PROVIDER:-osm}
-        VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY:-}
-        VITE_USE_MOCK_API: ${VITE_USE_MOCK_API:-false}
-    restart: unless-stopped
-    ports:
-      - "${FRONTEND_HTTP_PORT:-3000}:80"
-      # - "443:443" # (uncomment in production) or TLS on reverse proxy
+      dockerfile: docker/node/Dockerfile
+    container_name: ${NODE_CONTAINER_NAME}
+    working_dir: ${NODE_WORKING_DIR}
+    restart: always
+    environment:
+      APP_ENV: ${APP_ENV}
+      VITE_AUTH_SERVICE_URL: ${VITE_AUTH_SERVICE_URL:-http://localhost:8000/api/v1}
+      VITE_ORDER_SERVICE_URL: ${VITE_ORDER_SERVICE_URL:-http://localhost:8001/api}
+      VITE_PRODUCT_SERVICE_URL: ${VITE_PRODUCT_SERVICE_URL:-http://localhost:5001/api/v1}
+      VITE_ECOMMERCE_READ_SERVICE_URL: ${VITE_ECOMMERCE_READ_SERVICE_URL:-http://localhost:5004}
+      VITE_ECOMMERCE_READ_GRAPHQL_URL: ${VITE_ECOMMERCE_READ_GRAPHQL_URL:-http://localhost:5004/graphql}
+      VITE_SHIPPING_SERVICE_URL: ${VITE_SHIPPING_SERVICE_URL:-http://localhost:5005/api/v1}
+      VITE_STRIPE_PUBLIC_KEY: ${VITE_STRIPE_PUBLIC_KEY:-}
+      VITE_RECAPTCHA_SITE_KEY: ${VITE_RECAPTCHA_SITE_KEY:-}
+      VITE_MAP_PROVIDER: ${VITE_MAP_PROVIDER:-osm}
+      VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY:-}
+      VITE_USE_MOCK_API: ${VITE_USE_MOCK_API:-false}
+    volumes:
+      - ./src:${NODE_WORKING_DIR}
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5173/"]
       interval: 30s
-      timeout: 5s
+      timeout: 10s
       retries: 3
       start_period: 10s
-    # mem_limit: 64m  # (uncomment in production)
+    networks:
+      - app-network
+
+  nginx:
+    image: nginx:stable-alpine
+    container_name: ${NGINX_CONTAINER_NAME}
+    ports:
+      - "${APP_PORT:-3000}:80"
+    volumes:
+      - ./docker/nginx:/etc/nginx/conf.d
+      - ./src:${NGINX_WORKING_DIR}
+    depends_on:
+      node:
+        condition: service_started
+    networks:
+      - app-network
