@@ -18,10 +18,10 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
 
-    "baseUrl": "./src",
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["*"]
+      "@/*": ["./*"]
     }
   },
-  "include": ["src"]
+  "include": ["."]
 }
