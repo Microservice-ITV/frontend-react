@@ -5,6 +5,7 @@ import { fileURLToPath, URL } from 'node:url'
 
 // https://vite.dev/config/
 export default defineConfig({
+  envDir: '..',
   plugins: [react(), tailwindcss()],
   server: {
     // later needs to remove
