@@ -1,4 +1,4 @@
-name: frontend-react
+name: frontendreact
 
 networks:
   app-network:
@@ -10,7 +10,7 @@ services:
     build:
       context: .
       dockerfile: docker/node/Dockerfile
-    container_name: ${NODE_CONTAINER_NAME}
+    container_name: frontendreact-${NODE_CONTAINER_NAME}
     working_dir: ${NODE_WORKING_DIR}
     restart: always
     environment:
@@ -48,7 +48,7 @@ services:
 
   nginx:
     image: nginx:stable-alpine
-    container_name: ${NGINX_CONTAINER_NAME}
+    container_name: frontendreact-${NGINX_CONTAINER_NAME}
     ports:
       - "${APP_PORT:-3000}:80"
     volumes:
