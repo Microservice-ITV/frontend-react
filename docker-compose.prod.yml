@@ -1,0 +1,28 @@
+name: frontendreact
+
+services:
+
+  frontend:
+    image: ${DOCKER_USERNAME}/${DOCKER_IMAGE}:${IMAGE_TAG}
+
+    container_name: frontendreact-${NODE_CONTAINER_NAME}
+
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    ports:
+      - "${APP_PORT:-3000}:80"
+
+    networks:
+      - ${NETWORK_NAME}
+
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "https://dailyneeditems.com/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+  networks:
+  ${NETWORK_NAME}:
+    external: true
