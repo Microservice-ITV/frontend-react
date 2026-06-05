@@ -85,6 +85,17 @@ jobs:
             git reset --hard origin/main
 
             ##################################################
+            # 🧪 CREATE .env ON SERVER (IMPORTANT PART)
+            ##################################################
+            echo "📄 Creating .env file..."
+
+            cat > .env <<EOF
+            ${{ secrets.FRONTEND_ENV }}
+            EOF
+
+            chmod 600 .env
+
+            ##################################################
             # 2. Docker Login (for pulling private images)
             ##################################################
             echo "${{ secrets.DOCKER_TOKEN }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
