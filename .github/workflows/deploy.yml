@@ -1,0 +1,108 @@
+name: 🚀 Frontend React Production Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+#####################################################
+# 1. BUILD + PUSH DOCKER IMAGE
+#####################################################
+jobs:
+  build-and-push:
+    name: 🐳 Build & Push Frontend Image
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      #################################################
+      # Inject .env file from GitHub Secrets
+      #################################################
+      - name: 🧪 Create .env file
+        run: |
+          echo "${{ secrets.FRONTEND_ENV }}" > .env
+
+      #################################################
+      # Docker Hub Login
+      #################################################
+      - name: 🐳 Docker Hub Login
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      #################################################
+      # Build & Push Image
+      #################################################
+      - name: 🏗️ Build & Push Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/node/Dockerfile.prod
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/frontend-react:latest
+            ${{ secrets.DOCKER_USERNAME }}/frontend-react:${{ github.sha }}
+
+#####################################################
+# 2. DEPLOY TO VPS
+#####################################################
+  deploy:
+    name: 🚀 Deploy to VPS
+    runs-on: ubuntu-latest
+    needs: build-and-push
+
+    steps:
+
+      - name: 🚀 SSH Deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT }}
+
+          script: |
+
+            set -e
+
+            echo "🚀 Deploying Frontend React..."
+
+            ##################################################
+            # 1. Clone or update repo (optional for tracking)
+            ##################################################
+            if [ ! -d "/var/www/html/microservices/frontend-react" ]; then
+              git clone git@github.com:Microservice-ITV/frontend-react.git \
+              /var/www/html/microservices/frontend-react
+            fi
+
+            cd /var/www/html/microservices/frontend-react
+
+            git fetch origin
+            git reset --hard origin/main
+
+            ##################################################
+            # 2. Docker Login (for pulling private images)
+            ##################################################
+            echo "${{ secrets.DOCKER_TOKEN }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+            ##################################################
+            # 3. Pull latest image
+            ##################################################
+            docker compose -f docker-compose.prod.yml pull
+
+            ##################################################
+            # 4. Restart container
+            ##################################################
+            docker compose -f docker-compose.prod.yml up -d
+
+            ##################################################
+            # 5. Cleanup
+            ##################################################
+            docker image prune -f
+            docker system prune -f
+
+            echo "✅ Frontend Deployment Successful!"
