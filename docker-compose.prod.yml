@@ -16,7 +16,7 @@ services:
       - "${APP_PORT:-3000}:80"
 
     networks:
-      - ${NETWORK_NAME}
+      - app-network
 
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "https://dailyneeditems.com/health"]
@@ -24,5 +24,6 @@ services:
       timeout: 10s
       retries: 5
 networks:
-  ${NETWORK_NAME}:
+  app-network:
     external: true
+    name: ${NETWORK_NAME}
