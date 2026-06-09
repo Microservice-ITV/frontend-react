@@ -46,6 +46,11 @@ jobs:
           tags: |
             ${{ secrets.DOCKER_USERNAME }}/frontend-react:latest
             ${{ secrets.DOCKER_USERNAME }}/frontend-react:${{ github.sha }}
+          build-args: |
+            VITE_AUTH_SERVICE_URL=https://api.dailyneeditems.com/auth
+            VITE_PRODUCT_SERVICE_URL=https://api.dailyneeditems.com/products
+            VITE_MAP_PROVIDER=osm
+            VITE_USE_MOCK_API=false
 
 #####################################################
 # 2. DEPLOY TO VPS
