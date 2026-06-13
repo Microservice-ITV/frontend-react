@@ -100,5 +100,5 @@ iframe[title="reCAPTCHA"] {
     pointer-events: none !important;
 } */
 .grecaptcha-badge {
-    visibility: hidden;
+    visibility: visible;
 }
