@@ -49,6 +49,8 @@ jobs:
           build-args: |
             VITE_AUTH_SERVICE_URL=https://api.dailyneeditems.com/auth
             VITE_PRODUCT_SERVICE_URL=https://api.dailyneeditems.com/products
+            VITE_PRODUCT_SERVICE_URL=https://api.dailyneeditems.com/graphql
+            VITE_ORDER_SERVICE_URL=https://api.dailyneeditems.com/orders
             VITE_MAP_PROVIDER=osm
             VITE_USE_MOCK_API=false
             VITE_RECAPTCHA_SITE_KEY=6Lez3xwtAAAAAA1K0_ItVxqfhusvVDTTD6yTjBN-
