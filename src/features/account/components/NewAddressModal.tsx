@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { SearchableSelect } from '@/components/ui/SearchableSelect'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -131,9 +132,6 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
     defaultValues: initialFormValues,
   })
 
-  const [locationDropdownOpen, setLocationDropdownOpen] = useState(false)
-  const [locationTab, setLocationTab] = useState<'state' | 'city' | 'district' | 'ward'>('state')
-
   const [states, setStates] = useState<StateOption[]>([])
   const [cities, setCities] = useState<CityOption[]>([])
   const [districts, setDistricts] = useState<DistrictOption[]>([])
@@ -162,9 +160,6 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
   const isDefault = watch('isDefault')
 
   const hasSelectedFullLocation = !!selectedState && !!selectedCity && !!selectedDistrict && !!selectedWard
-  const locationLabel = [selectedState?.name, selectedCity?.name, selectedDistrict?.name, selectedWard?.name]
-    .filter(Boolean)
-    .join(', ')
 
   const getFieldError = (field: keyof AddressFormErrors) => {
     const message = errors[field]?.message
@@ -477,122 +472,55 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
         </div>
       </div>
 
-      {/* Row 2: State, City, District, Ward dropdown */}
-      <div className="relative">
-        <button
-          type="button"
-          onClick={() => setLocationDropdownOpen((open) => !open)}
-          className="w-full flex justify-between items-center border border-gray-300 rounded-sm px-3 py-2 text-sm bg-white text-left focus:outline-none focus:ring-1 focus:ring-emerald-600 cursor-pointer"
-        >
-          <span className={locationLabel ? 'text-gray-900' : 'text-gray-400'}>
-            {locationLabel || 'State, City, District, Ward'}
-          </span>
-          <span className="text-gray-400 text-xs">▼</span>
-        </button>
-
-        {locationDropdownOpen && (
-          <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-sm shadow-lg text-xs">
-            {/* Tabs */}
-            <div className="flex border-b border-gray-200 text-[11px]">
-              {(['state', 'city', 'district', 'ward'] as const).map((tab) => {
-                const isActive = locationTab === tab
-                const isDisabled =
-                  (tab === 'city' && !selectedState) ||
-                  (tab === 'district' && !selectedCity) ||
-                  (tab === 'ward' && (!selectedCity || !selectedDistrict))
-                return (
-                  <button
-                    key={tab}
-                    type="button"
-                    disabled={isDisabled}
-                    onClick={() => !isDisabled && setLocationTab(tab)}
-                    className={`flex-1 py-2 text-center uppercase ${
-                      isDisabled ? 'text-gray-300 cursor-not-allowed' : 'cursor-pointer text-gray-700'
-                    }`}
-                  >
-                    <span>{tab}</span>
-                    {isActive && <div className="mt-1 h-[2px] w-full bg-emerald-600" />}
-                  </button>
-                )
-              })}
-            </div>
-
-            {/* Options list */}
-            <div className="max-h-48 overflow-y-auto">
-              {locationTab === 'state' && (
-                <ul>
-                  {states.map((state) => (
-                    <li
-                      key={state.id}
-                      className="px-3 py-2 hover:bg-gray-50 cursor-pointer"
-                      onClick={() => void selectState(state)}
-                    >
-                      {state.name}
-                    </li>
-                  ))}
-                </ul>
-              )}
-
-              {locationTab === 'city' && (
-                <ul>
-                  {selectedState ? (
-                    cities.map((city) => (
-                      <li
-                        key={city.id}
-                        className="px-3 py-2 hover:bg-gray-50 cursor-pointer"
-                        onClick={() => void selectCity(city)}
-                      >
-                        {city.name}
-                      </li>
-                    ))
-                  ) : (
-                    <li className="px-3 py-2 text-gray-400">Please select a state first.</li>
-                  )}
-                </ul>
-              )}
-
-              {locationTab === 'district' && (
-                <ul>
-                  {selectedCity ? (
-                    districts.map((district) => (
-                      <li
-                        key={district.id}
-                        className="px-3 py-2 hover:bg-gray-50 cursor-pointer"
-                        onClick={() => void selectDistrict(district)}
-                      >
-                        {district.name}
-                      </li>
-                    ))
-                  ) : (
-                    <li className="px-3 py-2 text-gray-400">Please select a city first.</li>
-                  )}
-                </ul>
-              )}
-
-              {locationTab === 'ward' && (
-                <ul>
-                  {selectedDistrict ? (
-                    wards.map((ward) => (
-                      <li
-                        key={ward.id}
-                        className="px-3 py-2 hover:bg-gray-50 cursor-pointer"
-                        onClick={() => selectWard(ward)}
-                      >
-                        {ward.name}
-                      </li>
-                    ))
-                  ) : (
-                    <li className="px-3 py-2 text-gray-400">Please select a district first.</li>
-                  )}
-                </ul>
-              )}
-            </div>
-          </div>
-        )}
+      {/* Row 2: State, City, District, Ward */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <SearchableSelect
+          placeholder="Search state..."
+          emptyLabel="Select State"
+          options={states.map((s) => ({ value: String(s.id), label: s.name }))}
+          value={selectedState ? String(selectedState.id) : ''}
+          onChange={(val) => {
+            const state = states.find((s) => String(s.id) === val)
+            if (state) void selectState(state)
+          }}
+        />
+        <SearchableSelect
+          placeholder="Search city..."
+          emptyLabel="Select City"
+          options={cities.map((c) => ({ value: String(c.id), label: c.name }))}
+          value={selectedCity ? String(selectedCity.id) : ''}
+          onChange={(val) => {
+            const city = cities.find((c) => String(c.id) === val)
+            if (city) void selectCity(city)
+          }}
+          disabled={!selectedState}
+        />
+        <SearchableSelect
+          placeholder="Search district..."
+          emptyLabel="Select District"
+          options={districts.map((d) => ({ value: String(d.id), label: d.name }))}
+          value={selectedDistrict ? String(selectedDistrict.id) : ''}
+          onChange={(val) => {
+            const district = districts.find((d) => String(d.id) === val)
+            if (district) void selectDistrict(district)
+          }}
+          disabled={!selectedCity}
+        />
+        <SearchableSelect
+          placeholder="Search ward..."
+          emptyLabel="Select Ward"
+          options={wards.map((w) => ({ value: String(w.id), label: w.name }))}
+          value={selectedWard ? String(selectedWard.id) : ''}
+          onChange={(val) => {
+            const ward = wards.find((w) => String(w.id) === val)
+            if (ward) selectWard(ward)
+          }}
+          disabled={!selectedDistrict}
+        />
+      </div>
       {getFieldError('location') && isSubmitted && (
         <p className="mt-1 text-[11px] text-red-500">{getFieldError('location')}</p>
       )}
-      </div>
       
 
       {/* Row 3: Street name & Add Location (enabled only after basic info + location) */}
