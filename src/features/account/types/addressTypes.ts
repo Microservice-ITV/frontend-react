@@ -36,6 +36,10 @@ export interface UpsertAddressPayload {
   email?: string | null
   delivery_note?: string | null
   country_code?: string // defaults to 'MM' on backend if omitted
+  state: string
+  city: string
+  district: string
+  ward: string
   state_id: number
   city_id: number
   district_id: number
