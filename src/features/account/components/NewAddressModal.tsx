@@ -327,8 +327,6 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
     setValue('cityId', null, { shouldDirty: true })
     setValue('districtId', null, { shouldDirty: true })
     setValue('wardId', null, { shouldDirty: true })
-    setLocationTab('city')
-
     try {
       const res = await locationApi.getCities(state.id)
       setCities(res.data.data.cities)
@@ -348,8 +346,6 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
     setValue('cityId', city.id, { shouldDirty: true })
     setValue('districtId', null, { shouldDirty: true })
     setValue('wardId', null, { shouldDirty: true })
-    setLocationTab('district')
-
     try {
       const res = await locationApi.getDistricts(city.id)
       setDistricts(res.data.data.districts)
@@ -365,8 +361,6 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
     setSelectedWard(null)
     setValue('districtId', district.id, { shouldDirty: true })
     setValue('wardId', null, { shouldDirty: true })
-    setLocationTab('ward')
-
     try {
       const res = await locationApi.getWards(district.id)
       setWards(res.data.data.wards)
@@ -378,7 +372,6 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
   const selectWard = (ward: WardOption) => {
     setSelectedWard(ward)
     setValue('wardId', ward.id, { shouldDirty: true })
-    setLocationDropdownOpen(false)
   }
 
   const onSubmit = async (values: FormValues) => {
