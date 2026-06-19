@@ -3,7 +3,7 @@ import { createAsyncThunk } from '@reduxjs/toolkit'
 import type { AxiosResponse } from 'axios'
 import { authFeatureApi } from '../api/authApi'
 import type { User, TokenPayload, AuthState } from '../types/authTypes'
-import { markInitialized, setHasSession } from './authSlice'
+import { markInitialized, setAccessToken, setHasSession } from './authSlice'
 import { hasSessionCookie, setSessionCookie, clearSessionCookie } from '@/utils/session'
 import axios from 'axios'
 import { AUTH_SERVICE_BASE_URL } from '@/lib/api/apiConfig'
@@ -102,6 +102,7 @@ export const refreshAccessToken = createAsyncThunk<
         }
 
         applySessionCookieFromAuthResponse(res)
+        dispatch(setAccessToken(accessToken))
         dispatch(fetchMe())
 
         return accessToken
