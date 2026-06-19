@@ -140,9 +140,9 @@ export const GlobalModalProvider = ({ children }: GlobalModalProviderProps) => {
           />
 
           <div className="relative z-10 w-full max-w-2xl px-4">
-            <div className="bg-white rounded-sm shadow-lg">
+            <div className="flex flex-col bg-white rounded-sm shadow-lg max-h-[90vh]">
               {/* Header */}
-              <div className="flex items-center justify-between px-8 pt-6 pb-4 border-b border-gray-200">
+              <div className="flex-shrink-0 flex items-center justify-between px-8 pt-6 pb-4 border-b border-gray-200">
                 <h2 className="text-lg font-medium text-gray-900">{modalState.title}</h2>
                 <button
                   type="button"
@@ -155,14 +155,14 @@ export const GlobalModalProvider = ({ children }: GlobalModalProviderProps) => {
               </div>
 
               {/* Body */}
-              <div className="px-8 py-4 text-sm text-gray-800">{modalState.content}</div>
+              <div className="flex-1 min-h-0 overflow-y-auto px-8 py-4 text-sm text-gray-800">{modalState.content}</div>
 
               {modalState.error && (
-                <div className="px-8 pb-1 text-sm text-red-600">{modalState.error}</div>
+                <div className="flex-shrink-0 px-8 pb-1 text-sm text-red-600">{modalState.error}</div>
               )}
 
               {/* Footer */}
-              <div className="flex items-center justify-end gap-3 px-8 pb-6 pt-4 border-t border-gray-100">
+              <div className="flex-shrink-0 flex items-center justify-end gap-3 px-8 pb-6 pt-4 border-t border-gray-100">
                 {!modalState.hideSecondary && (
                   <button
                     type="button"
