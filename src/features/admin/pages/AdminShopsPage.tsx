@@ -7,6 +7,7 @@ import type { AdminShopRow } from '../types/shopTypes'
 import { adminShopApi } from '../api/adminShopApi'
 import { fetchAdminShops, setShopApproval } from '../store/adminShopsThunks'
 import { removeShopsLocally } from '../store/adminShopsSlice'
+import { fetchMe } from '@/features/auth/store/authThunks'
 import {
   selectAdminShops,
   selectAdminShopsError,
@@ -155,6 +156,7 @@ const AdminShopsPage = () => {
       onPrimary: async () => {
         await adminShopApi.deleteShop(shop.id)
         await dispatch(fetchAdminShops()).unwrap()
+        dispatch(fetchMe())
       },
     })
   }
