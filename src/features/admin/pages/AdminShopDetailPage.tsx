@@ -5,6 +5,7 @@ import { useAppDispatch } from '@/app/hooks'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
 import { adminShopApi, type ShopReadItem } from '../api/adminShopApi'
 import { fetchAdminShops } from '../store/adminShopsThunks'
+import { fetchMe } from '@/features/auth/store/authThunks'
 
 const formatDate = (value?: string) => {
   if (!value) return '—'
@@ -84,6 +85,8 @@ const AdminShopDetailPage = () => {
         } catch {
           // list refresh best-effort
         }
+        // Refresh auth user so ProtectedRoute re-evaluates with fresh role
+        dispatch(fetchMe())
         navigate('/super-admin/shops')
       },
     })
