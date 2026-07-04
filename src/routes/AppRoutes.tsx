@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { LoginPage } from '@/features/auth/pages/LoginPage'
 import { RegisterPage } from '@/features/auth/pages/RegisterPage'
+import { VerifyEmailPage } from '@/features/auth/pages/VerifyEmailPage'
 import OAuthSuccessPage from '@/features/auth/pages/OAuthSuccessPage'
 import OAuthErrorPage from '@/features/auth/pages/OAuthErrorPage'
 import ForbiddenPage from '@/features/auth/pages/ForbiddenPage'
@@ -56,6 +57,7 @@ const AppRoutes = () => {
             <Route element={<GuestRoute />}>
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
+                <Route path="/verify-email" element={<VerifyEmailPage />} />
             </Route>
 
             {/* Protected routes */}

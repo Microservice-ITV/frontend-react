@@ -40,10 +40,12 @@ export const RegisterPage = () => {
         register({ ...normalizedForm, recaptchaToken })
       ).unwrap()
 
-      // Only redirect when registration actually succeeded in this flow
       navigate('/login', { replace: true })
-    } catch {
-      // optional: local error handling
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'requiresVerification' in err) {
+        const payload = err as unknown as { requiresVerification: boolean; email: string }
+        navigate(`/verify-email?email=${encodeURIComponent(payload.email)}`, { replace: true })
+      }
     }
   }
 
