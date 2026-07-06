@@ -9,7 +9,7 @@ const MAX_THUMBS_VISIBLE = 5
 
 const ProductGallery = ({ images }: Props) => {
     const safeImages = useMemo(
-        () => (images.length ? images : ['/placeholder.png']),
+        () => (images.length ? images : ['/placeholder.svg']),
         [images],
     )
 

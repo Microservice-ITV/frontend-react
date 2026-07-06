@@ -1,6 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit'
 import type { ProductsState } from '../types/productTypes'
-import { fetchProductsByCategory, fetchProductDetail } from './productThunks'
+import { fetchProductsByCategory, fetchProductDetail, searchProducts } from './productThunks'
 
 const initialState: ProductsState = {
     items: [],
@@ -8,6 +8,9 @@ const initialState: ProductsState = {
     status: 'idle',
     error: null,
     detailRequestedId: null,
+    searchResults: [],
+    searchStatus: 'idle',
+    searchError: null,
 }
 
 const productSlice = createSlice({
@@ -17,6 +20,11 @@ const productSlice = createSlice({
         clearSelectedProduct(state) {
             state.selectedProduct = null
             state.detailRequestedId = null
+        },
+        clearSearch(state) {
+            state.searchResults = []
+            state.searchStatus = 'idle'
+            state.searchError = null
         },
     },
     extraReducers: (builder) => {
@@ -33,6 +41,20 @@ const productSlice = createSlice({
             .addCase(fetchProductsByCategory.rejected, (state, action) => {
                 state.status = 'failed'
                 state.error = (action.payload as string) ?? 'Failed to load products'
+            })
+
+            // SEARCH
+            .addCase(searchProducts.pending, (state) => {
+                state.searchStatus = 'loading'
+                state.searchError = null
+            })
+            .addCase(searchProducts.fulfilled, (state, action) => {
+                state.searchStatus = 'succeeded'
+                state.searchResults = action.payload
+            })
+            .addCase(searchProducts.rejected, (state, action) => {
+                state.searchStatus = 'failed'
+                state.searchError = (action.payload as string) ?? 'Search failed'
             })
 
             // DETAIL — clear previous PDP so we never flash the wrong product; track request id for races
@@ -62,5 +84,5 @@ const productSlice = createSlice({
     },
 })
 
-export const { clearSelectedProduct } = productSlice.actions
+export const { clearSelectedProduct, clearSearch } = productSlice.actions
 export default productSlice.reducer

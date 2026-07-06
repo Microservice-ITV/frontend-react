@@ -9,6 +9,7 @@ import { BuyerHomeRoute, GuestRoute, ProtectedRoute } from './RouteGuards'
 import HomePage from '@/features/home/HomePage'
 import ProductListPage from '@/features/products/pages/ProductListPage'
 import ProductDetailPage from '@/features/products/pages/ProductDetailPage'
+import SearchResultsPage from '@/features/products/pages/SearchResultsPage'
 import CartPage from '@/features/cart/pages/CartPage'
 import CheckoutPage from '@/features/checkout/pages/CheckoutPage'
 import CheckoutSuccessPage from '@/features/checkout/pages/CheckoutSuccessPage'
@@ -468,6 +469,7 @@ const AppRoutes = () => {
                     </BuyerHomeRoute>
                 }
             />
+            <Route path="/search" element={<SearchResultsPage />} />
             <Route path="/all_categories" element={<CategoriesPage />} />
             <Route path="/categories/:id" element={<ProductListPage />} />
             <Route path="/products/:id" element={<ProductDetailPage />} />
