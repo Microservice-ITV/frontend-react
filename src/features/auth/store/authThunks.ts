@@ -1,4 +1,3 @@
-// Thunks => Async Business Logic
 import { createAsyncThunk } from '@reduxjs/toolkit'
 import type { AxiosResponse } from 'axios'
 import { authFeatureApi } from '../api/authApi'
@@ -8,7 +7,6 @@ import { hasSessionCookie, setSessionCookie, clearSessionCookie } from '@/utils/
 import axios from 'axios'
 import { AUTH_SERVICE_BASE_URL } from '@/lib/api/apiConfig'
 
-/** Pull refresh TTL hint from auth-service JSON — canonical policy lives there (`JWT_REFRESH_TTL`). */
 const refreshTtlSecondsFromAuthResponse = (res: AxiosResponse<{ data?: { refresh_ttl_seconds?: unknown } }>): number | undefined => {
     const raw = res.data?.data?.refresh_ttl_seconds
     if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) return Math.floor(raw)
@@ -24,7 +22,6 @@ const applySessionCookieFromAuthResponse = (res: AxiosResponse<{ data?: { refres
     setSessionCookie(sec)
 }
 
-// ============== LOGIN Backend returns ONLY access_token =================
 export const login = createAsyncThunk<
     TokenPayload,
     { email: string; password: string; recaptchaToken: string },
@@ -40,19 +37,28 @@ export const login = createAsyncThunk<
 })
 
 
-// ============== REGISTER Same response shape as login =================
 export const register = createAsyncThunk<
     TokenPayload,
     { name: string; email: string; password: string; recaptchaToken: string },
-    { rejectValue: string }
+    { rejectValue: string | { requiresVerification: true; email: string } }
 >('auth/register', async (data, { rejectWithValue }) => {
     try {
         const res = await authFeatureApi.register(data)
-        applySessionCookieFromAuthResponse(res)
-        return {
-            accessToken: res.data.data.access_token,
+        const body = res.data?.data
+
+        if (body?.requires_verification) {
+            return rejectWithValue({
+                requiresVerification: true,
+                email: body.user?.email ?? data.email,
+            })
         }
-    } catch {
+
+        applySessionCookieFromAuthResponse(res)
+        return { accessToken: body.access_token }
+    } catch (err: unknown) {
+        if (axios.isAxiosError(err) && err.response?.data?.message) {
+            return rejectWithValue(err.response.data.message)
+        }
         return rejectWithValue('We could not create your account with those details. Please check your information and try again.')
     }
 })
@@ -60,7 +66,6 @@ export const register = createAsyncThunk<
 
 type FetchMeReject = 'SKIP' | 'API_ERROR'
 
-// ============== FETCH AUTHENTICATED | Uses Authorization header =================
 export const fetchMe = createAsyncThunk<
     User,
     void,
@@ -82,17 +87,13 @@ export const fetchMe = createAsyncThunk<
 })
 
 
-// ============== REFRESH ACCESS TOKEN | Called automatically on 401 =================
 export const refreshAccessToken = createAsyncThunk<
     string | null,
     void,
     { state: { auth: AuthState } }
 >('auth/refresh', async (_, { dispatch }) => {
-    // Always call the API; backend returns 204 when no/invalid refresh_token cookie.
-    // This way we don't depend on has_session cookie (which may expire before refresh_token).
     try {
         const res = await authFeatureApi.refresh()
-        // Backend returns 204 (no body) when refresh_token cookie is missing or invalid
         const accessToken = res.data?.data?.access_token
 
         if (!accessToken) {
@@ -114,8 +115,6 @@ export const refreshAccessToken = createAsyncThunk<
 })
 
 
-// ============== LOGOUT | Invalidates token server-side =================
-// MUST bypass authApi to avoid interceptor loop
 export const logout = createAsyncThunk(
     'auth/logout',
     async () => {
@@ -130,23 +129,50 @@ export const logout = createAsyncThunk(
                 }
             )
         } catch {
-            // swallow errors — logout must NEVER fail the app
         }
     }
 )
 
 
-// ============== Bootstrap auth on app load =================
+export const verifyEmail = createAsyncThunk<
+    { message: string },
+    { token: string },
+    { rejectValue: string }
+>('auth/verifyEmail', async ({ token }, { rejectWithValue }) => {
+    try {
+        const res = await authFeatureApi.verifyEmail(token)
+        return { message: res.data?.message ?? 'Email verified successfully' }
+    } catch (err: unknown) {
+        if (axios.isAxiosError(err) && err.response?.data?.message) {
+            return rejectWithValue(err.response.data.message)
+        }
+        return rejectWithValue('Verification failed. Please try again.')
+    }
+})
+
+
+export const resendVerification = createAsyncThunk<
+    { message: string },
+    { email: string },
+    { rejectValue: string }
+>('auth/resendVerification', async ({ email }, { rejectWithValue }) => {
+    try {
+        const res = await authFeatureApi.resendVerification(email)
+        return { message: res.data?.message ?? 'Verification code resent' }
+    } catch (err: unknown) {
+        if (axios.isAxiosError(err) && err.response?.data?.message) {
+            return rejectWithValue(err.response.data.message)
+        }
+        return rejectWithValue('Failed to resend code. Please try again.')
+    }
+})
+
+
 export const bootstrapAuth = createAsyncThunk(
     'auth/bootstrap',
     async (_, { dispatch }) => {
         dispatch(setHasSession(hasSessionCookie()))
-
-        // Always try refresh on load; backend returns 200 with token if refresh_token
-        // cookie is valid, 204 if missing/invalid. Stops relying on has_session cookie
-        // which may have a shorter TTL than refresh_token (e.g. 1h vs 7 days).
         await dispatch(refreshAccessToken())
-
         dispatch(markInitialized())
     }
 )

@@ -16,5 +16,12 @@ export const authFeatureApi = {
   me() {
     return authClient.get('/me')
   },
-}
 
+  verifyEmail(token: string) {
+    return authClient.post('/verify-email', { token })
+  },
+
+  resendVerification(email: string) {
+    return authClient.post('/verify-email/resend', { email })
+  },
+}

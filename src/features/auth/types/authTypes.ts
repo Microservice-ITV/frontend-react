@@ -1,5 +1,3 @@
-// Types => Type Definitions
-// User shape returned by /me
 export interface User {
     id: string
     name: string
@@ -11,21 +9,20 @@ export interface User {
     roles?: Array<string | { code?: string; name?: string }>
 }
 
-// Payload returned by login/register/refresh
 export interface TokenPayload {
     accessToken: string
 }
 
-// Redux auth state
 export interface AuthState {
     user: User | null
     accessToken: string | null
     isAuthenticated: boolean
     hasSession: boolean
-    initialized: boolean 
+    initialized: boolean
     status: 'idle' | 'loading' | 'succeeded' | 'failed'
     error: string | null
-    // Draft form data for auth flows (not persisted across reloads)
+    requiresVerification: boolean
+    verificationEmail: string | null
     loginDraft: {
         email: string
         password: string

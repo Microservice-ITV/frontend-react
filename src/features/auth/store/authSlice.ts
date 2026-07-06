@@ -1,6 +1,5 @@
-// Slice => State & Reducers
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
-import { login, register, fetchMe, refreshAccessToken, logout, bootstrapAuth } from './authThunks'
+import { login, register, fetchMe, refreshAccessToken, logout, bootstrapAuth, verifyEmail, resendVerification } from './authThunks'
 import type { AuthState } from '../types/authTypes'
 
 const initialState: AuthState = {
@@ -11,6 +10,8 @@ const initialState: AuthState = {
   initialized: false,
   status: 'idle',
   error: null,
+  requiresVerification: false,
+  verificationEmail: null,
   loginDraft: {
     email: '',
     password: '',
@@ -83,6 +84,44 @@ const authSlice = createSlice({
         state.isAuthenticated = true
         state.hasSession = true
         state.registerDraft = { name: '', email: '', password: '' }
+      })
+      .addCase(register.rejected, (state, action) => {
+        const payload = action.payload
+        if (payload && typeof payload === 'object' && 'requiresVerification' in payload) {
+          state.requiresVerification = true
+          state.verificationEmail = payload.email
+          state.status = 'succeeded'
+          state.registerDraft = { name: '', email: '', password: '' }
+          state.error = null
+        } else {
+          state.status = 'failed'
+          state.error = typeof payload === 'string' ? payload : 'Registration failed'
+        }
+      })
+
+      // ================= VERIFY EMAIL =================
+      .addCase(verifyEmail.pending, (state) => {
+        state.status = 'loading'
+      })
+      .addCase(verifyEmail.fulfilled, (state) => {
+        state.requiresVerification = false
+        state.verificationEmail = null
+        state.status = 'succeeded'
+      })
+      .addCase(verifyEmail.rejected, (state, action) => {
+        state.status = 'failed'
+        state.error = action.payload ?? 'Verification failed'
+      })
+
+      // ================= RESEND VERIFICATION =================
+      .addCase(resendVerification.pending, (state) => {
+        state.status = 'loading'
+      })
+      .addCase(resendVerification.fulfilled, (state) => {
+        state.status = 'succeeded'
+      })
+      .addCase(resendVerification.rejected, (state) => {
+        state.status = 'failed'
       })
 
       // ================= FETCH USER =================
