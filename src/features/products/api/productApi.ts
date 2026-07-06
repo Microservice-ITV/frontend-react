@@ -121,8 +121,8 @@ type CatalogProductDetailGraph = {
 }
 
 const CATALOG_PRODUCTS_BY_CATEGORY_QUERY = `
-  query CatalogProducts($page: Int!, $limit: Int!, $categoryId: ID) {
-    catalogProducts(page: $page, limit: $limit, categoryId: $categoryId) {
+  query CatalogProducts($page: Int!, $limit: Int!, $categoryId: ID, $search: String, $sort: String) {
+    catalogProducts(page: $page, limit: $limit, categoryId: $categoryId, search: $search, sort: $sort) {
       items {
         productId
         title
@@ -208,20 +208,26 @@ async function postGraphQL<TData>(query: string, variables: Record<string, unkno
     return data
 }
 
-async function fetchCatalogProductsGraphQL(categoryId: string): Promise<CatalogProductGraphItem[]> {
+async function fetchCatalogProductsGraphQL(
+    categoryId: string,
+    search?: string,
+    sort?: string,
+): Promise<CatalogProductGraphItem[]> {
     const collected: CatalogProductGraphItem[] = []
     let page = 1
     let totalPages = 1
 
     do {
-        const data = await postGraphQL<CatalogProductsGraphQLData>(
-            CATALOG_PRODUCTS_BY_CATEGORY_QUERY,
-            {
-                page,
-                limit: PAGE_LIMIT,
-                categoryId,
-            },
-        )
+            const data = await postGraphQL<CatalogProductsGraphQLData>(
+                CATALOG_PRODUCTS_BY_CATEGORY_QUERY,
+                {
+                    page,
+                    limit: PAGE_LIMIT,
+                    categoryId,
+                    search: search || null,
+                    sort: sort || null,
+                },
+            )
 
         const payload = data.catalogProducts
         const items = payload?.items ?? []
@@ -309,15 +315,45 @@ function mapGraphVariant(v: CatalogVariantGraph): ProductVariant {
 
 export const productApi = {
     /**
+     * Search products by keyword across title, description, sku, and brand name.
+     */
+    search: async (query: string, sort?: string): Promise<AxiosResponse<ProductsApiResponse>> => {
+        const normalized = query.trim()
+        if (!normalized) {
+            throw new Error('Search query is required.')
+        }
+
+        const rows = await fetchCatalogProductsGraphQL('', normalized, sort)
+        const data: ProductsApiResponse = {
+            success: true,
+            data: rows.map((row) => ({
+                id: row.productId,
+                name: row.title,
+                price: row.price,
+                images: buildCatalogListImages(row),
+                categoryId: row.categoryId ?? '',
+            })),
+        }
+
+        return {
+            data,
+            status: 200,
+            statusText: 'OK',
+            headers: {},
+            config: {} as never,
+        } as AxiosResponse<ProductsApiResponse>
+    },
+
+    /**
      * Buyer category listing: ecommerce-read-service GraphQL → MongoDB `product_reads`.
      */
-    getByCategory: async (categoryId: string): Promise<AxiosResponse<ProductsApiResponse>> => {
+    getByCategory: async (categoryId: string, sort?: string): Promise<AxiosResponse<ProductsApiResponse>> => {
         const normalized = categoryId.trim()
         if (!normalized) {
             throw new Error('Category id is required.')
         }
 
-        const rows = await fetchCatalogProductsGraphQL(normalized)
+        const rows = await fetchCatalogProductsGraphQL(normalized, undefined, sort)
         const data: ProductsApiResponse = {
             success: true,
             data: rows.map((row) => ({

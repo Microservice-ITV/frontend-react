@@ -14,7 +14,7 @@ const ProductCard = ({ product }: { product: Product }) => {
           {/* IMAGE */}
           <div className="relative w-full pt-[100%] bg-gray-100">
             <img
-              src={product.images?.[0] ?? '/placeholder.png'}
+              src={product.images?.[0] ?? '/placeholder.svg'}
               alt={product.name}
               className="absolute inset-0 w-full h-full object-contain pointer-events-none"
               loading="lazy"

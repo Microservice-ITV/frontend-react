@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { fetchProductsByCategory } from '@/features/products/store/productThunks'
@@ -12,6 +12,7 @@ const ProductListPage = () => {
   const dispatch = useAppDispatch()
   const { items, status } = useAppSelector((s) => s.products)
   const { items: categories, status: categoriesStatus } = useAppSelector((s) => s.categories)
+  const [sort, setSort] = useState<string>('popular')
 
   // Ensure categories are loaded so the sidebar has data even on page refresh or deep link.
   useEffect(() => {
@@ -22,9 +23,9 @@ const ProductListPage = () => {
 
   useEffect(() => {
     if (id) {
-      dispatch(fetchProductsByCategory(id))
+      dispatch(fetchProductsByCategory({ categoryId: id, sort }))
     }
-  }, [dispatch, id])
+  }, [dispatch, id, sort])
 
   return (
     <div className="bg-[#f5f5f5]">
@@ -38,7 +39,7 @@ const ProductListPage = () => {
 
           {/* RIGHT CONTENT */}
           <section className="flex-1">
-            <ProductSortBar />
+            <ProductSortBar sort={sort} onSortChange={setSort} />
 
             {status === 'loading' && (
               <div className="py-10 text-center text-sm text-gray-500">

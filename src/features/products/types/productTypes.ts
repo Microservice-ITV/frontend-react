@@ -69,4 +69,7 @@ export interface ProductsState {
   error: string | null
   /** Latest `fetchProductDetail(id)` request id — ignores stale fulfilled/rejected from slower responses */
   detailRequestedId: string | null
+  searchResults: Product[]
+  searchStatus: 'idle' | 'loading' | 'succeeded' | 'failed'
+  searchError: string | null
 }

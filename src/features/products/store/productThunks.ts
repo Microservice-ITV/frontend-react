@@ -3,15 +3,40 @@ import { productApi } from '../api/productApi'
 import type { Product, ProductDetail } from '../types/productTypes'
 
 /* ------------------------------
+   SEARCH PRODUCTS
+--------------------------------- */
+export const searchProducts = createAsyncThunk<
+    Product[],
+    { query: string; sort?: string },
+    { rejectValue: string }
+>('products/search', async ({ query, sort }, { rejectWithValue }) => {
+    try {
+        const response = await productApi.search(query, sort)
+        return response.data.data.map((product) => ({
+            id: product.id,
+            name: product.name,
+            price: typeof product.price === 'string' ? parseFloat(product.price) : product.price,
+            images: product.images ?? [],
+            categoryId: product.categoryId,
+        }))
+    } catch (error: unknown) {
+        const message =
+            (error as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+            (error instanceof Error ? error.message : 'Search failed')
+        return rejectWithValue(message)
+    }
+})
+
+/* ------------------------------
    LIST PRODUCTS BY CATEGORY
--------------------------------- */
+------------------------------- */
 export const fetchProductsByCategory = createAsyncThunk<
     Product[],
-    string,
+    { categoryId: string; sort?: string },
     { rejectValue: string }
->('products/fetchByCategory', async (categoryId, { rejectWithValue }) => {
+>('products/fetchByCategory', async ({ categoryId, sort }, { rejectWithValue }) => {
     try {
-        const response = await productApi.getByCategory(categoryId)
+        const response = await productApi.getByCategory(categoryId, sort)
         const products: Product[] = response.data.data.map((product) => ({
             id: product.id,
             name: product.name,
