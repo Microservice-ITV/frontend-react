@@ -18,9 +18,7 @@ const MainNavbar = () => {
 
     const doSearch = useCallback((q?: string) => {
         const query = (q ?? queryRef.current).trim()
-        if (query.length > 0) {
-            navigate(`/search?q=${encodeURIComponent(query)}`)
-        }
+        navigate(query.length > 0 ? `/search?q=${encodeURIComponent(query)}` : '/search')
     }, [navigate])
 
     const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -32,12 +30,14 @@ const MainNavbar = () => {
         }
 
         const trimmed = value.trim()
-        if (trimmed.length >= MIN_QUERY_LENGTH) {
+        if (trimmed.length === 0) {
+            navigate('/search')
+        } else if (trimmed.length >= MIN_QUERY_LENGTH) {
             timerRef.current = setTimeout(() => {
                 doSearch(trimmed)
             }, DEBOUNCE_MS)
         }
-    }, [doSearch])
+    }, [doSearch, navigate])
 
     const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') {
