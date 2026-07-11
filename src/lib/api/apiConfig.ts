@@ -44,4 +44,4 @@ export const ECOMMERCE_READ_GRAPHQL_URL =
 
 /** Shipping microservice (shop profiles + calculate). */
 export const SHIPPING_SERVICE_BASE_URL =
-    import.meta.env.VITE_SHIPPING_SERVICE_URL ?? 'http://localhost:5005/api/v1'
+    import.meta.env.VITE_SHIPPING_SERVICE_URL ?? 'http://localhost:5020/api/v1'
