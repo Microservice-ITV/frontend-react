@@ -8,6 +8,9 @@ import { setupAuthInterceptors } from './setupAuthInterceptors'
 export const authClient = axios.create({
   baseURL: AUTH_SERVICE_BASE_URL,
   withCredentials: true,
+  headers: {
+    'Accept': 'application/json',
+  },
 })
 
 setupAuthInterceptors(authClient, {
