@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle, Eye, EyeOff } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { fetchMe, login } from '@/features/auth/store/authThunks'
@@ -23,6 +23,7 @@ export const LoginPage = () => {
 
   const [email, setEmail] = useState(loginDraft.email)
   const [password, setPassword] = useState(loginDraft.password)
+  const [showPassword, setShowPassword] = useState(false)
 
   const isLoading = status === 'loading'
   const isFormValid = email.trim() !== '' && password.trim() !== ''
@@ -94,13 +95,24 @@ export const LoginPage = () => {
 
           <Input
             label="Password"
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             placeholder="••••••••"
             autoComplete="current-password"
             disabled={isLoading}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            rightElement={
+              <button
+                type="button"
+                onClick={() => setShowPassword((p) => !p)}
+                className="text-gray-400 hover:text-gray-600 cursor-pointer"
+                tabIndex={-1}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+              </button>
+            }
           />
 
           {/* reCAPTCHA Notice */}

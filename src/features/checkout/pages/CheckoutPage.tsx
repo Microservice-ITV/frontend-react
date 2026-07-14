@@ -380,6 +380,7 @@ const CheckoutPage = () => {
                     hasDeliveryAddress={hasDeliveryAddress}
                     onRequireAddress={openAddressSelectionModal}
                     deliveryAddress={selectedDeliveryAddress}
+                    cartItems={items}
                 />
             </div>
         </Elements>

@@ -9,19 +9,87 @@ import {
   setCheckoutPlacingOrder,
 } from '../store/checkoutSlice'
 import type { UserAddress } from '@/features/account/types/addressTypes'
+import type { CartItem } from '@/features/cart/types/cartTypes'
+import type { CheckoutShopShippingPayload } from '../api/checkoutApi'
+import type { CheckoutStatusResponse } from '../types/checkoutTypes'
 
 interface CheckoutSummaryProps {
   checkout: CheckoutTotals
   hasDeliveryAddress: boolean
   onRequireAddress: () => void
   deliveryAddress: UserAddress | null
+  cartItems: CartItem[]
+  checkoutSessionItems?: CheckoutStatusResponse['items']
 }
 
-const CheckoutSummary = ({ checkout, hasDeliveryAddress, onRequireAddress, deliveryAddress }: CheckoutSummaryProps) => {
+const buildShopShippings = (
+  checkout: CheckoutTotals,
+  cartItems: CartItem[],
+  checkoutSessionItems: CheckoutStatusResponse['items'] | undefined,
+  feesByShopId: Record<string, { amount?: number | null }>,
+  shippingCalculateStatus: string,
+): CheckoutShopShippingPayload[] => {
+  const shopCountFromCart = Object.keys(checkout.groupedByShop).length
+  const perShopFallback = shopCountFromCart > 0 ? checkout.shippingSubtotal / shopCountFromCart : 0
+  const cartProductToShop = new Map(cartItems.map((item) => [item.productId, item.shopId]))
+
+  const sessionShops = new Map<string, string[]>()
+  for (const item of checkoutSessionItems ?? []) {
+    const shopId = item.shop_id?.trim()
+    if (!shopId) continue
+    const productIds = sessionShops.get(shopId) ?? []
+    productIds.push(item.product_id)
+    sessionShops.set(shopId, productIds)
+  }
+
+  const shopIds =
+    sessionShops.size > 0
+      ? [...sessionShops.keys()]
+      : Object.keys(checkout.groupedByShop)
+
+  const perShopFallbackForIds =
+    shopIds.length > 0 ? checkout.shippingSubtotal / shopIds.length : perShopFallback
+
+  return shopIds.map((shopId) => {
+    const productIds = sessionShops.get(shopId)
+    let cartShopId: string | undefined
+    if (productIds) {
+      for (const productId of productIds) {
+        const mapped = cartProductToShop.get(productId)
+        if (mapped) {
+          cartShopId = mapped
+          break
+        }
+      }
+    } else {
+      cartShopId = shopId
+    }
+
+    const row = cartShopId ? feesByShopId[cartShopId] : undefined
+    const fromApi =
+      shippingCalculateStatus === 'succeeded' && row?.amount != null && row.amount >= 0
+        ? row.amount
+        : null
+
+    return {
+      shop_id: shopId,
+      shipping_fee: fromApi ?? perShopFallbackForIds,
+    }
+  })
+}
+
+const CheckoutSummary = ({
+  checkout,
+  hasDeliveryAddress,
+  onRequireAddress,
+  deliveryAddress,
+  cartItems,
+  checkoutSessionItems,
+}: CheckoutSummaryProps) => {
   const dispatch = useAppDispatch()
   const stripe = useStripe()
   const elements = useElements()
-  const { currentCheckout, clientSecret, paymentStatus, isPlacingOrder, isAwaitingFinalStatus, error } = useAppSelector(
+  const { currentCheckout, currentStatus, clientSecret, paymentStatus, isPlacingOrder, isAwaitingFinalStatus, error } = useAppSelector(
     state => state.checkout
   )
 
@@ -31,26 +99,18 @@ const CheckoutSummary = ({ checkout, hasDeliveryAddress, onRequireAddress, deliv
   const shippingCalculateStatus = useAppSelector(state => state.shipping.calculateStatus)
 
   const buildCheckoutAddressPayload = (address: UserAddress) => {
-    const shopIds = Object.keys(checkout.groupedByShop)
-    const shopCount = shopIds.length
-    const perShopFallback = shopCount > 0 ? checkout.shippingSubtotal / shopCount : 0
-
     const shipping_total =
       shippingCalculateStatus === 'succeeded' && totalShippingFee != null && totalShippingFee >= 0
         ? totalShippingFee
         : checkout.shippingSubtotal
 
-    const shop_shippings = shopIds.map((shopId) => {
-      const row = feesByShopId[shopId]
-      const fromApi =
-        shippingCalculateStatus === 'succeeded' && row?.amount != null && row.amount >= 0
-          ? row.amount
-          : null
-      return {
-        shop_id: shopId,
-        shipping_fee: fromApi ?? perShopFallback,
-      }
-    })
+    const shop_shippings = buildShopShippings(
+      checkout,
+      cartItems,
+      checkoutSessionItems ?? currentStatus?.items,
+      feesByShopId,
+      shippingCalculateStatus,
+    )
 
     return {
       full_name: address.full_name,
@@ -102,10 +162,12 @@ const CheckoutSummary = ({ checkout, hasDeliveryAddress, onRequireAddress, deliv
 
     try {
       // Persist shipping snapshot to order-service before payment confirmation.
+      console.info('[PlaceOrder] Updating checkout address...')
       await checkoutApi.updateCheckoutAddress(
         currentCheckout.checkout_id,
         buildCheckoutAddressPayload(deliveryAddress),
       )
+      console.info('[PlaceOrder] Address updated, confirming payment with Stripe...')
 
       const result = await stripe.confirmCardPayment(clientSecret, {
         payment_method: {
@@ -115,6 +177,12 @@ const CheckoutSummary = ({ checkout, hasDeliveryAddress, onRequireAddress, deliv
             email: user?.email,
           },
         },
+      })
+
+      console.info('[PlaceOrder] Stripe confirmCardPayment result:', {
+        hasError: !!result.error,
+        paymentIntentStatus: result.paymentIntent?.status,
+        errorMessage: result.error?.message,
       })
 
       // Payment final state is webhook-driven; polling updates checkout status in store.
@@ -130,8 +198,21 @@ const CheckoutSummary = ({ checkout, hasDeliveryAddress, onRequireAddress, deliv
       dispatch(setAwaitingFinalStatus(true))
       dispatch(setCheckoutError(null))
       dispatch(setCheckoutPlacingOrder(false))
-    } catch {
-      dispatch(setCheckoutError('Unable to confirm payment. Please try again.'))
+    } catch (error: unknown) {
+      console.error('[PlaceOrder] Unexpected error during payment confirmation:', error)
+
+      const apiError =
+        error &&
+        typeof error === 'object' &&
+        'response' in error &&
+        (error as { response?: { data?: { error?: string } } }).response?.data?.error
+      dispatch(
+        setCheckoutError(
+          typeof apiError === 'string' && apiError.trim() !== ''
+            ? apiError
+            : 'Unable to confirm payment. Please try again.',
+        ),
+      )
       dispatch(setAwaitingFinalStatus(false))
       dispatch(setCheckoutPlacingOrder(false))
     }
@@ -231,9 +312,13 @@ const CheckoutSummary = ({ checkout, hasDeliveryAddress, onRequireAddress, deliv
             ? error
             : paymentStatus === 'PAID' || paymentStatus === 'COMPLETED'
               ? 'Order completed successfully.'
-              : paymentStatus === 'FAILED_PAYMENT'
-                ? 'Payment failed. Please try again.'
-                : paymentStatus === 'EXPIRED'
+                  : paymentStatus === 'FAILED_PAYMENT'
+                    ? 'Payment failed. Please try again.'
+                  : paymentStatus === 'STOCK_CONFIRMED'
+                    ? 'Stock confirmed. Finalizing payment...'
+                  : paymentStatus === 'PENDING_STOCK'
+                    ? 'Confirming stock availability...'
+                  : paymentStatus === 'EXPIRED'
                   ? 'Checkout expired. Please start a new checkout.'
                   : !hasDeliveryAddress
                     ? 'Please add your delivery address to continue.'
