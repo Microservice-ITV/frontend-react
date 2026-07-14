@@ -9,6 +9,8 @@ export type CheckoutPaymentStatus =
     | 'PROCESSING'
     | 'PAYMENT_INTENT_READY'
     | 'PAYMENT_PENDING_CONFIRMATION'
+    | 'PENDING_STOCK'
+    | 'STOCK_CONFIRMED'
     | 'PENDING_PAYMENT'
     | 'PAID'
     | 'COMPLETED'
@@ -22,4 +24,10 @@ export interface CheckoutStatusResponse {
     client_secret?: string
     expire_at?: string | null
     message?: string
+    items?: Array<{
+        product_id: string
+        variant_id?: string | null
+        shop_id?: string | null
+        qty: number
+    }>
 }

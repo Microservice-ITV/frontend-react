@@ -85,6 +85,7 @@ export const fetchCheckoutStatus = createAsyncThunk<
                 client_secret: payload.client_secret ?? payload.payment?.client_secret,
                 expire_at: payload.expire_at ?? null,
                 message: payload.message,
+                items: payload.items,
             }
         } catch (error: any) {
             return rejectWithValue(
