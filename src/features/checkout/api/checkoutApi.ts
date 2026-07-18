@@ -45,7 +45,14 @@ export const checkoutApi = {
   updateCheckoutAddress(
     checkoutId: string,
     payload: CheckoutAddressPayload,
-  ): Promise<AxiosResponse<{ success: boolean; message?: string }>> {
+  ): Promise<AxiosResponse<{
+    checkout_id?: string
+    message?: string
+    address_updated_at?: string
+    grand_total?: number
+    shipping_total?: number
+    payment?: { client_secret?: string }
+  }>> {
     return orderClient.put(`/orders/checkout/${checkoutId}/address`, payload)
   },
 

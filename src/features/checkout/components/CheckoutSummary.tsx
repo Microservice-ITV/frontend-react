@@ -163,13 +163,20 @@ const CheckoutSummary = ({
     try {
       // Persist shipping snapshot to order-service before payment confirmation.
       console.info('[PlaceOrder] Updating checkout address...')
-      await checkoutApi.updateCheckoutAddress(
+      const addressResponse = await checkoutApi.updateCheckoutAddress(
         currentCheckout.checkout_id,
         buildCheckoutAddressPayload(deliveryAddress),
       )
       console.info('[PlaceOrder] Address updated, confirming payment with Stripe...')
 
-      const result = await stripe.confirmCardPayment(clientSecret, {
+      // The address update may have triggered a payment-intent amount update on
+      // the backend. If the original Stripe intent no longer exists the payment-
+      // service creates a new one, returning a fresh client_secret. Use it so we
+      // don't confirm against a stale / deleted intent.
+      const updatedClientSecret = addressResponse.data?.payment?.client_secret
+      const effectiveClientSecret = updatedClientSecret ?? clientSecret
+
+      const result = await stripe.confirmCardPayment(effectiveClientSecret, {
         payment_method: {
           card,
           billing_details: {
