@@ -52,6 +52,7 @@ export const checkoutApi = {
     grand_total?: number
     shipping_total?: number
     payment?: { client_secret?: string }
+    already_succeeded?: boolean
   }>> {
     return orderClient.put(`/orders/checkout/${checkoutId}/address`, payload)
   },

@@ -361,9 +361,12 @@ const CheckoutPage = () => {
 
     useEffect(() => {
         if (paymentStatus === 'PAID' || paymentStatus === 'COMPLETED') {
-            navigate('/checkout/success', { replace: true })
+            navigate('/checkout/success', {
+                replace: true,
+                state: { checkoutId: currentCheckout?.checkout_id },
+            })
         }
-    }, [paymentStatus, navigate])
+    }, [paymentStatus, navigate, currentCheckout?.checkout_id])
 
     return (
         <Elements stripe={stripePromise}>
