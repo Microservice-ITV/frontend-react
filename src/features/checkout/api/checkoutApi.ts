@@ -34,12 +34,25 @@ export const checkoutApi = {
     user_id: string
     items: { product_id: string; qty: number; variant_id?: string }[]
     idempotency_key: string
+    delivery_address?: any
   }): Promise<AxiosResponse<CheckoutResponse>> {
-    return orderClient.post<CheckoutResponse>('/orders/checkout', data, {
+    return orderClient.post<CheckoutResponse>('/saga/orders/checkout', data, {
       headers: {
         'Idempotency-Key': data.idempotency_key,
       },
     })
+  },
+
+  completeCheckoutSession(checkoutId: string, paymentData?: any): Promise<AxiosResponse<any>> {
+    return orderClient.post(`/saga/orders/${checkoutId}/complete`, { payment_data: paymentData })
+  },
+
+  getSagaStatus(sagaId: string): Promise<AxiosResponse<any>> {
+    return orderClient.get(`/saga/sagas/${sagaId}`)
+  },
+
+  getSagaStatistics(): Promise<AxiosResponse<any>> {
+    return orderClient.get('/saga/sagas/statistics')
   },
 
   updateCheckoutAddress(

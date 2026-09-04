@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ecommerceReadClient } from '@/lib/api/ecommerceReadClient'
 import { deliveryApi } from '@/lib/api/deliveryClient'
@@ -79,13 +79,30 @@ const STATUS_STEPS = [
 
 const STATUS_ORDER = STATUS_STEPS.map((s) => s.key)
 
+const TERMINAL_STATUSES = [
+  'DELIVERED',
+  'COMPLETED',
+  'CANCELLED',
+  'FAILED',
+  'FAILED_PAYMENT',
+  'EXPIRED',
+  'RETURNED',
+  'REFUNDED',
+] as const
+
 function getStepIndex(status: string): number {
   const upper = (status || '').toUpperCase()
   const idx = STATUS_ORDER.indexOf(upper as (typeof STATUS_ORDER)[number])
   if (idx !== -1) return idx
   if (['COMPLETED'].includes(upper)) return STATUS_ORDER.length - 1
-  if (['CANCELLED', 'FAILED', 'FAILED_PAYMENT', 'EXPIRED', 'RETURNED', 'REFUNDED'].includes(upper)) return -1
+  if (TERMINAL_STATUSES.includes(upper as (typeof TERMINAL_STATUSES)[number])) return -1
   return 0
+}
+
+function isTerminal(status: string): boolean {
+  return TERMINAL_STATUSES.includes(
+    (status || '').toUpperCase() as (typeof TERMINAL_STATUSES)[number],
+  )
 }
 
 const formatMoney = (value: number, currency: string): string => {
@@ -108,6 +125,9 @@ const OrderTrackingPage = () => {
   const [confirming, setConfirming] = useState(false)
   const [confirmError, setConfirmError] = useState<string | null>(null)
 
+  const orderRef = useRef<PurchasedOrder | null>(null)
+  orderRef.current = order
+
   useEffect(() => {
     if (!orderId) return
 
@@ -115,7 +135,6 @@ const OrderTrackingPage = () => {
 
     const fetchOrder = async () => {
       try {
-        setLoading(true)
         setError(null)
         const response = await ecommerceReadClient.post<{
           data?: { orderById?: PurchasedOrder }
@@ -146,7 +165,23 @@ const OrderTrackingPage = () => {
     }
 
     void fetchOrder()
-    return () => { cancelled = true }
+
+    // Poll the read model until the order reaches a terminal state, so the
+    // status updates shortly after the payment completes and fulfillment
+    // advances (the read model is eventually consistent).
+    const POLL_INTERVAL_MS = 3000
+    const intervalId = window.setInterval(() => {
+      if (isTerminal(orderRef.current?.status ?? '')) {
+        window.clearInterval(intervalId)
+        return
+      }
+      void fetchOrder()
+    }, POLL_INTERVAL_MS)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(intervalId)
+    }
   }, [orderId])
 
   const currentStep = order ? getStepIndex(order.status) : -1

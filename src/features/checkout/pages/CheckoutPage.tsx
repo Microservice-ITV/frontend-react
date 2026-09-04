@@ -309,15 +309,16 @@ const CheckoutPage = () => {
             return
         }
 
-        if (!checkoutSessionBootstrapped) {
-            // Wait until we restore/validate any existing session from storage.
-            return
-        }
-
+        // Note: we do NOT gate this on `checkoutSessionBootstrapped`. That flag is
+        // set/cleared by two racing effects (the reset effect and the bootstrap
+        // effect), which can leave it stuck `false` and silently prevent the
+        // checkout POST from ever firing. The `!currentCheckout` and `!loading`
+        // guards below are sufficient: while a session is being restored/created,
+        // either `currentCheckout` is set or `loading` is true, so we skip.
         if (!currentCheckout && !loading) {
             dispatch(checkoutCart())
         }
-    }, [dispatch, currentCheckout, loading, hasDeliveryAddress, checkoutSessionBootstrapped])
+    }, [dispatch, currentCheckout, loading, hasDeliveryAddress])
 
     useEffect(() => {
         if (!hasDeliveryAddress) {
