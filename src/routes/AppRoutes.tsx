@@ -14,6 +14,7 @@ import CartPage from '@/features/cart/pages/CartPage'
 import CheckoutPage from '@/features/checkout/pages/CheckoutPage'
 import CheckoutSuccessPage from '@/features/checkout/pages/CheckoutSuccessPage'
 import CategoriesPage from '@/features/categories/pages/CategoriesPage'
+import AboutUsPage from '@/features/about/pages/AboutUsPage'
 import AccountLayout from '@/features/account/pages/AccountLayout'
 import ProfilePage from '@/features/account/pages/ProfilePage'
 import BanksCardsPage from '@/features/account/pages/BanksCardsPage'
@@ -474,6 +475,8 @@ const AppRoutes = () => {
             <Route path="/categories/:id" element={<ProductListPage />} />
             <Route path="/products/:id" element={<ProductDetailPage />} />
             <Route path="/cart" element={<CartPage />} />
+            <Route path="/about" element={<AboutUsPage />} />
+            
 
             {/* fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />
