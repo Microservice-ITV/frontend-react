@@ -1,5 +1,5 @@
 import { createSlice, createSelector } from '@reduxjs/toolkit'
-import { checkoutCart, completeCheckout, fetchSagaStatus, fetchSagaStatistics, fetchCheckoutStatus } from './checkoutThunks'
+import { checkoutCart, completeCheckout, fetchSagaStatus, fetchSagaStatusByCheckout, fetchSagaStatistics, fetchCheckoutStatus } from './checkoutThunks'
 import type {
     CheckoutPaymentStatus,
     CheckoutResponse,
@@ -144,9 +144,18 @@ const checkoutSlice = createSlice({
                 state.loading = false
                 state.sagaStatus = action.payload
             })
-            .addCase(fetchSagaStatus.rejected, (state, action) => {
+            .addCase(fetchSagaStatus.rejected, (state) => {
                 state.loading = false
-                state.error = action.payload ?? 'Failed to fetch saga status'
+            })
+            .addCase(fetchSagaStatusByCheckout.pending, state => {
+                state.loading = true
+            })
+            .addCase(fetchSagaStatusByCheckout.fulfilled, (state, action) => {
+                state.loading = false
+                state.sagaStatus = action.payload
+            })
+            .addCase(fetchSagaStatusByCheckout.rejected, (state) => {
+                state.loading = false
             })
             .addCase(fetchSagaStatistics.pending, state => {
                 state.loading = true
@@ -155,9 +164,8 @@ const checkoutSlice = createSlice({
                 state.loading = false
                 state.sagaStatistics = action.payload
             })
-            .addCase(fetchSagaStatistics.rejected, (state, action) => {
+            .addCase(fetchSagaStatistics.rejected, (state) => {
                 state.loading = false
-                state.error = action.payload ?? 'Failed to fetch saga statistics'
             })
     },
 })

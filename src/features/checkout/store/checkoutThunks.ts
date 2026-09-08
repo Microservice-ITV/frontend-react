@@ -141,6 +141,42 @@ export const fetchSagaStatus = createAsyncThunk<
     }
 )
 
+export const fetchSagaStatusByCheckout = createAsyncThunk<
+    SagaStatusResponse,
+    string,
+    { rejectValue: string }
+>(
+    'checkout/fetchSagaStatusByCheckout',
+    async (checkoutId, { rejectWithValue }) => {
+        try {
+            const response = await orderClient.get<any>(`/saga/orders/${checkoutId}/status`)
+            const raw = response.data as any
+            const normalized = 'data' in raw ? raw.data : raw
+            const saga = normalized?.saga
+
+            if (!saga) {
+                return rejectWithValue('No saga found for this order')
+            }
+
+            return {
+                saga_id: saga.saga_id,
+                status: saga.status,
+                type: 'checkout',
+                order_id: checkoutId,
+                current_step: saga.current_step,
+                total_steps: saga.total_steps ?? 0,
+                completed_steps: saga.completed_steps ?? [],
+                failed_steps: saga.failed_steps ?? [],
+                compensation_required: false,
+            } as SagaStatusResponse
+        } catch (error: any) {
+            return rejectWithValue(
+                error.response?.data?.error ?? 'Failed to fetch saga status'
+            )
+        }
+    }
+)
+
 export const fetchSagaStatistics = createAsyncThunk<
     any,
     void,

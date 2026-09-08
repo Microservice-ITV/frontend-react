@@ -1,198 +1,138 @@
-import { useSagaManagement } from '../hooks/useSagaManagement'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
-import { Badge } from '@/components/ui/badge'
-import { RefreshCw, AlertCircle, CheckCircle, Clock, XCircle } from 'lucide-react'
+import { useAppDispatch, useAppSelector } from '@/app/hooks'
+import { fetchSagaStatus, fetchSagaStatusByCheckout } from '../store/checkoutThunks'
+import { selectSagaStatus, selectSagaProgress } from '../store/checkoutSlice'
+import { Card } from '@/components/ui/Card'
+import { RefreshCw, AlertCircle, CheckCircle2, Clock, XCircle } from 'lucide-react'
 
-export const SagaStatusDisplay = ({ sagaId }: { sagaId: string }) => {
-  const {
-    sagaStatus,
-    sagaStatistics,
-    isLoading,
-    isSagaCompleted,
-    isSagaFailed,
-    isSagaCompensating,
-    isSagaInProgress,
-    progressPercentage,
-    refreshAll,
-  } = useSagaManagement(sagaId)
+const STEP_META: { name: string; label: string }[] = [
+  { name: 'INVENTORY_RESERVATION', label: 'Inventory Reservation' },
+  { name: 'PAYMENT_PROCESSING', label: 'Payment Processing' },
+  { name: 'SHIPMENT_CREATION', label: 'Shipment Creation' },
+]
 
-  const getStatusIcon = () => {
-    if (isSagaCompleted) return <CheckCircle className="h-4 w-4 text-green-500" />
-    if (isSagaFailed) return <XCircle className="h-4 w-4 text-red-500" />
-    if (isSagaCompensating) return <AlertCircle className="h-4 w-4 text-yellow-500" />
-    if (isSagaInProgress) return <Clock className="h-4 w-4 text-blue-500" />
-    return <Clock className="h-4 w-4 text-gray-500" />
+const STATUS_LABEL: Record<string, string> = {
+  PENDING: 'Waiting to start',
+  IN_PROGRESS: 'Processing your order',
+  COMPENSATING: 'Rolling back — something went wrong',
+  COMPLETED: 'Order placed successfully',
+  FAILED: 'Order failed',
+  TIMEOUT: 'Order timed out',
+}
+
+const getStatusStyle = (status?: string) => {
+  switch (status) {
+    case 'COMPLETED':
+      return { color: 'bg-green-100 text-green-800' }
+    case 'FAILED':
+    case 'TIMEOUT':
+      return { color: 'bg-red-100 text-red-800' }
+    case 'COMPENSATING':
+      return { color: 'bg-yellow-100 text-yellow-800' }
+    case 'IN_PROGRESS':
+      return { color: 'bg-blue-100 text-blue-800' }
+    default:
+      return { color: 'bg-gray-100 text-gray-800' }
   }
+}
 
-  const getStatusColor = () => {
-    if (isSagaCompleted) return 'bg-green-100 text-green-800'
-    if (isSagaFailed) return 'bg-red-100 text-red-800'
-    if (isSagaCompensating) return 'bg-yellow-100 text-yellow-800'
-    if (isSagaInProgress) return 'bg-blue-100 text-blue-800'
-    return 'bg-gray-100 text-gray-800'
+const getStatusIcon = (status?: string) => {
+  switch (status) {
+    case 'COMPLETED':
+      return <CheckCircle2 className="h-4 w-4 text-green-500" />
+    case 'FAILED':
+    case 'TIMEOUT':
+      return <XCircle className="h-4 w-4 text-red-500" />
+    case 'COMPENSATING':
+      return <AlertCircle className="h-4 w-4 text-yellow-500" />
+    case 'IN_PROGRESS':
+      return <Clock className="h-4 w-4 text-blue-500" />
+    default:
+      return <Clock className="h-4 w-4 text-gray-500" />
   }
+}
 
-  const getStepStatus = (stepName: string) => {
-    if (!sagaStatus) return null
-    
+export const SagaStatusDisplay = ({ sagaId, checkoutId }: { sagaId?: string; checkoutId?: string }) => {
+  const dispatch = useAppDispatch()
+  const sagaStatus = useAppSelector(selectSagaStatus)
+  const progressPercentage = useAppSelector(selectSagaProgress)
+
+  const refresh = () =>
+    checkoutId ? dispatch(fetchSagaStatusByCheckout(checkoutId)) : dispatch(fetchSagaStatus(sagaId as string))
+
+  const stepStatus = (stepName: string): { status: string; color: string } => {
+    if (!sagaStatus) return { status: 'pending', color: 'text-gray-500' }
     if (sagaStatus.completed_steps?.includes(stepName)) {
-      return { status: 'completed', color: 'text-green-600' }
+      return { status: 'Completed', color: 'text-green-600' }
     }
     if (sagaStatus.failed_steps?.includes(stepName)) {
-      return { status: 'failed', color: 'text-red-600' }
+      return { status: 'Failed', color: 'text-red-600' }
     }
-    return { status: 'pending', color: 'text-gray-600' }
-  }
-
-  const steps = [
-    { name: 'INVENTORY_RESERVATION', label: 'Inventory Reservation' },
-    { name: 'PAYMENT_PROCESSING', label: 'Payment Processing' },
-    { name: 'SHIPMENT_CREATION', label: 'Shipment Creation' },
-  ]
-
-  if (isLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <RefreshCw className="h-4 w-4 animate-spin" />
-            Loading Saga Status...
-          </CardTitle>
-        </CardHeader>
-      </Card>
-    )
+    return { status: 'Pending', color: 'text-gray-500' }
   }
 
   return (
-    <div className="space-y-6">
-      {/* Saga Status Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {getStatusIcon()}
-              <span>Saga Status</span>
-            </div>
-            <button
-              onClick={refreshAll}
-              className="p-1 hover:bg-gray-100 rounded"
-              disabled={isLoading}
+    <div className="mt-6">
+      <Card className="p-5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {getStatusIcon(sagaStatus?.status)}
+            <h3 className="font-semibold text-gray-900">Order Progress</h3>
+            <span
+              className={`ml-2 text-xs font-medium px-2 py-0.5 rounded-full ${getStatusStyle(sagaStatus?.status).color}`}
             >
-              <RefreshCw className="h-4 w-4" />
+              {sagaStatus ? STATUS_LABEL[sagaStatus.status] ?? sagaStatus.status : 'Tracking…'}
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-gray-500">
+              {progressPercentage}% complete
+            </span>
+            <button
+              type="button"
+              onClick={refresh}
+              className="p-1 hover:bg-gray-100 rounded transition-colors"
+              aria-label="Refresh order progress"
+            >
+              <RefreshCw className="h-4 w-4 text-gray-500" />
             </button>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {sagaStatus && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Badge className={getStatusColor()}>
-                  {sagaStatus.status}
-                </Badge>
-                <span className="text-sm text-gray-600">
-                  {progressPercentage}% Complete
+          </div>
+        </div>
+
+        <div className="mt-3 h-2 rounded-full bg-gray-100 overflow-hidden">
+          <div
+            className="h-full bg-emerald-500 transition-all duration-500"
+            style={{ width: `${progressPercentage}%` }}
+          />
+        </div>
+
+        {sagaStatus?.error_message && (
+          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-sm text-red-600">
+              <strong>Error:</strong> {sagaStatus.error_message}
+            </p>
+          </div>
+        )}
+
+        <div className="mt-4 grid grid-cols-1 gap-2">
+          {STEP_META.map((step) => {
+            const stepInfo = stepStatus(step.name)
+            return (
+              <div
+                key={step.name}
+                className="flex items-center justify-between text-sm px-3 py-2 rounded-md border border-gray-100"
+              >
+                <span className="font-medium text-gray-700">{step.label}</span>
+                <span className={`flex items-center gap-1.5 ${stepInfo.color}`}>
+                  {stepInfo.status === 'Completed' && <CheckCircle2 className="h-4 w-4" />}
+                  {stepInfo.status === 'Failed' && <XCircle className="h-4 w-4" />}
+                  {stepInfo.status === 'Pending' && <Clock className="h-4 w-4" />}
+                  {stepInfo.status}
                 </span>
               </div>
-              
-              <Progress value={progressPercentage} className="h-2" />
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                <div>
-                  <span className="font-medium">Current Step:</span>
-                  <p className="text-gray-600">{sagaStatus.current_step || 'Not started'}</p>
-                </div>
-                <div>
-                  <span className="font-medium">Total Steps:</span>
-                  <p className="text-gray-600">{sagaStatus.total_steps}</p>
-                </div>
-                <div>
-                  <span className="font-medium">Compensation:</span>
-                  <p className="text-gray-600">
-                    {sagaStatus.compensation_required ? 'Required' : 'Not required'}
-                  </p>
-                </div>
-              </div>
-
-              {sagaStatus.error_message && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                  <p className="text-sm text-red-600">
-                    <strong>Error:</strong> {sagaStatus.error_message}
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-        </CardContent>
+            )
+          })}
+        </div>
       </Card>
-
-      {/* Step Status Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Step Status</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {steps.map((step) => {
-              const stepStatus = getStepStatus(step.name)
-              return (
-                <div key={step.name} className="flex items-center justify-between p-3 border rounded-md">
-                  <span className="font-medium">{step.label}</span>
-                  <div className="flex items-center gap-2">
-                    {stepStatus && (
-                      <>
-                        <span className={`text-sm ${stepStatus.color}`}>
-                          {stepStatus.status}
-                        </span>
-                        {stepStatus.status === 'failed' && (
-                          <Badge variant="destructive">Failed</Badge>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Saga Statistics Card */}
-      {sagaStatistics && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Saga Statistics</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-              <div>
-                <span className="font-medium">Total Sagas:</span>
-                <p className="text-gray-600">{sagaStatistics.total_sagas}</p>
-              </div>
-              <div>
-                <span className="font-medium">Active:</span>
-                <p className="text-gray-600">{sagaStatistics.active_sagas}</p>
-              </div>
-              <div>
-                <span className="font-medium">Completed:</span>
-                <p className="text-gray-600">{sagaStatistics.completed_sagas}</p>
-              </div>
-              <div>
-                <span className="font-medium">Failed:</span>
-                <p className="text-gray-600">{sagaStatistics.failed_sagas}</p>
-              </div>
-              <div>
-                <span className="font-medium">Compensating:</span>
-                <p className="text-gray-600">{sagaStatistics.compensating_sagas}</p>
-              </div>
-              <div>
-                <span className="font-medium">Success Rate:</span>
-                <p className="text-gray-600">{sagaStatistics.success_rate}%</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   )
 }

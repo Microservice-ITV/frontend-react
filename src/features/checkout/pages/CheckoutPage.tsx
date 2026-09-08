@@ -4,16 +4,17 @@ import { CheckoutAddressSelectorModal } from '../components/CheckoutAddressSelec
 import CheckoutItems from '../components/CheckoutItems'
 import CheckoutPayment from '../components/CheckoutPayment'
 import CheckoutSummary from '../components/CheckoutSummary'
+import { SagaStatusDisplay } from '../components/SagaStatusDisplay'
 import { selectSelectedItems } from '@/features/cart/store/cartSelectors'
 import { calculateCheckout } from '../utils/checkoutCalculator'
-import { checkoutCart, fetchCheckoutStatus } from '@/features/checkout/store/checkoutThunks'
+import { checkoutCart, fetchCheckoutStatus, fetchSagaStatus } from '@/features/checkout/store/checkoutThunks'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Elements } from '@stripe/react-stripe-js'
 import { stripePromise } from '@/lib/stripe'
 import { useNavigate } from 'react-router-dom'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
 import { selectAuthUser } from '@/features/auth/store/authSelectors'
-import { clearCheckout, setCurrentCheckout } from '@/features/checkout/store/checkoutSlice'
+import { clearCheckout, setCurrentCheckout, setSagaId } from '@/features/checkout/store/checkoutSlice'
 import {
     selectAccountAddresses,
     selectAccountAddressesLoading,
@@ -28,9 +29,11 @@ import { fetchCheckoutShippingCalculation } from '@/features/shipping/store/ship
 type StoredCheckoutSession = {
     checkoutId: string
     cartFingerprint: string
+    sagaId?: string
 }
 
 const terminalCheckoutStatuses = new Set(['PAID', 'COMPLETED', 'FAILED', 'FAILED_PAYMENT', 'EXPIRED'])
+const terminalSagaStatuses = new Set(['COMPLETED', 'FAILED', 'TIMEOUT'])
 
 const CheckoutPage = () => {
     const dispatch = useAppDispatch()
@@ -86,6 +89,8 @@ const CheckoutPage = () => {
     const { currentCheckout, loading, paymentStatus, clientSecret, isAwaitingFinalStatus } = useAppSelector(
         state => state.checkout
     )
+    const sagaId = useAppSelector(state => state.checkout.sagaId)
+    const sagaStatus = useAppSelector(state => state.checkout.sagaStatus)
     const checkoutStorageKey = authUser?.id ? `dni.active-checkout.${authUser.id}` : null
 
     const refreshAddresses = useCallback(async () => {
@@ -266,6 +271,10 @@ const CheckoutPage = () => {
             message: 'Restored checkout session',
         }))
 
+        if (parsed.sagaId) {
+            dispatch(setSagaId(parsed.sagaId))
+        }
+
         void dispatch(fetchCheckoutStatus(parsed.checkoutId))
             .unwrap()
             .catch(() => {
@@ -290,6 +299,7 @@ const CheckoutPage = () => {
         const payload: StoredCheckoutSession = {
             checkoutId: currentCheckout.checkout_id,
             cartFingerprint: selectedItemsFingerprint,
+            sagaId: currentCheckout.saga_id ?? undefined,
         }
         sessionStorage.setItem(checkoutStorageKey, JSON.stringify(payload))
     }, [checkoutStorageKey, currentCheckout?.checkout_id, selectedItemsFingerprint])
@@ -348,7 +358,7 @@ const CheckoutPage = () => {
 
         const intervalId = window.setInterval(() => {
             void dispatch(fetchCheckoutStatus(currentCheckout.checkout_id))
-        }, 2000)
+        }, 500)
 
         return () => window.clearInterval(intervalId)
     }, [
@@ -369,6 +379,20 @@ const CheckoutPage = () => {
         }
     }, [paymentStatus, navigate, currentCheckout?.checkout_id])
 
+    // Poll the saga tracker while a run is in progress so SagaStatusDisplay stays live.
+    const sagaPollingActive = !!sagaId && !terminalSagaStatuses.has(sagaStatus?.status ?? '')
+    useEffect(() => {
+        if (!sagaPollingActive) return
+
+        void dispatch(fetchSagaStatus(sagaId as string))
+
+        const intervalId = window.setInterval(() => {
+            void dispatch(fetchSagaStatus(sagaId as string))
+        }, 5000)
+
+        return () => window.clearInterval(intervalId)
+    }, [dispatch, sagaId, sagaPollingActive])
+
     return (
         <Elements stripe={stripePromise}>
             <div className="max-w-[1200px] mx-auto px-4 sm:px-4 py-3 mb-5">
@@ -386,6 +410,9 @@ const CheckoutPage = () => {
                     deliveryAddress={selectedDeliveryAddress}
                     cartItems={items}
                 />
+                {sagaId && (
+                    <SagaStatusDisplay sagaId={sagaId} />
+                )}
             </div>
         </Elements>
     )

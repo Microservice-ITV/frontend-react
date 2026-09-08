@@ -1,8 +1,10 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { useAppDispatch } from '@/app/hooks'
+import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { removeSelectedItems } from '@/features/cart/store/cartSlice'
-import { clearCheckout } from '../store/checkoutSlice'
+import { clearCheckout, selectSagaStatus } from '../store/checkoutSlice'
+import { fetchSagaStatusByCheckout } from '../store/checkoutThunks'
+import { SagaStatusDisplay } from '../components/SagaStatusDisplay'
 import { ecommerceReadClient } from '@/lib/api/ecommerceReadClient'
 import type { PurchasedOrder } from '@/features/account/types/orderTypes'
 
@@ -21,6 +23,8 @@ const MY_ORDERS_QUERY = `
   }
 `
 
+const terminalSagaStatuses = new Set(['COMPLETED', 'FAILED', 'TIMEOUT'])
+
 const CheckoutSuccessPage = () => {
   const dispatch = useAppDispatch()
   const location = useLocation()
@@ -28,11 +32,26 @@ const CheckoutSuccessPage = () => {
 
   const [matchedOrder, setMatchedOrder] = useState<PurchasedOrder | null>(null)
   const [orderLoading, setOrderLoading] = useState(!!checkoutId)
+  const sagaStatus = useAppSelector(selectSagaStatus)
+
+  const sagaPollingActive = !!checkoutId && !terminalSagaStatuses.has(sagaStatus?.status ?? '')
 
   useEffect(() => {
     dispatch(removeSelectedItems())
     dispatch(clearCheckout())
   }, [dispatch])
+
+  useEffect(() => {
+    if (!sagaPollingActive) return
+
+    void dispatch(fetchSagaStatusByCheckout(checkoutId as string))
+
+    const intervalId = window.setInterval(() => {
+      void dispatch(fetchSagaStatusByCheckout(checkoutId as string))
+    }, 5000)
+
+    return () => window.clearInterval(intervalId)
+  }, [dispatch, checkoutId, sagaPollingActive])
 
   useEffect(() => {
     if (!checkoutId) return
@@ -110,6 +129,8 @@ const CheckoutSuccessPage = () => {
           </Link>
         </div>
       </div>
+
+      {checkoutId && <SagaStatusDisplay checkoutId={checkoutId} />}
     </div>
   )
 }
