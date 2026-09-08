@@ -15,6 +15,12 @@ import CheckoutPage from '@/features/checkout/pages/CheckoutPage'
 import CheckoutSuccessPage from '@/features/checkout/pages/CheckoutSuccessPage'
 import CategoriesPage from '@/features/categories/pages/CategoriesPage'
 import AboutUsPage from '@/features/about/pages/AboutUsPage'
+import CareersPage from '@/features/careers/pages/CareersPage'
+import PoliciesPage from '@/features/policies/pages/PoliciesPage'
+import PrivacyPolicyPage from '@/features/privacy/pages/PrivacyPolicyPage'
+import BlogPage from '@/features/blog/pages/BlogPage'
+import MallPage from '@/features/mall/pages/MallPage'
+import SellerCentrePage from '@/features/seller-centre/pages/SellerCentrePage'
 import AccountLayout from '@/features/account/pages/AccountLayout'
 import ProfilePage from '@/features/account/pages/ProfilePage'
 import BanksCardsPage from '@/features/account/pages/BanksCardsPage'
@@ -476,7 +482,12 @@ const AppRoutes = () => {
             <Route path="/products/:id" element={<ProductDetailPage />} />
             <Route path="/cart" element={<CartPage />} />
             <Route path="/about" element={<AboutUsPage />} />
-            
+            <Route path="/careers" element={<CareersPage />} />
+            <Route path="/policies" element={<PoliciesPage />} />
+            <Route path="/privacy" element={<PrivacyPolicyPage />} />
+            <Route path="/blog" element={<BlogPage />} />
+            <Route path="/mall" element={<MallPage />} />
+            <Route path="/seller-centre" element={<SellerCentrePage />} />
 
             {/* fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,21 +1,21 @@
-import { useEffect } from 'react'
-import { useAppDispatch, useAppSelector } from '@/app/hooks'
-import { fetchCategories } from '@/features/categories/store/categoryThunks'
-import CategoryGrid from './CategoryGrid'
+import { useEffect } from "react";
+import { useAppDispatch, useAppSelector } from "@/app/hooks";
+import { fetchCategories } from "@/features/categories/store/categoryThunks";
+import CategoryGrid from "./CategoryGrid";
 
 const CategoriesSection = () => {
-  const dispatch = useAppDispatch()
-  const { items, status } = useAppSelector((s) => s.categories)
+  const dispatch = useAppDispatch();
+  const { items, status } = useAppSelector((s) => s.categories);
 
   useEffect(() => {
-    if (status === 'idle') {
-      void dispatch(fetchCategories())
+    if (status === "idle") {
+      void dispatch(fetchCategories());
     }
-  }, [dispatch, status])
+  }, [dispatch, status]);
 
   return (
     <section className="pt-6">
-      <h1 className="mb-5 text-base uppercase font-semibold text-gray-600">
+      <h1 className="mb-5 px-4 sm:px-6 text-base uppercase font-semibold text-gray-600">
         Categories
       </h1>
 
@@ -32,6 +32,6 @@ const CategoriesSection = () => {
       {status === "succeeded" && <CategoryGrid items={items} />}
     </section>
   );
-}
+};
 
-export default CategoriesSection
+export default CategoriesSection;
