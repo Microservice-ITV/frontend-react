@@ -1,4 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import HomeFeaturesPage from '@/features/homeFeatures/pages/HomeFeaturesPage'
+import NewHomeFeaturePage from '@/features/homeFeatures/pages/NewHomeFeaturePage'
+import EditHomeFeaturePage from '@/features/homeFeatures/pages/EditHomeFeaturePage'
 import { LoginPage } from '@/features/auth/pages/LoginPage'
 import { RegisterPage } from '@/features/auth/pages/RegisterPage'
 import { VerifyEmailPage } from '@/features/auth/pages/VerifyEmailPage'
@@ -311,6 +314,30 @@ const AppRoutes = () => {
                             element={
                                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminShops}>
                                     <AdminShopsPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="home-features/new"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                                    <NewHomeFeaturePage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="home-features/:id/edit"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                                    <EditHomeFeaturePage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="home-features"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                                    <HomeFeaturesPage />
                                 </ProtectedRoute>
                             }
                         />
