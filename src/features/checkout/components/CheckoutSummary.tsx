@@ -163,13 +163,32 @@ const CheckoutSummary = ({
     try {
       // Persist shipping snapshot to order-service before payment confirmation.
       console.info('[PlaceOrder] Updating checkout address...')
-      await checkoutApi.updateCheckoutAddress(
+      const addressResponse = await checkoutApi.updateCheckoutAddress(
         currentCheckout.checkout_id,
         buildCheckoutAddressPayload(deliveryAddress),
       )
       console.info('[PlaceOrder] Address updated, confirming payment with Stripe...')
 
-      const result = await stripe.confirmCardPayment(clientSecret, {
+      // If the backend reports the payment intent already succeeded (e.g. from a
+      // prior confirmCardPayment call), skip confirmation and go straight to
+      // polling for the final checkout status.
+      if (addressResponse.data?.already_succeeded) {
+        console.info('[PlaceOrder] Payment intent already succeeded, skipping confirmCardPayment')
+        dispatch(setCheckoutPaymentStatus('PAYMENT_PENDING_CONFIRMATION'))
+        dispatch(setAwaitingFinalStatus(true))
+        dispatch(setCheckoutError(null))
+        dispatch(setCheckoutPlacingOrder(false))
+        return
+      }
+
+      // The address update may have triggered a payment-intent amount update on
+      // the backend. If the original Stripe intent no longer exists the payment-
+      // service creates a new one, returning a fresh client_secret. Use it so we
+      // don't confirm against a stale / deleted intent.
+      const updatedClientSecret = addressResponse.data?.payment?.client_secret
+      const effectiveClientSecret = updatedClientSecret ?? clientSecret
+
+      const result = await stripe.confirmCardPayment(effectiveClientSecret, {
         payment_method: {
           card,
           billing_details: {
@@ -184,6 +203,21 @@ const CheckoutSummary = ({
         paymentIntentStatus: result.paymentIntent?.status,
         errorMessage: result.error?.message,
       })
+
+      // If Stripe says the intent already succeeded (race with prior call or webhook),
+      // treat it as success — the webhook will complete the flow.
+      if (
+        result.error &&
+        (result.error.code === 'payment_intent_unexpected_state' ||
+          /already succeeded/i.test(result.error.message ?? ''))
+      ) {
+        console.info('[PlaceOrder] Payment intent already succeeded per Stripe, proceeding to polling')
+        dispatch(setCheckoutPaymentStatus('PAYMENT_PENDING_CONFIRMATION'))
+        dispatch(setAwaitingFinalStatus(true))
+        dispatch(setCheckoutError(null))
+        dispatch(setCheckoutPlacingOrder(false))
+        return
+      }
 
       // Payment final state is webhook-driven; polling updates checkout status in store.
       if (result.error) {

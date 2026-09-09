@@ -29,6 +29,7 @@ import ChangePasswordPage from '@/features/account/pages/ChangePasswordPage'
 import NotificationsPage from '@/features/account/pages/NotificationsPage'
 import NotificationsCenterPage from '@/features/account/pages/NotificationsCenterPage'
 import OrdersPage from '@/features/account/pages/OrdersPage'
+import OrderTrackingPage from '@/features/account/pages/OrderTrackingPage'
 import VouchersPage from '@/features/account/pages/VouchersPage'
 import CoinsPage from '@/features/account/pages/CoinsPage'
 import { ROUTE_ACCESS } from './routeAccessMap'
@@ -36,6 +37,7 @@ import DashboardLayout from '@/features/dashboard/components/layout/DashboardLay
 import DashboardPlaceholderPage from '@/features/dashboard/components/layout/DashboardPlaceholderPage'
 import SellerOverviewPage from '@/features/seller/pages/SellerOverviewPage'
 import SellerOrdersPage from '@/features/seller/pages/SellerOrdersPage'
+import SellerOrderDetailPage from '@/features/seller/pages/SellerOrderDetailPage'
 import SellerProductsPage from '@/features/seller/pages/SellerProductsPage'
 import SellerCategoriesPage from '@/features/seller/pages/SellerCategoriesPage'
 import NewProductPage from '@/features/seller/pages/NewProductPage'
@@ -94,6 +96,14 @@ const AppRoutes = () => {
                         element={
                             <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.accountOrders}>
                                 <OrdersPage />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="orders/:orderId"
+                        element={
+                            <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.accountOrders}>
+                                <OrderTrackingPage />
                             </ProtectedRoute>
                         }
                     />
@@ -160,6 +170,14 @@ const AppRoutes = () => {
                             element={
                                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerOrders}>
                                     <SellerOrdersPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="orders/:id"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerOrders}>
+                                    <SellerOrderDetailPage />
                                 </ProtectedRoute>
                             }
                         />
