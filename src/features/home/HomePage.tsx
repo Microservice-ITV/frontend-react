@@ -12,8 +12,10 @@ const HomePage = () => {
             </section>
 
             <section className="bg-[#f5f5f5]">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 bg-white my-4">
-                <CategoriesSection />
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-4">
+                    <div className="bg-white">
+                        <CategoriesSection />
+                    </div>
                 </div>
             </section>
         </>
