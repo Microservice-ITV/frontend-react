@@ -21,7 +21,7 @@ const CheckoutPayment = () => {
               className={`
                 relative px-4 py-2 border rounded text-sm whitespace-nowrap cursor-pointer
                 ${disabled && 'text-gray-400 bg-gray-50 cursor-not-allowed'}
-                ${selected && 'border-emerald-600 text-emerald-600'}
+                ${selected && 'border-emerald-600 text-emerald-`600'}
                 ${!disabled && !selected && 'hover:border-emerald-600'}
               `}
             >
@@ -89,7 +89,7 @@ const CheckoutPayment = () => {
           </button>
 
           {/* Stripe secure card input (keeps existing layout, adds real payment field) */}
-          <div className="mt-4 border rounded px-4 py-3">
+          <div className="mt-4 border rounded px-4 py-3 max-w-xs md:max-w-md">
             <CardElement
               options={{
                 hidePostalCode: true,

@@ -14,3 +14,10 @@ export {
   selectSellerCategoriesStatus,
   selectSellerCategoriesError,
 } from './sellerCategoriesSelectors'
+export { default as sellerOrdersReducer } from './sellerOrdersSlice'
+export { fetchSellerOrdersByShop } from './sellerOrdersThunks'
+export {
+  selectSellerOrders,
+  selectSellerOrdersStatus,
+  selectSellerOrdersError,
+} from './sellerOrdersSelectors'

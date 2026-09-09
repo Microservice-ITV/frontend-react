@@ -17,6 +17,13 @@ import CartPage from '@/features/cart/pages/CartPage'
 import CheckoutPage from '@/features/checkout/pages/CheckoutPage'
 import CheckoutSuccessPage from '@/features/checkout/pages/CheckoutSuccessPage'
 import CategoriesPage from '@/features/categories/pages/CategoriesPage'
+import AboutUsPage from '@/features/about/pages/AboutUsPage'
+import CareersPage from '@/features/careers/pages/CareersPage'
+import PoliciesPage from '@/features/policies/pages/PoliciesPage'
+import PrivacyPolicyPage from '@/features/privacy/pages/PrivacyPolicyPage'
+import BlogPage from '@/features/blog/pages/BlogPage'
+import MallPage from '@/features/mall/pages/MallPage'
+import SellerCentrePage from '@/features/seller-centre/pages/SellerCentrePage'
 import AccountLayout from '@/features/account/pages/AccountLayout'
 import ProfilePage from '@/features/account/pages/ProfilePage'
 import BanksCardsPage from '@/features/account/pages/BanksCardsPage'
@@ -25,6 +32,7 @@ import ChangePasswordPage from '@/features/account/pages/ChangePasswordPage'
 import NotificationsPage from '@/features/account/pages/NotificationsPage'
 import NotificationsCenterPage from '@/features/account/pages/NotificationsCenterPage'
 import OrdersPage from '@/features/account/pages/OrdersPage'
+import OrderTrackingPage from '@/features/account/pages/OrderTrackingPage'
 import VouchersPage from '@/features/account/pages/VouchersPage'
 import CoinsPage from '@/features/account/pages/CoinsPage'
 import { ROUTE_ACCESS } from './routeAccessMap'
@@ -32,6 +40,7 @@ import DashboardLayout from '@/features/dashboard/components/layout/DashboardLay
 import DashboardPlaceholderPage from '@/features/dashboard/components/layout/DashboardPlaceholderPage'
 import SellerOverviewPage from '@/features/seller/pages/SellerOverviewPage'
 import SellerOrdersPage from '@/features/seller/pages/SellerOrdersPage'
+import SellerOrderDetailPage from '@/features/seller/pages/SellerOrderDetailPage'
 import SellerProductsPage from '@/features/seller/pages/SellerProductsPage'
 import SellerCategoriesPage from '@/features/seller/pages/SellerCategoriesPage'
 import NewProductPage from '@/features/seller/pages/NewProductPage'
@@ -90,6 +99,14 @@ const AppRoutes = () => {
                         element={
                             <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.accountOrders}>
                                 <OrdersPage />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="orders/:orderId"
+                        element={
+                            <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.accountOrders}>
+                                <OrderTrackingPage />
                             </ProtectedRoute>
                         }
                     />
@@ -156,6 +173,14 @@ const AppRoutes = () => {
                             element={
                                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerOrders}>
                                     <SellerOrdersPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="orders/:id"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerOrders}>
+                                    <SellerOrderDetailPage />
                                 </ProtectedRoute>
                             }
                         />
@@ -501,6 +526,13 @@ const AppRoutes = () => {
             <Route path="/categories/:id" element={<ProductListPage />} />
             <Route path="/products/:id" element={<ProductDetailPage />} />
             <Route path="/cart" element={<CartPage />} />
+            <Route path="/about" element={<AboutUsPage />} />
+            <Route path="/careers" element={<CareersPage />} />
+            <Route path="/policies" element={<PoliciesPage />} />
+            <Route path="/privacy" element={<PrivacyPolicyPage />} />
+            <Route path="/blog" element={<BlogPage />} />
+            <Route path="/mall" element={<MallPage />} />
+            <Route path="/seller-centre" element={<SellerCentrePage />} />
 
             {/* fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />
