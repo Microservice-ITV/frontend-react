@@ -57,7 +57,7 @@ jobs:
 
             VITE_MAP_PROVIDER=osm
             VITE_USE_MOCK_API=false
-            VITE_RECAPTCHA_SITE_KEY=6Lez3xwtAAAAAA1K0_ItVxqfhusvVDTTD6yTjBN-
+            VITE_RECAPTCHA_SITE_KEY=6LcO46otAAAAAGmfgkNYvcVfI-sZ8iA52SmcaUC9
 
 #####################################################
 # 2. DEPLOY TO VPS

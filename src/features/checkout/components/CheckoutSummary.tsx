@@ -275,62 +275,58 @@ const CheckoutSummary = ({
     totalPayment,
   } = checkout
 
-  return (
+return (
     <div className="bg-[#fffefb] border-t border-dashed border-black/10 px-6 py-6">
-      {/* Summary rows */}
-      <div className="flex justify-center md:justify-end">
-        <div className="w-full md:w-[360px] text-sm text-gray-700">
+      {/* Summary breakdown */}
+      <div className="text-sm text-gray-700 mb-6">
+        {/* Merchandise */}
+        <div className="flex justify-between mb-3">
+          <span className="text-gray-600">Merchandise Subtotal</span>
+          <span className="text-gray-900">${merchandiseSubtotal.toFixed(2)}</span>
+        </div>
 
-          {/* Merchandise */}
-          <div className="flex justify-between mb-3">
-            <span className="text-gray-600">Merchandise Subtotal</span>
-            <span className="text-gray-900">${merchandiseSubtotal.toFixed(2)}</span>
-          </div>
+        {/* Shipping subtotal uses API `totalShippingFee` when calculate succeeds */}
+        <div className="flex justify-between mb-3">
+          <span className="text-gray-600">Shipping Subtotal</span>
+          <span className="text-gray-900">${shippingSubtotal.toFixed(2)}</span>
+        </div>
 
-          {/* Shipping subtotal uses API `totalShippingFee` when calculate succeeds */}
-          <div className="flex justify-between mb-3">
-            <span className="text-gray-600">Shipping Subtotal</span>
-            <span className="text-gray-900">${shippingSubtotal.toFixed(2)}</span>
-          </div>
+        {/* Discount */}
+        <div className="flex justify-between mb-4">
+          <span className="text-gray-600">Shipping Discount Subtotal</span>
+          <span className="text-emerald-600">-{shippingDiscount.toFixed(2)}</span>
+        </div>
 
-          {/* Discount */}
-          <div className="flex justify-between mb-4">
-            <span className="text-gray-600">Shipping Discount Subtotal</span>
-            <span className="text-emerald-600">-{shippingDiscount.toFixed(2)}</span>
-          </div>
-
-          {/* Total */}
-          <div className="flex justify-between items-end">
-            <span className="text-gray-900 font-medium">
-              Total Payment:
-            </span>
-            <span className="text-3xl font-semibold text-emerald-600 text-center md:text-right">
-              ${totalPayment.toFixed(2)}
-            </span>
-          </div>
-
-          {/* GST note */}
-          <div className="mt-2 flex items-center justify-end gap-1 text-xs text-gray-500">
-            <span>GST included, where applicable.</span>
-            <svg viewBox="0 0 15 15" className="w-4 h-4 text-gray-400">
-              <circle cx="7.5" cy="7.5" r="6.5" fill="none" stroke="currentColor" />
-              <path
-                d="M7.5 11.2v-1.2M5.7 5.6a1.9 1.9 0 013.6.7c0 1.2-1.2 1.5-1.4 2.3"
-                stroke="currentColor"
-                fill="none"
-              />
-            </svg>
-          </div>
-
+        {/* Total */}
+        <div className="flex justify-between items-end pt-4 border-t border-black/10">
+          <span className="text-gray-900 font-medium">
+            Total Payment:
+          </span>
+          <span className="text-3xl font-semibold text-emerald-600">
+            ${totalPayment.toFixed(2)}
+          </span>
         </div>
       </div>
 
+      {/* GST note */}
+      <div className="flex items-center justify-end gap-1 text-xs text-gray-500 mb-4">
+        <span>GST included, where applicable.</span>
+        <svg viewBox="0 0 15 15" className="w-4 h-4 text-gray-400">
+          <circle cx="7.5" cy="7.5" r="6.5" fill="none" stroke="currentColor" />
+          <path
+            d="M7.5 11.2v-1.2M5.7 5.6a1.9 1.9 0 013.6.7c0 1.2-1.2 1.5-1.4 2.3"
+            stroke="currentColor"
+            fill="none"
+          />
+        </svg>
+      </div>
+
       {/* Place order */}
-      <div className="mt-6 flex justify-end">
+      <div className="w-full mb-4">
         <button
           onClick={() => void handlePlaceOrder()}
           disabled={!canPlaceOrder}
-          className="w-full md:w-auto px-12 py-3 bg-emerald-600 text-white text-base font-medium rounded hover:bg-emerald-700 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+          className="w-full px-12 py-3 bg-emerald-600 text-white text-base font-medium rounded hover:bg-emerald-700 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {isPlacingOrder
             ? 'Processing...'
@@ -340,25 +336,26 @@ const CheckoutSummary = ({
         </button>
       </div>
 
-      <div className="mt-2 flex justify-end">
+      {/* Status message */}
+      <div className="text-right">
         <p className="text-xs text-gray-500">
           {error
             ? error
             : paymentStatus === 'PAID' || paymentStatus === 'COMPLETED'
               ? 'Order completed successfully.'
-                  : paymentStatus === 'FAILED_PAYMENT'
-                    ? 'Payment failed. Please try again.'
-                  : paymentStatus === 'STOCK_CONFIRMED'
-                    ? 'Stock confirmed. Finalizing payment...'
+              : paymentStatus === 'FAILED_PAYMENT'
+                ? 'Payment failed. Please try again.'
+                : paymentStatus === 'STOCK_CONFIRMED'
+                  ? 'Stock confirmed. Finalizing payment...'
                   : paymentStatus === 'PENDING_STOCK'
                     ? 'Confirming stock availability...'
-                  : paymentStatus === 'EXPIRED'
-                  ? 'Checkout expired. Please start a new checkout.'
-                  : !hasDeliveryAddress
-                    ? 'Please add your delivery address to continue.'
-                  : clientSecret
-                    ? 'Payment ready. You can place your order.'
-                    : 'Preparing payment...'}
+                    : paymentStatus === 'EXPIRED'
+                      ? 'Checkout expired. Please start a new checkout.'
+                      : !hasDeliveryAddress
+                        ? 'Please add your delivery address to continue.'
+                        : clientSecret
+                          ? 'Payment ready. You can place your order.'
+                          : 'Preparing payment...'}
         </p>
       </div>
     </div>

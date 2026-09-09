@@ -4,7 +4,7 @@ import ProductVariantSelector, { pickDefaultVariant } from './ProductVariantSele
 import { deliveryIcon, guaranteeIcon } from '@/assets/icons'
 import type { ProductDetail, ProductVariant } from '@/features/products/types/productTypes'
 import { getGalleryImagesForVariant } from '@/features/products/utils/variantGallery'
-
+import { productServiceAssetUrl } from '@/lib/api/apiConfig'
 interface Props {
   product: ProductDetail
   /** Fired when the active SKU changes (including initial default) — drives variant-specific gallery. */
@@ -175,7 +175,7 @@ const ProductInfo = ({ product, onSelectedVariantChange }: Props) => {
       <ProductVariantSelector
         productId={product.id}
         variants={product.variants}
-        thumbnailUrl={product.images[0]}
+        thumbnailUrl={productServiceAssetUrl(product.images[0])}
         getVariantThumbnail={(v) => getGalleryImagesForVariant(product.images, v)[0]}
         onVariantChange={handleVariantChange}
       />

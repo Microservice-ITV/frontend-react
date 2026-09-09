@@ -413,6 +413,23 @@ const CheckoutPage = () => {
                 {sagaId && (
                     <SagaStatusDisplay sagaId={sagaId} />
                 )}
+                <div className="grid lg:grid-cols-[1fr_380px] gap-6 lg:gap-8 mt-4">
+                    {/* LEFT COLUMN - Payment Method Sections */}
+                    <div className="space-y-4">
+                        <CheckoutPayment />
+                    </div>
+
+                    {/* RIGHT COLUMN - Order Summary */}
+                    <div className="lg:sticky lg:top-24 lg:self-start mt-4">
+                        <CheckoutSummary
+                            checkout={checkout}
+                            hasDeliveryAddress={hasDeliveryAddress}
+                            onRequireAddress={openAddressSelectionModal}
+                            deliveryAddress={selectedDeliveryAddress}
+                            cartItems={items}
+                        />
+                    </div>
+                </div>
             </div>
         </Elements>
     )
