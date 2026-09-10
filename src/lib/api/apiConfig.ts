@@ -7,6 +7,9 @@ export const PRODUCT_SERVICE_BASE_URL =
 export const ORDER_SERVICE_BASE_URL =
     import.meta.env.VITE_ORDER_SERVICE_URL ?? 'http://localhost:5005/api/v1'
 
+export const SHIPPING_SERVICE_BASE_URL =
+    import.meta.env.VITE_SHIPPING_SERVICE_URL ?? 'http://localhost:5005/api/v1'
+
 export const ECOMMERCE_READ_SERVICE_BASE_URL =
     import.meta.env.VITE_ECOMMERCE_READ_SERVICE_URL ?? 'http://localhost:5004'
 
