@@ -160,7 +160,7 @@ const HelpArticlePage = () => {
   const { pathname } = useLocation()
 
   const routeArticleKey = ['how-to-sell', 'payment-methods', 'ecommerce-coins', 'ecommerce-guarantee', 'mall-return-refund', 'return-refund', 'contact-us']
-    .find((key) => pathname.includes(key)) ?? 'how-to-buy'
+    .find((key) => pathname.includes(key) && !(pathname.includes('mall-return-refund') && key === 'return-refund')) ?? 'how-to-buy'
 
   const isSellingArticle = routeArticleKey === 'how-to-sell' && !categoryId
   const [expandedSellerGroups, setExpandedSellerGroups] = useState<Set<string>>(new Set(['announcement']))

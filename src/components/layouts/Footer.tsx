@@ -73,7 +73,7 @@ const Footer = () => {
                             <li><Link to="/help-centre/ecommerce-coins">Ecommerce Coins</Link></li>
                             <li><Link to="/help-centre/ecommerce-guarantee">Ecommerce Guarantee</Link></li>
                             <li><Link to="/help-centre/return-refund">Return & Refund</Link></li>
-                            <li><Link to="/help-centre/ecommerce-mall-return-refund">Ecommerce Mall Return & Refund</Link></li>
+                            <li><Link to="/help-centre/mall-return-refund">Ecommerce Mall Return & Refund</Link></li>
                             <li><Link to="/help-centre/contact-us">Contact Us</Link></li>
                         </ul>
                     </div>
