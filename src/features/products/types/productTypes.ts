@@ -34,6 +34,8 @@ export interface ProductDetail {
   name: string
   slug: string
   description?: string
+  /** Optional product demo video (YouTube URL). */
+  videoUrl?: string
   sku?: string
   /** Aggregate / default when no variant selection */
   stock?: number

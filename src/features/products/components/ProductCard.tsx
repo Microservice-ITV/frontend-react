@@ -1,56 +1,61 @@
 import { Product } from '../types/productTypes'
 import { Link } from 'react-router-dom'
+import { formatProductPrice } from '../utils/formatProductPrice'
 
+/**
+ * Shopee-style product card: border + shadow on hover, “Find Similar” under the card.
+ * Bottom padding reserves CTA space so the bar never covers the next row.
+ */
 const ProductCard = ({ product }: { product: Product }) => {
   return (
-    <div
-      className="
-        group relative box-content border border-[var(--dni-border)] rounded-[6px] bg-white transition-all
-        duration-100 hover:border-[var(--dni-primary)] hover:shadow-md hover:-translate-y-[1px] hover:z-[10]"
-    >
-      {/* MAIN CARD */}
-      <Link to={`/products/${product.id}`} className="contents">
-        <div className="flex flex-col h-full overflow-hidden rounded-[6px]">
-          {/* IMAGE */}
-          <div className="relative w-full pt-[100%] bg-gray-100">
+    <div className="group relative pb-8">
+      <div
+        className="
+          relative z-0 overflow-hidden rounded-sm border border-[rgba(0,0,0,0.09)] bg-white
+          transition-[border-color,box-shadow,border-radius] duration-100
+          group-hover:z-[1] group-hover:rounded-b-none
+          group-hover:border-[var(--dni-primary)]
+          group-hover:shadow-[0_0.0625rem_0.125rem_0_rgba(0,0,0,0.1)]
+        "
+      >
+        <Link to={`/products/${product.id}`} className="block">
+          {/* IMAGE — square like Shopee */}
+          <div className="relative w-full bg-[#fafafa] pt-[100%]">
             <img
               src={product.images?.[0] ?? '/placeholder.svg'}
               alt={product.name}
-              className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+              className="pointer-events-none absolute inset-0 h-full w-full object-contain"
               loading="lazy"
             />
           </div>
 
-          {/* CONTENT */}
-          <div className="p-2 flex flex-col justify-between flex-1">
-            <div className="mb-2">
-              <div className="line-clamp-2 min-h-[2.5rem] text-sm">
-                {product.name}
-              </div>
-            </div>
+          {/* META */}
+          <div className="flex flex-col gap-1.5 p-2 pb-2.5">
+            <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-normal leading-5 text-[rgba(0,0,0,0.87)]">
+              {product.name}
+            </h3>
 
-            <div className="space-y-1">
-              <div className="flex items-center">
-                <span className="text-xs mr-0.5">$</span>
-                <span className="text-base font-medium text-[var(--dni-primary)]">
-                  {product.price.toFixed(2)}
-                </span>
-                <span className="ml-auto text-xs text-gray-500">
-                  100 sold
-                </span>
-              </div>
+            <div className="mt-auto flex items-baseline justify-between gap-2">
+              <span className="text-base font-medium leading-none text-[var(--dni-primary)]">
+                {formatProductPrice(product.price)}
+              </span>
+              <span className="truncate text-xs text-[rgba(0,0,0,0.54)]">100 sold</span>
             </div>
           </div>
-        </div>
-      </Link>
+        </Link>
+      </div>
 
-      {/* FIND SIMILAR – OUTSIDE CARD */}
+      {/* FIND SIMILAR — sits in reserved pb, flush under card (Shopee pattern, no overlap) */}
       <Link
         to={`/find-similar/${product.id}`}
         className="
-          absolute left-[-1px] top-[calc(100%-6px)] w-[calc(100%+2px)] h-[30px] bg-[var(--dni-primary)] 
-          text-white text-center text-sm leading-[30px] border border-[var(--dni-primary)] rounded-b-sm 
-          opacity-0 group-hover:opacity-100 transition-opacity duration-100 z-[-1]"
+          absolute inset-x-0 bottom-0 z-0 flex h-8 items-center justify-center
+          rounded-b-sm border border-t-0 border-transparent
+          bg-[var(--dni-primary)] text-sm font-normal text-white
+          opacity-0 pointer-events-none transition-opacity duration-100
+          group-hover:pointer-events-auto group-hover:opacity-100
+          group-hover:border-[var(--dni-primary)]
+        "
       >
         Find Similar
       </Link>

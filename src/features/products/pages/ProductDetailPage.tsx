@@ -7,6 +7,7 @@ import type { ProductVariant } from '@/features/products/types/productTypes'
 import { getGalleryImagesForVariant } from '@/features/products/utils/variantGallery'
 
 import ProductBreadcrumb from '../components/ProductBreadcrumb'
+import ProductDescriptionSection from '../components/ProductDescriptionSection'
 import ProductGallery from '../components/ProductGallery'
 import ProductInfo from '../components/ProductInfo'
 import { pickDefaultVariant } from '../components/ProductVariantSelector'
@@ -83,6 +84,8 @@ const ProductDetailPage = () => {
           <ProductGallery images={galleryImages} />
           <ProductInfo product={selectedProduct} onSelectedVariantChange={onGalleryVariantChange} />
         </section>
+
+        <ProductDescriptionSection product={selectedProduct} />
       </div>
     </div>
   )
