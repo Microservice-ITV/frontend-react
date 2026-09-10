@@ -1,6 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit'
 import type { ProductsState } from '../types/productTypes'
-import { fetchProductsByCategory, fetchProductDetail, searchProducts } from './productThunks'
+import { fetchProductsByCategory, fetchProductDetail, fetchRecentProducts, searchProducts } from './productThunks'
 
 const initialState: ProductsState = {
     items: [],
@@ -11,6 +11,13 @@ const initialState: ProductsState = {
     searchResults: [],
     searchStatus: 'idle',
     searchError: null,
+    recentProducts: [],
+    recentProductsNextCursor: null,
+    recentProductsHasNextPage: false,
+    recentProductsLoadedCursors: [],
+    recentProductsLoading: false,
+    recentProductsStatus: 'idle',
+    recentProductsError: null,
 }
 
 const productSlice = createSlice({
@@ -41,6 +48,34 @@ const productSlice = createSlice({
             .addCase(fetchProductsByCategory.rejected, (state, action) => {
                 state.status = 'failed'
                 state.error = (action.payload as string) ?? 'Failed to load products'
+            })
+
+            // RECENT PRODUCTS
+            .addCase(fetchRecentProducts.pending, (state) => {
+                state.recentProductsLoading = true
+                state.recentProductsStatus = 'loading'
+                state.recentProductsError = null
+            })
+            .addCase(fetchRecentProducts.fulfilled, (state, action) => {
+                const isLoadMore = Boolean(action.meta.arg.cursor)
+                const products = isLoadMore
+                    ? [...state.recentProducts, ...action.payload.items]
+                    : action.payload.items
+                state.recentProducts = products.filter(
+                    (product, index, allProducts) => allProducts.findIndex((item) => item.id === product.id) === index,
+                )
+                if (action.meta.arg.cursor) {
+                    state.recentProductsLoadedCursors.push(action.meta.arg.cursor)
+                }
+                state.recentProductsHasNextPage = action.payload.hasNextPage
+                state.recentProductsNextCursor = action.payload.nextCursor
+                state.recentProductsLoading = false
+                state.recentProductsStatus = 'succeeded'
+            })
+            .addCase(fetchRecentProducts.rejected, (state, action) => {
+                state.recentProductsLoading = false
+                state.recentProductsStatus = state.recentProducts.length > 0 ? 'succeeded' : 'failed'
+                state.recentProductsError = (action.payload as string) ?? 'Failed to load recently added products'
             })
 
             // SEARCH

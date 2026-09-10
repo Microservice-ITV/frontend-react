@@ -49,6 +49,22 @@ interface ProductDetailApiResponse {
     }
 }
 
+export interface RecentProductApiItem {
+    id: string
+    name: string
+    price: number | string
+    image?: string
+    images?: string[]
+    categoryId?: string
+    createdAt: string
+}
+
+export interface RecentProductsApiResponse {
+    items: RecentProductApiItem[]
+    hasNextPage: boolean
+    nextCursor: string | null
+}
+
 type GraphQLErrorItem = { message?: string }
 type GraphQLEnvelope<TData> = { data?: TData; errors?: GraphQLErrorItem[] }
 
@@ -344,6 +360,17 @@ export const productApi = {
             headers: {},
             config: {} as never,
         } as AxiosResponse<ProductsApiResponse>
+    },
+
+    getRecentProducts: async (limit = 10, cursor?: string): Promise<RecentProductsApiResponse> => {
+        const response = await ecommerceReadRestClient.get<RecentProductsApiResponse>('/catalog/products/recent', {
+            params: {
+                limit,
+                ...(cursor ? { cursor } : {}),
+            },
+        })
+
+        return response.data
     },
 
     /**

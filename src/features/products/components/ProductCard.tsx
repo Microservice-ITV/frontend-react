@@ -22,7 +22,7 @@ const ProductCard = ({ product }: { product: Product }) => {
           {/* IMAGE — square like Shopee */}
           <div className="relative w-full bg-[#fafafa] pt-[100%]">
             <img
-              src={product.images?.[0] ?? '/placeholder.svg'}
+              src={`${product.images?.[0] ?? '/placeholder.svg'}`}
               alt={product.name}
               className="pointer-events-none absolute inset-0 h-full w-full object-contain"
               loading="lazy"
