@@ -1,17 +1,36 @@
 export const AUTH_SERVICE_BASE_URL =
-    import.meta.env.VITE_AUTH_SERVICE_URL ?? 'http://localhost:8000/api/v1'
+    import.meta.env.VITE_AUTH_SERVICE_URL ??
+    'http://localhost:8000/api/v1'
+
+const getOAuthBaseUrl = (): string => {
+    const base = AUTH_SERVICE_BASE_URL
+
+    if (base.startsWith('http://') || base.startsWith('https://')) {
+        return base
+    }
+
+    return 'http://localhost:8000/api/v1'
+}
+
+export const getOAuthRedirectUrl = (
+    provider: 'google' | 'facebook',
+): string => `${getOAuthBaseUrl()}/oauth/${provider}/redirect`
 
 export const PRODUCT_SERVICE_BASE_URL =
-    import.meta.env.VITE_PRODUCT_SERVICE_URL ?? 'http://localhost:5001/api/v1'
+    import.meta.env.VITE_PRODUCT_SERVICE_URL ??
+    'http://localhost:5001/api/v1'
 
 export const ORDER_SERVICE_BASE_URL =
-    import.meta.env.VITE_ORDER_SERVICE_URL ?? 'http://localhost:5005/api/v1'
+    import.meta.env.VITE_ORDER_SERVICE_URL ??
+    'http://localhost:5005/api/v1'
 
 export const SHIPPING_SERVICE_BASE_URL =
-    import.meta.env.VITE_SHIPPING_SERVICE_URL ?? 'http://localhost:5005/api/v1'
+    import.meta.env.VITE_SHIPPING_SERVICE_URL ??
+    'http://localhost:5020/api/v1'
 
 export const ECOMMERCE_READ_SERVICE_BASE_URL =
-    import.meta.env.VITE_ECOMMERCE_READ_SERVICE_URL ?? 'http://localhost:5004'
+    import.meta.env.VITE_ECOMMERCE_READ_SERVICE_URL ??
+    'http://localhost:5004'
 
 export const ECOMMERCE_READ_GRAPHQL_URL =
     import.meta.env.VITE_ECOMMERCE_READ_GRAPHQL_URL ??
@@ -22,7 +41,7 @@ export const ASSET_BASE_URL = (
     PRODUCT_SERVICE_BASE_URL.replace(/\/api\/v\d+(?:\/.*)?$/i, '')
 ).replace(/\/+$/, '')
 
-const isLocal =
+const isLocalAssetBase =
     /^(https?:\/\/)?(?:localhost|127\.0\.0\.1|0\.0\.0\.0)(?::\d+)?$/i.test(
         ASSET_BASE_URL,
     )
@@ -30,60 +49,60 @@ const isLocal =
 export function productServiceAssetUrl(
     path: string | undefined | null,
 ): string {
-    if (!path) return ''
+    if (path == null) return ''
 
-    const value = String(path).trim()
+    const trimmed = String(path).trim()
 
-    if (!value) return ''
+    if (!trimmed) return ''
 
-    if (/^(data:|blob:)/i.test(value)) {
-        return value
+    if (/^(data:|blob:)/i.test(trimmed)) {
+        return trimmed
     }
 
     if (
         /^https:\/\/dnistore\.sgp1\.cdn\.digitaloceanspaces\.com\//i.test(
-            value,
+            trimmed,
         )
     ) {
-        return value
+        return trimmed
     }
 
-    let normalizedPath = value
+    let assetPath = trimmed
 
-    if (/^https?:\/\//i.test(value)) {
+    if (/^https?:\/\//i.test(trimmed)) {
         try {
-            const url = new URL(value)
+            const url = new URL(trimmed)
             const productUrl = new URL(PRODUCT_SERVICE_BASE_URL)
 
             if (url.origin === productUrl.origin) {
-                normalizedPath = url.pathname
+                assetPath = url.pathname
 
                 if (productUrl.pathname !== '/') {
-                    normalizedPath = normalizedPath.replace(
+                    assetPath = assetPath.replace(
                         new RegExp(`^${productUrl.pathname}`),
                         '',
                     )
                 }
             } else {
-                return value
+                return trimmed
             }
         } catch {
-            return value
+            return ''
         }
     }
 
-    normalizedPath = normalizedPath
+    assetPath = assetPath
         .replace(/^\/+/, '')
         .replace(/^dnistore\//i, '')
         .replace(/^uploads\//i, '')
 
-    if (isLocal) {
+    if (isLocalAssetBase) {
         const localBase = PRODUCT_SERVICE_BASE_URL
             .replace(/\/api\/v\d+(?:\/.*)?$/i, '')
             .replace(/\/+$/, '')
 
-        return `${localBase}/uploads/${normalizedPath}`
+        return `${localBase}/uploads/${assetPath}`
     }
 
-    return `${ASSET_BASE_URL}/${normalizedPath}`
+    return `${ASSET_BASE_URL}/${assetPath}`
 }
