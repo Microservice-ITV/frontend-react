@@ -1,7 +1,8 @@
 import { createAsyncThunk } from '@reduxjs/toolkit'
-import type { RootState } from '@/app/store'
-import { checkoutApi } from '../api/checkoutApi'
-import type { CheckoutResponse, CheckoutStatusResponse } from '../types/checkoutTypes';
+import { orderClient } from '@/lib/api/orderClient'
+import type { AxiosResponse } from 'axios'
+import type { CheckoutResponse, CheckoutStatusResponse } from '../types/checkoutTypes'
+import type { SagaStatusResponse, SagaCheckoutResponse } from '../types/sagaTypes'
 
 const generateIdempotencyKey = (userId: string) => {
     if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -11,9 +12,9 @@ const generateIdempotencyKey = (userId: string) => {
 }
 
 export const checkoutCart = createAsyncThunk<
-    CheckoutResponse,
+    SagaCheckoutResponse,
     void,
-    { state: RootState; rejectValue: string }
+    { state: any; rejectValue: string }
 >(
     'cart/checkout',
     async (_, { getState, rejectWithValue }) => {
@@ -35,7 +36,7 @@ export const checkoutCart = createAsyncThunk<
             // Keep idempotency key short (<255) to satisfy backend validation.
             const idempotencyKey = generateIdempotencyKey(String(userId))
 
-            const response = await checkoutApi.createCheckoutSession({
+            const response = await orderClient.post<SagaCheckoutResponse>('/saga/orders/checkout', {
                 idempotency_key: idempotencyKey,
                 user_id: String(userId),
                 items: selectedItems.map(item => ({
@@ -43,9 +44,41 @@ export const checkoutCart = createAsyncThunk<
                     qty: item.quantity,
                     ...(item.variantId ? { variant_id: item.variantId } : {}),
                 })),
+                delivery_address: {
+                    full_name: '',
+                    phone_no: '',
+                    country_code: '+1',
+                    country: 'United States',
+                    state: '',
+                    city: '',
+                    district: '',
+                    ward: '',
+                    address_line_1: '',
+                    address_line_2: '',
+                    postal_code: '',
+                    latitude: null,
+                    longitude: null,
+                    delivery_note: '',
+                    shipping_total: 0,
+                    shop_shippings: []
+                }
+            }, {
+                headers: {
+                    'Idempotency-Key': idempotencyKey,
+                },
             })
 
-            return response.data
+            const raw = response.data as any
+            const normalized: SagaCheckoutResponse = 'data' in raw ? raw.data : raw
+            const checkout = normalized?.checkout
+            const checkoutId =
+                normalized.checkout_id ??
+                checkout?.checkout_id ??
+                checkout?.id ??
+                null
+            return checkoutId
+                ? { ...normalized, checkout_id: checkoutId }
+                : normalized
         } catch (error: any) {
             return rejectWithValue(
                 error.response?.data?.error ?? 'Checkout failed'
@@ -66,27 +99,118 @@ export const checkoutCart = createAsyncThunk<
       }
 )
 
+export const completeCheckout = createAsyncThunk<
+    any,
+    { checkoutId: string; paymentData?: any },
+    { rejectValue: string }
+>(
+    'checkout/complete',
+    async ({ checkoutId, paymentData }, { rejectWithValue }) => {
+        try {
+            const response = await orderClient.post(`/saga/orders/${checkoutId}/complete`, { 
+                payment_data: paymentData 
+            })
+            const raw = response.data as any
+            const normalized = 'data' in raw ? raw.data : raw
+            return normalized
+        } catch (error: any) {
+            return rejectWithValue(
+                error.response?.data?.error ?? 'Failed to complete checkout'
+            )
+        }
+    }
+)
+
+export const fetchSagaStatus = createAsyncThunk<
+    SagaStatusResponse,
+    string,
+    { rejectValue: string }
+>(
+    'checkout/fetchSagaStatus',
+    async (sagaId, { rejectWithValue }) => {
+        try {
+            const response = await orderClient.get<SagaStatusResponse | { data: SagaStatusResponse }>(`/saga/sagas/${sagaId}`)
+            const raw = response.data as SagaStatusResponse | { data: SagaStatusResponse }
+            const normalized: SagaStatusResponse = 'data' in raw ? raw.data : raw
+            return normalized
+        } catch (error: any) {
+            return rejectWithValue(
+                error.response?.data?.error ?? 'Failed to fetch saga status'
+            )
+        }
+    }
+)
+
+export const fetchSagaStatusByCheckout = createAsyncThunk<
+    SagaStatusResponse,
+    string,
+    { rejectValue: string }
+>(
+    'checkout/fetchSagaStatusByCheckout',
+    async (checkoutId, { rejectWithValue }) => {
+        try {
+            const response = await orderClient.get<any>(`/saga/orders/${checkoutId}/status`)
+            const raw = response.data as any
+            const normalized = 'data' in raw ? raw.data : raw
+            const saga = normalized?.saga
+
+            if (!saga) {
+                return rejectWithValue('No saga found for this order')
+            }
+
+            return {
+                saga_id: saga.saga_id,
+                status: saga.status,
+                type: 'checkout',
+                order_id: checkoutId,
+                current_step: saga.current_step,
+                total_steps: saga.total_steps ?? 0,
+                completed_steps: saga.completed_steps ?? [],
+                failed_steps: saga.failed_steps ?? [],
+                compensation_required: false,
+            } as SagaStatusResponse
+        } catch (error: any) {
+            return rejectWithValue(
+                error.response?.data?.error ?? 'Failed to fetch saga status'
+            )
+        }
+    }
+)
+
+export const fetchSagaStatistics = createAsyncThunk<
+    any,
+    void,
+    { rejectValue: string }
+>(
+    'checkout/fetchSagaStatistics',
+    async (_, { rejectWithValue }) => {
+        try {
+            const response = await orderClient.get<any>('/saga/sagas/statistics')
+            const raw = response.data as any
+            const normalized = 'data' in raw ? raw.data : raw
+            return normalized
+        } catch (error: any) {
+            return rejectWithValue(
+                error.response?.data?.error ?? 'Failed to fetch saga statistics'
+            )
+        }
+    }
+)
+
 export const fetchCheckoutStatus = createAsyncThunk<
     CheckoutStatusResponse,
     string,
     { rejectValue: string }
 >(
-    'checkout/fetchStatus',
+    'checkout/fetchCheckoutStatus',
     async (checkoutId, { rejectWithValue }) => {
         try {
-            const response = await checkoutApi.getCheckoutSession(checkoutId)
-            const payload = response.data as CheckoutStatusResponse & {
-                payment?: { client_secret?: string }
-            }
-
-            return {
-                checkout_id: payload.checkout_id ?? checkoutId,
-                status: payload.status ?? 'PROCESSING',
-                client_secret: payload.client_secret ?? payload.payment?.client_secret,
-                expire_at: payload.expire_at ?? null,
-                message: payload.message,
-                items: payload.items,
-            }
+            const response = await orderClient.get<CheckoutStatusResponse | { data: CheckoutStatusResponse }>(
+                `/orders/checkout-sessions/${checkoutId}`,
+            )
+            const raw = response.data as CheckoutStatusResponse | { data: CheckoutStatusResponse }
+            const normalized: CheckoutStatusResponse = 'data' in raw ? raw.data : raw
+            return normalized
         } catch (error: any) {
             return rejectWithValue(
                 error.response?.data?.error ?? 'Failed to fetch checkout status'

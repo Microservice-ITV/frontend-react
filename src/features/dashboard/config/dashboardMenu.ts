@@ -15,6 +15,8 @@ import {
   MessageCircle,
   FolderOpen,
   Tags,
+  LayoutGrid,
+  Home,
 } from 'lucide-react'
 import { CAPABILITIES } from '@/app/rbac/capabilities'
 import type { DashboardMenuSection } from '../types/dashboardTypes'
@@ -179,6 +181,14 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         area: 'super_admin',
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
         icon: Tags,
+      },
+      {
+        key: 'admin-home-features',
+        label: 'Home Features',
+        to: '/super-admin/home-features',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: Home,
       },
       {
         key: 'admin-users',

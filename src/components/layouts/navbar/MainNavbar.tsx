@@ -13,6 +13,7 @@ const MainNavbar = () => {
     const [searchQuery, setSearchQuery] = useState('')
     const navigate = useNavigate()
     const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+    // const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
     const queryRef = useRef(searchQuery)
     queryRef.current = searchQuery
 
