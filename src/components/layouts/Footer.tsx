@@ -41,7 +41,7 @@ const customerServiceLinks = [
 ]
 
 const aboutLinks = [
-    { label: 'About Us', to: '#' },
+    { label: 'About Us', to: '/about' },
     { label: 'Ecommerce Careers', to: '#' },
     { label: 'Policies', to: '#' },
     { label: 'Privacy Policy', to: '#' },
@@ -66,15 +66,15 @@ const Footer = () => {
                             CUSTOMER SERVICE
                         </h3>
                         <ul className="space-y-2">
-                            <li><Link to="#">Help Centre</Link></li>
-                            <li><Link to="#">How To Buy</Link></li>
-                            <li><Link to="#">How To Sell</Link></li>
-                            <li><Link to="#">Payment Methods</Link></li>
-                            <li><Link to="#">Ecommerce Coins</Link></li>
-                            <li><Link to="#">Ecommerce Guarantee</Link></li>
-                            <li><Link to="#">Return & Refund</Link></li>
-                            <li><Link to="#">Ecommerce Mall Return & Refund</Link></li>
-                            <li><Link to="#">Contact Us</Link></li>
+                            <li><Link to="/help-centre">Help Centre</Link></li>
+                            <li><Link to="/help-centre/how-to-buy">How To Buy</Link></li>
+                            <li><Link to="/help-centre/how-to-sell">How To Sell</Link></li>
+                            <li><Link to="/help-centre/payment-methods">Payment Methods</Link></li>
+                            <li><Link to="/help-centre/ecommerce-coins">Ecommerce Coins</Link></li>
+                            <li><Link to="/help-centre/ecommerce-guarantee">Ecommerce Guarantee</Link></li>
+                            <li><Link to="/help-centre/return-refund">Return & Refund</Link></li>
+                            <li><Link to="/help-centre/ecommerce-mall-return-refund">Ecommerce Mall Return & Refund</Link></li>
+                            <li><Link to="/help-centre/contact-us">Contact Us</Link></li>
                         </ul>
                     </div>
 
@@ -84,13 +84,13 @@ const Footer = () => {
                             ABOUT ECOMMERCE
                         </h3>
                         <ul className="space-y-2">
-                            <li><Link to="#">About Us</Link></li>
-                            <li><Link to="#">Ecommerce Careers</Link></li>
-                            <li><Link to="#">Policies</Link></li>
-                            <li><Link to="#">Privacy Policy</Link></li>
-                            <li><Link to="#">Ecommerce Blog</Link></li>
-                            <li><Link to="#">Ecommerce Mall</Link></li>
-                            <li><Link to="#">Seller Centre</Link></li>
+                            <li><Link to="/about">About Us</Link></li>
+                            <li><Link to="/careers">Ecommerce Careers</Link></li>
+                            <li><Link to="/policies">Policies</Link></li>
+                            <li><Link to="/privacy-policy">Privacy Policy</Link></li>
+                            <li><Link to="/blog">Ecommerce Blog</Link></li>
+                            <li><Link to="/mall">Ecommerce Mall</Link></li>
+                            <li><Link to="/seller-center">Seller Centre</Link></li>
                             <li><Link to="#">Seller Mentors</Link></li>
                             <li><Link to="#">Flash Deals</Link></li>
                             <li><Link to="#">Media Contact</Link></li>
