@@ -1,4 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import HomeFeaturesPage from '@/features/homeFeatures/pages/HomeFeaturesPage'
+import NewHomeFeaturePage from '@/features/homeFeatures/pages/NewHomeFeaturePage'
+import EditHomeFeaturePage from '@/features/homeFeatures/pages/EditHomeFeaturePage'
 import { LoginPage } from '@/features/auth/pages/LoginPage'
 import { RegisterPage } from '@/features/auth/pages/RegisterPage'
 import { VerifyEmailPage } from '@/features/auth/pages/VerifyEmailPage'
@@ -22,6 +25,10 @@ import PrivacyPolicyPage from '@/features/privacy/pages/PrivacyPolicyPage'
 import BlogPage from '@/features/blog/pages/BlogPage'
 import MallPage from '@/features/mall/pages/MallPage'
 import SellerCentrePage from '@/features/seller-centre/pages/SellerCentrePage'
+import SellerMentorsPage from '@/features/seller-mentors/pages/SellerMentorsPage'
+import FlashDealsPage from '@/features/flash-deals/pages/FlashDealsPage'
+import MediaContactPage from '@/features/media/pages/MediaContactPage'
+import AmbassadorProgrammePage from '@/features/ambassador/pages/AmbassadorProgrammePage'
 import AccountLayout from '@/features/account/pages/AccountLayout'
 import ProfilePage from '@/features/account/pages/ProfilePage'
 import BanksCardsPage from '@/features/account/pages/BanksCardsPage'
@@ -60,6 +67,8 @@ import CommonNotificationsPage from '@/features/common/pages/CommonNotifications
 import CommonChatPage from '@/features/common/pages/CommonChatPage'
 import CommonHelpSupportPage from '@/features/common/pages/CommonHelpSupportPage'
 import CommonSettingsPage from '@/features/common/pages/CommonSettingsPage'
+import HelpCenterPage from '@/features/help-center/components/HelpCenterPage'
+import HelpArticlePage from '@/features/help-center/components/HelpArticlePage'
 
 const AppRoutes = () => {
     return (
@@ -341,6 +350,30 @@ const AppRoutes = () => {
                             }
                         />
                         <Route
+                            path="home-features/new"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                                    <NewHomeFeaturePage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="home-features/:id/edit"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                                    <EditHomeFeaturePage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="home-features"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                                    <HomeFeaturesPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
                             path="shops/:shopId/edit"
                             element={
                                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminShops}>
@@ -499,6 +532,16 @@ const AppRoutes = () => {
             <Route path="/all_categories" element={<CategoriesPage />} />
             <Route path="/categories/:id" element={<ProductListPage />} />
             <Route path="/products/:id" element={<ProductDetailPage />} />
+            <Route path="/help-centre" element={<HelpCenterPage />} />
+            <Route path="/help-centre/article/:categoryId/:itemIndex" element={<HelpArticlePage />} />
+            <Route path="/help-centre/how-to-buy" element={<HelpArticlePage />} />
+            <Route path="/help-centre/how-to-sell" element={<HelpArticlePage />} />
+            <Route path="/help-centre/payment-methods" element={<HelpArticlePage />} />
+            <Route path="/help-centre/ecommerce-coins" element={<HelpArticlePage />} />
+            <Route path="/help-centre/ecommerce-guarantee" element={<HelpArticlePage />} />
+            <Route path="/help-centre/return-refund" element={<HelpArticlePage />} />
+            <Route path="/help-centre/mall-return-refund" element={<HelpArticlePage />} />
+            <Route path="/help-centre/contact-us" element={<HelpArticlePage />} />
             <Route path="/cart" element={<CartPage />} />
             <Route path="/cart/see-more" element={<CartSeeMorePage />} />
             <Route path="/about" element={<AboutUsPage />} />
@@ -508,6 +551,10 @@ const AppRoutes = () => {
             <Route path="/blog" element={<BlogPage />} />
             <Route path="/mall" element={<MallPage />} />
             <Route path="/seller-centre" element={<SellerCentrePage />} />
+            <Route path="/seller-mentors" element={<SellerMentorsPage />} />
+            <Route path="/flash-deals" element={<FlashDealsPage />} />
+            <Route path="/media" element={<MediaContactPage />} />
+            <Route path="/ambassador" element={<AmbassadorProgrammePage />} />
 
             {/* fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />

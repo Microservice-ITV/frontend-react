@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Lightbulb, Store, Tag } from 'lucide-react'
+import ecommerceBlog from '@/assets/blog/ecommerce_blog.png'
 import featuredSmartShopping from '@/assets/blog/blog-featured-smart-shopping.png'
 
 type BlogCategory = 'All' | 'Shopping Tips' | 'Seller Guides' | 'Deals & Campaigns' | 'Company'
@@ -167,28 +168,39 @@ const BlogPage = () => {
           }}
         />
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 py-14 sm:py-20">
-          <p className="text-sm font-medium uppercase tracking-widest text-emerald-600">
-            Ecommerce Blog
-          </p>
-          <h1 className="mt-3 max-w-3xl text-3xl sm:text-4xl md:text-5xl font-bold leading-tight text-gray-900">
-            Tips, guides, and marketplace stories
-          </h1>
-          <p className="mt-4 max-w-2xl text-base sm:text-lg text-gray-600 leading-relaxed">
-            Shopping advice, seller playbooks, and campaign updates — written
-            for everyday buyers and growing shops.
-          </p>
-          <div className="mt-8 max-w-xl">
-            <label htmlFor="blog-search" className="sr-only">
-              Search blog
-            </label>
-            <input
-              id="blog-search"
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search articles…"
-              className="w-full rounded-sm border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 outline-none focus:border-emerald-500"
-            />
+          <div className="grid items-center gap-10 lg:grid-cols-2">
+            <div>
+              <p className="text-sm font-medium uppercase tracking-widest text-emerald-600">
+                Ecommerce Blog
+              </p>
+              <h1 className="mt-3 max-w-3xl text-3xl sm:text-4xl md:text-5xl font-bold leading-tight text-gray-900">
+                Tips, guides, and marketplace stories
+              </h1>
+              <p className="mt-4 max-w-2xl text-base sm:text-lg text-gray-600 leading-relaxed">
+                Shopping advice, seller playbooks, and campaign updates — written
+                for everyday buyers and growing shops.
+              </p>
+              <div className="mt-8 max-w-xl">
+                <label htmlFor="blog-search" className="sr-only">
+                  Search blog
+                </label>
+                <input
+                  id="blog-search"
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search articles…"
+                  className="w-full rounded-sm border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 outline-none focus:border-emerald-500"
+                />
+              </div>
+            </div>
+            <div className="relative hidden overflow-hidden rounded-sm border border-[var(--dni-cart-border)] bg-white shadow-sm lg:block">
+              <img
+                src={ecommerceBlog}
+                alt="Ecommerce blog — tips, guides, and marketplace stories"
+                className="h-full w-full object-cover aspect-[4/3]"
+              />
+            </div>
           </div>
         </div>
       </section>
