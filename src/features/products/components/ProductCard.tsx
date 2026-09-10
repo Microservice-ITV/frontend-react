@@ -14,7 +14,7 @@ const ProductCard = ({ product, showFindSimilar = true }: { product: Product; sh
           {/* IMAGE */}
           <div className="relative w-full pt-[100%] bg-gray-100">
             <img
-              src={product.images?.[0] ?? '/placeholder.svg'}
+              src={`${product.images?.[0] ?? '/placeholder.svg'}`}
               alt={product.name}
               className="absolute inset-0 w-full h-full object-contain pointer-events-none"
               loading="lazy"

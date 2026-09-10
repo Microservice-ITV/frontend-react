@@ -3,6 +3,8 @@ export interface CheckoutResponse {
     message: string
     status?: number
     expire_at?: string | null
+    saga_id?: string
+    existing?: boolean
 }
 
 export type CheckoutPaymentStatus =
@@ -22,6 +24,10 @@ export interface CheckoutStatusResponse {
     checkout_id: string
     status: CheckoutPaymentStatus
     client_secret?: string
+    payment?: {
+        payment_id: string
+        client_secret?: string
+    } | null
     expire_at?: string | null
     message?: string
     items?: Array<{

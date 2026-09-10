@@ -15,6 +15,7 @@ services:
     restart: always
     environment:
       APP_ENV: ${APP_ENV}
+      VITE_APP_ENV: ${APP_ENV}
       VITE_AUTH_SERVICE_URL: ${VITE_AUTH_SERVICE_URL:-http://localhost:8000/api/v1}
       VITE_ORDER_SERVICE_URL: ${VITE_ORDER_SERVICE_URL:-http://localhost:8001/api}
       VITE_PRODUCT_SERVICE_URL: ${VITE_PRODUCT_SERVICE_URL:-http://localhost:5001/api/v1}

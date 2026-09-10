@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-
+import { productServiceAssetUrl } from '@/lib/api/apiConfig'
 interface Props {
     images: string[]
 }
@@ -68,7 +68,7 @@ const ProductGallery = ({ images }: Props) => {
     return (
         <div className="w-full lg:w-[450px] flex-shrink-0">
             <img
-                src={activeSrc}
+                src={productServiceAssetUrl(activeSrc)}
                 alt="Product"
                 className="w-full h-[300px] sm:h-[400px] lg:h-[450px] object-contain bg-white"
             />
@@ -110,7 +110,7 @@ const ProductGallery = ({ images }: Props) => {
                                 cursor-pointer overflow-hidden
                             `}
                         >
-                            <img src={img} alt="" className="h-full w-full object-contain" />
+                            <img src={productServiceAssetUrl(img)} alt="" className="h-full w-full object-contain" />
                         </button>
                     ))}
                 </div>
