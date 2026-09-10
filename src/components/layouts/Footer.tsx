@@ -119,9 +119,16 @@ const Footer = () => {
             <div>
               <h3 className="font-semibold text-gray-900 mb-3">FOLLOW US</h3>
               <ul className="space-y-3">
-                <li className="flex items-center gap-2">
-                  <img src={facebookIcon} className="h-4" alt="" />
-                  Facebook
+                <li>
+                  <a
+                    href="https://www.facebook.com/dnitems2020"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 transition-colors hover:text-emerald-600"
+                  >
+                    <img src={facebookIcon} className="h-4" alt="" />
+                    Facebook
+                  </a>
                 </li>
                 <li className="flex items-center gap-2">
                   <img src={instagramIcon} className="h-4" alt="" />
