@@ -1,7 +1,7 @@
 import { Product } from '../types/productTypes'
 import { Link } from 'react-router-dom'
 
-const ProductCard = ({ product }: { product: Product }) => {
+const ProductCard = ({ product, showFindSimilar = true }: { product: Product; showFindSimilar?: boolean }) => {
   return (
     <div
       className="
@@ -44,16 +44,17 @@ const ProductCard = ({ product }: { product: Product }) => {
         </div>
       </Link>
 
-      {/* FIND SIMILAR – OUTSIDE CARD */}
-      <Link
-        to={`/find-similar/${product.id}`}
-        className="
-          absolute left-[-1px] top-[calc(100%-6px)] w-[calc(100%+2px)] h-[30px] bg-[var(--dni-primary)] 
-          text-white text-center text-sm leading-[30px] border border-[var(--dni-primary)] rounded-b-sm 
-          opacity-0 group-hover:opacity-100 transition-opacity duration-100 z-[-1]"
-      >
-        Find Similar
-      </Link>
+      {showFindSimilar && (
+        <Link
+          to={`/find-similar/${product.id}`}
+          className="
+            absolute left-[-1px] top-[calc(100%-6px)] w-[calc(100%+2px)] h-[30px] bg-[var(--dni-primary)] 
+            text-white text-center text-sm leading-[30px] border border-[var(--dni-primary)] rounded-b-sm 
+            opacity-0 group-hover:opacity-100 transition-opacity duration-100 z-[-1]"
+        >
+          Find Similar
+        </Link>
+      )}
     </div>
   )
 }
