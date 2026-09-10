@@ -59,6 +59,9 @@ export function productServiceAssetUrl(
         return trimmed
     }
 
+    const cdnBaseUrl = import.meta.env.VITE_APP_ENV === 'local'
+        ? 'http://localhost:5001/uploads'
+        : 'https://dnistore.sgp1.cdn.digitaloceanspaces.com'
     if (
         /^https:\/\/dnistore\.sgp1\.cdn\.digitaloceanspaces\.com\//i.test(
             trimmed,
