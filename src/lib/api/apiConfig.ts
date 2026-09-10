@@ -32,7 +32,9 @@ export function productServiceAssetUrl(path: string | undefined | null): string 
         return trimmed
     }
 
-    const cdnBaseUrl = 'https://dnistore.sgp1.cdn.digitaloceanspaces.com'
+    const cdnBaseUrl = import.meta.env.VITE_APP_ENV === 'local'
+        ? 'http://localhost:5001/uploads'
+        : 'https://dnistore.sgp1.cdn.digitaloceanspaces.com'
 
     const normalizedPath = trimmed
         .replace(/^\/+/, '')
