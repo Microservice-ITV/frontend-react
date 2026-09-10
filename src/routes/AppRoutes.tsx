@@ -50,6 +50,8 @@ import CommonNotificationsPage from '@/features/common/pages/CommonNotifications
 import CommonChatPage from '@/features/common/pages/CommonChatPage'
 import CommonHelpSupportPage from '@/features/common/pages/CommonHelpSupportPage'
 import CommonSettingsPage from '@/features/common/pages/CommonSettingsPage'
+import HelpCenterPage from '@/features/help-center/components/HelpCenterPage'
+import HelpArticlePage from '@/features/help-center/components/HelpArticlePage'
 
 const AppRoutes = () => {
     return (
@@ -473,6 +475,16 @@ const AppRoutes = () => {
             <Route path="/all_categories" element={<CategoriesPage />} />
             <Route path="/categories/:id" element={<ProductListPage />} />
             <Route path="/products/:id" element={<ProductDetailPage />} />
+            <Route path="/help-centre" element={<HelpCenterPage />} />
+            <Route path="/help-centre/article/:categoryId/:itemIndex" element={<HelpArticlePage />} />
+            <Route path="/help-centre/how-to-buy" element={<HelpArticlePage />} />
+            <Route path="/help-centre/how-to-sell" element={<HelpArticlePage />} />
+            <Route path="/help-centre/payment-methods" element={<HelpArticlePage />} />
+            <Route path="/help-centre/ecommerce-coins" element={<HelpArticlePage />} />
+            <Route path="/help-centre/ecommerce-guarantee" element={<HelpArticlePage />} />
+            <Route path="/help-centre/return-refund" element={<HelpArticlePage />} />
+            <Route path="/help-centre/mall-return-refund" element={<HelpArticlePage />} />
+            <Route path="/help-centre/contact-us" element={<HelpArticlePage />} />
             <Route path="/cart" element={<CartPage />} />
 
             {/* fallback */}

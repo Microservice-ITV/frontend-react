@@ -22,6 +22,38 @@ import {
     appGalleryIcon,
 } from '@/assets/icons'
 
+const footerHeadingClass =
+    'mb-4 text-xs font-semibold uppercase tracking-wide text-gray-900'
+
+const footerLinkClass =
+    'inline-flex min-h-6 max-w-full items-center rounded-sm py-0.5 text-sm leading-5 text-gray-600 transition-colors hover:text-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600'
+
+const customerServiceLinks = [
+    { label: 'Help Centre', to: '/help-centre' },
+    { label: 'How To Buy', to: '/help-centre/how-to-buy' },
+    { label: 'How To Sell', to: '/help-centre/how-to-sell' },
+    { label: 'Payment Methods', to: '/help-centre/payment-methods' },
+    { label: 'Ecommerce Coins', to: '/help-centre/ecommerce-coins' },
+    { label: 'Ecommerce Guarantee', to: '/help-centre/ecommerce-guarantee' },
+    { label: 'Return & Refund', to: '/help-centre/return-refund' },
+    { label: 'Ecommerce Mall Return & Refund', to: '/help-centre/mall-return-refund' },
+    { label: 'Contact Us', to: '/help-centre/contact-us' },
+]
+
+const aboutLinks = [
+    { label: 'About Us', to: '#' },
+    { label: 'Ecommerce Careers', to: '#' },
+    { label: 'Policies', to: '#' },
+    { label: 'Privacy Policy', to: '#' },
+    { label: 'Ecommerce Blog', to: '#' },
+    { label: 'Ecommerce Mall', to: '#' },
+    { label: 'Seller Centre', to: '#' },
+    { label: 'Seller Mentors', to: '#' },
+    { label: 'Flash Deals', to: '#' },
+    { label: 'Media Contact', to: '#' },
+    { label: 'Ecommerce Ambassador Programme', to: '#' },
+]
+
 const Footer = () => {
     return (
         <footer className="bg-gray-100 text-xs text-gray-600 border-t-4 border-emerald-600 mt-5">
@@ -29,40 +61,34 @@ const Footer = () => {
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
 
                     {/* CUSTOMER SERVICE */}
-                    <div>
-                        <h3 className="font-semibold text-gray-900 mb-3">
+                    <div className="min-w-0">
+                        <h3 className={footerHeadingClass}>
                             CUSTOMER SERVICE
                         </h3>
-                        <ul className="space-y-2">
-                            <li><Link to="#">Help Centre</Link></li>
-                            <li><Link to="#">How To Buy</Link></li>
-                            <li><Link to="#">How To Sell</Link></li>
-                            <li><Link to="#">Payment Methods</Link></li>
-                            <li><Link to="#">Ecommerce Coins</Link></li>
-                            <li><Link to="#">Ecommerce Guarantee</Link></li>
-                            <li><Link to="#">Return & Refund</Link></li>
-                            <li><Link to="#">Ecommerce Mall Return & Refund</Link></li>
-                            <li><Link to="#">Contact Us</Link></li>
+                        <ul className="grid grid-cols-1 gap-y-2.5 sm:grid-cols-2 md:grid-cols-1">
+                            {customerServiceLinks.map(({ label, to }) => (
+                                <li key={to}>
+                                    <Link to={to} className={footerLinkClass}>
+                                        {label}
+                                    </Link>
+                                </li>
+                            ))}
                         </ul>
                     </div>
 
-                    {/* ABOUT SHOPEE */}
+                    {/* ABOUT ECOMMERCE */}
                     <div>
-                        <h3 className="font-semibold text-gray-900 mb-3">
+                        <h3 className={footerHeadingClass}>
                             ABOUT ECOMMERCE
                         </h3>
                         <ul className="space-y-2">
-                            <li><Link to="#">About Us</Link></li>
-                            <li><Link to="#">Ecommerce Careers</Link></li>
-                            <li><Link to="#">Policies</Link></li>
-                            <li><Link to="#">Privacy Policy</Link></li>
-                            <li><Link to="#">Ecommerce Blog</Link></li>
-                            <li><Link to="#">Ecommerce Mall</Link></li>
-                            <li><Link to="#">Seller Centre</Link></li>
-                            <li><Link to="#">Seller Mentors</Link></li>
-                            <li><Link to="#">Flash Deals</Link></li>
-                            <li><Link to="#">Media Contact</Link></li>
-                            <li><Link to="#">Ecommerce Ambassador Programme</Link></li>
+                            {aboutLinks.map(({ label, to }) => (
+                                <li key={label}>
+                                    <Link to={to} className={footerLinkClass}>
+                                        {label}
+                                    </Link>
+                                </li>
+                            ))}
                         </ul>
                     </div>
 
