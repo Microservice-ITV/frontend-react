@@ -87,14 +87,14 @@ const Footer = () => {
                             <li><Link to="/about">About Us</Link></li>
                             <li><Link to="/careers">Ecommerce Careers</Link></li>
                             <li><Link to="/policies">Policies</Link></li>
-                            <li><Link to="/privacy-policy">Privacy Policy</Link></li>
+                            <li><Link to="/privacy">Privacy Policy</Link></li>
                             <li><Link to="/blog">Ecommerce Blog</Link></li>
                             <li><Link to="/mall">Ecommerce Mall</Link></li>
-                            <li><Link to="/seller-center">Seller Centre</Link></li>
-                            <li><Link to="#">Seller Mentors</Link></li>
-                            <li><Link to="#">Flash Deals</Link></li>
-                            <li><Link to="#">Media Contact</Link></li>
-                            <li><Link to="#">Ecommerce Ambassador Programme</Link></li>
+                            <li><Link to="/seller-centre">Seller Centre</Link></li>
+                            <li><Link to="/seller-mentors">Seller Mentors</Link></li>
+                            <li><Link to="/flash-deals">Flash Deals</Link></li>
+                            <li><Link to="/media">Media Contact</Link></li>
+                            <li><Link to="/ambassador">Ecommerce Ambassador Programme</Link></li>
                         </ul>
                     </div>
 
