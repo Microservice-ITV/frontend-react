@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronDown, FileText, Scale, Shield } from 'lucide-react'
+import policyHero from '@/assets/privacy/policy.png'
 
 type PolicyArticle = {
   id: string
@@ -142,28 +143,39 @@ const PoliciesPage = () => {
           }}
         />
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 py-14 sm:py-20">
-          <p className="text-sm font-medium uppercase tracking-widest text-emerald-600">
-            Help Centre · Policies
-          </p>
-          <h1 className="mt-3 max-w-3xl text-3xl sm:text-4xl md:text-5xl font-bold leading-tight text-gray-900">
-            Ecommerce Policies
-          </h1>
-          <p className="mt-4 max-w-2xl text-base sm:text-lg text-gray-600 leading-relaxed">
-            Marketplace rules that keep buying and selling fair, safe, and
-            transparent — inspired by clear help-centre policy guides.
-          </p>
-          <div className="mt-8 max-w-xl">
-            <label htmlFor="policy-search" className="sr-only">
-              Search policies
-            </label>
-            <input
-              id="policy-search"
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search policies…"
-              className="w-full rounded-sm border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 outline-none focus:border-emerald-500"
-            />
+          <div className="grid items-center gap-10 lg:grid-cols-2">
+            <div>
+              <p className="text-sm font-medium uppercase tracking-widest text-emerald-600">
+                Help Centre · Policies
+              </p>
+              <h1 className="mt-3 max-w-3xl text-3xl sm:text-4xl md:text-5xl font-bold leading-tight text-gray-900">
+                Ecommerce Policies
+              </h1>
+              <p className="mt-4 max-w-2xl text-base sm:text-lg text-gray-600 leading-relaxed">
+                Marketplace rules that keep buying and selling fair, safe, and
+                transparent — inspired by clear help-centre policy guides.
+              </p>
+              <div className="mt-8 max-w-xl">
+                <label htmlFor="policy-search" className="sr-only">
+                  Search policies
+                </label>
+                <input
+                  id="policy-search"
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search policies…"
+                  className="w-full rounded-sm border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 outline-none focus:border-emerald-500"
+                />
+              </div>
+            </div>
+            <div className="relative hidden overflow-hidden rounded-sm border border-[var(--dni-cart-border)] bg-white shadow-sm lg:block">
+              <img
+                src={policyHero}
+                alt="Ecommerce marketplace policies — fair and safe buying and selling"
+                className="h-full w-full object-cover aspect-[4/3]"
+              />
+            </div>
           </div>
         </div>
       </section>

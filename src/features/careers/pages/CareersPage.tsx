@@ -11,6 +11,7 @@ import {
   Store,
   Users,
 } from 'lucide-react'
+import careersHero from '@/assets/careers/careers.png'
 
 const CULTURE = [
   {
@@ -120,29 +121,40 @@ const CareersPage = () => {
           }}
         />
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 py-14 sm:py-20">
-          <p className="text-sm font-medium uppercase tracking-widest text-emerald-600">
-            Ecommerce Careers
-          </p>
-          <h1 className="mt-3 max-w-3xl text-3xl sm:text-4xl md:text-5xl font-bold leading-tight text-gray-900">
-            Create impact that lasts
-          </h1>
-          <p className="mt-4 max-w-2xl text-base sm:text-lg text-gray-600 leading-relaxed">
-            Join the team building a marketplace that helps local businesses grow
-            and makes everyday shopping simpler for everyone.
-          </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <a
-              href="#open-roles"
-              className="inline-flex items-center justify-center rounded bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors"
-            >
-              View open roles
-            </a>
-            <Link
-              to="/about"
-              className="inline-flex items-center justify-center rounded border border-emerald-600 bg-white px-5 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 transition-colors"
-            >
-              About Ecommerce
-            </Link>
+          <div className="grid items-center gap-10 lg:grid-cols-2">
+            <div>
+              <p className="text-sm font-medium uppercase tracking-widest text-emerald-600">
+                Ecommerce Careers
+              </p>
+              <h1 className="mt-3 max-w-3xl text-3xl sm:text-4xl md:text-5xl font-bold leading-tight text-gray-900">
+                Create impact that lasts
+              </h1>
+              <p className="mt-4 max-w-2xl text-base sm:text-lg text-gray-600 leading-relaxed">
+                Join the team building a marketplace that helps local businesses grow
+                and makes everyday shopping simpler for everyone.
+              </p>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <a
+                  href="#open-roles"
+                  className="inline-flex items-center justify-center rounded bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors"
+                >
+                  View open roles
+                </a>
+                <Link
+                  to="/about"
+                  className="inline-flex items-center justify-center rounded border border-emerald-600 bg-white px-5 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 transition-colors"
+                >
+                  About Ecommerce
+                </Link>
+              </div>
+            </div>
+            <div className="relative hidden overflow-hidden rounded-sm border border-[var(--dni-cart-border)] bg-white shadow-sm lg:block">
+              <img
+                src={careersHero}
+                alt="Life and culture at Ecommerce — teammates collaborating on the marketplace"
+                className="h-full w-full object-cover aspect-[4/3]"
+              />
+            </div>
           </div>
         </div>
       </section>

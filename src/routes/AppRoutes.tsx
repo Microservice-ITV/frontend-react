@@ -21,6 +21,10 @@ import PrivacyPolicyPage from '@/features/privacy/pages/PrivacyPolicyPage'
 import BlogPage from '@/features/blog/pages/BlogPage'
 import MallPage from '@/features/mall/pages/MallPage'
 import SellerCentrePage from '@/features/seller-centre/pages/SellerCentrePage'
+import SellerMentorsPage from '@/features/seller-mentors/pages/SellerMentorsPage'
+import FlashDealsPage from '@/features/flash-deals/pages/FlashDealsPage'
+import MediaContactPage from '@/features/media/pages/MediaContactPage'
+import AmbassadorProgrammePage from '@/features/ambassador/pages/AmbassadorProgrammePage'
 import AccountLayout from '@/features/account/pages/AccountLayout'
 import ProfilePage from '@/features/account/pages/ProfilePage'
 import BanksCardsPage from '@/features/account/pages/BanksCardsPage'
@@ -488,6 +492,10 @@ const AppRoutes = () => {
             <Route path="/blog" element={<BlogPage />} />
             <Route path="/mall" element={<MallPage />} />
             <Route path="/seller-centre" element={<SellerCentrePage />} />
+            <Route path="/seller-mentors" element={<SellerMentorsPage />} />
+            <Route path="/flash-deals" element={<FlashDealsPage />} />
+            <Route path="/media" element={<MediaContactPage />} />
+            <Route path="/ambassador" element={<AmbassadorProgrammePage />} />
 
             {/* fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />

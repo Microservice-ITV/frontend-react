@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronDown, Database, Lock, UserCog } from 'lucide-react'
+import privacyHero from '@/assets/privacy/pravicy.png'
 
 type PrivacySection = {
   id: string
@@ -221,28 +222,39 @@ const PrivacyPolicyPage = () => {
           }}
         />
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 py-14 sm:py-20">
-          <p className="text-sm font-medium uppercase tracking-widest text-emerald-600">
-            Help Centre · Privacy
-          </p>
-          <h1 className="mt-3 max-w-3xl text-3xl sm:text-4xl md:text-5xl font-bold leading-tight text-gray-900">
-            Ecommerce Privacy Policy
-          </h1>
-          <p className="mt-4 max-w-2xl text-base sm:text-lg text-gray-600 leading-relaxed">
-            How we collect, use, disclose, and protect your personal data —
-            structured like a clear marketplace help-centre privacy guide.
-          </p>
-          <div className="mt-8 max-w-xl">
-            <label htmlFor="privacy-search" className="sr-only">
-              Search privacy policy
-            </label>
-            <input
-              id="privacy-search"
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search privacy policy…"
-              className="w-full rounded-sm border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 outline-none focus:border-emerald-500"
-            />
+          <div className="grid items-center gap-10 lg:grid-cols-2">
+            <div>
+              <p className="text-sm font-medium uppercase tracking-widest text-emerald-600">
+                Help Centre · Privacy
+              </p>
+              <h1 className="mt-3 max-w-3xl text-3xl sm:text-4xl md:text-5xl font-bold leading-tight text-gray-900">
+                Ecommerce Privacy Policy
+              </h1>
+              <p className="mt-4 max-w-2xl text-base sm:text-lg text-gray-600 leading-relaxed">
+                How we collect, use, disclose, and protect your personal data —
+                structured like a clear marketplace help-centre privacy guide.
+              </p>
+              <div className="mt-8 max-w-xl">
+                <label htmlFor="privacy-search" className="sr-only">
+                  Search privacy policy
+                </label>
+                <input
+                  id="privacy-search"
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search privacy policy…"
+                  className="w-full rounded-sm border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 outline-none focus:border-emerald-500"
+                />
+              </div>
+            </div>
+            <div className="relative hidden overflow-hidden rounded-sm border border-[var(--dni-cart-border)] bg-white shadow-sm lg:block">
+              <img
+                src={privacyHero}
+                alt="Data protection, privacy, and secure handling of personal information"
+                className="h-full w-full object-cover aspect-[4/3]"
+              />
+            </div>
           </div>
         </div>
       </section>
