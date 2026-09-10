@@ -22,6 +22,8 @@ interface ProductDetailApiResponse {
         name: string
         slug: string
         description?: string
+        /** Optional YouTube URL for the PDP video panel. */
+        videoUrl?: string
         sku?: string
         stock?: number
         price: number
@@ -453,7 +455,7 @@ export const productApi = {
                     parentId,
                 },
                 shop: shopPlaceholder(p.shopId),
-                currency: p.currency ?? 'USD',
+                currency: p.currency ?? 'MMK',
                 minPrice,
                 maxPrice,
                 brandName: p.brandName ?? '',

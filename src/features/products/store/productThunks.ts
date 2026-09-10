@@ -118,6 +118,7 @@ export const fetchProductDetail = createAsyncThunk<
             name: product.name,
             slug: product.slug,
             description: product.description,
+            videoUrl: product.videoUrl,
             sku: product.sku,
             stock: product.stock,
             price: Number(product.price),
