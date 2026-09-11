@@ -38,7 +38,7 @@ const ProductDescriptionSection = ({ product }: Props) => {
         : `${displayText.slice(0, COLLAPSED_CHARS).trimEnd()}…`
 
   return (
-    <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 items-stretch">
+    <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 items-start">
       <section className="min-w-0 flex-1 bg-white rounded-sm p-4 sm:p-6 w-full">
         <div className="flex items-center gap-2 mb-3 sm:mb-4">
           <span className="h-5 w-1 rounded-full bg-[var(--dni-primary)]" aria-hidden />
@@ -90,8 +90,8 @@ const ProductDescriptionSection = ({ product }: Props) => {
         )}
       </section>
 
-      <aside className="w-full lg:w-[360px] xl:w-[400px] flex-shrink-0">
-        <div className="h-full bg-white rounded-sm p-4 sm:p-5 flex flex-col">
+      <aside className="w-full lg:w-[360px] xl:w-[400px] flex-shrink-0 self-start">
+        <div className="bg-white rounded-sm p-4 sm:p-5">
           <div className="flex items-center gap-2 mb-3">
             <span className="h-5 w-1 rounded-full bg-[var(--dni-primary)]" aria-hidden />
             <h2 className="text-base sm:text-lg font-semibold text-gray-900">YouTube Video</h2>
