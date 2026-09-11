@@ -22,6 +22,8 @@ interface ProductDetailApiResponse {
         name: string
         slug: string
         description?: string
+        /** Optional YouTube URL for the PDP video panel. */
+        videoUrl?: string
         sku?: string
         stock?: number
         price: number
@@ -45,6 +47,22 @@ interface ProductDetailApiResponse {
         primaryVariantId: string | null
         variants: ProductVariant[]
     }
+}
+
+export interface RecentProductApiItem {
+    id: string
+    name: string
+    price: number | string
+    image?: string
+    images?: string[]
+    categoryId?: string
+    createdAt: string
+}
+
+export interface RecentProductsApiResponse {
+    items: RecentProductApiItem[]
+    hasNextPage: boolean
+    nextCursor: string | null
 }
 
 type GraphQLErrorItem = { message?: string }
@@ -344,6 +362,17 @@ export const productApi = {
         } as AxiosResponse<ProductsApiResponse>
     },
 
+    getRecentProducts: async (limit = 10, cursor?: string): Promise<RecentProductsApiResponse> => {
+        const response = await ecommerceReadRestClient.get<RecentProductsApiResponse>('/catalog/products/recent', {
+            params: {
+                limit,
+                ...(cursor ? { cursor } : {}),
+            },
+        })
+
+        return response.data
+    },
+
     /**
      * Buyer category listing: ecommerce-read-service GraphQL → MongoDB `product_reads`.
      */
@@ -426,7 +455,7 @@ export const productApi = {
                     parentId,
                 },
                 shop: shopPlaceholder(p.shopId),
-                currency: p.currency ?? 'USD',
+                currency: p.currency ?? 'MMK',
                 minPrice,
                 maxPrice,
                 brandName: p.brandName ?? '',

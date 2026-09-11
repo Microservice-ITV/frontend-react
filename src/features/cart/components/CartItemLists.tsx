@@ -120,7 +120,7 @@ const CartItemLists = ({ items }: CartItemListProps) => {
                     Delete
                   </button>
                   <button className="text-gray-500 hover:text-emerald-600 mt-1 cursor-pointer">
-                    Find Similar
+                    Save for Later
                   </button>
                 </div>
               </div>

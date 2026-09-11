@@ -2,11 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { fetchShopProfilesForCurrentCart } from '@/features/shipping/store/shippingThunks'
 import { selectCartItems, selectCartTotal } from '@/features/cart/store/cartSelectors'
+import { fetchRelatedProducts, fetchBroughtTogetherProducts } from '@/features/products/store/recommendationsSlice'
 
 import CartHeader from '../components/CartHeader'
 import CartItemLists from '../components/CartItemLists'
 import CartSummary from '../components/CartSummary'
 import CartEmptyState from '../components/CartEmptyState'
+import RecommendationSection from '@/features/products/components/RecommendationSection'
 
 const CartPage = () => {
     const dispatch = useAppDispatch()
@@ -20,10 +22,25 @@ const CartPage = () => {
     const contentRef = useRef<HTMLDivElement>(null)
     const [isFloating, setIsFloating] = useState(false)
 
+    // Get all product IDs in cart for recommendations (aggregated across ALL items)
+    const cartProductIds = useMemo(
+        () => [...new Set(items.map((i) => i.productId).filter(Boolean))],
+        [items],
+    )
+    const firstProductId = cartProductIds[0]
+
     useEffect(() => {
         if (!cartShopIdsKey) return
         void dispatch(fetchShopProfilesForCurrentCart())
     }, [dispatch, cartShopIdsKey])
+
+    // Fetch recommendations aggregated across every product in the cart
+    useEffect(() => {
+        if (cartProductIds.length > 0) {
+            dispatch(fetchRelatedProducts(cartProductIds))
+            dispatch(fetchBroughtTogetherProducts(cartProductIds))
+        }
+    }, [dispatch, cartProductIds])
 
     useEffect(() => {
         const onScroll = () => {
@@ -57,18 +74,20 @@ const CartPage = () => {
                 <CartHeader />
                 <CartItemLists items={items} />
 
-                {/* NORMAL SUMMARY (SCROLL UP STATE) */}
-                {!isFloating && (
-                    <CartSummary total={total} />
-                )}
-            </div>
+                {/* CART SUMMARY */}
+                <CartSummary total={total} />
 
-            {/* FLOATING SUMMARY (SCROLL DOWN STATE) */}
-            {isFloating && (
-                <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-6xl px-4 z-30">
-                    <CartSummary total={total} />
-                </div>
-            )}
+                {/* RECOMMENDATIONS SECTION */}
+                {firstProductId && (
+                    <RecommendationSection 
+                        productId={firstProductId}
+                        title="YOU MAY ALSO LIKE"
+                        showSeeMore={true}
+                        maxInitialProducts={10}
+                        excludeProductIds={cartProductIds}
+                    />
+                )}
+            </div> 
         </main>
     )
 }
