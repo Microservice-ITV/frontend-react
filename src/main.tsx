@@ -11,7 +11,6 @@ import { GlobalModalProvider } from '@/components/ui/GlobalModalProvider'
 import App from './App'
 
 // 3. Relative imports (styles)
-import './styles/fonts.css' // Import custom fonts
 import './styles/global.css'
 import './index.css'
 

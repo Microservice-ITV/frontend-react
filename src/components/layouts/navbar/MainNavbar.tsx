@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useRef, useCallback, useEffect } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ShoppingCart, Search } from 'lucide-react'
 import { useAppSelector } from '@/app/hooks'
 import { selectCartCount } from '@/features/cart/store/cartSelectors'
@@ -12,10 +12,23 @@ const MainNavbar = () => {
     const cartCount = useAppSelector(selectCartCount)
     const [searchQuery, setSearchQuery] = useState('')
     const navigate = useNavigate()
+    const location = useLocation()
     const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-    // const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
     const queryRef = useRef(searchQuery)
     queryRef.current = searchQuery
+
+    useEffect(() => {
+        const params = new URLSearchParams(location.search)
+        const nextQuery = location.pathname.startsWith('/search')
+            ? (params.get('q') ?? '')
+            : ''
+
+        setSearchQuery(nextQuery)
+
+        if (timerRef.current) {
+            clearTimeout(timerRef.current)
+        }
+    }, [location.pathname, location.search])
 
     const doSearch = useCallback((q?: string) => {
         const query = (q ?? queryRef.current).trim()

@@ -4,17 +4,22 @@ import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { searchProducts } from '@/features/products/store/productThunks'
 import ProductGrid from '../components/ProductGrid'
 import ProductSortBar from '../components/ProductSortBar'
+import { normalizeProductSort, type ProductSortKey } from '../utils/productSort'
 
 const SearchResultsPage = () => {
-    const [searchParams] = useSearchParams()
+    const [searchParams, setSearchParams] = useSearchParams()
     const query = searchParams.get('q') ?? ''
     const dispatch = useAppDispatch()
-    const [sort, setSort] = useState<string>('popular')
-    
-    // Fallback selectors in case your slice state uses slightly different naming conventions
+    const [sort, setSort] = useState<ProductSortKey>(() => normalizeProductSort(searchParams.get('sort')))
+
     const searchResults = useAppSelector((s) => s.products.searchResults || [])
     const searchStatus = useAppSelector((s) => s.products.searchStatus || 'idle')
     const searchError = useAppSelector((s) => s.products.searchError || null)
+
+    useEffect(() => {
+        const nextSort = normalizeProductSort(searchParams.get('sort'))
+        setSort(nextSort)
+    }, [searchParams])
 
     useEffect(() => {
         const trimmedQuery = query.trim()
@@ -23,8 +28,14 @@ const SearchResultsPage = () => {
         }
     }, [dispatch, query, sort])
 
+    const handleSortChange = (nextSort: ProductSortKey) => {
+        setSort(nextSort)
+        const next = new URLSearchParams(searchParams)
+        next.set('sort', nextSort)
+        setSearchParams(next, { replace: true })
+    }
+
     return (
-        // Note: Added pt-32 here so the search page doesn't get hidden under your fixed navbar!
         <div className="bg-[#f5f5f5] min-h-screen pt-32 pb-12">
             <div className="max-w-7xl mx-auto px-4 sm:px-6">
                 <div className="mb-6">
@@ -33,7 +44,7 @@ const SearchResultsPage = () => {
                     </h1>
                 </div>
 
-                <ProductSortBar sort={sort} onSortChange={setSort} />
+                <ProductSortBar sort={sort} onSortChange={handleSortChange} />
 
                 {searchStatus === 'loading' && (
                     <div className="py-20 text-center text-sm text-gray-500 font-medium">
