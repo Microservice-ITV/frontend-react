@@ -57,7 +57,7 @@ const ProductCard = ({ product }: { product: Product }) => {
           group-hover:border-[var(--dni-primary)]
         "
       >
-        Find Similar
+        Save for Later
       </Link>
     </div>
   )
