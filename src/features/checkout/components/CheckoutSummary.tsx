@@ -1,5 +1,6 @@
 import { CheckoutTotals } from '../utils/checkoutCalculator'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
+import { useEffect, useState } from 'react'
 import { CardElement, useElements, useStripe } from '@stripe/react-stripe-js'
 import { checkoutApi } from '../api/checkoutApi'
 import {
@@ -97,6 +98,47 @@ const CheckoutSummary = ({
   const feesByShopId = useAppSelector(state => state.shipping.feesByShopId)
   const totalShippingFee = useAppSelector(state => state.shipping.totalShippingFee)
   const shippingCalculateStatus = useAppSelector(state => state.shipping.calculateStatus)
+  const [promotionDiscount, setPromotionDiscount] = useState(0)
+  const [authoritativeTotal, setAuthoritativeTotal] = useState<number | null>(null)
+  const [promotionQuoteLoading, setPromotionQuoteLoading] = useState(false)
+  const [promotionQuoteError, setPromotionQuoteError] = useState(false)
+
+  const promotionItems = cartItems.map((item) => ({
+    product_id: item.productId,
+    shop_id: item.shopId,
+    unit_price: item.price,
+    quantity: item.quantity,
+  }))
+
+  useEffect(() => {
+    const checkoutId = currentCheckout?.checkout_id
+    const userId = user?.id
+    if (!checkoutId || !userId || promotionItems.length === 0) return
+
+    let cancelled = false
+    setPromotionQuoteLoading(true)
+    setPromotionQuoteError(false)
+
+    void checkoutApi.quotePromotions({
+      checkout_id: checkoutId,
+      user_id: userId,
+      items: promotionItems,
+      subtotal: checkout.merchandiseSubtotal,
+      shipping_total: checkout.shippingSubtotal,
+    }).then((quote) => {
+      if (cancelled) return
+      setPromotionDiscount(Number(quote.discount_total ?? 0))
+      setAuthoritativeTotal(Number(quote.final_total ?? checkout.totalPayment))
+    }).catch(() => {
+      if (!cancelled) setPromotionQuoteError(true)
+    }).finally(() => {
+      if (!cancelled) setPromotionQuoteLoading(false)
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [checkout.merchandiseSubtotal, checkout.shippingSubtotal, checkout.totalPayment, currentCheckout?.checkout_id, user?.id, cartItems])
 
   const buildCheckoutAddressPayload = (address: UserAddress) => {
     const shipping_total =
@@ -167,6 +209,8 @@ const CheckoutSummary = ({
         currentCheckout.checkout_id,
         buildCheckoutAddressPayload(deliveryAddress),
       )
+      setPromotionDiscount(Number(addressResponse.data?.promotion_discount_total ?? 0))
+      setAuthoritativeTotal(addressResponse.data?.grand_total ?? null)
       console.info('[PlaceOrder] Address updated, confirming payment with Stripe...')
 
       // If the backend reports the payment intent already succeeded (e.g. from a
@@ -274,6 +318,7 @@ const CheckoutSummary = ({
     shippingDiscount,
     totalPayment,
   } = checkout
+  const displayedTotal = authoritativeTotal ?? totalPayment
 
 return (
     <div className="bg-[#fffefb] border-t border-dashed border-black/10 px-6 py-6">
@@ -291,10 +336,26 @@ return (
           <span className="text-gray-900">${shippingSubtotal.toFixed(2)}</span>
         </div>
 
-        {/* Discount */}
-        <div className="flex justify-between mb-4">
-          <span className="text-gray-600">Shipping Discount Subtotal</span>
-          <span className="text-emerald-600">-{shippingDiscount.toFixed(2)}</span>
+        <div className="mb-4 space-y-2 rounded-xl border border-emerald-100 bg-emerald-50/70 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.12em] text-emerald-800">Your savings</p>
+              <p className="mt-0.5 text-xs text-emerald-700">Promotions are checked for this checkout</p>
+            </div>
+            {promotionQuoteLoading ? (
+              <span className="text-xs font-medium text-emerald-700">Checking…</span>
+            ) : (
+              <span className="text-lg font-bold text-emerald-700">-${promotionDiscount.toFixed(2)}</span>
+            )}
+          </div>
+          <div className="flex items-center justify-between border-t border-emerald-100 pt-2 text-xs">
+            <span className="text-gray-600">Shipping discount</span>
+            <span className="font-medium text-emerald-700">-${shippingDiscount.toFixed(2)}</span>
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-gray-600">Promotion discount</span>
+            <span className="font-semibold text-emerald-700">-${promotionDiscount.toFixed(2)}</span>
+          </div>
         </div>
 
         {/* Total */}
@@ -303,9 +364,12 @@ return (
             Total Payment:
           </span>
           <span className="text-3xl font-semibold text-emerald-600">
-            ${totalPayment.toFixed(2)}
+            ${displayedTotal.toFixed(2)}
           </span>
         </div>
+        {promotionQuoteError && (
+          <p className="mt-2 text-right text-[11px] text-amber-700">Promotion preview unavailable. Your total will be checked before payment.</p>
+        )}
       </div>
 
       {/* GST note */}

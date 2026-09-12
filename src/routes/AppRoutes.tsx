@@ -69,6 +69,7 @@ import CommonHelpSupportPage from '@/features/common/pages/CommonHelpSupportPage
 import CommonSettingsPage from '@/features/common/pages/CommonSettingsPage'
 import HelpCenterPage from '@/features/help-center/components/HelpCenterPage'
 import HelpArticlePage from '@/features/help-center/components/HelpArticlePage'
+import PromotionEnginePage from '@/features/promotions/pages/PromotionEnginePage'
 
 const AppRoutes = () => {
     return (
@@ -248,6 +249,17 @@ const AppRoutes = () => {
                             }
                         />
                         <Route
+                            path="promotions"
+                            element={
+                                <ProtectedRoute
+                                    requiredCapabilities={ROUTE_ACCESS.promotionsView}
+                                    allowedRoles={['SHOP_OWNER']}
+                                >
+                                    <PromotionEnginePage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
                             path="invoices"
                             element={
                                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerInvoices}>
@@ -370,6 +382,17 @@ const AppRoutes = () => {
                             element={
                                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
                                     <HomeFeaturesPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="promotions"
+                            element={
+                                <ProtectedRoute
+                                    requiredCapabilities={ROUTE_ACCESS.promotionsView}
+                                    allowedRoles={['SUPER_ADMIN']}
+                                >
+                                    <PromotionEnginePage />
                                 </ProtectedRoute>
                             }
                         />
