@@ -1,6 +1,6 @@
-import { Product } from '../types/productTypes'
-import { Link } from 'react-router-dom'
-import { formatProductPrice } from '../utils/formatProductPrice'
+import { Product } from "../types/productTypes";
+import { Link } from "react-router-dom";
+import { formatProductPrice } from "../utils/formatProductPrice";
 
 /**
  * Shopee-style product card: border + shadow on hover, “Find Similar” under the card.
@@ -22,9 +22,9 @@ const ProductCard = ({ product }: { product: Product }) => {
           {/* IMAGE — square like Shopee */}
           <div className="relative w-full bg-[#fafafa] pt-[100%]">
             <img
-              src={`${product.images?.[0] ?? '/placeholder.svg'}`}
+              src={`${product.images?.[0] ?? "/placeholder.svg"}`}
               alt={product.name}
-              className="pointer-events-none absolute inset-0 h-full w-full object-contain"
+              className="pointer-events-none absolute inset-0 h-full w-full object-fill"
               loading="lazy"
             />
           </div>
@@ -39,7 +39,9 @@ const ProductCard = ({ product }: { product: Product }) => {
               <span className="text-base font-medium leading-none text-[var(--dni-primary)]">
                 {formatProductPrice(product.price)}
               </span>
-              <span className="truncate text-xs text-[rgba(0,0,0,0.54)]">100 sold</span>
+              <span className="truncate text-xs text-[rgba(0,0,0,0.54)]">
+                100 sold
+              </span>
             </div>
           </div>
         </Link>
@@ -60,7 +62,7 @@ const ProductCard = ({ product }: { product: Product }) => {
         Save for Later
       </Link>
     </div>
-  )
-}
+  );
+};
 
-export default ProductCard
+export default ProductCard;
