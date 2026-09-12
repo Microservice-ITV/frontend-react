@@ -16,10 +16,12 @@ import OAuthErrorPage from '@/features/auth/pages/OAuthErrorPage'
 import ForbiddenPage from '@/features/auth/pages/ForbiddenPage'
 import { BuyerHomeRoute, GuestRoute, ProtectedRoute } from './RouteGuards'
 import HomePage from '@/features/home/HomePage'
+import RecentlyAddedPage from '@/features/home/pages/RecentlyAddedPage'
 import ProductListPage from '@/features/products/pages/ProductListPage'
 import ProductDetailPage from '@/features/products/pages/ProductDetailPage'
 import SearchResultsPage from '@/features/products/pages/SearchResultsPage'
 import CartPage from '@/features/cart/pages/CartPage'
+import CartSeeMorePage from '@/features/cart/pages/CartSeeMorePage'
 import CheckoutPage from '@/features/checkout/pages/CheckoutPage'
 import CheckoutSuccessPage from '@/features/checkout/pages/CheckoutSuccessPage'
 import CategoriesPage from '@/features/categories/pages/CategoriesPage'
@@ -596,6 +598,8 @@ const AppRoutes = () => {
             <Route path="/help-centre/mall-return-refund" element={<HelpArticlePage />} />
             <Route path="/help-centre/contact-us" element={<HelpArticlePage />} />
             <Route path="/cart" element={<CartPage />} />
+            <Route path="/cart/see-more" element={<CartSeeMorePage />} />
+            <Route path="/recently-added" element={<RecentlyAddedPage />} />
             <Route path="/about" element={<AboutUsPage />} />
             <Route path="/careers" element={<CareersPage />} />
             <Route path="/policies" element={<PoliciesPage />} />

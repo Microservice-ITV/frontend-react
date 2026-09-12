@@ -192,13 +192,13 @@ const OrderTrackingPage = () => {
   const activeDelivery = order?.fulfillment?.deliveries?.find(
     (d) => !['DELIVERED', 'CANCELLED'].includes(d.status?.toUpperCase()),
   )
-
+  
   const orderStatusUpper = (order?.status || '').toUpperCase()
   const canConfirmReceipt =
     order !== null &&
     !isCancelled &&
     orderStatusUpper !== 'DELIVERED' &&
-    ['IN_TRANSIT', 'OUT_FOR_DELIVERY'].includes(
+    ['IN_TRANSIT','CREATED','OUT_FOR_DELIVERY'].includes(
       activeDelivery?.status?.toUpperCase() ?? '',
     )
 

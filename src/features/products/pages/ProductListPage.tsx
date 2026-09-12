@@ -1,20 +1,26 @@
 import { useState, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { fetchProductsByCategory } from '@/features/products/store/productThunks'
 import { fetchCategories } from '@/features/categories/store/categoryThunks'
 import ProductSidebar from '../components/ProductSidebar'
 import ProductSortBar from '../components/ProductSortBar'
 import ProductGrid from '../components/ProductGrid'
+import { normalizeProductSort, type ProductSortKey } from '../utils/productSort'
 
 const ProductListPage = () => {
   const { id } = useParams<{ id: string }>()
+  const [searchParams, setSearchParams] = useSearchParams()
   const dispatch = useAppDispatch()
   const { items, status } = useAppSelector((s) => s.products)
   const { items: categories, status: categoriesStatus } = useAppSelector((s) => s.categories)
-  const [sort, setSort] = useState<string>('popular')
+  const [sort, setSort] = useState<ProductSortKey>(() => normalizeProductSort(searchParams.get('sort')))
 
-  // Ensure categories are loaded so the sidebar has data even on page refresh or deep link.
+  useEffect(() => {
+    const nextSort = normalizeProductSort(searchParams.get('sort'))
+    setSort(nextSort)
+  }, [searchParams])
+
   useEffect(() => {
     if (categoriesStatus === 'idle' || categories.length === 0) {
       void dispatch(fetchCategories())
@@ -27,19 +33,23 @@ const ProductListPage = () => {
     }
   }, [dispatch, id, sort])
 
+  const handleSortChange = (nextSort: ProductSortKey) => {
+    setSort(nextSort)
+    const next = new URLSearchParams(searchParams)
+    next.set('sort', nextSort)
+    setSearchParams(next, { replace: true })
+  }
+
   return (
     <div className="bg-[#f5f5f5]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         <div className="flex gap-4">
-
-          {/* LEFT SIDEBAR */}
           <aside className="w-[240px] shrink-0 hidden md:block">
             <ProductSidebar activeCategoryId={id} />
           </aside>
 
-          {/* RIGHT CONTENT */}
           <section className="flex-1">
-            <ProductSortBar sort={sort} onSortChange={setSort} />
+            <ProductSortBar sort={sort} onSortChange={handleSortChange} />
 
             {status === 'loading' && (
               <div className="py-10 text-center text-sm text-gray-500">
@@ -47,9 +57,7 @@ const ProductListPage = () => {
               </div>
             )}
 
-            {status === 'succeeded' && (
-              <ProductGrid products={items} />
-            )}
+            {status === 'succeeded' && <ProductGrid products={items} />}
           </section>
         </div>
       </div>

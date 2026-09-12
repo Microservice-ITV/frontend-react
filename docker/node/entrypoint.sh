@@ -2,7 +2,7 @@
 
 set -e
 
-APP_ROOT=/app
+APP_ROOT=/apphe 
 
 # Install dependencies if missing (bind-mounted volume may be empty)
 if [ ! -d "$APP_ROOT/node_modules" ]; then

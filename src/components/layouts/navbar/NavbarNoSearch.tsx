@@ -1,5 +1,6 @@
-import { Link, useLocation, matchPath } from 'react-router-dom'
+import { useLocation, matchPath } from 'react-router-dom'
 import NavbarTopUtilityBar from './NavbarTopUtilityBar'
+import BrandLogo from './BrandLogo'
 
 const getPageName = (pathname: string): string | null => {
     if (matchPath({ path: '/cart', end: true }, pathname)) return 'Shopping Cart'
@@ -21,10 +22,7 @@ const NavbarNoSearch = () => {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6">
                     <div className="flex h-20 items-center gap-4">
 
-                        <Link to="/" className="text-2xl font-bold text-emerald-600 flex items-center shrink-0">
-                            <span className="block md:hidden tracking-wide">DNI</span>
-                            <span className="hidden md:block">Daily Need Items</span>
-                        </Link>
+                        <BrandLogo />
 
                         {pageName && (
                             <>
