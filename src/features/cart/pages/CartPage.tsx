@@ -67,7 +67,7 @@ const CartPage = () => {
             <div
                 ref={contentRef}
                 className={`
-                    max-w-6xl mx-auto px-4 py-6 space-y-4
+                    max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-4
                     ${isFloating ? 'pb-[140px]' : ''}
                 `}
             >
