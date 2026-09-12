@@ -13,6 +13,8 @@ import adminShopsReducer from "@/features/admin/store/adminShopsSlice";
 import shippingReducer from "@/features/shipping/store/shippingSlice";
 import homeFeatureReducer from "@/features/homeFeatures/store/homeFeatureSlice";
 import homeQuickActionsReducer from "@/features/home/store/homeSlice";
+import heroBannerReducer from "@/features/heroBanners/store/heroBannerSlice";
+import promoCardReducer from "@/features/promoCards/store/promoCardSlice";
 
 // Single source of truth for all state
 const rootReducer = combineReducers({
@@ -29,6 +31,8 @@ const rootReducer = combineReducers({
   adminShops: adminShopsReducer,
   homeFeatures: homeFeatureReducer,
   homeQuickActions: homeQuickActionsReducer,
+  heroBanners: heroBannerReducer,
+  promoCards: promoCardReducer,
 });
 
 export default rootReducer;
