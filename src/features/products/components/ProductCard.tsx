@@ -175,7 +175,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
           <img
             src={`${product.images?.[0] ?? '/placeholder.svg'}`}
             alt={product.name}
-            className="pointer-events-none absolute inset-0 h-full w-full object-contain p-2"
+            className="pointer-events-none absolute inset-0 h-full w-full object-fill p-2"
             loading="lazy"
           />
 
@@ -272,4 +272,4 @@ const ProductCard = ({ product }: ProductCardProps) => {
   )
 }
 
-export default ProductCard
+export default ProductCard;
