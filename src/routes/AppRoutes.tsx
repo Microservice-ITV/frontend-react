@@ -2,6 +2,12 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import HomeFeaturesPage from '@/features/homeFeatures/pages/HomeFeaturesPage'
 import NewHomeFeaturePage from '@/features/homeFeatures/pages/NewHomeFeaturePage'
 import EditHomeFeaturePage from '@/features/homeFeatures/pages/EditHomeFeaturePage'
+import HeroBannersPage from '@/features/heroBanners/pages/HeroBannersPage'
+import NewHeroBannerPage from '@/features/heroBanners/pages/NewHeroBannerPage'
+import EditHeroBannerPage from '@/features/heroBanners/pages/EditHeroBannerPage'
+import PromoCardsPage from '@/features/promoCards/pages/PromoCardsPage'
+import NewPromoCardPage from '@/features/promoCards/pages/NewPromoCardPage'
+import EditPromoCardPage from '@/features/promoCards/pages/EditPromoCardPage'
 import { LoginPage } from '@/features/auth/pages/LoginPage'
 import { RegisterPage } from '@/features/auth/pages/RegisterPage'
 import { VerifyEmailPage } from '@/features/auth/pages/VerifyEmailPage'
@@ -371,6 +377,54 @@ const AppRoutes = () => {
                             element={
                                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
                                     <HomeFeaturesPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="hero-banners/new"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                                    <NewHeroBannerPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="hero-banners/:id/edit"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                                    <EditHeroBannerPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="hero-banners"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                                    <HeroBannersPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="promo-banners/new"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                                    <NewPromoCardPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="promo-banners/:id/edit"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                                    <EditPromoCardPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="promo-banners"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                                    <PromoCardsPage />
                                 </ProtectedRoute>
                             }
                         />
