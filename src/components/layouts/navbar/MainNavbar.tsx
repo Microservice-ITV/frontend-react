@@ -4,6 +4,7 @@ import { ShoppingCart, Search } from 'lucide-react'
 import { useAppSelector } from '@/app/hooks'
 import { selectCartCount } from '@/features/cart/store/cartSelectors'
 import NavbarTopUtilityBar from './NavbarTopUtilityBar'
+import BrandLogo from './BrandLogo'
 
 const DEBOUNCE_MS = 400
 const MIN_QUERY_LENGTH = 2
@@ -72,10 +73,7 @@ const MainNavbar = () => {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6">
                     <div className="flex h-20 items-center gap-6">
 
-                        <Link to="/" className="text-2xl font-bold text-emerald-600 flex items-center">
-                            <span className="block md:hidden tracking-wide">DNI</span>
-                            <span className="hidden md:block">Daily Need Items</span>
-                        </Link>
+                        <BrandLogo />
 
                         {/* Search Bar */}
                         <div className="flex-1 min-w-0">
