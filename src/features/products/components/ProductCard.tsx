@@ -108,8 +108,8 @@ function StarRow({ rating }: { rating: string }) {
         )
       })}
     </div>
-  );
-};
+  )
+}
 
 interface ProductCardProps {
   product: Product
