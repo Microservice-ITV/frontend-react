@@ -9,6 +9,8 @@ interface Props {
   product: ProductDetail
   /** Fired when the active SKU changes (including initial default) — drives variant-specific gallery. */
   onSelectedVariantChange?: (variant: ProductVariant | null) => void
+  /** Present when this product is bought from a flash deal slot; carried to cart for deal stock reservation. */
+  flashDealItemId?: string
 }
 
 function formatMoney(n: number, currency: string) {
@@ -23,7 +25,7 @@ function formatMoney(n: number, currency: string) {
   }
 }
 
-const ProductInfo = ({ product, onSelectedVariantChange }: Props) => {
+const ProductInfo = ({ product, onSelectedVariantChange, flashDealItemId }: Props) => {
   const [activeVariant, setActiveVariant] = useState<ProductVariant | null>(null)
 
   const handleVariantChange = useCallback(
@@ -185,7 +187,11 @@ const ProductInfo = ({ product, onSelectedVariantChange }: Props) => {
         {stockLabel}
       </p>
 
-      <ProductActions product={product} selectedVariant={activeVariant} />
+      <ProductActions
+        product={product}
+        selectedVariant={activeVariant}
+        flashDealItemId={flashDealItemId}
+      />
 
       {product.description?.trim() ? (
         <div className="border-t border-gray-100 pt-4">

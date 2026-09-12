@@ -9,7 +9,9 @@ import checkoutReducer from '@/features/checkout/store/checkoutSlice'
 import sellerProductsReducer from '@/features/seller/store/sellerProductsSlice'
 import sellerCategoriesReducer from '@/features/seller/store/sellerCategoriesSlice'
 import adminShopsReducer from '@/features/admin/store/adminShopsSlice'
+import adminFlashDealsReducer from '@/features/admin/store/adminFlashDealsSlice'
 import shippingReducer from '@/features/shipping/store/shippingSlice'
+import flashDealsReducer from '@/features/products/store/flashDealSlice'
 
 // Single source of truth for all state
 const rootReducer = combineReducers({
@@ -23,6 +25,8 @@ const rootReducer = combineReducers({
   sellerProducts: sellerProductsReducer,
   sellerCategories: sellerCategoriesReducer,
   adminShops: adminShopsReducer,
+  adminFlashDeals: adminFlashDealsReducer,
+  flashDeals: flashDealsReducer,
 })
 
 export default rootReducer

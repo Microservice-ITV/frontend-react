@@ -15,6 +15,7 @@ import {
   MessageCircle,
   FolderOpen,
   Tags,
+  Zap,
 } from 'lucide-react'
 import { CAPABILITIES } from '@/app/rbac/capabilities'
 import type { DashboardMenuSection } from '../types/dashboardTypes'
@@ -179,6 +180,14 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         area: 'super_admin',
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
         icon: Tags,
+      },
+      {
+        key: 'admin-flash-deals',
+        label: 'Flash Deals',
+        to: '/super-admin/flash-deals',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: Zap,
       },
       {
         key: 'admin-users',
