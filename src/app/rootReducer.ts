@@ -33,9 +33,6 @@ const rootReducer = combineReducers({
   sellerOrders: sellerOrdersReducer,
   adminShops: adminShopsReducer,
   adminRbac: adminRbacReducer,
-  adminFlashDeals: adminFlashDealsReducer,
-  flashDeals: flashDealsReducer,
-})
   homeFeatures: homeFeatureReducer,
   homeQuickActions: homeQuickActionsReducer,
   heroBanners: heroBannerReducer,
