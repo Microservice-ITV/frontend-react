@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ecommerceReadClient } from '@/lib/api/ecommerceReadClient'
 import { deliveryApi } from '@/lib/api/deliveryClient'
-import type { PurchasedOrder } from '../types/orderTypes'
+import type { PurchasedOrder, PurchasedOrderItem, PurchasedOrderTotals } from '../types/orderTypes'
 
 const ORDER_BY_ID_QUERY = `
   query OrderById($id: ID!) {
@@ -23,6 +23,8 @@ const ORDER_BY_ID_QUERY = `
       }
       totals {
         subtotal
+        discount
+        shipping
         total
         currency
       }
@@ -111,9 +113,31 @@ const formatMoney = (value: number, currency: string): string => {
       style: 'currency',
       currency: currency || 'USD',
       minimumFractionDigits: 2,
-    }).format(Number(value || 0))
+    }).format(Number.isFinite(value) ? value : 0)
   } catch {
-    return `${currency} ${Number(value || 0).toFixed(2)}`
+    return `${currency} ${(Number.isFinite(value) ? value : 0).toFixed(2)}`
+  }
+}
+
+const toSafeAmount = (value: unknown): number => {
+  const amount = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(amount) ? amount : 0
+}
+
+const normalizeOrderTotals = (totals: PurchasedOrderTotals | null | undefined): PurchasedOrderTotals => {
+  const subtotal = toSafeAmount(totals?.subtotal)
+  const discount = toSafeAmount(totals?.discount)
+  const shipping = toSafeAmount(totals?.shipping)
+  const total = toSafeAmount(
+    totals?.total ?? Math.max(0, subtotal + shipping - discount),
+  )
+
+  return {
+    subtotal,
+    discount,
+    shipping,
+    total,
+    currency: totals?.currency?.trim() || 'USD',
   }
 }
 
@@ -188,6 +212,11 @@ const OrderTrackingPage = () => {
   const isCancelled = order
     ? ['CANCELLED', 'FAILED', 'FAILED_PAYMENT', 'EXPIRED', 'RETURNED', 'REFUNDED'].includes(order.status?.toUpperCase())
     : false
+
+  const orderTotals = useMemo(
+    () => normalizeOrderTotals(order?.totals),
+    [order?.totals],
+  )
 
   const activeDelivery = order?.fulfillment?.deliveries?.find(
     (d) => !['DELIVERED', 'CANCELLED'].includes(d.status?.toUpperCase()),
@@ -400,34 +429,21 @@ const OrderTrackingPage = () => {
           )}
 
           {/* Order items */}
-          <div className="bg-white border border-gray-200 rounded-sm">
+          <div className="bg-white border border-gray-200 rounded-sm overflow-hidden">
             <div className="px-5 py-3 border-b border-gray-100">
               <h2 className="text-sm font-semibold text-gray-900">Order Items</h2>
+              <p className="mt-0.5 text-xs text-gray-500">
+                {order.items.length} item{order.items.length === 1 ? '' : 's'} in this order
+              </p>
             </div>
-            {order.items.map((item) => (
-              <div key={`${item.productId}-${item.sku}`} className="px-5 py-3 border-b border-gray-100 last:border-0">
-                <div className="flex gap-3">
-                  {item.imageUrl ? (
-                    <img src={item.imageUrl} alt={item.name} className="w-14 h-14 object-cover rounded-sm" />
-                  ) : (
-                    <div className="w-14 h-14 bg-gray-100 rounded-sm" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-800 truncate">{item.name}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">SKU: {item.sku} &middot; x{item.quantity}</p>
-                  </div>
-                  <div className="text-sm text-emerald-600 font-semibold shrink-0">
-                    {formatMoney(item.lineTotal, item.currency)}
-                  </div>
-                </div>
-              </div>
-            ))}
-            <div className="px-5 py-3 flex justify-between items-center bg-gray-50">
-              <span className="text-sm text-gray-600">Total</span>
-              <span className="text-base font-semibold text-emerald-600">
-                {formatMoney(order.totals.total, order.totals.currency)}
-              </span>
+
+            <div className="divide-y divide-gray-100">
+              {order.items.map((item) => (
+                <OrderItemRow key={`${item.productId}-${item.sku}`} item={item} />
+              ))}
             </div>
+
+            <OrderPaymentSummary totals={orderTotals} />
           </div>
 
           {/* Payment info */}
@@ -466,6 +482,83 @@ const OrderTrackingPage = () => {
           </div>
         </>
       )}
+    </div>
+  )
+}
+
+const OrderItemRow = ({ item }: { item: PurchasedOrderItem }) => {
+  const currency = item.currency || 'USD'
+  const unitPrice = toSafeAmount(item.unitPrice)
+  const lineTotal = toSafeAmount(item.lineTotal)
+  const quantity = toSafeAmount(item.quantity)
+
+  return (
+    <div className="px-5 py-4">
+      <div className="flex gap-3">
+        {item.imageUrl ? (
+          <img src={item.imageUrl} alt={item.name} className="w-16 h-16 object-cover rounded-sm border border-gray-100" />
+        ) : (
+          <div className="w-16 h-16 bg-gray-100 rounded-sm border border-gray-100" />
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-gray-900 truncate">{item.name}</p>
+          <p className="mt-1 text-xs text-gray-500">
+            SKU: {item.sku || '—'} · Qty {quantity}
+          </p>
+          <p className="mt-1 text-xs text-gray-500">
+            {formatMoney(unitPrice, currency)} each
+          </p>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="text-sm font-semibold text-emerald-600">{formatMoney(lineTotal, currency)}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const OrderPaymentSummary = ({ totals }: { totals: PurchasedOrderTotals }) => {
+  const { subtotal, discount, shipping, total, currency } = totals
+
+  return (
+    <div className="border-t border-dashed border-black/10 bg-[#fffefb] px-5 py-5">
+      <div className="text-sm text-gray-700">
+        <div className="mb-3 flex justify-between">
+          <span className="text-gray-600">Merchandise Subtotal</span>
+          <span className="text-gray-900">{formatMoney(subtotal, currency)}</span>
+        </div>
+
+        <div className="mb-3 flex justify-between">
+          <span className="text-gray-600">Shipping Subtotal</span>
+          <span className="text-gray-900">{formatMoney(shipping, currency)}</span>
+        </div>
+
+        <div className="mb-4 space-y-2 rounded-xl border border-emerald-100 bg-emerald-50/70 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.12em] text-emerald-800">Your savings</p>
+              <p className="mt-0.5 text-xs text-emerald-700">Promotions applied to this order</p>
+            </div>
+            <span className="text-lg font-bold text-emerald-700">
+              -{formatMoney(discount, currency)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between border-t border-emerald-100 pt-2 text-xs">
+            <span className="text-gray-600">Promotion discount</span>
+            <span className="font-semibold text-emerald-700">-{formatMoney(discount, currency)}</span>
+          </div>
+        </div>
+
+        <div className="flex items-end justify-between border-t border-black/10 pt-4">
+          <span className="font-medium text-gray-900">Total Payment:</span>
+          <span className="text-3xl font-semibold text-emerald-600">
+            {formatMoney(total, currency)}
+          </span>
+        </div>
+      </div>
+      <div className="mt-4 flex items-center justify-end gap-1 text-xs text-gray-500">
+        <span>GST included, where applicable.</span>
+      </div>
     </div>
   )
 }

@@ -28,6 +28,27 @@ export type CheckoutAddressPayload = {
   shipping_total: number
   /** Per-shop fees from calculate API, aligned with cart shops */
   shop_shippings: CheckoutShopShippingPayload[]
+  /** Optional one-time voucher / promo code */
+  promo_code?: string | null
+}
+
+export type PromoCodeStatus =
+  | 'VALID'
+  | 'INVALID'
+  | 'EXPIRED'
+  | 'USED'
+  | 'DISABLED'
+  | 'RESERVED'
+  | 'LIMIT_REACHED'
+  | 'NOT_APPLICABLE'
+
+export type PromotionQuoteResponse = {
+  discount_total: number
+  final_total: number
+  promotion_ids: string[]
+  promo_code?: string | null
+  promo_code_status?: PromoCodeStatus | null
+  promo_code_message?: string | null
 }
 
 export const checkoutApi = {
@@ -42,12 +63,15 @@ export const checkoutApi = {
     }>
     subtotal: number
     shipping_total: number
-  }): Promise<{
-    discount_total: number
-    final_total: number
-    promotion_ids: string[]
-  }> {
-    const response = await promotionClient.post('/promotions/quote', payload)
+    promo_code?: string | null
+  }): Promise<PromotionQuoteResponse> {
+    const body = {
+      ...payload,
+      promo_code: payload.promo_code?.trim()
+        ? payload.promo_code.trim().toUpperCase()
+        : undefined,
+    }
+    const response = await promotionClient.post('/promotions/quote', body)
     return response.data
   },
 
@@ -86,6 +110,9 @@ export const checkoutApi = {
     grand_total?: number
     shipping_total?: number
     promotion_discount_total?: number
+    promo_code?: string | null
+    promo_code_status?: PromoCodeStatus | null
+    promo_code_message?: string | null
     payment?: { client_secret?: string }
     already_succeeded?: boolean
   }>> {
