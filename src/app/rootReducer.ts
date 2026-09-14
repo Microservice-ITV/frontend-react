@@ -15,6 +15,8 @@ import homeFeatureReducer from "@/features/homeFeatures/store/homeFeatureSlice";
 import homeQuickActionsReducer from "@/features/home/store/homeSlice";
 import heroBannerReducer from "@/features/heroBanners/store/heroBannerSlice";
 import promoCardReducer from "@/features/promoCards/store/promoCardSlice";
+import announcementTypeReducer from "@/features/announcements/store/announcementTypeSlice";
+import announcementReducer from "@/features/announcements/store/announcementSlice";
 
 // Single source of truth for all state
 const rootReducer = combineReducers({
@@ -33,6 +35,8 @@ const rootReducer = combineReducers({
   homeQuickActions: homeQuickActionsReducer,
   heroBanners: heroBannerReducer,
   promoCards: promoCardReducer,
+  announcementTypes: announcementTypeReducer,
+  announcements: announcementReducer,
 });
 
 export default rootReducer;

@@ -8,6 +8,12 @@ import EditHeroBannerPage from '@/features/heroBanners/pages/EditHeroBannerPage'
 import PromoCardsPage from '@/features/promoCards/pages/PromoCardsPage'
 import NewPromoCardPage from '@/features/promoCards/pages/NewPromoCardPage'
 import EditPromoCardPage from '@/features/promoCards/pages/EditPromoCardPage'
+import AnnouncementTypesPage from '@/features/announcements/pages/AnnouncementTypesPage'
+import NewAnnouncementTypePage from '@/features/announcements/pages/NewAnnouncementTypePage'
+import EditAnnouncementTypePage from '@/features/announcements/pages/EditAnnouncementTypePage'
+import AnnouncementsPage from '@/features/announcements/pages/AnnouncementsPage'
+import NewAnnouncementPage from '@/features/announcements/pages/NewAnnouncementPage'
+import EditAnnouncementPage from '@/features/announcements/pages/EditAnnouncementPage'
 import { LoginPage } from '@/features/auth/pages/LoginPage'
 import { RegisterPage } from '@/features/auth/pages/RegisterPage'
 import { VerifyEmailPage } from '@/features/auth/pages/VerifyEmailPage'
@@ -423,6 +429,54 @@ const AppRoutes = () => {
                             element={
                                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
                                     <PromoCardsPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="announcement-types/new"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                                    <NewAnnouncementTypePage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="announcement-types/:id/edit"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                                    <EditAnnouncementTypePage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="announcement-types"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                                    <AnnouncementTypesPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="announcements/new"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                                    <NewAnnouncementPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="announcements/:id/edit"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                                    <EditAnnouncementPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="announcements"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                                    <AnnouncementsPage />
                                 </ProtectedRoute>
                             }
                         />

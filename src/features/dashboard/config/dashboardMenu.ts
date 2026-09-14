@@ -19,6 +19,8 @@ import {
   Home,
   Image,
   RectangleHorizontal,
+  Megaphone,
+  LayoutList,
 } from 'lucide-react'
 import { CAPABILITIES } from '@/app/rbac/capabilities'
 import type { DashboardMenuSection } from '../types/dashboardTypes'
@@ -207,6 +209,22 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         area: 'super_admin',
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
         icon: RectangleHorizontal,
+      },
+      {
+        key: 'admin-announcement-types',
+        label: 'Announcement Types',
+        to: '/super-admin/announcement-types',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: LayoutList,
+      },
+      {
+        key: 'admin-announcements',
+        label: 'Announcements',
+        to: '/super-admin/announcements',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: Megaphone,
       },
       {
         key: 'admin-users',
