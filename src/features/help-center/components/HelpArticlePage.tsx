@@ -172,10 +172,10 @@ const HelpArticlePage = () => {
   const sidebarGroups: HelpNavigationGroup[] = isSellingArticle
     ? sellerNavigation
     : categories.map((category) => ({
-        id: category.id,
-        label: category.label,
-        items: category.items?.map(({ label: itemLabel }) => ({ label: itemLabel })) ?? [],
-      }))
+      id: category.id,
+      label: category.label,
+      items: category.items?.map(({ label: itemLabel }) => ({ label: itemLabel })) ?? [],
+    }))
   const normalizedQuery = searchQuery.trim().toLowerCase()
 
   const articleSearchText = useMemo(() => {
