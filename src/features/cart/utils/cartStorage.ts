@@ -14,6 +14,7 @@ function normalizeStoredItem(raw: Partial<CartItem>): CartItem {
         price: typeof raw.price === 'number' ? raw.price : 0,
         quantity: typeof raw.quantity === 'number' ? raw.quantity : 1,
         selected: Boolean(raw.selected),
+        flashDealItemId: raw.flashDealItemId,
     }
 }
 

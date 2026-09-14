@@ -11,6 +11,8 @@ interface Props {
   product: ProductDetail
   /** Fired when the active SKU changes (including initial default) — drives variant-specific gallery. */
   onSelectedVariantChange?: (variant: ProductVariant | null) => void
+  /** Present when this product is bought from a flash deal slot; carried to cart for deal stock reservation. */
+  flashDealItemId?: string
 }
 
 function formatMoney(n: number, currency?: string) {
@@ -68,7 +70,7 @@ function TrustIconCircle({ children }: { children: ReactNode }) {
   )
 }
 
-const ProductInfo = ({ product, onSelectedVariantChange }: Props) => {
+const ProductInfo = ({ product, onSelectedVariantChange, flashDealItemId }: Props) => {
   const [activeVariant, setActiveVariant] = useState<ProductVariant | null>(null)
   const countdown = useEndOfDayCountdown()
 
@@ -280,6 +282,20 @@ const ProductInfo = ({ product, onSelectedVariantChange }: Props) => {
         {stockLabel}
       </p>
 
+      <ProductActions
+        product={product}
+        selectedVariant={activeVariant}
+        flashDealItemId={flashDealItemId}
+      />
+
+      {product.description?.trim() ? (
+        <div className="border-t border-gray-100 pt-4">
+          <h2 className="text-sm font-semibold text-gray-900 mb-2">Description</h2>
+          <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+            {product.description}
+          </div>
+        </div>
+      ) : null}
       <ProductActions product={product} selectedVariant={activeVariant} />
     </section>
   )

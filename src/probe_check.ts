@@ -1,0 +1,1 @@
+export const PROBE_MARKER = 'PROBE_OK_from_host_disk_20260912'

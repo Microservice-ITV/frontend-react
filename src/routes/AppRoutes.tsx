@@ -2,6 +2,12 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import HomeFeaturesPage from '@/features/homeFeatures/pages/HomeFeaturesPage'
 import NewHomeFeaturePage from '@/features/homeFeatures/pages/NewHomeFeaturePage'
 import EditHomeFeaturePage from '@/features/homeFeatures/pages/EditHomeFeaturePage'
+import HeroBannersPage from '@/features/heroBanners/pages/HeroBannersPage'
+import NewHeroBannerPage from '@/features/heroBanners/pages/NewHeroBannerPage'
+import EditHeroBannerPage from '@/features/heroBanners/pages/EditHeroBannerPage'
+import PromoCardsPage from '@/features/promoCards/pages/PromoCardsPage'
+import NewPromoCardPage from '@/features/promoCards/pages/NewPromoCardPage'
+import EditPromoCardPage from '@/features/promoCards/pages/EditPromoCardPage'
 import { LoginPage } from '@/features/auth/pages/LoginPage'
 import { RegisterPage } from '@/features/auth/pages/RegisterPage'
 import { VerifyEmailPage } from '@/features/auth/pages/VerifyEmailPage'
@@ -16,6 +22,7 @@ import RecentlyAddedPage from '@/features/home/pages/RecentlyAddedPage'
 import ProductListPage from '@/features/products/pages/ProductListPage'
 import ProductDetailPage from '@/features/products/pages/ProductDetailPage'
 import SearchResultsPage from '@/features/products/pages/SearchResultsPage'
+import FlashDealsPage from '@/features/products/pages/FlashDealsPage'
 import CartPage from '@/features/cart/pages/CartPage'
 import CartSeeMorePage from '@/features/cart/pages/CartSeeMorePage'
 import CheckoutPage from '@/features/checkout/pages/CheckoutPage'
@@ -67,6 +74,7 @@ import AdminShopDetailPage from '@/features/admin/pages/AdminShopDetailPage'
 import AdminShopEditPage from '@/features/admin/pages/AdminShopEditPage'
 import AdminShopsPage from '@/features/admin/pages/AdminShopsPage'
 import AdminRbacPage from '@/features/admin/pages/AdminRbacPage'
+import FlashDealsAdminPage from '@/features/admin/pages/FlashDealsAdminPage'
 import CommonNotificationsPage from '@/features/common/pages/CommonNotificationsPage'
 import CommonChatPage from '@/features/common/pages/CommonChatPage'
 import CommonHelpSupportPage from '@/features/common/pages/CommonHelpSupportPage'
@@ -380,6 +388,54 @@ const AppRoutes = () => {
                             }
                         />
                         <Route
+                            path="hero-banners/new"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                                    <NewHeroBannerPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="hero-banners/:id/edit"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                                    <EditHeroBannerPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="hero-banners"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                                    <HeroBannersPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="promo-banners/new"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                                    <NewPromoCardPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="promo-banners/:id/edit"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                                    <EditPromoCardPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="promo-banners"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                                    <PromoCardsPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
                             path="shops/:shopId/edit"
                             element={
                                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminShops}>
@@ -392,6 +448,14 @@ const AppRoutes = () => {
                             element={
                                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminShops}>
                                     <AdminShopDetailPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="flash-deals"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminFlashDeals}>
+                                    <FlashDealsAdminPage />
                                 </ProtectedRoute>
                             }
                         />
@@ -532,6 +596,7 @@ const AppRoutes = () => {
                 }
             />
             <Route path="/search" element={<SearchResultsPage />} />
+            <Route path="/flash-deals" element={<FlashDealsPage />} />
             <Route path="/all_categories" element={<CategoriesPage />} />
             <Route path="/categories/:id" element={<ProductListPage />} />
             <Route path="/products/:id" element={<ProductDetailPage />} />

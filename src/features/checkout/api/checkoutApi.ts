@@ -32,7 +32,7 @@ export type CheckoutAddressPayload = {
 export const checkoutApi = {
   createCheckoutSession(data: {
     user_id: string
-    items: { product_id: string; qty: number; variant_id?: string }[]
+    items: { product_id: string; qty: number; variant_id?: string; flash_deal_item_id?: string }[]
     idempotency_key: string
     delivery_address?: any
   }): Promise<AxiosResponse<CheckoutResponse>> {
