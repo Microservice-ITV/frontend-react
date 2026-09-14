@@ -14,4 +14,5 @@ export type Capability =
   | 'seller.permissions.manage'
   | 'categories.view'
   | 'categories.manage'
+  | 'promotions.view'
   | '*'
