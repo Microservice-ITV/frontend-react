@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { fetchProductDetail } from '@/features/products/store/productThunks'
 import { clearSelectedProduct } from '@/features/products/store/productSlice'
@@ -14,8 +14,6 @@ import { pickDefaultVariant } from '../components/ProductVariantSelector'
 
 const ProductDetailPage = () => {
   const { id } = useParams<{ id: string }>()
-  const [searchParams] = useSearchParams()
-  const flashDealItemId = searchParams.get('flashDealItemId') ?? undefined
   const dispatch = useAppDispatch()
 
   const { selectedProduct, status, error } = useAppSelector((state) => state.products)
@@ -84,11 +82,7 @@ const ProductDetailPage = () => {
 
         <section className="bg-white rounded-sm p-3 sm:p-4 flex flex-col lg:flex-row gap-4 lg:gap-6">
           <ProductGallery images={galleryImages} />
-          <ProductInfo
-            product={selectedProduct}
-            onSelectedVariantChange={onGalleryVariantChange}
-            flashDealItemId={flashDealItemId}
-          />
+          <ProductInfo product={selectedProduct} onSelectedVariantChange={onGalleryVariantChange} />
         </section>
 
         <ProductDescriptionSection product={selectedProduct} />

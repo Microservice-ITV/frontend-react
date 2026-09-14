@@ -43,7 +43,6 @@ export const checkoutCart = createAsyncThunk<
                     product_id: item.productId,
                     qty: item.quantity,
                     ...(item.variantId ? { variant_id: item.variantId } : {}),
-                    ...(item.flashDealItemId ? { flash_deal_item_id: item.flashDealItemId } : {}),
                 })),
                 delivery_address: {
                     full_name: '',

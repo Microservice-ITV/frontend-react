@@ -9,10 +9,6 @@ import cartReducer from '@/features/cart/store/cartSlice'
 import checkoutReducer from '@/features/checkout/store/checkoutSlice'
 import sellerProductsReducer from '@/features/seller/store/sellerProductsSlice'
 import sellerCategoriesReducer from '@/features/seller/store/sellerCategoriesSlice'
-import adminShopsReducer from '@/features/admin/store/adminShopsSlice'
-import adminFlashDealsReducer from '@/features/admin/store/adminFlashDealsSlice'
-import shippingReducer from '@/features/shipping/store/shippingSlice'
-import flashDealsReducer from '@/features/products/store/flashDealSlice'
 import sellerOrdersReducer from '@/features/seller/store/sellerOrdersSlice'
 import adminShopsReducer from "@/features/admin/store/adminShopsSlice";
 import adminRbacReducer from "@/features/admin/store/adminRbacSlice";

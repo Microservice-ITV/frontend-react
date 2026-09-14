@@ -22,7 +22,6 @@ import RecentlyAddedPage from '@/features/home/pages/RecentlyAddedPage'
 import ProductListPage from '@/features/products/pages/ProductListPage'
 import ProductDetailPage from '@/features/products/pages/ProductDetailPage'
 import SearchResultsPage from '@/features/products/pages/SearchResultsPage'
-import FlashDealsPage from '@/features/products/pages/FlashDealsPage'
 import CartPage from '@/features/cart/pages/CartPage'
 import CartSeeMorePage from '@/features/cart/pages/CartSeeMorePage'
 import CheckoutPage from '@/features/checkout/pages/CheckoutPage'
@@ -452,14 +451,6 @@ const AppRoutes = () => {
                             }
                         />
                         <Route
-                            path="flash-deals"
-                            element={
-                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminFlashDeals}>
-                                    <FlashDealsAdminPage />
-                                </ProtectedRoute>
-                            }
-                        />
-                        <Route
                             path="categories/new"
                             element={
                                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.categoriesManage}>
@@ -596,7 +587,6 @@ const AppRoutes = () => {
                 }
             />
             <Route path="/search" element={<SearchResultsPage />} />
-            <Route path="/flash-deals" element={<FlashDealsPage />} />
             <Route path="/all_categories" element={<CategoriesPage />} />
             <Route path="/categories/:id" element={<ProductListPage />} />
             <Route path="/products/:id" element={<ProductDetailPage />} />
