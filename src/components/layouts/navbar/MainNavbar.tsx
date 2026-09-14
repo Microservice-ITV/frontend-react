@@ -86,14 +86,7 @@ const MainNavbar = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex h-20 items-center gap-6">
             <BrandLogo />
-            <Link
-              to="/"
-              className="text-2xl font-bold text-emerald-600 flex items-center"
-            >
-              <span className="block md:hidden tracking-wide">DNI</span>
-              <span className="hidden md:block">Daily Need Items</span>
-            </Link>
-
+            
             {/* Search Bar */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center border border-gray-300 rounded-sm overflow-hidden focus-within:border-emerald-500">
