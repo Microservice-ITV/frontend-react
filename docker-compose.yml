@@ -39,7 +39,7 @@ services:
       - ./src/assets:${NODE_WORKING_DIR}/assets
       - ./src/public:${NODE_WORKING_DIR}/public
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5173/"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:5173/"]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -72,6 +72,8 @@ import CommonSettingsPage from "@/features/common/pages/CommonSettingsPage";
 import HelpCenterPage from "@/features/help-center/components/HelpCenterPage";
 import HelpArticlePage from "@/features/help-center/components/HelpArticlePage";
 import AnnouncementDetailPage from "@/features/announcements/pages/AnnouncementDetailPage";
+import { PhoneAuthPage } from "@/features/auth/pages/PhoneAuthPage";
+import { PhoneOtpPage } from "@/features/auth/pages/PhoneOtpPage";
 
 const AppRoutes = () => {
   return (
@@ -83,6 +85,8 @@ const AppRoutes = () => {
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/phone-auth" element={<PhoneAuthPage />} />
+        <Route path="/phone-verify" element={<PhoneOtpPage />} />
       </Route>
 
       {/* Protected routes */}

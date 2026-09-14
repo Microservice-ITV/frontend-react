@@ -11,7 +11,7 @@ import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import SocialAuthSection from '../components/SocialAuthSection'
-
+import PhoneAuthSection from '../components/PhoneAuthSection'
 export const LoginPage = () => {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
@@ -145,6 +145,19 @@ export const LoginPage = () => {
 
           {/* Social Login */}
           <SocialAuthSection />
+          {/* Phone Authentication Divider */}
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-gray-200" />
+
+            <span className="text-xs font-medium uppercase tracking-wider text-gray-400">
+              Or
+            </span>
+
+            <div className="h-px flex-1 bg-gray-200" />
+          </div>
+
+          {/* Phone Authentication */}
+          <PhoneAuthSection />
         </form>
 
         <p className="mt-6 text-sm text-center text-gray-600">
