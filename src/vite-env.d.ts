@@ -8,6 +8,8 @@ interface ImportMetaEnv {
     readonly VITE_GOOGLE_MAPS_API_KEY?: string
     /** Base URL for product images, local server in development or CDN in production. */
     readonly VITE_ASSET_BASE_URL?: string
+    /** Google Analytics 4 measurement ID (e.g. G-XXXXXXXX). Empty = disabled. */
+    readonly VITE_GA_MEASUREMENT_ID?: string
     /** Map provider: `osm` (Leaflet + OpenStreetMap, default, free) or `google` (needs billing + key). */
     readonly VITE_MAP_PROVIDER?: string
 }

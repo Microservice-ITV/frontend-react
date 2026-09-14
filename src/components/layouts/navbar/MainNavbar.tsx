@@ -1,3 +1,4 @@
+
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ShoppingCart, Search } from "lucide-react";
@@ -5,6 +6,8 @@ import { useAppSelector } from "@/app/hooks";
 import { selectCartCount } from "@/features/cart/store/cartSelectors";
 import NavbarTopUtilityBar from "./NavbarTopUtilityBar";
 import { Announcements } from "@/components/layouts/announment";
+import BrandLogo from './BrandLogo'
+
 
 const DEBOUNCE_MS = 400;
 const MIN_QUERY_LENGTH = 2;
@@ -82,6 +85,7 @@ const MainNavbar = () => {
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex h-20 items-center gap-6">
+            <BrandLogo />
             <Link
               to="/"
               className="text-2xl font-bold text-emerald-600 flex items-center"

@@ -15,8 +15,11 @@ import {
   MessageCircle,
   FolderOpen,
   Tags,
+  Percent,
   LayoutGrid,
   Home,
+  Image,
+  RectangleHorizontal,
 } from 'lucide-react'
 import { CAPABILITIES } from '@/app/rbac/capabilities'
 import type { DashboardMenuSection } from '../types/dashboardTypes'
@@ -61,6 +64,14 @@ export const DASHBOARD_MENU_SELLER: DashboardMenuSection[] = [
         area: 'seller',
         requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
         icon: Package,
+      },
+      {
+        key: 'seller-promotions',
+        label: 'Promotions',
+        to: '/seller/promotions',
+        area: 'seller',
+        requiredCapabilities: [CAPABILITIES.PROMOTIONS_VIEW],
+        icon: Percent,
       },
       {
         key: 'seller-orders',
@@ -189,6 +200,28 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         area: 'super_admin',
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
         icon: Home,
+      },
+      {
+        key: 'admin-promotions',
+        label: 'Promotions',
+        to: '/super-admin/promotions',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PROMOTIONS_VIEW],
+        icon: Percent,
+        key: 'admin-hero-banners',
+        label: 'Hero Banners',
+        to: '/super-admin/hero-banners',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: Image,
+      },
+      {
+        key: 'admin-promo-banners',
+        label: 'Promo Banners',
+        to: '/super-admin/promo-banners',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: RectangleHorizontal,
       },
       {
         key: 'admin-users',

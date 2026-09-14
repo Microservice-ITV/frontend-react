@@ -1,15 +1,16 @@
 import { useEffect } from "react";
+import { Link } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import ProductGrid from "@/features/products/components/ProductGrid";
 import { fetchRecentProducts } from "@/features/products/store/productThunks";
+
+const HOME_PREVIEW_COUNT = 10;
 
 const RecentlyAddedSection = () => {
   const dispatch = useAppDispatch();
   const {
     recentProducts,
-    recentProductsNextCursor,
     recentProductsHasNextPage,
-    recentProductsLoading,
     recentProductsStatus,
     recentProductsError,
   } = useAppSelector((state) => state.products);
@@ -20,11 +21,29 @@ const RecentlyAddedSection = () => {
     }
   }, [dispatch, recentProductsStatus]);
 
+  const previewProducts = recentProducts.slice(0, HOME_PREVIEW_COUNT);
+  const showViewAll = recentProducts.length > 0 && (
+    recentProductsHasNextPage || recentProducts.length > HOME_PREVIEW_COUNT
+  );
+
   return (
-    <section className="pt-4" aria-labelledby="recently-added-heading">
-      <h1 className="mb-5 px-4 sm:px-6 text-base uppercase font-semibold text-gray-600">
-        Recently Added
-      </h1>
+    <section className="px-4 py-4 sm:px-6" aria-labelledby="recently-added-heading">
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <h1
+          id="recently-added-heading"
+          className="text-base font-semibold uppercase text-gray-600"
+        >
+          Recently Added
+        </h1>
+        {showViewAll && (
+          <Link
+            to="/recently-added"
+            className="shrink-0 text-sm font-medium text-[var(--dni-primary)] hover:underline"
+          >
+            View all
+          </Link>
+        )}
+      </div>
 
       {recentProductsStatus === "loading" && recentProducts.length === 0 && (
         <div className="text-sm text-gray-500" role="status">
@@ -44,29 +63,8 @@ const RecentlyAddedSection = () => {
         </div>
       )}
 
-      {recentProducts.length > 0 && (
-        <>
-          <div className="px-4 sm:px-6">
-            <ProductGrid products={recentProducts} showFindSimilar={false} />
-          </div>
-
-          {recentProductsHasNextPage && recentProductsNextCursor && (
-            <div className="mt-5 text-center">
-              <button
-                type="button"
-                className="dni-btn"
-                onClick={() =>
-                  void dispatch(
-                    fetchRecentProducts({ cursor: recentProductsNextCursor }),
-                  )
-                }
-                disabled={recentProductsLoading}
-              >
-                {recentProductsLoading ? "Loading..." : "Load more"}
-              </button>
-            </div>
-          )}
-        </>
+      {previewProducts.length > 0 && (
+        <ProductGrid products={previewProducts} showFindSimilar={false} />
       )}
     </section>
   );

@@ -14,6 +14,7 @@ export const ROUTE_ACCESS = {
   sellerCategoriesView: [CAPABILITIES.CATEGORIES_VIEW],
   /** Super admin: full category CRUD */
   categoriesManage: [CAPABILITIES.CATEGORIES_MANAGE],
+  promotionsView: [CAPABILITIES.PROMOTIONS_VIEW],
   sellerProducts: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
   sellerInvoices: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
   sellerMail: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
