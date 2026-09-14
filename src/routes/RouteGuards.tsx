@@ -15,6 +15,11 @@ export const GuestRoute = () => {
   const isAuthenticated = useAppSelector(selectIsAuthenticated)
   const authUser = useAppSelector(selectAuthUser)
   const location = useLocation()
+  const isPhoneAuthRoute = location.pathname === '/phone-auth' || location.pathname === '/phone-verify'
+
+  // Phone authentication must remain usable while the regular session bootstrap
+  // settles; its own request/verify flow determines whether a session is created.
+  if (isPhoneAuthRoute) return <Outlet />
 
   if (isAuthBootstrapping) return <AuthBootstrapLoading />
 

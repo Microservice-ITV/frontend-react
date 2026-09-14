@@ -9,6 +9,14 @@ export const authFeatureApi = {
     return authClient.post('/register', data)
   },
 
+  requestPhoneOtp(data: { phone: string; recaptchaToken?: string }) {
+    return authClient.post('/phone/request-otp', data)
+  },
+
+  verifyPhoneOtp(data: { phone: string; otp: string }) {
+    return authClient.post('/phone/verify-otp', data)
+  },
+
   refresh() {
     return authClient.post('/refresh')
   },

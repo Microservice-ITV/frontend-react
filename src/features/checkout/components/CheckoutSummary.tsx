@@ -167,19 +167,22 @@ const CheckoutSummary = ({
         currentCheckout.checkout_id,
         buildCheckoutAddressPayload(deliveryAddress),
       )
-      console.info('[PlaceOrder] Address updated, confirming payment with Stripe...')
+      console.info('[PlaceOrder] Address updated:', {
+  checkoutId: currentCheckout.checkout_id,
+  alreadySucceeded: addressResponse.data?.already_succeeded,
+  hasPayment: !!addressResponse.data?.payment,
+  hasUpdatedClientSecret: !!addressResponse.data?.payment?.client_secret,
+})
 
-      // If the backend reports the payment intent already succeeded (e.g. from a
-      // prior confirmCardPayment call), skip confirmation and go straight to
-      // polling for the final checkout status.
-      if (addressResponse.data?.already_succeeded) {
-        console.info('[PlaceOrder] Payment intent already succeeded, skipping confirmCardPayment')
-        dispatch(setCheckoutPaymentStatus('PAYMENT_PENDING_CONFIRMATION'))
-        dispatch(setAwaitingFinalStatus(true))
-        dispatch(setCheckoutError(null))
-        dispatch(setCheckoutPlacingOrder(false))
-        return
-      }
+if (addressResponse.data?.already_succeeded) {
+  console.info('[PlaceOrder] STOP: backend says payment already succeeded')
+
+  dispatch(setCheckoutPaymentStatus('PAYMENT_PENDING_CONFIRMATION'))
+  dispatch(setAwaitingFinalStatus(true))
+  dispatch(setCheckoutError(null))
+  dispatch(setCheckoutPlacingOrder(false))
+  return
+}
 
       // The address update may have triggered a payment-intent amount update on
       // the backend. If the original Stripe intent no longer exists the payment-

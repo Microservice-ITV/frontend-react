@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
-import { login, register, fetchMe, refreshAccessToken, logout, bootstrapAuth, verifyEmail, resendVerification } from './authThunks'
+import { login, register, requestPhoneOtp, verifyPhoneOtp, fetchMe, refreshAccessToken, logout, bootstrapAuth, verifyEmail, resendVerification } from './authThunks'
 import type { AuthState } from '../types/authTypes'
 
 const initialState: AuthState = {
@@ -97,6 +97,29 @@ const authSlice = createSlice({
           state.status = 'failed'
           state.error = typeof payload === 'string' ? payload : 'Registration failed'
         }
+      })
+
+      .addCase(requestPhoneOtp.pending, (state) => {
+        state.status = 'loading'
+        state.error = null
+      })
+      .addCase(requestPhoneOtp.fulfilled, (state) => {
+        state.status = 'succeeded'
+      })
+      .addCase(requestPhoneOtp.rejected, (state, action) => {
+        state.status = 'failed'
+        state.error = action.payload ?? 'Could not send verification code'
+      })
+      .addCase(verifyPhoneOtp.fulfilled, (state, action) => {
+        state.accessToken = action.payload.accessToken
+        state.isAuthenticated = true
+        state.hasSession = true
+        state.status = 'succeeded'
+        state.error = null
+      })
+      .addCase(verifyPhoneOtp.rejected, (state, action) => {
+        state.status = 'failed'
+        state.error = action.payload ?? 'Verification failed'
       })
 
       // ================= VERIFY EMAIL =================
