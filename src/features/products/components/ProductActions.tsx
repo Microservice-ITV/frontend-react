@@ -14,14 +14,18 @@ import {
 import { fetchShopProfilesForCurrentCart } from "@/features/shipping/store/shippingThunks";
 
 type ProductActionsProps = {
-  product: ProductDetail;
-  selectedVariant: ProductVariant | null;
-};
+  product: ProductDetail
+  selectedVariant: ProductVariant | null
+  /** Present when this product is bought from a flash deal slot; carried to checkout for deal stock reservation. */
+  flashDealItemId?: string
+}
 
-const ProductActions = ({ product, selectedVariant }: ProductActionsProps) => {
+
+const ProductActions = ({ product, selectedVariant, flashDealItemId }: ProductActionsProps) => {
   const dispatch = useAppDispatch();
   const [quantity, setQuantity] = useState(1);
-
+  product: ProductDetail;
+  selectedVariant: ProductVariant | null;
   const navigate = useNavigate();
 
   const effective = useMemo(
@@ -53,6 +57,8 @@ const ProductActions = ({ product, selectedVariant }: ProductActionsProps) => {
     shopId: product.shop.id,
     shopName: product.shop.name,
     selected: true,
+    ...(flashDealItemId ? { flashDealItemId } : {}),
+  })
   });
 
   const handleAddToCart = () => {

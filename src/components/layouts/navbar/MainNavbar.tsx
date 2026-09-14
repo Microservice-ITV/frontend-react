@@ -13,6 +13,7 @@ const MainNavbar = () => {
     const cartCount = useAppSelector(selectCartCount)
     const [searchQuery, setSearchQuery] = useState('')
     const navigate = useNavigate()
+    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const location = useLocation()
     const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
     const queryRef = useRef(searchQuery)
