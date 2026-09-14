@@ -25,13 +25,7 @@ const NavbarNoSearch = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex h-20 items-center gap-4">
             <BrandLogo />
-            <Link
-              to="/"
-              className="text-2xl font-bold text-emerald-600 flex items-center shrink-0"
-            >
-              <span className="block md:hidden tracking-wide">DNI</span>
-              <span className="hidden md:block">Daily Need Items</span>
-            </Link>
+
 
             {pageName && (
               <>
