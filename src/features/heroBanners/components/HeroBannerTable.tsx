@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 
@@ -7,6 +8,9 @@ import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
 import { deleteHeroBanner } from '../store/heroBannerThunks'
 import { selectHeroBannersDeleting } from '../store/heroBannerSelectors'
 import type { HeroBanner } from '../types/heroBannerTypes'
+
+const ACTIONS_MENU_WIDTH = 140
+const ACTIONS_MENU_HEIGHT = 84
 
 interface HeroBannerTableProps {
   banners: HeroBanner[]
@@ -23,18 +27,54 @@ const HeroBannerTable = ({ banners, loading, error, onEdit, footer }: HeroBanner
   const deleting = useSelector(selectHeroBannersDeleting)
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  const buttonRefs = useRef<Record<string, HTMLButtonElement | null>>({})
+
+  const closeMenu = () => {
+    setOpenMenuId(null)
+    setMenuPosition(null)
+  }
+
+  const openMenu = (id: string, button: HTMLButtonElement) => {
+    if (openMenuId === id) {
+      closeMenu()
+      return
+    }
+
+    const rect = button.getBoundingClientRect()
+    const openUpward = window.innerHeight - rect.bottom < ACTIONS_MENU_HEIGHT + 8
+    const top = openUpward ? rect.top - ACTIONS_MENU_HEIGHT - 4 : rect.bottom + 4
+    const left = Math.min(
+      Math.max(8, rect.right - ACTIONS_MENU_WIDTH),
+      window.innerWidth - ACTIONS_MENU_WIDTH - 8
+    )
+
+    setMenuPosition({ top, left })
+    setOpenMenuId(id)
+  }
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setOpenMenuId(null)
+      const target = e.target as Node
+      const activeButton = openMenuId ? buttonRefs.current[openMenuId] : null
+      if (menuRef.current?.contains(target) || activeButton?.contains(target)) {
+        return
       }
+      closeMenu()
     }
+    const handleRepositionClose = () => closeMenu()
+
     if (openMenuId) {
       document.addEventListener('mousedown', handleClickOutside)
+      window.addEventListener('resize', handleRepositionClose)
+      window.addEventListener('scroll', handleRepositionClose, true)
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      window.removeEventListener('resize', handleRepositionClose)
+      window.removeEventListener('scroll', handleRepositionClose, true)
+    }
   }, [openMenuId])
 
   const confirmDelete = (id: string) => {
@@ -105,7 +145,7 @@ const HeroBannerTable = ({ banners, loading, error, onEdit, footer }: HeroBanner
                 </td>
               </tr>
             ) : (
-              banners.map((banner, index) => (
+              banners.map((banner) => (
                 <tr
                   key={banner.id}
                   className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
@@ -144,61 +184,22 @@ const HeroBannerTable = ({ banners, loading, error, onEdit, footer }: HeroBanner
                     {new Date(banner.createdAt).toLocaleDateString()}
                   </td>
 
-                  <td className="relative w-16 px-2 py-3">
-                    <div
-                      className="relative inline-block"
-                      ref={openMenuId === banner.id ? menuRef : undefined}
+                  <td className="w-16 px-2 py-3">
+                    <button
+                      ref={(node) => {
+                        buttonRefs.current[banner.id] = node
+                      }}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openMenu(banner.id, e.currentTarget)
+                      }}
+                      className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
+                      aria-label="Actions"
+                      aria-expanded={openMenuId === banner.id}
                     >
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setOpenMenuId((id) =>
-                            id === banner.id ? null : banner.id,
-                          )
-                        }}
-                        className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
-                        aria-label="Actions"
-                        aria-expanded={openMenuId === banner.id}
-                      >
-                        <MoreHorizontal size={18} />
-                      </button>
-                      {openMenuId === banner.id && (
-                        <div
-                          className={`absolute right-0 z-50 min-w-[140px] rounded-lg border border-slate-200 bg-white py-1 shadow-lg ${
-                            index >= banners.length - 2
-                              ? 'bottom-full mb-1'
-                              : 'top-full mt-1'
-                          }`}
-                        >
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setOpenMenuId(null)
-                              onEdit(banner.id)
-                            }}
-                            className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
-                          >
-                            <Pencil size={16} className="shrink-0 text-slate-500" />
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            disabled={deleting}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setOpenMenuId(null)
-                              confirmDelete(banner.id)
-                            }}
-                            className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-red-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
-                          >
-                            <Trash2 size={16} className="shrink-0 text-slate-500" />
-                            Delete
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                      <MoreHorizontal size={18} />
+                    </button>
                   </td>
                 </tr>
               ))
@@ -208,6 +209,43 @@ const HeroBannerTable = ({ banners, loading, error, onEdit, footer }: HeroBanner
       </div>
 
       {footer}
+
+      {openMenuId &&
+        menuPosition &&
+        createPortal(
+          <div
+            ref={menuRef}
+            style={{ top: menuPosition.top, left: menuPosition.left, width: ACTIONS_MENU_WIDTH }}
+            className="fixed z-[100] rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
+          >
+            <button
+              type="button"
+              onClick={() => {
+                const id = openMenuId
+                closeMenu()
+                onEdit(id)
+              }}
+              className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
+            >
+              <Pencil size={16} className="shrink-0 text-slate-500" />
+              Edit
+            </button>
+            <button
+              type="button"
+              disabled={deleting}
+              onClick={() => {
+                const id = openMenuId
+                closeMenu()
+                confirmDelete(id)
+              }}
+              className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-red-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+            >
+              <Trash2 size={16} className="shrink-0 text-slate-500" />
+              Delete
+            </button>
+          </div>,
+          document.body
+        )}
     </div>
   )
 }

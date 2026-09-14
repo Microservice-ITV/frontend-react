@@ -63,6 +63,38 @@ export const register = createAsyncThunk<
     }
 })
 
+export const requestPhoneOtp = createAsyncThunk<
+    void,
+    { phone: string; recaptchaToken?: string },
+    { rejectValue: string }
+>('auth/requestPhoneOtp', async (data, { rejectWithValue }) => {
+    try {
+        await authFeatureApi.requestPhoneOtp(data)
+    } catch (err: unknown) {
+        if (axios.isAxiosError(err) && err.response?.data?.message) {
+            return rejectWithValue(err.response.data.message)
+        }
+        return rejectWithValue('We could not send a verification code. Please try again.')
+    }
+})
+
+export const verifyPhoneOtp = createAsyncThunk<
+    TokenPayload,
+    { phone: string; otp: string },
+    { rejectValue: string }
+>('auth/verifyPhoneOtp', async (data, { rejectWithValue }) => {
+    try {
+        const res = await authFeatureApi.verifyPhoneOtp(data)
+        applySessionCookieFromAuthResponse(res)
+        return { accessToken: res.data.data.access_token }
+    } catch (err: unknown) {
+        if (axios.isAxiosError(err) && err.response?.data?.message) {
+            return rejectWithValue(err.response.data.message)
+        }
+        return rejectWithValue('The verification code is invalid or expired.')
+    }
+})
+
 
 type FetchMeReject = 'SKIP' | 'API_ERROR'
 
