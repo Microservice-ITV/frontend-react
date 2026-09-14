@@ -2,7 +2,6 @@ export interface PromoCard {
   id: string
   position: string
   imageUrl: string
-  sortOrder: number
   isActive: boolean
   createdAt: string
   updatedAt: string
