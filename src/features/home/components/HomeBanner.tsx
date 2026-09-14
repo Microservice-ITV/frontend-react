@@ -25,7 +25,10 @@ const HomeBanner = () => {
 
         const activePromos = promoRes.data
           .filter((p) => p.isActive)
-          .sort((a, b) => a.sortOrder - b.sortOrder)
+          .sort((a, b) => {
+            if (a.position === b.position) return 0
+            return a.position === 'TOP' ? -1 : 1
+          })
 
         setHeroBanners(activeHeroes)
         setSideBanners(activePromos)
