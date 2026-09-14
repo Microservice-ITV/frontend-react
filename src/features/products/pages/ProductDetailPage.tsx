@@ -27,7 +27,7 @@ const ProductDetailPage = () => {
     if (!selectedProduct) return []
     const variantForGallery =
       galleryVariant &&
-      selectedProduct.variants.some((x) => x.variantId === galleryVariant.variantId)
+        selectedProduct.variants.some((x) => x.variantId === galleryVariant.variantId)
         ? galleryVariant
         : pickDefaultVariant(selectedProduct.variants)
     return getGalleryImagesForVariant(selectedProduct.images, variantForGallery)

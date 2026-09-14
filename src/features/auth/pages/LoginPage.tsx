@@ -115,6 +115,15 @@ export const LoginPage = () => {
             }
           />
 
+          <div className="text-right">
+            <Link
+              to="/forgot-password"
+              className="text-sm font-medium text-black hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
+
           {/* reCAPTCHA Notice */}
           <div className="flex gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
             <div className="text-blue-600 text-lg">🛡️</div>

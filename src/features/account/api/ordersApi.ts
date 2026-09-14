@@ -22,6 +22,8 @@ const MY_ORDERS_QUERY = `
       }
       totals {
         subtotal
+        discount
+        shipping
         total
         currency
       }

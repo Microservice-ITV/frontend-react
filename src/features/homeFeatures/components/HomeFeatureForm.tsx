@@ -17,7 +17,13 @@ const toSlug = (value: string) =>
 export const homeFeatureFormSchema = z.object({
   name: z.string().trim().min(1, 'Name is required'),
   slug: z.string().trim().min(1, 'Slug is required'),
-  sortOrder: z.string(),
+  sortOrder: z.string().refine(
+    (value) => {
+      const num = Number(value)
+      return value.trim() !== '' && Number.isInteger(num) && num >= 1
+    },
+    'Sort order must be 1 or greater',
+  ),
   isActive: z.enum(['true', 'false']),
   startAt: z.string(),
   endAt: z.string(),
@@ -277,8 +283,8 @@ const HomeFeatureForm = ({
                   <input
                     id="sortOrder"
                     type="number"
-                    min={0}
-                    placeholder="0"
+                    min={1}
+                    placeholder="1"
                     {...register('sortOrder')}
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none placeholder:text-slate-400 focus:border-emerald-500"
                   />
