@@ -34,6 +34,8 @@ export interface ProductDetail {
   name: string
   slug: string
   description?: string
+  /** Optional product demo video (YouTube URL). */
+  videoUrl?: string
   sku?: string
   /** Aggregate / default when no variant selection */
   stock?: number
@@ -72,4 +74,11 @@ export interface ProductsState {
   searchResults: Product[]
   searchStatus: 'idle' | 'loading' | 'succeeded' | 'failed'
   searchError: string | null
+  recentProducts: Product[]
+  recentProductsNextCursor: string | null
+  recentProductsHasNextPage: boolean
+  recentProductsLoadedCursors: string[]
+  recentProductsLoading: boolean
+  recentProductsStatus: 'idle' | 'loading' | 'succeeded' | 'failed'
+  recentProductsError: string | null
 }

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAppSelector } from '@/app/hooks'
 import { ordersApi } from '../api/ordersApi'
 import type { PurchasedOrder } from '../types/orderTypes'
@@ -203,6 +204,24 @@ const OrdersPage = () => {
               <div className="px-4 py-2 flex justify-between text-xs text-gray-500">
                 <span>Payment: {order.payment?.status || '-'}</span>
                 <span>Placed: {order.placedAt ? new Date(order.placedAt).toLocaleString() : '-'}</span>
+              </div>
+
+              <div className="px-4 py-2 border-t border-gray-100 flex items-center justify-between">
+                <div className="text-xs text-gray-500">
+                  {order.fulfillment?.deliveries?.some(d => d.trackingNumber) ? (
+                    <span className="text-emerald-600 font-medium">
+                      Tracking: {order.fulfillment.deliveries.find(d => d.trackingNumber)?.trackingNumber}
+                    </span>
+                  ) : order.fulfillment?.status ? (
+                    <span>Fulfillment: {order.fulfillment.status}</span>
+                  ) : null}
+                </div>
+                <Link
+                  to={`/account/orders/${order.orderId}`}
+                  className="text-xs text-emerald-600 hover:text-emerald-700 font-medium"
+                >
+                  Track Order →
+                </Link>
               </div>
             </div>
           ))}

@@ -1,7 +1,7 @@
 export const getRecaptchaToken = async (action = 'submit'): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        if (!window.grecaptcha) {
-            reject('reCAPTCHA not loaded')
+    return new Promise((resolve) => {
+        if (!window.grecaptcha || !import.meta.env.VITE_RECAPTCHA_SITE_KEY) {
+            resolve('')
             return
         }
 
@@ -9,7 +9,7 @@ export const getRecaptchaToken = async (action = 'submit'): Promise<string> => {
             window.grecaptcha
                 .execute(import.meta.env.VITE_RECAPTCHA_SITE_KEY, { action })
                 .then(resolve)
-                .catch(reject)
+                .catch(() => resolve(''))
         })
     })
 }

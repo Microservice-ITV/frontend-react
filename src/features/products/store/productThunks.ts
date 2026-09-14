@@ -1,6 +1,9 @@
 import { createAsyncThunk } from '@reduxjs/toolkit'
+import { productServiceAssetUrl } from '@/lib/api/apiConfig'
 import { productApi } from '../api/productApi'
 import type { Product, ProductDetail } from '../types/productTypes'
+
+const RECENT_PRODUCTS_LIMIT = 10
 
 /* ------------------------------
    SEARCH PRODUCTS
@@ -53,6 +56,51 @@ export const fetchProductsByCategory = createAsyncThunk<
     }
 })
 
+export const fetchRecentProducts = createAsyncThunk<
+    { items: Product[]; hasNextPage: boolean; nextCursor: string | null },
+    { cursor?: string },
+    { rejectValue: string }
+>('products/fetchRecentProducts', async ({ cursor }, { rejectWithValue }) => {
+    try {
+        const response = await productApi.getRecentProducts(RECENT_PRODUCTS_LIMIT, cursor)
+
+        return {
+            items: response.items.map((product) => ({
+                id: product.id,
+                name: product.name,
+                price: Number(product.price),
+                images: product.image
+                    ? [productServiceAssetUrl(product.image)]
+                    : (product.images ?? []).map((image) => productServiceAssetUrl(image)),
+                categoryId: product.categoryId ?? '',
+            })),
+            hasNextPage: response.hasNextPage,
+            nextCursor: response.nextCursor,
+        }
+    } catch (error: unknown) {
+        const message =
+            (error as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+            (error instanceof Error ? error.message : 'Failed to load recently added products')
+        return rejectWithValue(message)
+    }
+}, {
+    condition: ({ cursor }, { getState }) => {
+        const state = getState() as { products: {
+            recentProductsLoading: boolean
+            recentProductsStatus: 'idle' | 'loading' | 'succeeded' | 'failed'
+            recentProductsNextCursor: string | null
+            recentProductsHasNextPage: boolean
+            recentProductsLoadedCursors: string[]
+        } }
+
+        if (state.products.recentProductsLoading) return false
+        if (!cursor && state.products.recentProductsStatus !== 'idle') return false
+        if (cursor && !state.products.recentProductsHasNextPage) return false
+        if (cursor && state.products.recentProductsLoadedCursors.includes(cursor)) return false
+        return !cursor || state.products.recentProductsNextCursor === cursor
+    },
+})
+
 /* ------------------------------
    PRODUCT DETAIL
 -------------------------------- */
@@ -70,6 +118,7 @@ export const fetchProductDetail = createAsyncThunk<
             name: product.name,
             slug: product.slug,
             description: product.description,
+            videoUrl: product.videoUrl,
             sku: product.sku,
             stock: product.stock,
             price: Number(product.price),
