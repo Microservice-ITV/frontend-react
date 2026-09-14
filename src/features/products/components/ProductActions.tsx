@@ -1,44 +1,50 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useAppDispatch } from '@/app/hooks'
-import { addToCart } from '@/features/cart/store/cartSlice'
-import { addToCartIcon } from '@/assets/icons'
-import type { ProductDetail, ProductVariant } from '@/features/products/types/productTypes'
-import { useNavigate } from 'react-router-dom'
-import { pickDefaultVariant, variantDisplayLabel } from './ProductVariantSelector'
-import { fetchShopProfilesForCurrentCart } from '@/features/shipping/store/shippingThunks'
+import { useEffect, useMemo, useState } from "react";
+import { useAppDispatch } from "@/app/hooks";
+import { addToCart } from "@/features/cart/store/cartSlice";
+import { addToCartIcon } from "@/assets/icons";
+import type {
+  ProductDetail,
+  ProductVariant,
+} from "@/features/products/types/productTypes";
+import { useNavigate } from "react-router-dom";
+import {
+  pickDefaultVariant,
+  variantDisplayLabel,
+} from "./ProductVariantSelector";
+import { fetchShopProfilesForCurrentCart } from "@/features/shipping/store/shippingThunks";
 
 type ProductActionsProps = {
-  product: ProductDetail
-  selectedVariant: ProductVariant | null
-}
+  product: ProductDetail;
+  selectedVariant: ProductVariant | null;
+};
 
 const ProductActions = ({ product, selectedVariant }: ProductActionsProps) => {
-  const dispatch = useAppDispatch()
-  const [quantity, setQuantity] = useState(1)
+  const dispatch = useAppDispatch();
+  const [quantity, setQuantity] = useState(1);
 
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
   const effective = useMemo(
     () => selectedVariant ?? pickDefaultVariant(product.variants),
     [product.variants, selectedVariant],
-  )
+  );
 
-  const unitPrice = effective?.price ?? product.price
-  const maxStock = effective ? effective.shopStock : product.stock ?? 0
-  const maxQty = Math.min(99, Math.max(0, maxStock))
-  const outOfStock = maxStock <= 0
+  const unitPrice = effective?.price ?? product.price;
+  const maxStock = effective ? effective.shopStock : (product.stock ?? 0);
+  const maxQty = Math.min(99, Math.max(0, maxStock));
+  const outOfStock = maxStock <= 0;
 
   useEffect(() => {
-    setQuantity((q) => (maxQty > 0 ? Math.min(q, maxQty) : 1))
-  }, [maxQty, product.id])
+    setQuantity((q) => (maxQty > 0 ? Math.min(q, maxQty) : 1));
+  }, [maxQty, product.id]);
 
   const increase = () =>
-    setQuantity((q) => (maxQty > 0 ? Math.min(q + 1, maxQty) : q))
-  const decrease = () => setQuantity((q) => (q > 1 ? q - 1 : 1))
+    setQuantity((q) => (maxQty > 0 ? Math.min(q + 1, maxQty) : q));
+  const decrease = () => setQuantity((q) => (q > 1 ? q - 1 : 1));
 
   const cartPayload = () => ({
     productId: product.id,
-    variantId: effective?.variantId ?? '',
+    variantId: effective?.variantId ?? "",
     variantLabel: effective ? variantDisplayLabel(effective) : undefined,
     name: product.name,
     price: unitPrice,
@@ -47,35 +53,35 @@ const ProductActions = ({ product, selectedVariant }: ProductActionsProps) => {
     shopId: product.shop.id,
     shopName: product.shop.name,
     selected: true,
-  })
+  });
 
   const handleAddToCart = () => {
-    if (outOfStock) return
-    dispatch(addToCart(cartPayload()))
-    void dispatch(fetchShopProfilesForCurrentCart())
-  }
+    if (outOfStock) return;
+    dispatch(addToCart(cartPayload()));
+    void dispatch(fetchShopProfilesForCurrentCart());
+  };
 
   const handleBuyNow = () => {
-    if (outOfStock) return
-    dispatch(addToCart(cartPayload()))
-    void dispatch(fetchShopProfilesForCurrentCart())
-    navigate('/cart')
-  }
+    if (outOfStock) return;
+    dispatch(addToCart(cartPayload()));
+    void dispatch(fetchShopProfilesForCurrentCart());
+    navigate("/cart");
+  };
 
   return (
-    <div className="space-y-4 sm:space-y-6 mt-4 sm:mt-6">
+    <div className="space-y-4 sm:space-y-5">
       {/* QUANTITY */}
       <div className="flex items-center gap-3 sm:gap-4">
-        <span className="text-xs sm:text-sm text-gray-600 w-16 sm:w-20">Quantity</span>
+        <span className="text-sm font-medium text-gray-700">Quantity</span>
 
-        <div className="flex items-center border border-gray-300">
-          {/* DECREASE */}
+        <div className="inline-flex items-center overflow-hidden rounded-lg border border-gray-200 bg-white">
           <button
+            type="button"
             onClick={decrease}
             disabled={quantity === 1 || outOfStock}
             className={`
-              w-8 h-8 flex items-center justify-center border-r
-              ${quantity === 1 || outOfStock ? 'cursor-not-allowed text-gray-300' : 'hover:bg-gray-100 cursor-pointer'}
+              flex h-9 w-9 items-center justify-center text-gray-600 transition
+              ${quantity === 1 || outOfStock ? "cursor-not-allowed text-gray-300" : "hover:bg-gray-50 cursor-pointer"}
             `}
             aria-label="Decrease"
           >
@@ -84,22 +90,21 @@ const ProductActions = ({ product, selectedVariant }: ProductActionsProps) => {
             </svg>
           </button>
 
-          {/* INPUT */}
           <input
             type="text"
             value={quantity}
             readOnly
-            className="w-10 sm:w-12 h-8 text-center text-xs sm:text-sm outline-none border-none"
+            className="h-9 w-11 border-x border-gray-200 text-center text-sm font-medium outline-none"
           />
 
-          {/* INCREASE */}
           <button
+            type="button"
             onClick={increase}
             disabled={outOfStock || quantity >= maxQty}
-            className={`w-8 h-8 flex items-center justify-center border-l ${
+            className={`flex h-9 w-9 items-center justify-center text-gray-600 transition ${
               outOfStock || quantity >= maxQty
-                ? 'cursor-not-allowed text-gray-300'
-                : 'hover:bg-gray-100 cursor-pointer'
+                ? "cursor-not-allowed text-gray-300"
+                : "hover:bg-gray-50 cursor-pointer"
             }`}
             aria-label="Increase"
           >
@@ -111,52 +116,50 @@ const ProductActions = ({ product, selectedVariant }: ProductActionsProps) => {
       </div>
 
       {/* ACTION BUTTONS */}
-      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-        {/* ADD TO CART */}
+      <div className="flex flex-col sm:flex-row gap-3">
         <button
+          type="button"
           onClick={handleAddToCart}
           disabled={outOfStock}
           className="
-            flex items-center justify-center gap-2
-            h-10 sm:h-11 px-6 sm:px-10 w-full sm:w-auto sm:min-w-[180px]
-            border border-[var(--dni-primary)]
-            bg-[rgba(255,87,34,0.08)]
+            flex flex-1 items-center justify-center gap-2
+            h-11 sm:h-12 px-6
+            border-2 border-[var(--dni-primary)]
+            bg-white
             text-[var(--dni-primary)]
-            font-medium text-sm sm:text-base
-            hover:bg-[rgba(255,87,34,0.15)]
+            font-semibold text-sm sm:text-base
+            hover:bg-[var(--dni-primary-50)]
             transition cursor-pointer
             disabled:opacity-50 disabled:cursor-not-allowed
           "
         >
-          <img
-            src={addToCartIcon}
-            alt="Add to cart"
-            className="w-4 h-4 sm:w-5 sm:h-5"
-          />
+          <img src={addToCartIcon} alt="" className="w-4 h-4 sm:w-5 sm:h-5" />
           <span>Add to Cart</span>
         </button>
 
-        {/* BUY NOW */}
         <button
+          type="button"
           onClick={handleBuyNow}
           disabled={outOfStock}
           className="
-            h-10 sm:h-11 px-6 sm:px-10 w-full sm:w-auto sm:min-w-[180px]
+            flex flex-1 items-center justify-center gap-2
+            h-11 sm:h-12 px-6
             bg-[var(--dni-primary)]
             text-white
-            font-medium text-sm sm:text-base
-            hover:opacity-90
-            transition
-            cursor-pointer
+            font-semibold text-sm sm:text-base
+            hover:bg-[var(--dni-primary-hover)]
+            transition cursor-pointer
             disabled:opacity-50 disabled:cursor-not-allowed
           "
         >
-          Buy Now
+          <span className="text-base leading-none" aria-hidden>
+            ⚡
+          </span>
+          <span>Buy Now</span>
         </button>
       </div>
-
     </div>
-  )
-}
+  );
+};
 
-export default ProductActions
+export default ProductActions;

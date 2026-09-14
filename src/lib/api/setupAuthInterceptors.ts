@@ -1,6 +1,21 @@
 import type { AxiosInstance } from 'axios'
-import { store } from '@/app/store'
-import { logout, refreshAccessToken } from '@/features/auth/store/authThunks'
+
+// Lazily import the store and auth thunks to break the circular dependency:
+// setupAuthInterceptors -> store -> ... -> authThunks -> authApi -> authClient -> setupAuthInterceptors
+// Static imports at module scope would leave `setupAuthInterceptors` uninitialized when
+// authClient calls it during module evaluation.
+let storePromise: Promise<typeof import('@/app/store')> | null = null
+let authThunksPromise: Promise<typeof import('@/features/auth/store/authThunks')> | null = null
+
+const getStore = (): Promise<typeof import('@/app/store')> => {
+    storePromise ??= import('@/app/store')
+    return storePromise
+}
+
+const getAuthThunks = (): Promise<typeof import('@/features/auth/store/authThunks')> => {
+    authThunksPromise ??= import('@/features/auth/store/authThunks')
+    return authThunksPromise
+}
 
 type RetryableConfig = {
   _retry?: boolean
@@ -40,7 +55,8 @@ export const setupAuthInterceptors = (
   const skipAuthForPaths = options.skipAuthForPaths ?? []
   const enableRefreshRetry = options.enableRefreshRetry ?? true
 
-  client.interceptors.request.use((config) => {
+  client.interceptors.request.use(async (config) => {
+    const { store } = await getStore()
     const token = store.getState().auth.accessToken
     const shouldSkipAuth = matchesAnyPath(config.url, skipAuthForPaths)
 
@@ -57,6 +73,7 @@ export const setupAuthInterceptors = (
   client.interceptors.response.use(
     (response) => response,
     async (error) => {
+      const { store } = await getStore()
       const originalRequest = (error?.config ?? {}) as RetryableConfig
       const { hasSession } = store.getState().auth
       const shouldSkipRefresh = matchesAnyPath(originalRequest.url, skipAuthForPaths)
@@ -83,6 +100,7 @@ export const setupAuthInterceptors = (
       isRefreshing = true
 
       try {
+        const { refreshAccessToken, logout } = await getAuthThunks()
         const newAccessToken = await store.dispatch(refreshAccessToken()).unwrap()
         if (!newAccessToken) {
           await store.dispatch(logout())

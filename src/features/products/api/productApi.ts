@@ -1,6 +1,7 @@
 import { productServiceAssetUrl } from '@/lib/api/apiConfig'
 import { ecommerceReadRestClient } from '@/lib/api/ecommerceReadRestClient'
 import type { AxiosResponse } from 'axios'
+import { productClient } from '@/lib/api/productClient'
 import type { ProductVariant } from '@/features/products/types/productTypes'
 
 // API RESPONSE TYPES (RAW BACKEND)
@@ -22,6 +23,8 @@ interface ProductDetailApiResponse {
         name: string
         slug: string
         description?: string
+        /** Optional YouTube URL for the PDP video panel. */
+        videoUrl?: string
         sku?: string
         stock?: number
         price: number
@@ -45,6 +48,22 @@ interface ProductDetailApiResponse {
         primaryVariantId: string | null
         variants: ProductVariant[]
     }
+}
+
+export interface RecentProductApiItem {
+    id: string
+    name: string
+    price: number | string
+    image?: string
+    images?: string[]
+    categoryId?: string
+    createdAt: string
+}
+
+export interface RecentProductsApiResponse {
+    items: RecentProductApiItem[]
+    hasNextPage: boolean
+    nextCursor: string | null
 }
 
 type GraphQLErrorItem = { message?: string }
@@ -265,12 +284,12 @@ function buildCatalogListImages(row: CatalogProductGraphItem): string[] {
 /**
  * Read model has shopId only (no shop name). Cart uses a generic label until events include shop metadata.
  */
-function shopPlaceholder(shopId: string): { id: string; name: string; slug: string } {
+function shopPlaceholder(shopId: string, name?: string, slug?: string): { id: string; name: string; slug: string } {
     const id = shopId.trim() || 'unknown'
     return {
         id,
-        name: 'Seller store',
-        slug: id,
+        name: name?.trim() || `Shop ${id.slice(0, 8)}`,
+        slug: slug?.trim() || id,
     }
 }
 
@@ -344,6 +363,17 @@ export const productApi = {
         } as AxiosResponse<ProductsApiResponse>
     },
 
+    getRecentProducts: async (limit = 10, cursor?: string): Promise<RecentProductsApiResponse> => {
+        const response = await ecommerceReadRestClient.get<RecentProductsApiResponse>('/catalog/products/recent', {
+            params: {
+                limit,
+                ...(cursor ? { cursor } : {}),
+            },
+        })
+
+        return response.data
+    },
+
     /**
      * Buyer category listing: ecommerce-read-service GraphQL → MongoDB `product_reads`.
      */
@@ -406,6 +436,19 @@ export const productApi = {
         const minPrice = Number(p.minPrice ?? p.price ?? 0)
         const maxPrice = Number(p.maxPrice ?? p.price ?? 0)
         const displayPrice = variants.length === 1 ? variants[0].price : minPrice
+        let shopName: string | undefined
+        let shopSlug: string | undefined
+
+        try {
+            const response = await productClient.get<{
+                success: boolean
+                data?: { shop?: { name?: string; slug?: string } }
+            }>(`/products/${p.productId}`)
+            shopName = response.data.data?.shop?.name
+            shopSlug = response.data.data?.shop?.slug
+        } catch {
+            // Keep the catalog detail usable if the product service is unavailable.
+        }
 
         const detail: ProductDetailApiResponse = {
             success: true,
@@ -425,8 +468,8 @@ export const productApi = {
                     slug: p.categorySlug,
                     parentId,
                 },
-                shop: shopPlaceholder(p.shopId),
-                currency: p.currency ?? 'USD',
+                shop: shopPlaceholder(p.shopId, shopName, shopSlug),
+                currency: p.currency ?? 'MMK',
                 minPrice,
                 maxPrice,
                 brandName: p.brandName ?? '',

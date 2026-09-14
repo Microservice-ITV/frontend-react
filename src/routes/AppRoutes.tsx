@@ -17,6 +17,8 @@ import EditAnnouncementPage from '@/features/announcements/pages/EditAnnouncemen
 import { LoginPage } from '@/features/auth/pages/LoginPage'
 import { RegisterPage } from '@/features/auth/pages/RegisterPage'
 import { VerifyEmailPage } from '@/features/auth/pages/VerifyEmailPage'
+import { ForgotPasswordPage } from "@/features/auth/pages/ForgotPasswordPage";
+import { ResetPasswordPage } from "@/features/auth/pages/ResetPasswordPage";
 import OAuthSuccessPage from '@/features/auth/pages/OAuthSuccessPage'
 import OAuthErrorPage from '@/features/auth/pages/OAuthErrorPage'
 import ForbiddenPage from '@/features/auth/pages/ForbiddenPage'
@@ -26,6 +28,7 @@ import ProductListPage from '@/features/products/pages/ProductListPage'
 import ProductDetailPage from '@/features/products/pages/ProductDetailPage'
 import SearchResultsPage from '@/features/products/pages/SearchResultsPage'
 import CartPage from '@/features/cart/pages/CartPage'
+import CartSeeMorePage from "@/features/cart/pages/CartSeeMorePage";
 import CheckoutPage from '@/features/checkout/pages/CheckoutPage'
 import CheckoutSuccessPage from '@/features/checkout/pages/CheckoutSuccessPage'
 import CategoriesPage from '@/features/categories/pages/CategoriesPage'
@@ -80,16 +83,19 @@ import CommonHelpSupportPage from '@/features/common/pages/CommonHelpSupportPage
 import CommonSettingsPage from '@/features/common/pages/CommonSettingsPage'
 import HelpCenterPage from '@/features/help-center/components/HelpCenterPage'
 import HelpArticlePage from '@/features/help-center/components/HelpArticlePage'
+import AnnouncementDetailPage from "@/features/announcements/pages/AnnouncementDetailPage";
 
 const AppRoutes = () => {
-    return (
-        <Routes>
-            {/* Guest-only routes */}
-            <Route element={<GuestRoute />}>
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
-                <Route path="/verify-email" element={<VerifyEmailPage />} />
-            </Route>
+  return (
+    <Routes>
+      {/* Guest-only routes */}
+      <Route element={<GuestRoute />}>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+      </Route>
 
             {/* Protected routes */}
             <Route element={<ProtectedRoute />}>
@@ -623,49 +629,69 @@ const AppRoutes = () => {
                 </Route>
             </Route>
 
-            {/* Public routes */}
-            <Route path="/oauth-success" element={<OAuthSuccessPage />} />
-            <Route path="/oauth-error" element={<OAuthErrorPage />} />
-            <Route path="/forbidden" element={<ForbiddenPage />} />
-            <Route
-                path="/"
-                element={
-                    <BuyerHomeRoute>
-                        <HomePage />
-                    </BuyerHomeRoute>
-                }
-            />
-            <Route path="/search" element={<SearchResultsPage />} />
-            <Route path="/all_categories" element={<CategoriesPage />} />
-            <Route path="/categories/:id" element={<ProductListPage />} />
-            <Route path="/products/:id" element={<ProductDetailPage />} />
-            <Route path="/help-centre" element={<HelpCenterPage />} />
-            <Route path="/help-centre/article/:categoryId/:itemIndex" element={<HelpArticlePage />} />
-            <Route path="/help-centre/how-to-buy" element={<HelpArticlePage />} />
-            <Route path="/help-centre/how-to-sell" element={<HelpArticlePage />} />
-            <Route path="/help-centre/payment-methods" element={<HelpArticlePage />} />
-            <Route path="/help-centre/ecommerce-coins" element={<HelpArticlePage />} />
-            <Route path="/help-centre/ecommerce-guarantee" element={<HelpArticlePage />} />
-            <Route path="/help-centre/return-refund" element={<HelpArticlePage />} />
-            <Route path="/help-centre/mall-return-refund" element={<HelpArticlePage />} />
-            <Route path="/help-centre/contact-us" element={<HelpArticlePage />} />
-            <Route path="/cart" element={<CartPage />} />
-            <Route path="/about" element={<AboutUsPage />} />
-            <Route path="/careers" element={<CareersPage />} />
-            <Route path="/policies" element={<PoliciesPage />} />
-            <Route path="/privacy" element={<PrivacyPolicyPage />} />
-            <Route path="/blog" element={<BlogPage />} />
-            <Route path="/mall" element={<MallPage />} />
-            <Route path="/seller-centre" element={<SellerCentrePage />} />
-            <Route path="/seller-mentors" element={<SellerMentorsPage />} />
-            <Route path="/flash-deals" element={<FlashDealsPage />} />
-            <Route path="/media" element={<MediaContactPage />} />
-            <Route path="/ambassador" element={<AmbassadorProgrammePage />} />
+      {/* Public routes */}
+      <Route path="/oauth-success" element={<OAuthSuccessPage />} />
+      <Route path="/oauth-error" element={<OAuthErrorPage />} />
+      <Route path="/forbidden" element={<ForbiddenPage />} />
+      <Route
+        path="/"
+        element={
+          <BuyerHomeRoute>
+            <HomePage />
+          </BuyerHomeRoute>
+        }
+      />
+      <Route path="/search" element={<SearchResultsPage />} />
+      <Route path="/all_categories" element={<CategoriesPage />} />
+      <Route path="/categories/:id" element={<ProductListPage />} />
+      <Route path="/products/:id" element={<ProductDetailPage />} />
+      <Route path="/help-centre" element={<HelpCenterPage />} />
+      <Route
+        path="/announcements/:announcementId"
+        element={<AnnouncementDetailPage />}
+      />
+      <Route
+        path="/help-centre/article/:categoryId/:itemIndex"
+        element={<HelpArticlePage />}
+      />
+      <Route path="/help-centre/how-to-buy" element={<HelpArticlePage />} />
+      <Route path="/help-centre/how-to-sell" element={<HelpArticlePage />} />
+      <Route
+        path="/help-centre/payment-methods"
+        element={<HelpArticlePage />}
+      />
+      <Route
+        path="/help-centre/ecommerce-coins"
+        element={<HelpArticlePage />}
+      />
+      <Route
+        path="/help-centre/ecommerce-guarantee"
+        element={<HelpArticlePage />}
+      />
+      <Route path="/help-centre/return-refund" element={<HelpArticlePage />} />
+      <Route
+        path="/help-centre/mall-return-refund"
+        element={<HelpArticlePage />}
+      />
+      <Route path="/help-centre/contact-us" element={<HelpArticlePage />} />
+      <Route path="/cart" element={<CartPage />} />
+      <Route path="/cart/see-more" element={<CartSeeMorePage />} />
+      <Route path="/about" element={<AboutUsPage />} />
+      <Route path="/careers" element={<CareersPage />} />
+      <Route path="/policies" element={<PoliciesPage />} />
+      <Route path="/privacy" element={<PrivacyPolicyPage />} />
+      <Route path="/blog" element={<BlogPage />} />
+      <Route path="/mall" element={<MallPage />} />
+      <Route path="/seller-centre" element={<SellerCentrePage />} />
+      <Route path="/seller-mentors" element={<SellerMentorsPage />} />
+      <Route path="/flash-deals" element={<FlashDealsPage />} />
+      <Route path="/media" element={<MediaContactPage />} />
+      <Route path="/ambassador" element={<AmbassadorProgrammePage />} />
 
-            {/* fallback */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-    );
+      {/* fallback */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
 };
 
-export default AppRoutes
+export default AppRoutes;

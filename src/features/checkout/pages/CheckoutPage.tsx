@@ -402,17 +402,7 @@ const CheckoutPage = () => {
                     onChangeAddress={openAddressSelectionModal}
                 />
                 <CheckoutItems checkout={checkout} />
-                <CheckoutPayment />
-                <CheckoutSummary
-                    checkout={checkout}
-                    hasDeliveryAddress={hasDeliveryAddress}
-                    onRequireAddress={openAddressSelectionModal}
-                    deliveryAddress={selectedDeliveryAddress}
-                    cartItems={items}
-                />
-                {sagaId && (
-                    <SagaStatusDisplay sagaId={sagaId} />
-                )}
+                
                 <div className="grid lg:grid-cols-[1fr_380px] gap-6 lg:gap-8 mt-4">
                     {/* LEFT COLUMN - Payment Method Sections */}
                     <div className="space-y-4">
@@ -430,6 +420,9 @@ const CheckoutPage = () => {
                         />
                     </div>
                 </div>
+                    {sagaId && (
+                    <SagaStatusDisplay sagaId={sagaId} />
+                )}
             </div>
         </Elements>
     )

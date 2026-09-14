@@ -28,6 +28,10 @@ export const SHIPPING_SERVICE_BASE_URL =
     import.meta.env.VITE_SHIPPING_SERVICE_URL ??
     'http://localhost:5020/api/v1'
 
+export const PROMOTION_SERVICE_BASE_URL =
+    import.meta.env.VITE_PROMOTION_SERVICE_URL ??
+    'http://localhost:5007'
+
 export const ECOMMERCE_READ_SERVICE_BASE_URL =
     import.meta.env.VITE_ECOMMERCE_READ_SERVICE_URL ??
     'http://localhost:5004'
@@ -59,6 +63,9 @@ export function productServiceAssetUrl(
         return trimmed
     }
 
+    const cdnBaseUrl = import.meta.env.VITE_APP_ENV === 'local'
+        ? 'http://localhost:5001/uploads'
+        : 'https://dnistore.sgp1.cdn.digitaloceanspaces.com'
     if (
         /^https:\/\/dnistore\.sgp1\.cdn\.digitaloceanspaces\.com\//i.test(
             trimmed,
