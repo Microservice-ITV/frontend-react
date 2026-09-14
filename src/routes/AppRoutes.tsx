@@ -22,6 +22,7 @@ import CheckoutSuccessPage from "@/features/checkout/pages/CheckoutSuccessPage";
 import CategoriesPage from "@/features/categories/pages/CategoriesPage";
 import AboutUsPage from "@/features/about/pages/AboutUsPage";
 import CareersPage from "@/features/careers/pages/CareersPage";
+import AdminRbacPage from "@/features/admin/pages/AdminRbacPage";
 import PoliciesPage from "@/features/policies/pages/PoliciesPage";
 import PrivacyPolicyPage from "@/features/privacy/pages/PrivacyPolicyPage";
 import BlogPage from "@/features/blog/pages/BlogPage";
@@ -591,10 +592,7 @@ const AppRoutes = () => {
                 <ProtectedRoute
                   requiredCapabilities={ROUTE_ACCESS.superAdminRbac}
                 >
-                  <DashboardPlaceholderPage
-                    title="RBAC Administration"
-                    description="Role, permission, and assignment governance for platform operations will be added here."
-                  />
+                  <AdminRbacPage />
                 </ProtectedRoute>
               }
             />

@@ -50,3 +50,4 @@ const NavbarNoSearch = () => {
 
 
 export default NavbarNoSearch
+
