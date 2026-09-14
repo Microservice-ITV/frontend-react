@@ -5,6 +5,8 @@ import EditHomeFeaturePage from '@/features/homeFeatures/pages/EditHomeFeaturePa
 import { LoginPage } from '@/features/auth/pages/LoginPage'
 import { RegisterPage } from '@/features/auth/pages/RegisterPage'
 import { VerifyEmailPage } from '@/features/auth/pages/VerifyEmailPage'
+import { ForgotPasswordPage } from '@/features/auth/pages/ForgotPasswordPage'
+import { ResetPasswordPage } from '@/features/auth/pages/ResetPasswordPage'
 import OAuthSuccessPage from '@/features/auth/pages/OAuthSuccessPage'
 import OAuthErrorPage from '@/features/auth/pages/OAuthErrorPage'
 import ForbiddenPage from '@/features/auth/pages/ForbiddenPage'
@@ -64,6 +66,7 @@ import AdminOverviewPage from '@/features/admin/pages/AdminOverviewPage'
 import AdminShopDetailPage from '@/features/admin/pages/AdminShopDetailPage'
 import AdminShopEditPage from '@/features/admin/pages/AdminShopEditPage'
 import AdminShopsPage from '@/features/admin/pages/AdminShopsPage'
+import AdminRbacPage from '@/features/admin/pages/AdminRbacPage'
 import CommonNotificationsPage from '@/features/common/pages/CommonNotificationsPage'
 import CommonChatPage from '@/features/common/pages/CommonChatPage'
 import CommonHelpSupportPage from '@/features/common/pages/CommonHelpSupportPage'
@@ -79,6 +82,8 @@ const AppRoutes = () => {
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
                 <Route path="/verify-email" element={<VerifyEmailPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
             </Route>
 
             {/* Protected routes */}
@@ -506,10 +511,7 @@ const AppRoutes = () => {
                             path="rbac"
                             element={
                                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminRbac}>
-                                    <DashboardPlaceholderPage
-                                        title="RBAC Administration"
-                                        description="Role, permission, and assignment governance for platform operations will be added here."
-                                    />
+                                    <AdminRbacPage />
                                 </ProtectedRoute>
                             }
                         />

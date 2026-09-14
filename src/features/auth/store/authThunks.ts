@@ -168,6 +168,57 @@ export const resendVerification = createAsyncThunk<
 })
 
 
+export const forgotPassword = createAsyncThunk<
+    { message: string },
+    { email: string },
+    { rejectValue: string }
+>('auth/forgotPassword', async ({ email }, { rejectWithValue }) => {
+    try {
+        const res = await authFeatureApi.forgotPassword(email)
+        return { message: res.data?.message ?? 'Password reset code sent' }
+    } catch (err: unknown) {
+        if (axios.isAxiosError(err) && err.response?.data?.message) {
+            return rejectWithValue(err.response.data.message)
+        }
+        return rejectWithValue('We could not process your request. Please try again.')
+    }
+})
+
+
+export const resetPassword = createAsyncThunk<
+    { message: string },
+    { token: string; password: string; passwordConfirmation: string },
+    { rejectValue: string }
+>('auth/resetPassword', async ({ token, password, passwordConfirmation }, { rejectWithValue }) => {
+    try {
+        const res = await authFeatureApi.resetPassword({ token, password, passwordConfirmation })
+        return { message: res.data?.message ?? 'Password reset successfully' }
+    } catch (err: unknown) {
+        if (axios.isAxiosError(err) && err.response?.data?.message) {
+            return rejectWithValue(err.response.data.message)
+        }
+        return rejectWithValue('Failed to reset password. Please try again.')
+    }
+})
+
+
+export const changePassword = createAsyncThunk<
+    { message: string },
+    { currentPassword: string; newPassword: string; newPasswordConfirmation: string },
+    { rejectValue: string }
+>('auth/changePassword', async ({ currentPassword, newPassword, newPasswordConfirmation }, { rejectWithValue }) => {
+    try {
+        const res = await authFeatureApi.changePassword({ currentPassword, newPassword, newPasswordConfirmation })
+        return { message: res.data?.message ?? 'Password changed successfully' }
+    } catch (err: unknown) {
+        if (axios.isAxiosError(err) && err.response?.data?.message) {
+            return rejectWithValue(err.response.data.message)
+        }
+        return rejectWithValue('Failed to change password. Please try again.')
+    }
+})
+
+
 export const bootstrapAuth = createAsyncThunk(
     'auth/bootstrap',
     async (_, { dispatch }) => {
