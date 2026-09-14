@@ -104,7 +104,7 @@ const EditHomeFeaturePage = () => {
           payload: {
 name: values.name.trim(),
             slug: values.slug.trim(),
-            sortOrder: Number(values.sortOrder) || 0,
+            sortOrder: Number(values.sortOrder) || 1,
             isActive: values.isActive === 'true',
             startAt: values.startAt ? new Date(values.startAt).toISOString() : null,
             endAt: values.endAt ? new Date(values.endAt).toISOString() : null,

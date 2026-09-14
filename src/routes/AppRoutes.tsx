@@ -2,14 +2,23 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import HomeFeaturesPage from '@/features/homeFeatures/pages/HomeFeaturesPage'
 import NewHomeFeaturePage from '@/features/homeFeatures/pages/NewHomeFeaturePage'
 import EditHomeFeaturePage from '@/features/homeFeatures/pages/EditHomeFeaturePage'
+import HeroBannersPage from '@/features/heroBanners/pages/HeroBannersPage'
+import NewHeroBannerPage from '@/features/heroBanners/pages/NewHeroBannerPage'
+import EditHeroBannerPage from '@/features/heroBanners/pages/EditHeroBannerPage'
+import PromoCardsPage from '@/features/promoCards/pages/PromoCardsPage'
+import NewPromoCardPage from '@/features/promoCards/pages/NewPromoCardPage'
+import EditPromoCardPage from '@/features/promoCards/pages/EditPromoCardPage'
 import { LoginPage } from '@/features/auth/pages/LoginPage'
 import { RegisterPage } from '@/features/auth/pages/RegisterPage'
 import { VerifyEmailPage } from '@/features/auth/pages/VerifyEmailPage'
+import { ForgotPasswordPage } from '@/features/auth/pages/ForgotPasswordPage'
+import { ResetPasswordPage } from '@/features/auth/pages/ResetPasswordPage'
 import OAuthSuccessPage from '@/features/auth/pages/OAuthSuccessPage'
 import OAuthErrorPage from '@/features/auth/pages/OAuthErrorPage'
 import ForbiddenPage from '@/features/auth/pages/ForbiddenPage'
 import { BuyerHomeRoute, GuestRoute, ProtectedRoute } from './RouteGuards'
 import HomePage from '@/features/home/HomePage'
+import RecentlyAddedPage from '@/features/home/pages/RecentlyAddedPage'
 import ProductListPage from '@/features/products/pages/ProductListPage'
 import ProductDetailPage from '@/features/products/pages/ProductDetailPage'
 import SearchResultsPage from '@/features/products/pages/SearchResultsPage'
@@ -63,6 +72,8 @@ import AdminOverviewPage from '@/features/admin/pages/AdminOverviewPage'
 import AdminShopDetailPage from '@/features/admin/pages/AdminShopDetailPage'
 import AdminShopEditPage from '@/features/admin/pages/AdminShopEditPage'
 import AdminShopsPage from '@/features/admin/pages/AdminShopsPage'
+import AdminRbacPage from '@/features/admin/pages/AdminRbacPage'
+import FlashDealsAdminPage from '@/features/admin/pages/FlashDealsAdminPage'
 import CommonNotificationsPage from '@/features/common/pages/CommonNotificationsPage'
 import CommonChatPage from '@/features/common/pages/CommonChatPage'
 import CommonHelpSupportPage from '@/features/common/pages/CommonHelpSupportPage'
@@ -79,6 +90,8 @@ const AppRoutes = () => {
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
                 <Route path="/verify-email" element={<VerifyEmailPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
             </Route>
 
             {/* Protected routes */}
@@ -393,6 +406,50 @@ const AppRoutes = () => {
                                     allowedRoles={['SUPER_ADMIN']}
                                 >
                                     <PromotionEnginePage />
+                            path="hero-banners/new"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                                    <NewHeroBannerPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="hero-banners/:id/edit"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                                    <EditHeroBannerPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="hero-banners"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                                    <HeroBannersPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="promo-banners/new"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                                    <NewPromoCardPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="promo-banners/:id/edit"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                                    <EditPromoCardPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="promo-banners"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                                    <PromoCardsPage />
                                 </ProtectedRoute>
                             }
                         />
@@ -528,10 +585,7 @@ const AppRoutes = () => {
                             path="rbac"
                             element={
                                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminRbac}>
-                                    <DashboardPlaceholderPage
-                                        title="RBAC Administration"
-                                        description="Role, permission, and assignment governance for platform operations will be added here."
-                                    />
+                                    <AdminRbacPage />
                                 </ProtectedRoute>
                             }
                         />
@@ -567,6 +621,7 @@ const AppRoutes = () => {
             <Route path="/help-centre/contact-us" element={<HelpArticlePage />} />
             <Route path="/cart" element={<CartPage />} />
             <Route path="/cart/see-more" element={<CartSeeMorePage />} />
+            <Route path="/recently-added" element={<RecentlyAddedPage />} />
             <Route path="/about" element={<AboutUsPage />} />
             <Route path="/careers" element={<CareersPage />} />
             <Route path="/policies" element={<PoliciesPage />} />

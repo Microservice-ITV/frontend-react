@@ -18,6 +18,8 @@ import {
   Percent,
   LayoutGrid,
   Home,
+  Image,
+  RectangleHorizontal,
 } from 'lucide-react'
 import { CAPABILITIES } from '@/app/rbac/capabilities'
 import type { DashboardMenuSection } from '../types/dashboardTypes'
@@ -206,6 +208,20 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         area: 'super_admin',
         requiredCapabilities: [CAPABILITIES.PROMOTIONS_VIEW],
         icon: Percent,
+        key: 'admin-hero-banners',
+        label: 'Hero Banners',
+        to: '/super-admin/hero-banners',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: Image,
+      },
+      {
+        key: 'admin-promo-banners',
+        label: 'Promo Banners',
+        to: '/super-admin/promo-banners',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: RectangleHorizontal,
       },
       {
         key: 'admin-users',

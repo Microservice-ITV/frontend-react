@@ -223,7 +223,7 @@ const Footer = () => {
 
       {/* Bottom Bar */}
       <div className="border-t border-[var(--dni-cart-border)] text-center py-4 text-xs text-gray-500">
-        © 2026 Daily Need Items. All Rights Reserved.
+        © {new Date().getFullYear()} Daily Need Items. All Rights Reserved.
       </div>
     </footer>
   );

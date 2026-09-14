@@ -38,7 +38,7 @@ const NewHomeFeaturePage = () => {
         createHomeFeature({
           name: values.name.trim(),
           slug: values.slug.trim(),
-          sortOrder: Number(values.sortOrder) || 0,
+          sortOrder: Number(values.sortOrder) || 1,
           isActive: values.isActive === 'true',
           startAt: values.startAt ? new Date(values.startAt).toISOString() : null,
           endAt: values.endAt ? new Date(values.endAt).toISOString() : null,
@@ -74,7 +74,7 @@ const NewHomeFeaturePage = () => {
         initialValues={{
           name: '',
           slug: '',
-          sortOrder: '0',
+          sortOrder: '1',
           isActive: 'true',
           startAt: '',
           endAt: '',
