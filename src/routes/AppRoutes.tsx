@@ -29,60 +29,61 @@ import ProductDetailPage from '@/features/products/pages/ProductDetailPage'
 import SearchResultsPage from '@/features/products/pages/SearchResultsPage'
 import CartPage from '@/features/cart/pages/CartPage'
 import CartSeeMorePage from "@/features/cart/pages/CartSeeMorePage";
-import CheckoutPage from '@/features/checkout/pages/CheckoutPage'
-import CheckoutSuccessPage from '@/features/checkout/pages/CheckoutSuccessPage'
-import CategoriesPage from '@/features/categories/pages/CategoriesPage'
-import AboutUsPage from '@/features/about/pages/AboutUsPage'
-import CareersPage from '@/features/careers/pages/CareersPage'
-import PoliciesPage from '@/features/policies/pages/PoliciesPage'
-import PrivacyPolicyPage from '@/features/privacy/pages/PrivacyPolicyPage'
-import BlogPage from '@/features/blog/pages/BlogPage'
-import MallPage from '@/features/mall/pages/MallPage'
-import SellerCentrePage from '@/features/seller-centre/pages/SellerCentrePage'
-import SellerMentorsPage from '@/features/seller-mentors/pages/SellerMentorsPage'
-import FlashDealsPage from '@/features/flash-deals/pages/FlashDealsPage'
-import MediaContactPage from '@/features/media/pages/MediaContactPage'
-import AmbassadorProgrammePage from '@/features/ambassador/pages/AmbassadorProgrammePage'
-import AccountLayout from '@/features/account/pages/AccountLayout'
-import ProfilePage from '@/features/account/pages/ProfilePage'
-import BanksCardsPage from '@/features/account/pages/BanksCardsPage'
-import AddressesPage from '@/features/account/pages/AddressesPage'
-import ChangePasswordPage from '@/features/account/pages/ChangePasswordPage'
-import NotificationsPage from '@/features/account/pages/NotificationsPage'
-import NotificationsCenterPage from '@/features/account/pages/NotificationsCenterPage'
-import OrdersPage from '@/features/account/pages/OrdersPage'
-import OrderTrackingPage from '@/features/account/pages/OrderTrackingPage'
-import VouchersPage from '@/features/account/pages/VouchersPage'
-import CoinsPage from '@/features/account/pages/CoinsPage'
-import { ROUTE_ACCESS } from './routeAccessMap'
-import DashboardLayout from '@/features/dashboard/components/layout/DashboardLayout'
-import DashboardPlaceholderPage from '@/features/dashboard/components/layout/DashboardPlaceholderPage'
-import SellerOverviewPage from '@/features/seller/pages/SellerOverviewPage'
-import SellerOrdersPage from '@/features/seller/pages/SellerOrdersPage'
-import SellerOrderDetailPage from '@/features/seller/pages/SellerOrderDetailPage'
-import SellerProductsPage from '@/features/seller/pages/SellerProductsPage'
-import SellerCategoriesPage from '@/features/seller/pages/SellerCategoriesPage'
-import NewProductPage from '@/features/seller/pages/NewProductPage'
-import EditProductPage from '@/features/seller/pages/EditProductPage'
-import SellerProductDetailPage from '@/features/seller/pages/SellerProductDetailPage'
-import NewCategoryPage from '@/features/seller/pages/NewCategoryPage'
-import EditCategoryPage from '@/features/seller/pages/EditCategoryPage'
-import SellerCategoryDetailPage from '@/features/seller/pages/SellerCategoryDetailPage'
-import SellerNotificationsPage from '@/features/seller/pages/SellerNotificationsPage'
-import SellerInvoicesPage from '@/features/seller/pages/SellerInvoicesPage'
-import SellerChatPage from '@/features/seller/pages/SellerChatPage'
-import SellerHelpSupportPage from '@/features/seller/pages/SellerHelpSupportPage'
-import SellerRegisterPage from '@/features/seller/pages/SellerRegisterPage'
-import AdminOverviewPage from '@/features/admin/pages/AdminOverviewPage'
-import AdminShopDetailPage from '@/features/admin/pages/AdminShopDetailPage'
-import AdminShopEditPage from '@/features/admin/pages/AdminShopEditPage'
-import AdminShopsPage from '@/features/admin/pages/AdminShopsPage'
-import CommonNotificationsPage from '@/features/common/pages/CommonNotificationsPage'
-import CommonChatPage from '@/features/common/pages/CommonChatPage'
-import CommonHelpSupportPage from '@/features/common/pages/CommonHelpSupportPage'
-import CommonSettingsPage from '@/features/common/pages/CommonSettingsPage'
-import HelpCenterPage from '@/features/help-center/components/HelpCenterPage'
-import HelpArticlePage from '@/features/help-center/components/HelpArticlePage'
+import CheckoutPage from "@/features/checkout/pages/CheckoutPage";
+import CheckoutSuccessPage from "@/features/checkout/pages/CheckoutSuccessPage";
+import CategoriesPage from "@/features/categories/pages/CategoriesPage";
+import AboutUsPage from "@/features/about/pages/AboutUsPage";
+import CareersPage from "@/features/careers/pages/CareersPage";
+import AdminRbacPage from "@/features/admin/pages/AdminRbacPage";
+import PoliciesPage from "@/features/policies/pages/PoliciesPage";
+import PrivacyPolicyPage from "@/features/privacy/pages/PrivacyPolicyPage";
+import BlogPage from "@/features/blog/pages/BlogPage";
+import MallPage from "@/features/mall/pages/MallPage";
+import SellerCentrePage from "@/features/seller-centre/pages/SellerCentrePage";
+import SellerMentorsPage from "@/features/seller-mentors/pages/SellerMentorsPage";
+import FlashDealsPage from "@/features/flash-deals/pages/FlashDealsPage";
+import MediaContactPage from "@/features/media/pages/MediaContactPage";
+import AmbassadorProgrammePage from "@/features/ambassador/pages/AmbassadorProgrammePage";
+import AccountLayout from "@/features/account/pages/AccountLayout";
+import ProfilePage from "@/features/account/pages/ProfilePage";
+import BanksCardsPage from "@/features/account/pages/BanksCardsPage";
+import AddressesPage from "@/features/account/pages/AddressesPage";
+import ChangePasswordPage from "@/features/account/pages/ChangePasswordPage";
+import NotificationsPage from "@/features/account/pages/NotificationsPage";
+import NotificationsCenterPage from "@/features/account/pages/NotificationsCenterPage";
+import OrdersPage from "@/features/account/pages/OrdersPage";
+import OrderTrackingPage from "@/features/account/pages/OrderTrackingPage";
+import VouchersPage from "@/features/account/pages/VouchersPage";
+import CoinsPage from "@/features/account/pages/CoinsPage";
+import { ROUTE_ACCESS } from "./routeAccessMap";
+import DashboardLayout from "@/features/dashboard/components/layout/DashboardLayout";
+import DashboardPlaceholderPage from "@/features/dashboard/components/layout/DashboardPlaceholderPage";
+import SellerOverviewPage from "@/features/seller/pages/SellerOverviewPage";
+import SellerOrdersPage from "@/features/seller/pages/SellerOrdersPage";
+import SellerOrderDetailPage from "@/features/seller/pages/SellerOrderDetailPage";
+import SellerProductsPage from "@/features/seller/pages/SellerProductsPage";
+import SellerCategoriesPage from "@/features/seller/pages/SellerCategoriesPage";
+import NewProductPage from "@/features/seller/pages/NewProductPage";
+import EditProductPage from "@/features/seller/pages/EditProductPage";
+import SellerProductDetailPage from "@/features/seller/pages/SellerProductDetailPage";
+import NewCategoryPage from "@/features/seller/pages/NewCategoryPage";
+import EditCategoryPage from "@/features/seller/pages/EditCategoryPage";
+import SellerCategoryDetailPage from "@/features/seller/pages/SellerCategoryDetailPage";
+import SellerNotificationsPage from "@/features/seller/pages/SellerNotificationsPage";
+import SellerInvoicesPage from "@/features/seller/pages/SellerInvoicesPage";
+import SellerChatPage from "@/features/seller/pages/SellerChatPage";
+import SellerHelpSupportPage from "@/features/seller/pages/SellerHelpSupportPage";
+import SellerRegisterPage from "@/features/seller/pages/SellerRegisterPage";
+import AdminOverviewPage from "@/features/admin/pages/AdminOverviewPage";
+import AdminShopDetailPage from "@/features/admin/pages/AdminShopDetailPage";
+import AdminShopEditPage from "@/features/admin/pages/AdminShopEditPage";
+import AdminShopsPage from "@/features/admin/pages/AdminShopsPage";
+import CommonNotificationsPage from "@/features/common/pages/CommonNotificationsPage";
+import CommonChatPage from "@/features/common/pages/CommonChatPage";
+import CommonHelpSupportPage from "@/features/common/pages/CommonHelpSupportPage";
+import CommonSettingsPage from "@/features/common/pages/CommonSettingsPage";
+import HelpCenterPage from "@/features/help-center/components/HelpCenterPage";
+import HelpArticlePage from "@/features/help-center/components/HelpArticlePage";
 import AnnouncementDetailPage from "@/features/announcements/pages/AnnouncementDetailPage";
 import { PhoneAuthPage } from "@/features/auth/pages/PhoneAuthPage";
 import { PhoneOtpPage } from "@/features/auth/pages/PhoneOtpPage";
@@ -619,16 +620,15 @@ const AppRoutes = () => {
                             }
                         />
                         <Route
-                            path="rbac"
-                            element={
-                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminRbac}>
-                                    <DashboardPlaceholderPage
-                                        title="RBAC Administration"
-                                        description="Role, permission, and assignment governance for platform operations will be added here."
-                                    />
-                                </ProtectedRoute>
+                              path="rbac"
+                              element={
+                              <ProtectedRoute
+                                requiredCapabilities={ROUTE_ACCESS.superAdminRbac}
+                              >
+                                <AdminRbacPage />
+                              </ProtectedRoute>
                             }
-                        />
+                        />  
                     </Route>
                 </Route>
             </Route>
