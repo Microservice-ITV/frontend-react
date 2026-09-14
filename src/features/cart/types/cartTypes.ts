@@ -4,8 +4,6 @@ export interface CartItem {
     variantId: string
     /** e.g. "Red · M" for display */
     variantLabel?: string
-    /** Present when the line originates from a flash deal (used to reserve deal stock at checkout) */
-    flashDealItemId?: string
     shopId: string
     shopName: string
     name: string

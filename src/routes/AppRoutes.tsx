@@ -20,7 +20,6 @@ import RecentlyAddedPage from '@/features/home/pages/RecentlyAddedPage'
 import ProductListPage from '@/features/products/pages/ProductListPage'
 import ProductDetailPage from '@/features/products/pages/ProductDetailPage'
 import SearchResultsPage from '@/features/products/pages/SearchResultsPage'
-import FlashDealsPage from '@/features/products/pages/FlashDealsPage'
 import CartPage from '@/features/cart/pages/CartPage'
 import CartSeeMorePage from '@/features/cart/pages/CartSeeMorePage'
 import CheckoutPage from '@/features/checkout/pages/CheckoutPage'
@@ -71,7 +70,6 @@ import AdminOverviewPage from '@/features/admin/pages/AdminOverviewPage'
 import AdminShopDetailPage from '@/features/admin/pages/AdminShopDetailPage'
 import AdminShopEditPage from '@/features/admin/pages/AdminShopEditPage'
 import AdminShopsPage from '@/features/admin/pages/AdminShopsPage'
-import FlashDealsAdminPage from '@/features/admin/pages/FlashDealsAdminPage'
 import CommonNotificationsPage from '@/features/common/pages/CommonNotificationsPage'
 import CommonChatPage from '@/features/common/pages/CommonChatPage'
 import CommonHelpSupportPage from '@/features/common/pages/CommonHelpSupportPage'
@@ -447,14 +445,6 @@ const AppRoutes = () => {
                             }
                         />
                         <Route
-                            path="flash-deals"
-                            element={
-                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminFlashDeals}>
-                                    <FlashDealsAdminPage />
-                                </ProtectedRoute>
-                            }
-                        />
-                        <Route
                             path="categories/new"
                             element={
                                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.categoriesManage}>
@@ -594,7 +584,6 @@ const AppRoutes = () => {
                 }
             />
             <Route path="/search" element={<SearchResultsPage />} />
-            <Route path="/flash-deals" element={<FlashDealsPage />} />
             <Route path="/all_categories" element={<CategoriesPage />} />
             <Route path="/categories/:id" element={<ProductListPage />} />
             <Route path="/products/:id" element={<ProductDetailPage />} />
