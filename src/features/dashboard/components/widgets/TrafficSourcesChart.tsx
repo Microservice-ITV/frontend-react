@@ -1,15 +1,34 @@
 import { useState, useRef, useEffect } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 
-// TODO: Replace with real data from API.
-const TRAFFIC_DATA = [
-  { name: 'Direct', value: 35, color: '#0d9488' },
-  { name: 'Organic', value: 28, color: 'var(--dni-primary-500)' },
-  { name: 'Referral', value: 22, color: '#3b82f6' },
-  { name: 'Social', value: 15, color: '#8b5cf6' },
-]
+type ShopStatusCount = {
+  statusId: number
+  count: number
+}
 
-const TrafficSourcesChart = () => {
+type TrafficSourcesChartProps = {
+  data: ShopStatusCount[]
+  total: number
+  title?: string
+  description?: string
+  statusLabels?: Record<number, { name: string; color: string }>
+  totalLabel?: string
+}
+
+const DEFAULT_STATUS_LABELS: Record<number, { name: string; color: string }> = {
+  0: { name: 'Pending', color: '#f59e0b' },
+  1: { name: 'Approved', color: '#10b981' },
+  2: { name: 'Rejected', color: '#ef4444' },
+}
+
+const TrafficSourcesChart = ({
+  data,
+  total,
+  title = 'Shop Status',
+  description = 'Current platform shop distribution',
+  statusLabels = DEFAULT_STATUS_LABELS,
+  totalLabel = 'Shops',
+}: TrafficSourcesChartProps) => {
   const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -33,8 +52,8 @@ const TrafficSourcesChart = () => {
   return (
     <div className="flex h-full min-h-0 flex-col rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
       <div>
-        <h3 className="text-base font-bold text-slate-900">Traffic Sources</h3>
-        <p className="mt-0.5 text-xs text-slate-600">Where your visitors come from</p>
+        <h3 className="text-base font-bold text-slate-900">{title}</h3>
+          <p className="mt-0.5 text-xs text-slate-600">{description}</p>
       </div>
 
       <div className="mt-4 flex min-h-0 flex-1 flex-col items-center gap-4 sm:flex-row sm:items-stretch">
@@ -43,7 +62,7 @@ const TrafficSourcesChart = () => {
           <ResponsiveContainer width={dimensions.width} height={dimensions.height}>
             <PieChart>
               <Pie
-                data={TRAFFIC_DATA}
+                data={data}
                 dataKey="value"
                 cx="50%"
                 cy="50%"
@@ -52,27 +71,31 @@ const TrafficSourcesChart = () => {
                 paddingAngle={2}
                 stroke="none"
               >
-                {TRAFFIC_DATA.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
+                {data.map((entry) => (
+                  <Cell key={entry.statusId} fill={STATUS_LABELS[entry.statusId]?.color ?? '#94a3b8'} />
                 ))}
               </Pie>
             </PieChart>
           </ResponsiveContainer>
           )}
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-base font-bold text-slate-900">284K Visits</span>
+            <span className="text-center text-base font-bold text-slate-900">
+              {total.toLocaleString()} {totalLabel}
+            </span>
           </div>
         </div>
 
         <div className="flex flex-1 flex-col justify-center gap-2">
-          {TRAFFIC_DATA.map((item) => (
-            <div key={item.name} className="flex items-center gap-2">
+          {data.map((item) => (
+            <div key={item.statusId} className="flex items-center gap-2">
               <span
                 className="h-2.5 w-2.5 shrink-0 rounded-full"
-                style={{ backgroundColor: item.color }}
+                style={{ backgroundColor: statusLabels[item.statusId]?.color ?? '#94a3b8' }}
               />
-              <span className="text-xs text-slate-600">{item.name}</span>
-              <span className="ml-auto text-xs font-medium text-slate-900">{item.value}%</span>
+              <span className="text-xs text-slate-600">
+                {statusLabels[item.statusId]?.name ?? 'Unknown'}
+              </span>
+              <span className="ml-auto text-xs font-medium text-slate-900">{item.count}</span>
             </div>
           ))}
         </div>

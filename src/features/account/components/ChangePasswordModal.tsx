@@ -89,7 +89,7 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
     setIsLoading(true);
 
     try {
-      await authFeatureApi.changePassword(
+      await authFeatureApi.changeProfilePassword(
         currentPassword,
         newPassword,
         confirmPassword,

@@ -13,6 +13,8 @@ export interface PurchasedOrderItem {
 
 export interface PurchasedOrderTotals {
   subtotal: number
+  discount: number
+  shipping: number
   total: number
   currency: string
 }

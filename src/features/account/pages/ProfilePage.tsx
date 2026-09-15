@@ -42,7 +42,6 @@ const parseDateOfBirth = (value: string | null | undefined) => {
     ? { day: String(Number(day)), month: monthName, year }
     : { day: "", month: "", year: "" };
 };
-
 const ProfilePage = () => {
   const { user } = useAppSelector((s) => s.auth);
 
