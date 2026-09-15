@@ -42,6 +42,8 @@ const NewAnnouncementPage = () => {
           startAt: values.startAt ? new Date(values.startAt).toISOString() : null,
           endAt: values.endAt ? new Date(values.endAt).toISOString() : null,
           priority: Number(values.priority),
+          title: values.title.trim() ? values.title.trim() : null,
+          description: values.description.trim() ? values.description.trim() : null,
           elements: elements as AnnouncementElementInput[],
         })
       ).unwrap()
@@ -80,6 +82,8 @@ const NewAnnouncementPage = () => {
         resolver={zodResolver(announcementFormSchema)}
         initialValues={{
           name: '',
+          title: '',
+          description: '',
           announcementTypeId: '',
           status: 'DRAFT',
           startAt: '',

@@ -153,6 +153,8 @@ export interface AnnouncementSummary {
   startAt: string | null
   endAt: string | null
   priority: number
+  title: string | null
+  description: string | null
   createdAt: string
   updatedAt: string
   announcementType: AnnouncementTypeBrief
@@ -177,6 +179,8 @@ export interface CreateAnnouncementPayload {
   startAt?: string | null
   endAt?: string | null
   priority?: number
+  title?: string | null
+  description?: string | null
   elements?: AnnouncementElementInput[]
 }
 
@@ -186,6 +190,8 @@ export interface UpdateAnnouncementPayload {
   startAt?: string | null
   endAt?: string | null
   priority?: number
+  title?: string | null
+  description?: string | null
   elements?: AnnouncementElementInput[]
 }
 

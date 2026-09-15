@@ -60,6 +60,8 @@ const EditAnnouncementPage = () => {
             startAt: values.startAt ? new Date(values.startAt).toISOString() : null,
             endAt: values.endAt ? new Date(values.endAt).toISOString() : null,
             priority: Number(values.priority),
+            title: values.title.trim() ? values.title.trim() : null,
+            description: values.description.trim() ? values.description.trim() : null,
             elements: elements as AnnouncementElementInput[],
           },
         })
@@ -114,6 +116,8 @@ const EditAnnouncementPage = () => {
           resolver={zodResolver(announcementFormSchema)}
           initialValues={{
             name: announcement.name,
+            title: announcement.title ?? '',
+            description: announcement.description ?? '',
             announcementTypeId:
               announcement.announcementTypeId || announcement.announcementType?.id || '',
             status: announcement.status,
