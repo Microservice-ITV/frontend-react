@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AnnouncementBanner, {
   ANNOUNCEMENT_BANNER_HEIGHT,
   ANNOUNCEMENT_DISMISS_EVENT,
@@ -15,6 +15,8 @@ import AnnouncementBuyTwo, {
   BUY_TWO_ANNOUNCEMENT_DISMISS_EVENT,
   BUY_TWO_ANNOUNCEMENT_HEIGHT,
 } from "./announmentBuyTwo";
+import { announcementApi } from "@/features/announcements/api/announcementApi";
+import type { Announcement } from "@/features/announcements/types/announcementTypes";
 
 export {
   AnnouncementBanner,
@@ -31,81 +33,160 @@ export {
   BUY_TWO_ANNOUNCEMENT_HEIGHT,
 };
 
-export const announcementItems = [
-  {
-    id: "freeShipping",
-    title: "Free Shipping",
-    summary: "Free shipping on orders over $50.",
-    description:
-      "Enjoy free delivery on eligible orders, plus faster access to seasonal promotions and bundle deals across Daily Need Items.",
-    bannerCtaLabel: "Read More",
-    bannerCtaTo: "/announcements/freeShipping",
-    detailCtaLabel: "Shop Now",
-    detailCtaTo: "/shop",
-    component: AnnouncementBanner,
-    componentProps: {
-      ctaLabel: "Read More",
-      ctaTo: "/announcements/freeShipping",
-    },
-  },
-  {
-    id: "nextDay",
-    title: "Next-Day Delivery",
-    summary: "Order today and get it tomorrow.",
-    description:
-      "Take advantage of next-day delivery coverage for eligible products so your essentials arrive faster and with more confidence.",
-    bannerCtaLabel: "Read More",
-    bannerCtaTo: "/announcements/nextDay",
-    detailCtaLabel: "Explore Deals",
-    detailCtaTo: "/products",
-    component: AnnouncementNextDay,
-    componentProps: {
-      ctaLabel: "Read More",
-      ctaTo: "/announcements/nextDay",
-    },
-  },
-  {
-    id: "newUser",
-    title: "New User Voucher",
-    summary: "$12 off your first order.",
-    description:
-      "Welcome voucher for new buyers to try Daily Need Items with an instant discount on their first purchase.",
-    bannerCtaLabel: "Read More",
-    bannerCtaTo: "/announcements/newUser",
-    detailCtaLabel: "Create Account",
-    detailCtaTo: "/register",
-    component: AnnouncementNewUser,
-    componentProps: {
-      ctaLabel: "Read More",
-      ctaTo: "/announcements/newUser",
-    },
-  },
-  {
-    id: "buyTwo",
-    title: "Buy 2, Get 10% Off",
-    summary: "Buy 2 items and save 10%.",
-    description:
-      "Mix and match selected products to unlock a 10% discount at checkout and make your basket go further.",
-    bannerCtaLabel: "Read More",
-    bannerCtaTo: "/announcements/buyTwo",
-    detailCtaLabel: "Shop Collection",
-    detailCtaTo: "/shop",
-    component: AnnouncementBuyTwo,
-    componentProps: {
-      buyQty: 2,
-      percentOff: 10,
-      ctaLabel: "Read More",
-      ctaTo: "/announcements/buyTwo",
-    },
-  },
-];
+const getAnnouncementTypeCode = (announcement: Announcement) =>
+  announcement.announcementType?.code?.toUpperCase() ?? "";
 
-export const announcementCatalog = Object.fromEntries(
-  announcementItems.map((item) => [item.id, item]),
-) as Record<string, (typeof announcementItems)[number]>;
+const getElementText = (
+  announcement: Announcement,
+  preferredKeys: string[],
+): string | null => {
+  const match = announcement.elements.find((element) =>
+    preferredKeys.includes(element.key?.toLowerCase?.() ?? ""),
+  );
 
-export const getAnnouncementById = (announcementId?: string) =>
-  announcementItems.find((item) => item.id === announcementId);
+  return match?.text?.trim() || null;
+};
+
+const getPrimaryContentText = (announcement: Announcement): string | null => {
+  const firstTextElement = announcement.elements.find((element) =>
+    element.text?.trim(),
+  );
+
+  return firstTextElement?.text?.trim() || null;
+};
+
+const getOrderedTextElements = (announcement: Announcement) =>
+  announcement.elements
+    .filter((element) => element.text?.trim())
+    .sort((a, b) => a.position - b.position);
+
+const getExtraText = (announcement: Announcement): string | null => {
+  const textElements = announcement.elements
+    .filter((element) => element.text?.trim())
+    .sort((a, b) => a.position - b.position);
+
+  return textElements[1]?.text?.trim() ?? null;
+};
+
+const getFirstNumberFromText = (text: string | null): number | null => {
+  if (!text) {
+    return null;
+  }
+
+  const match = text.match(/(\d+)/);
+  return match ? Number(match[1]) : null;
+};
+
+const resolveBannerText = (announcement: Announcement) => {
+  const code = getAnnouncementTypeCode(announcement);
+  const orderedTextElements = getOrderedTextElements(announcement);
+
+  const titleText =
+    announcement.name ??
+    getElementText(announcement, ["title", "headline", "heading"]) ??
+    announcement.announcementType?.name ??
+    "Daily Need Items";
+
+  const secondaryText =
+    getElementText(announcement, [
+      "description",
+      "supportingtext",
+      "subtitle",
+    ]) ??
+    getElementText(announcement, ["summary", "message"]) ??
+    getPrimaryContentText(announcement) ??
+    announcement.announcementType?.name ??
+    "Explore this offer";
+
+  const badgeText =
+    getElementText(announcement, ["badge", "pill", "label"]) ??
+    getExtraText(announcement) ??
+    (code === "FREE_SHIPPING" ? "Shop more, save more!" : null);
+
+  const actionText =
+    getElementText(announcement, ["action", "cta", "button"]) ?? "Read More";
+
+  return {
+    code,
+    titleText,
+    secondaryText,
+    badgeText,
+    actionText,
+  };
+};
+
+const buildAnnouncementComponent = (announcement: Announcement) => {
+  const { code, titleText, secondaryText, badgeText, actionText } =
+    resolveBannerText(announcement);
+
+  const baseProps = {
+    ctaLabel: actionText,
+    ctaTo: `/announcements/${announcement.id}`,
+  };
+
+  switch (code) {
+    case "FREE_SHIPPING":
+      return {
+        component: AnnouncementBanner,
+        componentProps: {
+          ...baseProps,
+          headline: titleText,
+          supportingText: secondaryText,
+          extraText: badgeText ?? "Shop more, save more!",
+        },
+      };
+    case "NEXT_DAY":
+      return {
+        component: AnnouncementNextDay,
+        componentProps: {
+          ...baseProps,
+          headline: titleText,
+          supportingText: secondaryText,
+        },
+      };
+    case "NEW_USER":
+      return {
+        component: AnnouncementNewUser,
+        componentProps: {
+          ...baseProps,
+          headline: titleText,
+          supportingText: secondaryText,
+        },
+      };
+    case "BUY_TWO": {
+      const orderedTextElements = getOrderedTextElements(announcement);
+      const buyQty =
+        getFirstNumberFromText(orderedTextElements[0]?.text ?? null) ?? 2;
+      const percentOff =
+        getFirstNumberFromText(orderedTextElements[1]?.text ?? null) ?? 10;
+      const headline = announcement.name ?? `${percentOff}% OFF`;
+      const supportingText =
+        orderedTextElements[2]?.text?.trim() ??
+        "Mix and match. Discount applied at checkout.";
+
+      return {
+        component: AnnouncementBuyTwo,
+        componentProps: {
+          ...baseProps,
+          buyQty,
+          percentOff,
+          headline,
+          supportingText,
+        },
+      };
+    }
+    default:
+      return {
+        component: AnnouncementBanner,
+        componentProps: {
+          ...baseProps,
+          headline: titleText,
+          supportingText: secondaryText,
+          extraText: badgeText ?? "Explore the latest offer",
+        },
+      };
+  }
+};
 
 export const useAnnouncementVisibility = () => {
   const [freeShippingVisible, setFreeShippingVisible] = useState(true);
@@ -150,16 +231,41 @@ export const useAnnouncementVisibility = () => {
 };
 
 export const Announcements = () => {
-  const { freeShippingVisible, nextDayVisible, newUserVisible, buyTwoVisible } =
-    useAnnouncementVisibility();
+  const [apiAnnouncements, setApiAnnouncements] = useState<Announcement[]>([]);
+  const [hiddenAnnouncementIds, setHiddenAnnouncementIds] = useState<string[]>(
+    [],
+  );
 
-  const visibleAnnouncements = announcementItems.filter(({ id }) => {
-    if (id === "freeShipping") return freeShippingVisible;
-    if (id === "nextDay") return nextDayVisible;
-    if (id === "newUser") return newUserVisible;
-    if (id === "buyTwo") return buyTwoVisible;
-    return true;
-  });
+  useEffect(() => {
+    let ignore = false;
+
+    const loadAnnouncements = async () => {
+      try {
+        const response = await announcementApi.getActive();
+        if (!ignore) {
+          setApiAnnouncements(response.data ?? []);
+        }
+      } catch {
+        if (!ignore) {
+          setApiAnnouncements([]);
+        }
+      }
+    };
+
+    loadAnnouncements();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  const visibleAnnouncements = useMemo(
+    () =>
+      apiAnnouncements.filter(
+        (announcement) => !hiddenAnnouncementIds.includes(announcement.id),
+      ),
+    [apiAnnouncements, hiddenAnnouncementIds],
+  );
 
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -194,7 +300,11 @@ export const Announcements = () => {
   }
 
   const { component: AnnouncementComponent, componentProps } =
-    activeAnnouncement;
+    buildAnnouncementComponent(activeAnnouncement);
+
+  const handleDismiss = () => {
+    setHiddenAnnouncementIds((current) => [...current, activeAnnouncement.id]);
+  };
 
   return (
     <>
@@ -215,7 +325,7 @@ export const Announcements = () => {
         key={activeAnnouncement.id}
         style={{ animation: "announcementFade 500ms ease-in-out" }}
       >
-        <AnnouncementComponent {...componentProps} />
+        <AnnouncementComponent {...componentProps} onDismiss={handleDismiss} />
       </div>
     </>
   );
