@@ -1,5 +1,8 @@
 import { publicClient } from '@/lib/api/publicClient'
+import { ecommerceReadRestClient } from '@/lib/api/ecommerceReadRestClient'
+import { productServiceAssetUrl } from '@/lib/api/apiConfig'
 import type { HomeQuickActionsResponse } from '../store/homeTypes'
+import type { TopOrderedProduct } from '../types/topOrderedProductTypes'
 import type { AxiosResponse } from 'axios'
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -31,6 +34,32 @@ const requestActiveFeaturesWithRetry = async (
   }
 }
 
+interface TopOrderedProductsApiResponse {
+  items: Array<{
+    productId: string
+    title: string
+    imageUrl?: string
+    price?: number | string
+    orderedQuantity: number
+  }>
+  limit: number
+}
+
 export const homeApi = {
   getQuickActions: () => requestActiveFeaturesWithRetry(),
+  getTopOrderedProducts: async (limit = 10): Promise<TopOrderedProduct[]> => {
+    const response = await ecommerceReadRestClient.get<TopOrderedProductsApiResponse>(
+      '/catalog/products/top-ordered',
+      { params: { limit } },
+    )
+
+    return response.data.items.map((item) => ({
+      id: item.productId,
+      name: item.title,
+      image: productServiceAssetUrl(item.imageUrl),
+      price: item.price === undefined ? undefined : Number(item.price),
+      currency: '$',
+      totalOrdered: item.orderedQuantity,
+    }))
+  },
 }
