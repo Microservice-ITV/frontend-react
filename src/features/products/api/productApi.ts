@@ -1,6 +1,7 @@
 import { productServiceAssetUrl } from '@/lib/api/apiConfig'
 import { ecommerceReadRestClient } from '@/lib/api/ecommerceReadRestClient'
 import type { AxiosResponse } from 'axios'
+import { productClient } from '@/lib/api/productClient'
 import type { ProductVariant } from '@/features/products/types/productTypes'
 
 // API RESPONSE TYPES (RAW BACKEND)
@@ -283,12 +284,12 @@ function buildCatalogListImages(row: CatalogProductGraphItem): string[] {
 /**
  * Read model has shopId only (no shop name). Cart uses a generic label until events include shop metadata.
  */
-function shopPlaceholder(shopId: string): { id: string; name: string; slug: string } {
+function shopPlaceholder(shopId: string, name?: string, slug?: string): { id: string; name: string; slug: string } {
     const id = shopId.trim() || 'unknown'
     return {
         id,
-        name: 'Seller store',
-        slug: id,
+        name: name?.trim() || `Shop ${id.slice(0, 8)}`,
+        slug: slug?.trim() || id,
     }
 }
 
@@ -435,6 +436,19 @@ export const productApi = {
         const minPrice = Number(p.minPrice ?? p.price ?? 0)
         const maxPrice = Number(p.maxPrice ?? p.price ?? 0)
         const displayPrice = variants.length === 1 ? variants[0].price : minPrice
+        let shopName: string | undefined
+        let shopSlug: string | undefined
+
+        try {
+            const response = await productClient.get<{
+                success: boolean
+                data?: { shop?: { name?: string; slug?: string } }
+            }>(`/products/${p.productId}`)
+            shopName = response.data.data?.shop?.name
+            shopSlug = response.data.data?.shop?.slug
+        } catch {
+            // Keep the catalog detail usable if the product service is unavailable.
+        }
 
         const detail: ProductDetailApiResponse = {
             success: true,
@@ -454,7 +468,7 @@ export const productApi = {
                     slug: p.categorySlug,
                     parentId,
                 },
-                shop: shopPlaceholder(p.shopId),
+                shop: shopPlaceholder(p.shopId, shopName, shopSlug),
                 currency: p.currency ?? 'MMK',
                 minPrice,
                 maxPrice,

@@ -11,31 +11,23 @@ const maskEmail = (email: string): string => {
   return `${visible}${masked}@${domain}`
 }
 
-const maskPhone = (phone: string): string => {
-  if (!phone) return ''
-  const clean = phone.replace(/\s+/g, '')
-  if (clean.length <= 2) return clean
-  const last2 = clean.slice(-2)
-  // Always show N-2 masked characters followed by the last 2 digits
-  return `${'*'.repeat(clean.length - 2)}${last2}`
-}
-
-// Fallback raw phone used only for display mask when real phone is not yet available.
-// Last 2 digits are \"22\" so the mask renders as \"********22\".
-const DEFAULT_PHONE_RAW = '0000000022'
+const isPhonePlaceholderEmail = (email: string): boolean =>
+  /^phone-[^@]+@phone\.invalid$/i.test(email)
 
 const ProfilePage = () => {
   const { user } = useAppSelector((s) => s.auth)
 
   const [name, setName] = useState('')
-  const [phone] = useState('')
   const [gender, setGender] = useState<'male' | 'female' | 'other' | ''>('')
   const [dob, setDob] = useState({ day: '', month: '', year: '' })
 
   const username = user?.name ?? ''
   const email = user?.email ?? ''
-  const maskedEmail = useMemo(() => maskEmail(email), [email])
-  const maskedPhone = useMemo(() => maskPhone(phone || DEFAULT_PHONE_RAW), [phone])
+  const maskedEmail = useMemo(
+    () => (isPhonePlaceholderEmail(email) ? 'Not provided' : maskEmail(email)),
+    [email],
+  )
+  const phone = (user as (typeof user & { phone?: string | null }) | null)?.phone ?? ''
 
   // Keep name in sync with the loaded user, especially after page refresh / auth bootstrap.
   useEffect(() => {
@@ -124,7 +116,7 @@ const ProfilePage = () => {
             <div className="col-span-8 lg:col-span-5">
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-900 whitespace-nowrap font-mono">
-                  {maskedPhone}
+                  {phone || 'Not provided'}
                 </span>
                 <button
                   type="button"

@@ -55,7 +55,6 @@ const promoCardSlice = createSlice({
       .addCase(createPromoCard.fulfilled, (state, action) => {
         state.submitting = false
         state.items.push(action.payload)
-        state.items.sort((a, b) => a.sortOrder - b.sortOrder)
       })
       .addCase(createPromoCard.rejected, (state, action) => { state.submitting = false; state.error = action.payload || 'Failed to create promo card' })
 
@@ -65,7 +64,6 @@ const promoCardSlice = createSlice({
         state.submitting = false
         const index = state.items.findIndex((item) => item.id === action.payload.id)
         if (index !== -1) { state.items[index] = action.payload }
-        state.items.sort((a, b) => a.sortOrder - b.sortOrder)
         if (state.selected?.id === action.payload.id) { state.selected = action.payload }
       })
       .addCase(updatePromoCard.rejected, (state, action) => { state.submitting = false; state.error = action.payload || 'Failed to update promo card' })

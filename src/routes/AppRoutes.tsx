@@ -8,6 +8,12 @@ import EditHeroBannerPage from "@/features/heroBanners/pages/EditHeroBannerPage"
 import PromoCardsPage from "@/features/promoCards/pages/PromoCardsPage";
 import NewPromoCardPage from "@/features/promoCards/pages/NewPromoCardPage";
 import EditPromoCardPage from "@/features/promoCards/pages/EditPromoCardPage";
+import AnnouncementTypesPage from "@/features/announcements/pages/AnnouncementTypesPage";
+import NewAnnouncementTypePage from "@/features/announcements/pages/NewAnnouncementTypePage";
+import EditAnnouncementTypePage from "@/features/announcements/pages/EditAnnouncementTypePage";
+import AnnouncementsPage from "@/features/announcements/pages/AnnouncementsPage";
+import NewAnnouncementPage from "@/features/announcements/pages/NewAnnouncementPage";
+import EditAnnouncementPage from "@/features/announcements/pages/EditAnnouncementPage";
 import { LoginPage } from "@/features/auth/pages/LoginPage";
 import { RegisterPage } from "@/features/auth/pages/RegisterPage";
 import { VerifyEmailPage } from "@/features/auth/pages/VerifyEmailPage";
@@ -29,6 +35,7 @@ import CheckoutSuccessPage from "@/features/checkout/pages/CheckoutSuccessPage";
 import CategoriesPage from "@/features/categories/pages/CategoriesPage";
 import AboutUsPage from "@/features/about/pages/AboutUsPage";
 import CareersPage from "@/features/careers/pages/CareersPage";
+import AdminRbacPage from "@/features/admin/pages/AdminRbacPage";
 import PoliciesPage from "@/features/policies/pages/PoliciesPage";
 import PrivacyPolicyPage from "@/features/privacy/pages/PrivacyPolicyPage";
 import BlogPage from "@/features/blog/pages/BlogPage";
@@ -63,6 +70,9 @@ import SellerProductDetailPage from "@/features/seller/pages/SellerProductDetail
 import NewCategoryPage from "@/features/seller/pages/NewCategoryPage";
 import EditCategoryPage from "@/features/seller/pages/EditCategoryPage";
 import SellerCategoryDetailPage from "@/features/seller/pages/SellerCategoryDetailPage";
+import CatalogListPage from "@/features/seller/pages/CatalogListPage";
+import CatalogFormPage from "@/features/seller/pages/CatalogFormPage";
+import { CATALOG_ENTITY_CONFIG } from "@/features/seller/config/catalogEntityConfig";
 import SellerNotificationsPage from "@/features/seller/pages/SellerNotificationsPage";
 import SellerInvoicesPage from "@/features/seller/pages/SellerInvoicesPage";
 import SellerChatPage from "@/features/seller/pages/SellerChatPage";
@@ -81,6 +91,10 @@ import CommonHelpSupportPage from "@/features/common/pages/CommonHelpSupportPage
 import CommonSettingsPage from "@/features/common/pages/CommonSettingsPage";
 import HelpCenterPage from "@/features/help-center/components/HelpCenterPage";
 import HelpArticlePage from "@/features/help-center/components/HelpArticlePage";
+import AnnouncementDetailPage from "@/features/announcements/pages/AnnouncementDetailPage";
+import { PhoneAuthPage } from "@/features/auth/pages/PhoneAuthPage";
+import { PhoneOtpPage } from "@/features/auth/pages/PhoneOtpPage";
+import PromotionEnginePage from "@/features/promotions/pages/PromotionEnginePage";
 
 const AppRoutes = () => {
   return (
@@ -92,6 +106,8 @@ const AppRoutes = () => {
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/phone-auth" element={<PhoneAuthPage />} />
+        <Route path="/phone-verify" element={<PhoneOtpPage />} />
       </Route>
 
       {/* Protected routes */}
@@ -253,6 +269,78 @@ const AppRoutes = () => {
               }
             />
             <Route
+                            path="brands/new"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerCatalogRefs}>
+                                    <CatalogFormPage config={CATALOG_ENTITY_CONFIG.brand} mode="create" />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="brands/:id/edit"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerCatalogRefs}>
+                                    <CatalogFormPage config={CATALOG_ENTITY_CONFIG.brand} mode="edit" />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="brands"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerCatalogRefs}>
+                                    <CatalogListPage config={CATALOG_ENTITY_CONFIG.brand} />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="colors/new"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerCatalogRefs}>
+                                    <CatalogFormPage config={CATALOG_ENTITY_CONFIG.color} mode="create" />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="colors/:id/edit"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerCatalogRefs}>
+                                    <CatalogFormPage config={CATALOG_ENTITY_CONFIG.color} mode="edit" />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="colors"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerCatalogRefs}>
+                                    <CatalogListPage config={CATALOG_ENTITY_CONFIG.color} />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="sizes/new"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerCatalogRefs}>
+                                    <CatalogFormPage config={CATALOG_ENTITY_CONFIG.size} mode="create" />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="sizes/:id/edit"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerCatalogRefs}>
+                                    <CatalogFormPage config={CATALOG_ENTITY_CONFIG.size} mode="edit" />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="sizes"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerCatalogRefs}>
+                                    <CatalogListPage config={CATALOG_ENTITY_CONFIG.size} />
+                                </ProtectedRoute>
+                            }
+                        />
+            <Route
               path="products/new"
               element={
                 <ProtectedRoute
@@ -289,6 +377,17 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.sellerProducts}
                 >
                   <SellerProductsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="promotions"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.promotionsView}
+                  allowedRoles={["SHOP_OWNER","SUPER_ADMIN"]}
+                >
+                  <PromotionEnginePage />
                 </ProtectedRoute>
               }
             />
@@ -499,6 +598,66 @@ const AppRoutes = () => {
               }
             />
             <Route
+              path="announcement-types/new"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminOverview}
+                >
+                  <NewAnnouncementTypePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="announcement-types/:id/edit"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminOverview}
+                >
+                  <EditAnnouncementTypePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="announcement-types"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminOverview}
+                >
+                  <AnnouncementTypesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="announcements/new"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminOverview}
+                >
+                  <NewAnnouncementPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="announcements/:id/edit"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminOverview}
+                >
+                  <EditAnnouncementPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="announcements"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminOverview}
+                >
+                  <AnnouncementsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="shops/:shopId/edit"
               element={
                 <ProtectedRoute
@@ -569,6 +728,10 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.superAdminUsers}
                 >
                   <AdminUsersPage />
+                  <DashboardPlaceholderPage
+                    title="User Administration"
+                    description="Global user operations, moderation, and support workflows are planned for this page."
+                  />
                 </ProtectedRoute>
               }
             />
@@ -661,6 +824,16 @@ const AppRoutes = () => {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="promotion-engine"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.promotionsView}
+                >
+                  <PromotionEnginePage />
+                </ProtectedRoute>
+              }
+            />
           </Route>
         </Route>
       </Route>
@@ -682,6 +855,10 @@ const AppRoutes = () => {
       <Route path="/categories/:id" element={<ProductListPage />} />
       <Route path="/products/:id" element={<ProductDetailPage />} />
       <Route path="/help-centre" element={<HelpCenterPage />} />
+      <Route
+        path="/announcements/:announcementId"
+        element={<AnnouncementDetailPage />}
+      />
       <Route
         path="/help-centre/article/:categoryId/:itemIndex"
         element={<HelpArticlePage />}
