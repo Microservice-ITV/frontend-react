@@ -233,10 +233,12 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
       {
         key: 'admin-promotions',
         label: 'Promotions',
-        to: '/super-admin/promotions',
+        to: '/super-admin/promotion-engine',
         area: 'super_admin',
         requiredCapabilities: [CAPABILITIES.PROMOTIONS_VIEW],
         icon: Percent,
+      },
+      {
         key: 'admin-hero-banners',
         label: 'Hero Banners',
         to: '/super-admin/hero-banners',
