@@ -22,6 +22,9 @@ import {
   RectangleHorizontal,
   Megaphone,
   LayoutList,
+  Stamp,
+  Palette,
+  Ruler,
 } from 'lucide-react'
 import { CAPABILITIES } from '@/app/rbac/capabilities'
 import type { DashboardMenuSection } from '../types/dashboardTypes'
@@ -66,6 +69,30 @@ export const DASHBOARD_MENU_SELLER: DashboardMenuSection[] = [
         area: 'seller',
         requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
         icon: Package,
+      },
+      {
+        key: 'seller-brands',
+        label: 'Brands',
+        to: '/seller/brands',
+        area: 'seller',
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: Stamp,
+      },
+      {
+        key: 'seller-colors',
+        label: 'Colors',
+        to: '/seller/colors',
+        area: 'seller',
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: Palette,
+      },
+      {
+        key: 'seller-sizes',
+        label: 'Sizes',
+        to: '/seller/sizes',
+        area: 'seller',
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: Ruler,
       },
       {
         key: 'seller-promotions',

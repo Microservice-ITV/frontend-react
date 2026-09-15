@@ -92,6 +92,8 @@ const announcementSlice = createSlice({
             startAt: action.payload.startAt,
             endAt: action.payload.endAt,
             priority: action.payload.priority,
+            title: action.payload.title,
+            description: action.payload.description,
           }
         }
         state.selected = action.payload

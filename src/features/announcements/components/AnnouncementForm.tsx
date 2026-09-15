@@ -13,6 +13,8 @@ import type { Resolver } from 'react-hook-form'
 
 export const announcementFormSchema = z.object({
   name: z.string().trim().min(1, 'Name is required'),
+  title: z.string().max(200, 'Title must be 200 characters or fewer'),
+  description: z.string().max(5000, 'Description must be 5000 characters or fewer'),
   announcementTypeId: z.string().min(1, 'Select an announcement type'),
   status: z.enum(['DRAFT', 'ACTIVE', 'INACTIVE']),
   startAt: z.string(),
@@ -304,6 +306,49 @@ export function AnnouncementForm({
             {errors.endAt && <p className="mt-1 text-xs text-red-600">{errors.endAt.message}</p>}
           </div>
         </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-6">
+        <h2 className="text-sm font-semibold text-slate-900">Detail</h2>
+        <p className="mt-0.5 text-xs text-slate-500">
+          Optional headline and body shown on the announcement detail page.
+        </p>
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="title" className="mb-1 block text-sm font-medium text-slate-700">
+              Title
+            </label>
+            <input
+              id="title"
+              type="text"
+              placeholder="e.g. Weekend Mega Sale — Up to 50% Off"
+              {...register('title')}
+              className={inputClassName}
+            />
+            {errors.title && <p className="mt-1 text-xs text-red-600">{errors.title.message}</p>}
+          </div>
+
+          <div>
+            <label htmlFor="description" className="mb-1 block text-sm font-medium text-slate-700">
+              Description
+            </label>
+            <textarea
+              id="description"
+              rows={4}
+              placeholder="Write the full detail text shown on the announcement detail page."
+              {...register('description')}
+              className={`${inputClassName} resize-y`}
+            />
+            {errors.description && (
+              <p className="mt-1 text-xs text-red-600">{errors.description.message}</p>
+            )}
+          </div>
+        </div>
+        <p className="mt-2 text-xs text-slate-500">
+          Note: these fields are for the announcement detail page only — they are not part of the
+          banner content.
+        </p>
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-6">

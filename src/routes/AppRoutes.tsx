@@ -69,6 +69,9 @@ import SellerProductDetailPage from "@/features/seller/pages/SellerProductDetail
 import NewCategoryPage from "@/features/seller/pages/NewCategoryPage";
 import EditCategoryPage from "@/features/seller/pages/EditCategoryPage";
 import SellerCategoryDetailPage from "@/features/seller/pages/SellerCategoryDetailPage";
+import CatalogListPage from "@/features/seller/pages/CatalogListPage";
+import CatalogFormPage from "@/features/seller/pages/CatalogFormPage";
+import { CATALOG_ENTITY_CONFIG } from "@/features/seller/config/catalogEntityConfig";
 import SellerNotificationsPage from "@/features/seller/pages/SellerNotificationsPage";
 import SellerInvoicesPage from "@/features/seller/pages/SellerInvoicesPage";
 import SellerChatPage from "@/features/seller/pages/SellerChatPage";
@@ -261,6 +264,78 @@ const AppRoutes = () => {
                 </ProtectedRoute>
               }
             />
+            <Route
+                            path="brands/new"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerCatalogRefs}>
+                                    <CatalogFormPage config={CATALOG_ENTITY_CONFIG.brand} mode="create" />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="brands/:id/edit"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerCatalogRefs}>
+                                    <CatalogFormPage config={CATALOG_ENTITY_CONFIG.brand} mode="edit" />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="brands"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerCatalogRefs}>
+                                    <CatalogListPage config={CATALOG_ENTITY_CONFIG.brand} />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="colors/new"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerCatalogRefs}>
+                                    <CatalogFormPage config={CATALOG_ENTITY_CONFIG.color} mode="create" />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="colors/:id/edit"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerCatalogRefs}>
+                                    <CatalogFormPage config={CATALOG_ENTITY_CONFIG.color} mode="edit" />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="colors"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerCatalogRefs}>
+                                    <CatalogListPage config={CATALOG_ENTITY_CONFIG.color} />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="sizes/new"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerCatalogRefs}>
+                                    <CatalogFormPage config={CATALOG_ENTITY_CONFIG.size} mode="create" />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="sizes/:id/edit"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerCatalogRefs}>
+                                    <CatalogFormPage config={CATALOG_ENTITY_CONFIG.size} mode="edit" />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="sizes"
+                            element={
+                                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerCatalogRefs}>
+                                    <CatalogListPage config={CATALOG_ENTITY_CONFIG.size} />
+                                </ProtectedRoute>
+                            }
+                        />
             <Route
               path="products/new"
               element={
