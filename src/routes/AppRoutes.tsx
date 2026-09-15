@@ -82,9 +82,7 @@ import AdminOverviewPage from "@/features/admin/pages/AdminOverviewPage";
 import AdminShopDetailPage from "@/features/admin/pages/AdminShopDetailPage";
 import AdminShopEditPage from "@/features/admin/pages/AdminShopEditPage";
 import AdminShopsPage from "@/features/admin/pages/AdminShopsPage";
-import AdminRbacPage from "@/features/admin/pages/AdminRbacPage";
 import AdminUsersPage from "@/features/admin/pages/AdminUsersPage";
-import FlashDealsAdminPage from "@/features/admin/pages/FlashDealsAdminPage";
 import CommonNotificationsPage from "@/features/common/pages/CommonNotificationsPage";
 import CommonChatPage from "@/features/common/pages/CommonChatPage";
 import CommonHelpSupportPage from "@/features/common/pages/CommonHelpSupportPage";
@@ -728,10 +726,10 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.superAdminUsers}
                 >
                   <AdminUsersPage />
-                  <DashboardPlaceholderPage
+                  {/* <DashboardPlaceholderPage
                     title="User Administration"
                     description="Global user operations, moderation, and support workflows are planned for this page."
-                  />
+                  /> */}
                 </ProtectedRoute>
               }
             />
