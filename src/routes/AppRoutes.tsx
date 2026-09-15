@@ -30,6 +30,7 @@ import ProductDetailPage from "@/features/products/pages/ProductDetailPage";
 import SearchResultsPage from "@/features/products/pages/SearchResultsPage";
 import CartPage from "@/features/cart/pages/CartPage";
 import CartSeeMorePage from "@/features/cart/pages/CartSeeMorePage";
+import WishlistPage from "@/features/wishlist/pages/WishlistPage";
 import CheckoutPage from "@/features/checkout/pages/CheckoutPage";
 import CheckoutSuccessPage from "@/features/checkout/pages/CheckoutSuccessPage";
 import CategoriesPage from "@/features/categories/pages/CategoriesPage";
@@ -883,6 +884,7 @@ const AppRoutes = () => {
       <Route path="/help-centre/contact-us" element={<HelpArticlePage />} />
       <Route path="/cart" element={<CartPage />} />
       <Route path="/cart/see-more" element={<CartSeeMorePage />} />
+      <Route path="/wishlist" element={<WishlistPage />} />
       <Route path="/recently-added" element={<RecentlyAddedPage />} />
       <Route path="/about" element={<AboutUsPage />} />
       <Route path="/careers" element={<CareersPage />} />

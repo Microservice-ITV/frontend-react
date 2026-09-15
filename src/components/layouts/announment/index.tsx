@@ -323,7 +323,7 @@ export const Announcements = () => {
 
       <div
         key={activeAnnouncement.id}
-        style={{ animation: "announcementFade 500ms ease-in-out" }}
+        style={{ animation: "announcementFade 900ms ease-in-out" }}
       >
         <AnnouncementComponent {...componentProps} onDismiss={handleDismiss} />
       </div>

@@ -6,7 +6,7 @@ import { BrowserRouter } from 'react-router-dom'
 
 // 2. Absolute imports
 import { store } from '@/app/store'
-import { initCartSync } from '@/app/bootstrap'
+import { initCartSync, initWishlistSync, initWishlistServerSync } from '@/app/bootstrap'
 import { GlobalModalProvider } from '@/components/ui/GlobalModalProvider'
 import App from './App'
 
@@ -16,6 +16,8 @@ import './index.css'
 
 // initialize global side effects
 initCartSync(store.dispatch)
+initWishlistSync(store.dispatch)
+initWishlistServerSync(store.dispatch)
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode> {/* development-only tool, highlighting potential */ }

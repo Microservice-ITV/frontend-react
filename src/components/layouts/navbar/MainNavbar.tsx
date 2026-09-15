@@ -1,9 +1,10 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ShoppingCart, Search } from "lucide-react";
+import { ShoppingCart, Search, Heart } from "lucide-react";
 import { useAppSelector } from "@/app/hooks";
 import { selectCartCount } from "@/features/cart/store/cartSelectors";
+import { selectWishlistCount } from "@/features/wishlist/store/wishlistSelectors";
 import NavbarTopUtilityBar from "./NavbarTopUtilityBar";
 import { Announcements } from "@/components/layouts/announment";
 import BrandLogo from './BrandLogo'
@@ -14,6 +15,7 @@ const MIN_QUERY_LENGTH = 2;
 
 const MainNavbar = () => {
   const cartCount = useAppSelector(selectCartCount);
+  const wishlistCount = useAppSelector(selectWishlistCount);
   const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
@@ -113,6 +115,21 @@ const MainNavbar = () => {
                 </button>
               </div>
             </div>
+
+            {/* Wishlist */}
+            <Link to="/wishlist" className="relative flex items-center" aria-label="Wishlist">
+              <Heart size={22} className="md:size-[26px]" />
+
+              {wishlistCount > 0 && (
+                <span
+                  className="
+                                    absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] flex items-center justify-center
+                                    rounded-full bg-rose-500 text-white text-[10px] leading-none px-[3px]"
+                >
+                  {wishlistCount > 99 ? "99+" : wishlistCount}
+                </span>
+              )}
+            </Link>
 
             {/* Cart */}
             <Link to="/cart" className="relative flex items-center">

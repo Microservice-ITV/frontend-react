@@ -114,12 +114,7 @@ const AnnouncementDetailPage = () => {
       return "";
     }
 
-    return (
-      getElementText(announcement, ["title", "headline", "heading"]) ??
-      announcement.name ??
-      announcement.announcementType?.name ??
-      "Announcement"
-    );
+    return announcement.title ?? announcement.name ?? "Announcement";
   }, [announcement]);
 
   const summary = useMemo(() => {
@@ -146,7 +141,7 @@ const AnnouncementDetailPage = () => {
       return "";
     }
 
-    return getSecondText(announcement) ?? "";
+    return announcement.description ?? "";
   }, [announcement]);
 
   const detailCta = useMemo(
@@ -264,7 +259,7 @@ const AnnouncementDetailPage = () => {
                           Campaign
                         </p>
                         <p className="mt-2 text-2xl font-black text-gray-900">
-                          {announcement.announcementType?.name ?? title}
+                          {title}
                         </p>
                       </div>
 
