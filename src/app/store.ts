@@ -1,14 +1,21 @@
 import { configureStore } from '@reduxjs/toolkit'
 import rootReducer from './rootReducer'
 import { cartPersistenceMiddleware } from '@/features/cart/middleware/cartPersistenceMiddleware'
+import { wishlistPersistenceMiddleware } from '@/features/wishlist/middleware/wishlistPersistenceMiddleware'
+import { wishlistServerSyncMiddleware } from '@/features/wishlist/middleware/wishlistServerSyncMiddleware'
 
 // Global State Configuration (Single source of truth)
 export const store = configureStore({ // configureStore = to combine reducer
     reducer: rootReducer,
 
-    // Persist cart to localStorage AFTER reducers update state
+    // Persist cart & wishlist to localStorage AFTER reducers update state
     // Keeps reducers pure and centralizes persistence logic
-    middleware: getDefaultMiddleware => getDefaultMiddleware().concat(cartPersistenceMiddleware),
+    middleware: getDefaultMiddleware =>
+        getDefaultMiddleware().concat(
+            cartPersistenceMiddleware,
+            wishlistPersistenceMiddleware,
+            wishlistServerSyncMiddleware,
+        ),
 });
 
 // RootState, AppDispatch:
