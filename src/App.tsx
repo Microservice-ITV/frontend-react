@@ -8,6 +8,7 @@ import AppRoutes from '@/routes/AppRoutes'
 import HeaderSpacer from './components/layouts/HeaderSpacer'
 import { selectIsAuthBootstrapping } from './features/auth/store/authSelectors'
 import ScrollToTop from './components/routing/ScrollToTop'
+import GoogleAnalytics from './components/analytics/GoogleAnalytics'
 import { setAccessToken, setHasSession } from './features/auth/store/authSlice'
 import { setSessionCookie } from '@/utils/session'
 import { extractRoleFromUser } from '@/app/rbac/normalizers'
@@ -74,6 +75,7 @@ function App() {
       {!hideGlobalChrome && <HeaderSpacer />}
 
       <ScrollToTop />
+      <GoogleAnalytics />
 
       {/* Main Content */}
       <main className="flex-1">

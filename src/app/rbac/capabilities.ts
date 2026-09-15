@@ -14,5 +14,6 @@ export const CAPABILITIES = {
   CATEGORIES_VIEW: 'categories.view',
   /** Create / update / delete categories — super admin */
   CATEGORIES_MANAGE: 'categories.manage',
+  PROMOTIONS_VIEW: 'promotions.view',
   ALL: '*',
 } as const

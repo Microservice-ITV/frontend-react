@@ -1,6 +1,7 @@
 import { orderClient } from '@/lib/api/orderClient'
 import type { AxiosResponse } from 'axios'
 import type { CheckoutResponse, CheckoutStatusResponse } from '../types/checkoutTypes'
+import { promotionClient } from '@/lib/api/promotionClient'
 
 export type CheckoutShopShippingPayload = {
   shop_id: string
@@ -27,9 +28,53 @@ export type CheckoutAddressPayload = {
   shipping_total: number
   /** Per-shop fees from calculate API, aligned with cart shops */
   shop_shippings: CheckoutShopShippingPayload[]
+  /** Optional one-time voucher / promo code */
+  promo_code?: string | null
+}
+
+export type PromoCodeStatus =
+  | 'VALID'
+  | 'INVALID'
+  | 'EXPIRED'
+  | 'USED'
+  | 'DISABLED'
+  | 'RESERVED'
+  | 'LIMIT_REACHED'
+  | 'NOT_APPLICABLE'
+
+export type PromotionQuoteResponse = {
+  discount_total: number
+  final_total: number
+  promotion_ids: string[]
+  promo_code?: string | null
+  promo_code_status?: PromoCodeStatus | null
+  promo_code_message?: string | null
 }
 
 export const checkoutApi = {
+  async quotePromotions(payload: {
+    checkout_id: string
+    user_id: string
+    items: Array<{
+      product_id: string
+      shop_id: string
+      unit_price: number
+      quantity: number
+    }>
+    subtotal: number
+    shipping_total: number
+    promo_code?: string | null
+  }): Promise<PromotionQuoteResponse> {
+    const body = {
+      ...payload,
+      promo_code: payload.promo_code?.trim()
+        ? payload.promo_code.trim().toUpperCase()
+        : undefined,
+    }
+    const response = await promotionClient.post('/promotions/quote', body)
+    return response.data
+  },
+
   createCheckoutSession(data: {
     user_id: string
     items: { product_id: string; qty: number; variant_id?: string }[]
@@ -64,6 +109,10 @@ export const checkoutApi = {
     address_updated_at?: string
     grand_total?: number
     shipping_total?: number
+    promotion_discount_total?: number
+    promo_code?: string | null
+    promo_code_status?: PromoCodeStatus | null
+    promo_code_message?: string | null
     payment?: { client_secret?: string }
     already_succeeded?: boolean
   }>> {

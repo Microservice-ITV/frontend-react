@@ -9,6 +9,14 @@ export const authFeatureApi = {
     return authClient.post('/register', data)
   },
 
+  requestPhoneOtp(data: { phone: string; recaptchaToken?: string }) {
+    return authClient.post('/phone/request-otp', data)
+  },
+
+  verifyPhoneOtp(data: { phone: string; otp: string }) {
+    return authClient.post('/phone/verify-otp', data)
+  },
+
   refresh() {
     return authClient.post('/refresh')
   },
@@ -23,5 +31,25 @@ export const authFeatureApi = {
 
   resendVerification(email: string) {
     return authClient.post('/verify-email/resend', { email })
+  },
+
+  forgotPassword(email: string) {
+    return authClient.post('/forgot-password', { email })
+  },
+
+  resetPassword(data: { token: string; password: string; passwordConfirmation: string }) {
+    return authClient.post('/reset-password', {
+      token: data.token,
+      password: data.password,
+      password_confirmation: data.passwordConfirmation,
+    })
+  },
+
+  changePassword(data: { currentPassword: string; newPassword: string; newPasswordConfirmation: string }) {
+    return authClient.post('/change-password', {
+      current_password: data.currentPassword,
+      password: data.newPassword,
+      password_confirmation: data.newPasswordConfirmation,
+    })
   },
 }

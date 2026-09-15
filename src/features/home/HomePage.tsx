@@ -5,13 +5,13 @@ import TopOrderedProducts from './components/TopOrderedProducts'
 import RecentlyAddedSection from './components/RecentlyAddedSection'
 
 const HomePage = () => {
-    return (
-        <>
-            {/* FULL WIDTH – WHITE */}
-            <section className="w-full bg-white">
-                <HomeBanner />
-                <HomeQuickActions />
-            </section>
+  return (
+    <>
+      {/* FULL WIDTH – WHITE */}
+      <section className="w-full bg-white">
+        <HomeBanner />
+        <HomeQuickActions />
+      </section>
 
             <section className="bg-[#f5f5f5]">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-4">
@@ -39,4 +39,4 @@ const HomePage = () => {
     )
 }
 
-export default HomePage
+export default HomePage;
