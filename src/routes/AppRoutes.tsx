@@ -24,6 +24,7 @@ import OAuthErrorPage from "@/features/auth/pages/OAuthErrorPage";
 import ForbiddenPage from "@/features/auth/pages/ForbiddenPage";
 import { BuyerHomeRoute, GuestRoute, ProtectedRoute } from "./RouteGuards";
 import HomePage from "@/features/home/HomePage";
+import RecentlyAddedPage from "@/features/home/pages/RecentlyAddedPage";
 import ProductListPage from "@/features/products/pages/ProductListPage";
 import ProductDetailPage from "@/features/products/pages/ProductDetailPage";
 import SearchResultsPage from "@/features/products/pages/SearchResultsPage";
@@ -82,6 +83,7 @@ import AdminOverviewPage from "@/features/admin/pages/AdminOverviewPage";
 import AdminShopDetailPage from "@/features/admin/pages/AdminShopDetailPage";
 import AdminShopEditPage from "@/features/admin/pages/AdminShopEditPage";
 import AdminShopsPage from "@/features/admin/pages/AdminShopsPage";
+import AdminUsersPage from "@/features/admin/pages/AdminUsersPage";
 import CommonNotificationsPage from "@/features/common/pages/CommonNotificationsPage";
 import CommonChatPage from "@/features/common/pages/CommonChatPage";
 import CommonHelpSupportPage from "@/features/common/pages/CommonHelpSupportPage";
@@ -724,10 +726,11 @@ const AppRoutes = () => {
                 <ProtectedRoute
                   requiredCapabilities={ROUTE_ACCESS.superAdminUsers}
                 >
-                  <DashboardPlaceholderPage
+                  <AdminUsersPage />
+                  {/* <DashboardPlaceholderPage
                     title="User Administration"
                     description="Global user operations, moderation, and support workflows are planned for this page."
-                  />
+                  /> */}
                 </ProtectedRoute>
               }
             />
@@ -882,6 +885,7 @@ const AppRoutes = () => {
       <Route path="/cart" element={<CartPage />} />
       <Route path="/cart/see-more" element={<CartSeeMorePage />} />
       <Route path="/wishlist" element={<WishlistPage />} />
+      <Route path="/recently-added" element={<RecentlyAddedPage />} />
       <Route path="/about" element={<AboutUsPage />} />
       <Route path="/careers" element={<CareersPage />} />
       <Route path="/policies" element={<PoliciesPage />} />

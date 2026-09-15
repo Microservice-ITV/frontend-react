@@ -11,7 +11,9 @@ import sellerProductsReducer from '@/features/seller/store/sellerProductsSlice'
 import sellerCategoriesReducer from '@/features/seller/store/sellerCategoriesSlice'
 import sellerOrdersReducer from '@/features/seller/store/sellerOrdersSlice'
 import adminShopsReducer from "@/features/admin/store/adminShopsSlice";
+import adminDashboardReducer from "@/features/admin/store/adminDashboardSlice";
 import adminRbacReducer from "@/features/admin/store/adminRbacSlice";
+import adminUsersReducer from "@/features/admin/store/adminUsersSlice";
 import shippingReducer from "@/features/shipping/store/shippingSlice";
 import homeFeatureReducer from "@/features/homeFeatures/store/homeFeatureSlice";
 import homeQuickActionsReducer from "@/features/home/store/homeSlice";
@@ -35,7 +37,11 @@ const rootReducer = combineReducers({
   sellerCategories: sellerCategoriesReducer,
   sellerOrders: sellerOrdersReducer,
   adminShops: adminShopsReducer,
+  adminDashboard: adminDashboardReducer,
   adminRbac: adminRbacReducer,
+  adminUsers: adminUsersReducer,
+  // adminFlashDeals: adminFlashDealsReducer,
+  // flashDeals: flashDealsReducer,
   homeFeatures: homeFeatureReducer,
   homeQuickActions: homeQuickActionsReducer,
   heroBanners: heroBannerReducer,
