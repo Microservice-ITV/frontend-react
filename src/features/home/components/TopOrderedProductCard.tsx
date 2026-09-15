@@ -10,7 +10,6 @@ const formatSalesCount = (totalOrdered: number) => {
     return `${totalOrdered}+`
 }
 
-console.log(product.name);
 const TopOrderedProductCard = ({ product }: Props) => {
     return (
         <Link

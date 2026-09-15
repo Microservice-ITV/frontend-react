@@ -53,12 +53,12 @@ const TopOrderedProducts = () => {
                 <h2 id="top-ordered-products-heading" className="text-base font-semibold uppercase text-gray-600">
                     Top Ordered Products
                 </h2>
-                <Link
+                {/* <Link
                     to="/all_categories"
                     className="inline-flex items-center gap-1 text-sm text-(--dni-primary) transition-colors hover:text-(--dni-primary-hover) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--dni-primary) focus-visible:ring-offset-2"
                 >
                     See All <ChevronRight aria-hidden="true" className="h-4 w-4" />
-                </Link>
+                </Link> */}
             </div>
 
             <div className="overflow-x-auto overflow-y-hidden scrollbar-hide">
