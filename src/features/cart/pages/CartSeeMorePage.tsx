@@ -13,7 +13,9 @@ import {
   selectRelatedProducts,
   selectBroughtTogetherProducts,
 } from "@/features/products/store/recommendationsSlice";
-import { selectCartItems } from "@/features/cart/store/cartSelectors";
+import {
+  selectCartProductKey,
+} from "@/features/cart/store/cartSelectors";
 import ProductGrid, {
   ProductGridSkeleton,
 } from "@/features/products/components/ProductGrid";
@@ -22,10 +24,10 @@ const CartSeeMorePage = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
-  const items = useAppSelector(selectCartItems);
+  const cartProductKey = useAppSelector(selectCartProductKey);
   const cartProductIds = useMemo(
-    () => [...new Set(items.map((i) => i.productId).filter(Boolean))],
-    [items],
+    () => (cartProductKey ? cartProductKey.split(",") : []),
+    [cartProductKey],
   );
 
   const relatedProducts = useAppSelector(selectRelatedProducts);
@@ -38,7 +40,7 @@ const CartSeeMorePage = () => {
       dispatch(fetchRelatedProducts(cartProductIds));
       dispatch(fetchBroughtTogetherProducts(cartProductIds));
     }
-  }, [dispatch, cartProductIds]);
+  }, [dispatch, cartProductKey]);
 
   const excludeIds = useMemo(() => new Set(cartProductIds), [cartProductIds]);
 

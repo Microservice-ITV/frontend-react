@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { fetchShopProfilesForCurrentCart } from '@/features/shipping/store/shippingThunks'
-import { selectCartItems, selectCartTotal } from '@/features/cart/store/cartSelectors'
+import { selectCartItems, selectCartTotal, selectCartProductKey } from '@/features/cart/store/cartSelectors'
 import { fetchRelatedProducts, fetchBroughtTogetherProducts } from '@/features/products/store/recommendationsSlice'
 
 import CartHeader from '../components/CartHeader'
@@ -14,6 +14,7 @@ const CartPage = () => {
     const dispatch = useAppDispatch()
     const items = useAppSelector(selectCartItems)
     const total = useAppSelector(selectCartTotal)
+    const cartProductKey = useAppSelector(selectCartProductKey)
     const cartShopIdsKey = useMemo(
         () => [...new Set(items.map((i) => i.shopId).filter(Boolean))].sort().join(','),
         [items],
@@ -22,10 +23,11 @@ const CartPage = () => {
     const contentRef = useRef<HTMLDivElement>(null)
     const [isFloating, setIsFloating] = useState(false)
 
-    // Get all product IDs in cart for recommendations (aggregated across ALL items)
+    // Get all product IDs in cart for recommendations (aggregated across ALL items).
+    // Derived from a stable key so quantity changes don't refetch/reflash.
     const cartProductIds = useMemo(
-        () => [...new Set(items.map((i) => i.productId).filter(Boolean))],
-        [items],
+        () => (cartProductKey ? cartProductKey.split(',') : []),
+        [cartProductKey],
     )
     const firstProductId = cartProductIds[0]
 
@@ -40,7 +42,7 @@ const CartPage = () => {
             dispatch(fetchRelatedProducts(cartProductIds))
             dispatch(fetchBroughtTogetherProducts(cartProductIds))
         }
-    }, [dispatch, cartProductIds])
+    }, [dispatch, cartProductKey])
 
     useEffect(() => {
         const onScroll = () => {

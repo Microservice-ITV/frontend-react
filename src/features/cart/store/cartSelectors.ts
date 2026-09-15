@@ -11,6 +11,19 @@ export const selectCartItems = (state: RootState) => state.cart.items ?? []
 /* ================================
    SIMPLE DERIVED SELECTORS
 ================================ */
+/**
+ * Stable string of unique product ids (sorted). Only changes when a product
+ * is added/removed, NOT when quantity changes. Useful to avoid re-rendering
+ * recommendation sections on quantity updates.
+ */
+export const selectCartProductKey = createSelector(
+    selectCartItems,
+    items => {
+        const ids = [...new Set(items.map(i => i.productId).filter(Boolean))].sort()
+        return ids.length > 0 ? ids.join(',') : ''
+    }
+)
+
 export const selectCartCount = createSelector(
     selectCartItems,
     items => items.reduce((sum, i) => sum + i.quantity, 0)
