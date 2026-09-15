@@ -26,7 +26,7 @@ import type { AdminUserRow } from '../types/userTypes'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const ROWS_PER_PAGE = 20
+const ROWS_PER_PAGE = 10
 
 type VerifiedFilter = 'all' | 'verified' | 'unverified'
 
