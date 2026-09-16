@@ -17,6 +17,16 @@ import {
 } from "@/utils/variantPricing";
 import { productServiceAssetUrl } from "@/lib/api/apiConfig";
 
+/** Split a comma-separated tags string into a deduped, trimmed array (max 20). */
+export const parseTagsInput = (raw: string): string[] => [
+  ...new Set(
+    raw
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean),
+  ),
+].slice(0, 20);
+
 const toSlug = (value: string) =>
   value
     .normalize("NFD")
@@ -85,6 +95,7 @@ export const productFormSchema = z
   .object({
     name: z.string().trim().min(1, "Name is required"),
     description: z.string().trim().optional(),
+    tags: z.string().trim(),
     slug: z
       .string()
       .trim()
@@ -367,6 +378,27 @@ const ProductForm = ({
                   {errors.slug && (
                     <p className="mt-1 text-xs text-red-600">
                       {errors.slug.message}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="tags"
+                    className="mb-1.5 block text-xs font-medium text-slate-700"
+                  >
+                    Tags
+                  </label>
+                  <input
+                    id="tags"
+                    type="text"
+                    placeholder="Comma-separated tags, e.g. sale, bestseller"
+                    {...register("tags")}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none placeholder:text-slate-400 focus:border-emerald-500"
+                  />
+                  {errors.tags && (
+                    <p className="mt-1 text-xs text-red-600">
+                      {errors.tags.message}
                     </p>
                   )}
                 </div>

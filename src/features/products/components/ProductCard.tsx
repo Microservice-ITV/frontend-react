@@ -30,10 +30,27 @@ const BADGE_POOL: BadgeTone[] = [
   { label: "On Sale", bg: "#ec4899", icon: "tag" },
 ];
 
+const PLACEHOLDER_SRC =
+  'data:image/svg+xml;utf8,' +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600"><rect width="100%" height="100%" fill="#f5f5f5"/></svg>',
+  )
+
 function hashId(id: string): number {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
   return h;
+}
+
+function formatBadgeLabel(value?: string): string {
+  const raw = (value ?? '').trim()
+  if (!raw) return ''
+  const normalized = raw.replace(/\s+/g, ' ')
+  return normalized
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ')
 }
 
 function cardMeta(productId: string) {
@@ -133,9 +150,13 @@ const ProductCard = ({ product }: ProductCardProps) => {
   // const cartItems = useAppSelector(selectCartItems)
   // const [justAdded, setJustAdded] = useState(false)
 
-  const meta = useMemo(() => cardMeta(product.id), [product.id]);
-  // const inCart = cartItems.some((item) => item.productId === product.id)
-  // const showSaveForLater = wishlisted || justAdded || inCart
+  const meta = useMemo(() => cardMeta(product.id), [product.id])
+  const badgeLabel = useMemo(
+    () => formatBadgeLabel(product.tags?.[0] ?? product.text) || meta.badge.label,
+    [product.tags, product.text, meta.badge.label],
+  )
+  const inCart = cartItems.some((item) => item.productId === product.id)
+  const showSaveForLater = wishlisted || justAdded || inCart
 
   const handleWishlist = (e: MouseEvent) => {
     e.preventDefault();
@@ -200,7 +221,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
             style={{ backgroundColor: meta.badge.bg }}
           >
             <BadgeIcon type={meta.badge.icon} />
-            <span className="truncate">{meta.badge.label}</span>
+            <span className="truncate">{badgeLabel}</span>
           </span>
 
           {/* Wishlist */}

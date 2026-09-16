@@ -135,6 +135,19 @@ const ProductInfo = ({ product, onSelectedVariantChange }: Props) => {
           </p>
         ) : null}
 
+        {product.tags && product.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {product.tags.map((tag, index) => (
+              <span
+                key={index}
+                className="inline-flex items-center px-2.5 py-0.5 text-xs font-medium text-slate-700 bg-slate-100 rounded-full"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-600">
           <div className="flex items-center gap-1.5">
             <span className="text-[var(--dni-primary)] tracking-tight" aria-hidden>
