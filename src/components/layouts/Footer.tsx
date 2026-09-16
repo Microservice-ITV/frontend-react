@@ -59,7 +59,7 @@ const aboutLinks = [
 
 const Footer = () => {
   return (
-    <footer className="bg-gray-100 text-xs text-gray-600 border-t-4 border-emerald-600 mt-5">
+    <footer className="bg-gray-100 text-xs text-gray-600 border-t-4 border-emerald-600">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
           {/* CUSTOMER SERVICE */}

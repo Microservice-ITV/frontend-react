@@ -30,6 +30,7 @@ import ProductDetailPage from "@/features/products/pages/ProductDetailPage";
 import SearchResultsPage from "@/features/products/pages/SearchResultsPage";
 import CartPage from "@/features/cart/pages/CartPage";
 import CartSeeMorePage from "@/features/cart/pages/CartSeeMorePage";
+import WishlistPage from "@/features/wishlist/pages/WishlistPage";
 import CheckoutPage from "@/features/checkout/pages/CheckoutPage";
 import CheckoutSuccessPage from "@/features/checkout/pages/CheckoutSuccessPage";
 import CategoriesPage from "@/features/categories/pages/CategoriesPage";
@@ -93,6 +94,10 @@ import AnnouncementDetailPage from "@/features/announcements/pages/AnnouncementD
 import { PhoneAuthPage } from "@/features/auth/pages/PhoneAuthPage";
 import { PhoneOtpPage } from "@/features/auth/pages/PhoneOtpPage";
 import PromotionEnginePage from "@/features/promotions/pages/PromotionEnginePage";
+import SellerFinanceOverviewPage from "@/features/finance/pages/SellerFinanceOverviewPage";
+import SellerFinanceTransactionsPage from "@/features/finance/pages/SellerFinanceTransactionsPage";
+import AdminFinanceOverviewPage from "@/features/finance/pages/AdminFinanceOverviewPage";
+import AdminFinanceTransactionsPage from "@/features/finance/pages/AdminFinanceTransactionsPage";
 
 const AppRoutes = () => {
   return (
@@ -396,6 +401,26 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.sellerInvoices}
                 >
                   <SellerInvoicesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="finance"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerFinanceOverview}
+                >
+                  <SellerFinanceOverviewPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="finance/transactions"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerFinanceTransactions}
+                >
+                  <SellerFinanceTransactionsPage />
                 </ProtectedRoute>
               }
             />
@@ -832,6 +857,26 @@ const AppRoutes = () => {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="finance"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminFinanceOverview}
+                >
+                  <AdminFinanceOverviewPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="finance/transactions"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminFinanceTransactions}
+                >
+                  <AdminFinanceTransactionsPage />
+                </ProtectedRoute>
+              }
+            />
           </Route>
         </Route>
       </Route>
@@ -849,6 +894,7 @@ const AppRoutes = () => {
         }
       />
       <Route path="/search" element={<SearchResultsPage />} />
+      <Route path="/ai-assistant" element={<Navigate to="/" replace />} />
       <Route path="/all_categories" element={<CategoriesPage />} />
       <Route path="/categories/:id" element={<ProductListPage />} />
       <Route path="/products/:id" element={<ProductDetailPage />} />
@@ -883,6 +929,7 @@ const AppRoutes = () => {
       <Route path="/help-centre/contact-us" element={<HelpArticlePage />} />
       <Route path="/cart" element={<CartPage />} />
       <Route path="/cart/see-more" element={<CartSeeMorePage />} />
+      <Route path="/wishlist" element={<WishlistPage />} />
       <Route path="/recently-added" element={<RecentlyAddedPage />} />
       <Route path="/about" element={<AboutUsPage />} />
       <Route path="/careers" element={<CareersPage />} />
