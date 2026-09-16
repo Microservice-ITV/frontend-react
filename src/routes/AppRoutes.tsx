@@ -849,6 +849,7 @@ const AppRoutes = () => {
         }
       />
       <Route path="/search" element={<SearchResultsPage />} />
+      <Route path="/ai-assistant" element={<Navigate to="/" replace />} />
       <Route path="/all_categories" element={<CategoriesPage />} />
       <Route path="/categories/:id" element={<ProductListPage />} />
       <Route path="/products/:id" element={<ProductDetailPage />} />
