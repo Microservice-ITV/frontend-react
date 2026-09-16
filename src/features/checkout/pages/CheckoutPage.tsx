@@ -86,7 +86,7 @@ const CheckoutPage = () => {
         return `${selectedDeliveryAddress.address_id}|${selectedItemsFingerprint}`
     }, [selectedDeliveryAddress?.address_id, selectedItemsFingerprint])
 
-    const { currentCheckout, loading, paymentStatus, clientSecret, isAwaitingFinalStatus } = useAppSelector(
+    const { currentCheckout, loading, paymentStatus, clientSecret, isAwaitingFinalStatus, paymentMethod, sessionPaymentMethod } = useAppSelector(
         state => state.checkout
     )
     const sagaId = useAppSelector(state => state.checkout.sagaId)
@@ -330,6 +330,31 @@ const CheckoutPage = () => {
         }
     }, [dispatch, currentCheckout, loading, hasDeliveryAddress])
 
+    // Restart checkout when the user switches Card ↔ COD after a session exists,
+    // so payment_method on the server matches the UI selection.
+    useEffect(() => {
+        if (!hasDeliveryAddress) return
+        if (!currentCheckout?.checkout_id) return
+        if (!sessionPaymentMethod) return
+        if (paymentMethod === sessionPaymentMethod) return
+        if (loading) return
+        if (paymentStatus && terminalCheckoutStatuses.has(paymentStatus)) return
+
+        dispatch(clearCheckout())
+        if (checkoutStorageKey) {
+            sessionStorage.removeItem(checkoutStorageKey)
+        }
+    }, [
+        hasDeliveryAddress,
+        currentCheckout?.checkout_id,
+        sessionPaymentMethod,
+        paymentMethod,
+        loading,
+        paymentStatus,
+        dispatch,
+        checkoutStorageKey,
+    ])
+
     useEffect(() => {
         if (!hasDeliveryAddress) {
             return
@@ -343,17 +368,26 @@ const CheckoutPage = () => {
             return
         }
 
-        // Poll in two phases:
-        // 1) until client_secret is ready
-        // 2) after Place Order (PAYMENT_PENDING_CONFIRMATION) until terminal state
+        const effectiveMethod = sessionPaymentMethod ?? paymentMethod
+        const isCod = effectiveMethod === 'cod'
+        // Card: poll until Stripe client_secret is ready, then again after place order.
+        // COD: keep polling until intent metadata is ready, and after place order
+        // until authorize → payment.completed marks the session PAID.
         const shouldPollForClientSecret = !clientSecret
         const shouldPollForFinalStatus = isAwaitingFinalStatus
+        const shouldPollForCodReady =
+            isCod &&
+            !isAwaitingFinalStatus &&
+            (!!clientSecret
+                ? paymentStatus === 'PENDING_STOCK' ||
+                  paymentStatus === 'STOCK_CONFIRMED' ||
+                  !paymentStatus
+                : true)
 
-        if (!shouldPollForClientSecret && !shouldPollForFinalStatus) {
+        if (!shouldPollForClientSecret && !shouldPollForFinalStatus && !shouldPollForCodReady) {
             return
         }
 
-        // Poll order service until payment intent is ready / terminal status
         void dispatch(fetchCheckoutStatus(currentCheckout.checkout_id))
 
         const intervalId = window.setInterval(() => {
@@ -368,6 +402,8 @@ const CheckoutPage = () => {
         paymentStatus,
         clientSecret,
         isAwaitingFinalStatus,
+        sessionPaymentMethod,
+        paymentMethod,
     ])
 
     useEffect(() => {

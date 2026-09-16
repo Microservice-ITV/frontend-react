@@ -25,6 +25,7 @@ import {
   Stamp,
   Palette,
   Ruler,
+  CreditCard,
 } from 'lucide-react'
 import { CAPABILITIES } from '@/app/rbac/capabilities'
 import type { DashboardMenuSection } from '../types/dashboardTypes'
@@ -117,6 +118,14 @@ export const DASHBOARD_MENU_SELLER: DashboardMenuSection[] = [
         area: 'seller',
         requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
         icon: FileText,
+      },
+      {
+        key: 'seller-payments',
+        label: 'Payments',
+        to: '/seller/payments',
+        area: 'seller',
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: CreditCard,
       },
     ],
   },
@@ -213,6 +222,14 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         area: 'super_admin',
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
         icon: Building2,
+      },
+      {
+        key: 'admin-payments',
+        label: 'Payments',
+        to: '/super-admin/payments',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: CreditCard,
       },
       {
         key: 'admin-categories',
