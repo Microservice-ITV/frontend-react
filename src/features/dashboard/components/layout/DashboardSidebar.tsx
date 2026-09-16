@@ -54,6 +54,14 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
 
   const hideTooltip = () => setTooltip(null);
 
+  const allItemPaths = sections.flatMap((section) =>
+    section.items.map((item) => item.to),
+  );
+  const isParentPath = (path: string) =>
+    allItemPaths.some(
+      (other) => other !== path && other.startsWith(`${path}/`),
+    );
+
   const renderItems = (items: (typeof sections)[number]["items"]) => (
     <div className="mt-1 space-y-0.5">
       {items.map((item) => {
@@ -62,6 +70,7 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
           <NavLink
             key={item.key}
             to={item.to}
+            end={isParentPath(item.to)}
             onClick={onClose}
             onMouseEnter={(e) => showTooltip(e, item.label, item.badge)}
             onMouseLeave={hideTooltip}
