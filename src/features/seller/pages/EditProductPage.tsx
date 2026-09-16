@@ -13,6 +13,7 @@ import {
 import { fetchSellerProductsByShop } from "@/features/seller/store";
 import ProductForm, {
   defaultVariantRow,
+  parseTagsInput,
   type ProductFormValues,
 } from "@/features/seller/components/ProductForm";
 import {
@@ -81,6 +82,7 @@ const EditProductPage = () => {
   const [initialValues, setInitialValues] = useState<ProductFormValues>({
     name: "",
     description: undefined,
+    tags: "",
     slug: "",
     categoryId: "",
     brandId: "",
@@ -126,6 +128,7 @@ const EditProductPage = () => {
           setInitialValues({
             name: (item.name ?? item.title ?? "").trim(),
             description: (item.description ?? "").trim(),
+            tags: (item.tags ?? []).join(", "),
             slug: (item.slug ?? "").trim(),
             categoryId: item.categoryId ?? "",
             brandId: item.brandId ?? "",
@@ -270,6 +273,7 @@ const EditProductPage = () => {
       await sellerProductApi.updateProduct(id, {
         name: values.name.trim(),
         description: values.description?.trim() || "",
+        tags: parseTagsInput(values.tags),
         slug: values.slug.trim(),
         categoryId: values.categoryId,
         shopId: values.shopId,

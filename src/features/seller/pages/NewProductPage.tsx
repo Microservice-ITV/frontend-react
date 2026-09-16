@@ -9,6 +9,7 @@ import {
 import { sellerProductApi } from "@/features/seller/api/sellerProductApi";
 import ProductForm, {
   defaultVariantRow,
+  parseTagsInput,
   type ProductFormValues,
 } from "@/features/seller/components/ProductForm";
 import { fetchSellerProductsByShop } from "@/features/seller/store";
@@ -171,6 +172,7 @@ const NewProductPage = () => {
       await sellerProductApi.createProduct({
         name: values.name.trim(),
         description: values.description?.trim() || undefined,
+        tags: parseTagsInput(values.tags),
         slug: values.slug.trim(),
         categoryId: values.categoryId,
         shopId: values.shopId,
@@ -221,6 +223,7 @@ const NewProductPage = () => {
         initialValues={{
           name: "",
           description: undefined,
+          tags: "",
           slug: "",
           categoryId: "",
           brandId: "",
