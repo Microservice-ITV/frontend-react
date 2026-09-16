@@ -13,30 +13,30 @@ const HomePage = () => {
         <HomeQuickActions />
       </section>
 
-            <section className="bg-[#f5f5f5]">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-4">
-                    <div className="bg-white">
-                        <CategoriesSection />
-                    </div>
-                </div>
-            </section>
-            <section className="bg-[#f5f5f5]">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-4">
-                    <div className="bg-white">
-                        <TopOrderedProducts />
-                    </div>
-                </div>
-            </section>
+      <section className="bg-[#f5f5f5]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-4">
+          <div className="bg-white">
+            <CategoriesSection />
+          </div>
+        </div>
+      </section>
+      <section className="bg-[#f5f5f5]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-4">
+          <div className="bg-white">
+            <TopOrderedProducts />
+          </div>
+        </div>
+      </section>
 
-
-             <section className="bg-[#f5f5f5]">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 bg-white my-4">
-                    
-                    <RecentlyAddedSection />
-                </div>
-            </section>
-        </>
-    )
+      <section className="bg-[#f5f5f5]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 my-4">
+          <div className="bg-white">
+            <RecentlyAddedSection />
+          </div>
+        </div>
+      </section>
+    </>
+  );
 }
 
 export default HomePage;
