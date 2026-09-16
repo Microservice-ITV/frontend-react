@@ -1,6 +1,6 @@
 import ProductGrid, { ProductGridSkeleton } from '@/features/products/components/ProductGrid'
 import { Link } from 'react-router-dom'
-import { useMemo } from 'react'
+import { memo, useMemo } from 'react'
 import { useAppSelector } from '@/app/hooks'
 import { selectRecommendationsStatus, selectRecommendationsError } from '@/features/products/store/recommendationsSlice'
 import { selectRelatedProducts, selectBroughtTogetherProducts } from '@/features/products/store/recommendationsSlice'
@@ -101,4 +101,4 @@ const RecommendationSection = ({
     )
 }
 
-export default RecommendationSection
+export default memo(RecommendationSection)

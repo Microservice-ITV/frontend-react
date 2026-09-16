@@ -1,41 +1,43 @@
-// TODO: Replace with real data from API.
-const GOALS_DATA = [
-  {
-    label: 'Monthly Revenue',
-    current: 48295,
-    target: 55000,
-    color: 'bg-emerald-500',
-  },
-  {
-    label: 'New Customers',
-    current: 2847,
-    target: 3500,
-    color: 'bg-emerald-500',
-  },
-  {
-    label: 'Conversion Rate',
-    current: 3.2,
-    target: 5,
-    suffix: '%',
-    color: 'bg-blue-500',
-  },
-]
+type MonthlyGoalsCardProps = {
+  activeShops: number
+  totalShops: number
+  activeUsers: number
+  totalUsers: number
+  pendingShops: number
+  title?: string
+  description?: string
+  goalLabels?: [string, string, string]
+}
 
-const MonthlyGoalsCard = () => {
+const MonthlyGoalsCard = ({
+  activeShops,
+  totalShops,
+  activeUsers,
+  totalUsers,
+  pendingShops,
+  title = 'Platform Snapshot',
+  description = 'Real-time database totals',
+  goalLabels = ['Active Shops', 'Active Users', 'Pending Shops'],
+}: MonthlyGoalsCardProps) => {
+  const goals = [
+    { label: goalLabels[0], current: activeShops, target: totalShops, color: 'bg-emerald-500' },
+    { label: goalLabels[1], current: activeUsers, target: totalUsers, color: 'bg-blue-500' },
+    { label: goalLabels[2], current: pendingShops, target: pendingShops, color: 'bg-orange-500' },
+  ]
+
   return (
     <div className="flex h-full min-h-0 flex-col rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
       <div>
-        <h3 className="text-base font-bold text-slate-900">Monthly Goals</h3>
-        <p className="mt-0.5 text-xs text-slate-600">Track progress toward targets</p>
+        <h3 className="text-base font-bold text-slate-900">{title}</h3>
+        <p className="mt-0.5 text-xs text-slate-600">{description}</p>
       </div>
 
       <div className="mt-4 flex-1 space-y-5">
-        {GOALS_DATA.map((goal) => {
-          const percent = Math.min(
-            Math.round((goal.current / goal.target) * 100),
-            100
-          )
-          const suffix = goal.suffix ?? ''
+        {goals.map((goal) => {
+          const percent = goal.target > 0
+            ? Math.min(Math.round((goal.current / goal.target) * 100), 100)
+            : 0
+          const suffix = ''
           return (
             <div key={goal.label}>
               <div className="mb-1.5 flex items-end justify-between">

@@ -11,6 +11,10 @@ const FONT_STACK =
 export type AnnouncementBannerProps = {
   ctaLabel?: string;
   ctaTo?: string;
+  headline?: string;
+  supportingText?: string;
+  extraText?: string;
+  onDismiss?: () => void;
 };
 
 const Sparkle = ({
@@ -35,11 +39,16 @@ const Sparkle = ({
 const AnnouncementBanner = ({
   ctaLabel = "Shop Now",
   ctaTo = "/",
+  headline,
+  supportingText,
+  extraText,
+  onDismiss,
 }: AnnouncementBannerProps = {}) => {
   const [visible, setVisible] = useState(true);
 
   const handleDismiss = () => {
     setVisible(false);
+    onDismiss?.();
     window.dispatchEvent(new Event(ANNOUNCEMENT_DISMISS_EVENT));
   };
 
@@ -86,15 +95,21 @@ const AnnouncementBanner = ({
         />
 
         <p className="min-w-0 text-white">
-          <span className="font-bold text-[#FFD54A]">Free Shipping</span>
-          <span className="font-bold"> on orders over $50!</span>
+          <span className="font-bold text-[#FFD54A]">
+            {headline ?? "Free Shipping"}
+          </span>
+          <span className="font-bold">
+            {supportingText ? ` ${supportingText}` : " on orders over $50!"}
+          </span>
         </p>
 
         <span className="hidden items-center gap-x-3 text-white md:inline-flex">
           <span className="font-semibold text-white/80" aria-hidden="true">
             •
           </span>
-          <span className="font-semibold">Shop more, save more!</span>
+          <span className="font-semibold">
+            {extraText ?? "Shop more, save more!"}
+          </span>
           <span className="text-base" aria-hidden="true">
             🎁
           </span>
