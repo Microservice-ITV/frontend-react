@@ -29,7 +29,7 @@ const DataTablePagination = ({
       <p className="text-xs text-slate-600">
         Showing {start}-{end} of {totalItems} {itemLabel}
       </p>
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2">
           <span className="text-xs text-slate-600">Rows</span>
           <select

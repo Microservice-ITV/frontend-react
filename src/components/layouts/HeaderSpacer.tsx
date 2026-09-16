@@ -6,7 +6,7 @@ import {
   useAnnouncementVisibility,
 } from "./announment";
 
-const BASE_HEADER_HEIGHT = 112;
+const BASE_HEADER_HEIGHT = 68;
 
 const HeaderSpacer = () => {
   const { freeShippingVisible, nextDayVisible, newUserVisible, buyTwoVisible } =
