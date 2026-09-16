@@ -5,7 +5,6 @@ import { bootstrapAuth, fetchMe } from '@/features/auth/store/authThunks'
 import Navbar from '@/components/layouts/navbar/Navbar'
 import Footer from '@/components/layouts/Footer'
 import AppRoutes from '@/routes/AppRoutes'
-import HeaderSpacer from './components/layouts/HeaderSpacer'
 import { selectIsAuthBootstrapping } from './features/auth/store/authSelectors'
 import ScrollToTop from './components/routing/ScrollToTop'
 import GoogleAnalytics from './components/analytics/GoogleAnalytics'
@@ -73,7 +72,6 @@ function App() {
   return (
     <div className="flex min-h-screen flex-col bg-[#f5f5f5]">
       {!hideGlobalChrome && <Navbar />}
-      {!hideGlobalChrome && <HeaderSpacer />}
 
       <ScrollToTop />
       <GoogleAnalytics />
