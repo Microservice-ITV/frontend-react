@@ -94,6 +94,10 @@ import AnnouncementDetailPage from "@/features/announcements/pages/AnnouncementD
 import { PhoneAuthPage } from "@/features/auth/pages/PhoneAuthPage";
 import { PhoneOtpPage } from "@/features/auth/pages/PhoneOtpPage";
 import PromotionEnginePage from "@/features/promotions/pages/PromotionEnginePage";
+import SellerFinanceOverviewPage from "@/features/finance/pages/SellerFinanceOverviewPage";
+import SellerFinanceTransactionsPage from "@/features/finance/pages/SellerFinanceTransactionsPage";
+import AdminFinanceOverviewPage from "@/features/finance/pages/AdminFinanceOverviewPage";
+import AdminFinanceTransactionsPage from "@/features/finance/pages/AdminFinanceTransactionsPage";
 
 const AppRoutes = () => {
   return (
@@ -397,6 +401,26 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.sellerInvoices}
                 >
                   <SellerInvoicesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="finance"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerFinanceOverview}
+                >
+                  <SellerFinanceOverviewPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="finance/transactions"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerFinanceTransactions}
+                >
+                  <SellerFinanceTransactionsPage />
                 </ProtectedRoute>
               }
             />
@@ -830,6 +854,26 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.promotionsView}
                 >
                   <PromotionEnginePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="finance"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminFinanceOverview}
+                >
+                  <AdminFinanceOverviewPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="finance/transactions"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminFinanceTransactions}
+                >
+                  <AdminFinanceTransactionsPage />
                 </ProtectedRoute>
               }
             />

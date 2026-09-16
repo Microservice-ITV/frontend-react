@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Outlet } from "react-router-dom";
 import DashboardSidebar from "./DashboardSidebar";
 import DashboardTopbar from "./DashboardTopbar";
@@ -10,12 +10,49 @@ type DashboardLayoutProps = {
 
 const DashboardLayout = ({ area }: DashboardLayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  // Mobile: convert dashboard tables into expandable/collapsible row cards
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const mobileQuery = window.matchMedia("(max-width: 639px)");
+
+    const handleClick = (e: MouseEvent) => {
+      if (!mobileQuery.matches) return;
+      const target = e.target as HTMLElement;
+      if (
+        target.closest("button, a, input, select, textarea, label")
+      ) {
+        return;
+      }
+      const row = target.closest("tbody tr");
+      if (!row || row.querySelector("td[colspan]")) return;
+      const table = row.closest("table");
+      if (!table || !root.contains(table)) return;
+
+      const headerCells = Array.from(
+        table.querySelectorAll("thead th"),
+      ) as HTMLElement[];
+      Array.from(row.querySelectorAll("td")).forEach((td, i) => {
+        const label = headerCells[i]?.innerText?.trim();
+        if (label) td.dataset.label = label;
+      });
+      row.classList.toggle("is-expanded");
+    };
+
+    root.addEventListener("click", handleClick);
+    return () => root.removeEventListener("click", handleClick);
+  }, []);
 
   const openSidebar = () => setSidebarOpen(true);
   const closeSidebar = () => setSidebarOpen(false);
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-slate-50 text-slate-900">
+    <div
+      ref={rootRef}
+      className="dni-dashboard min-h-screen overflow-x-hidden bg-slate-50 text-slate-900"
+    >
       <DashboardSidebar
         area={area}
         isOpen={sidebarOpen}
