@@ -31,6 +31,7 @@ export type SellerOrderPayment = {
 export type PaymentRecord = {
   id: string
   orderId: string
+  invoiceNo?: string | null
   amount: number
   currency: string
   status: string
@@ -38,6 +39,44 @@ export type PaymentRecord = {
   paymentMethod?: string | null
   createdAt: string
   updatedAt: string
+  deliveryStatus?: string | null
+  deliveryStatusId?: number | null
+}
+
+export type PaymentDetailEvent = {
+  id: string
+  type: string
+  providerEventId?: string | null
+  eventId?: string | null
+  payload?: unknown
+  createdAt: string
+}
+
+export type PaymentDetailOrder = {
+  orderId: string
+  checkoutId: string
+  paymentId: string | null
+  reservationId: string | null
+  orderStatusId: number
+  orderStatus: string
+  trackingNumber?: string | null
+  trackingUrl?: string | null
+  courierCode?: string | null
+  courierName?: string | null
+  shipmentCreatedAt?: string | null
+}
+
+export type PaymentDetail = PaymentRecord & {
+  checkoutId: string
+  reservationId?: string | null
+  failureReason?: string | null
+  gatewayPaymentId?: string | null
+  gatewayStatus?: string | null
+  correlationId?: string | null
+  expiresAt?: string | null
+  clientSecret?: string | null
+  events: PaymentDetailEvent[]
+  order?: PaymentDetailOrder | null
 }
 
 export type SellerDelivery = {
@@ -252,5 +291,24 @@ export const sellerOrderApi = {
       }),
     ))
     return responses.flatMap((response) => response.data.data ?? [])
+  },
+
+  async paymentRecordsForShops(shopIds: string[]): Promise<PaymentRecord[]> {
+    if (shopIds.length === 0) return []
+    const responses = await Promise.all(
+      Array.from({ length: Math.ceil(shopIds.length / 50) }, (_, index) =>
+        orderClient.get<{ data: PaymentRecord[] }>('/orders/payments', {
+          params: { shop_ids: shopIds.slice(index * 50, index * 50 + 50).join(',') },
+        }),
+      ),
+    )
+    return responses.flatMap((response) => response.data.data ?? [])
+  },
+
+  async paymentDetail(paymentId: string): Promise<PaymentDetail> {
+    const response = await orderClient.get<{ data: PaymentDetail }>(
+      `/orders/payments/${paymentId}`,
+    )
+    return response.data.data
   },
 }
