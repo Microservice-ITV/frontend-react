@@ -14,6 +14,7 @@ import { setSessionCookie } from '@/utils/session'
 import { extractRoleFromUser } from '@/app/rbac/normalizers'
 import { getDefaultLandingPathByRole } from '@/app/rbac/navigation'
 import AuthBootstrapLoading from '@/components/ui/AuthBootstrapLoading'
+import { AIAssistantWidget } from '@/components/ai/AIAssistantWidget'
 
 function App() {
   const dispatch = useAppDispatch() // Typed dispatch function to send actions
@@ -83,6 +84,8 @@ function App() {
       </main>
 
       {!hideGlobalChrome && <Footer />}
+
+      <AIAssistantWidget />
     </div>
   )
 }
