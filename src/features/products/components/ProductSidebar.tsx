@@ -10,7 +10,8 @@ interface Props {
 }
 
 const ProductSidebar = ({ activeCategoryId }: Props) => {
-  const categories = useAppSelector((s) => s.categories.items);
+  const allCategories = useAppSelector((s) => s.categories.items);
+  const categories = allCategories.filter((cat) => (cat._count?.products ?? 0) > 0);
   const [expanded, setExpanded] = useState(false);
 
   const visibleCount = expanded ? categories.length : INITIAL_VISIBLE;
