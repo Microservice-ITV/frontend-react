@@ -81,6 +81,7 @@ export type SellerProductVariantPayload = {
 type CreateSellerProductPayload = {
   name: string
   description?: string
+  tags?: string[]
   slug: string
   categoryId: string
   shopId: string
@@ -93,6 +94,7 @@ type CreateSellerProductPayload = {
 type UpdateSellerProductPayload = Partial<{
   name: string
   description: string
+  tags: string[]
   slug: string
   categoryId: string
   shopId: string
@@ -121,6 +123,7 @@ export type ProductDetailReadItem = {
   isActive?: boolean
   imageUrl?: string
   images?: string[]
+  tags?: string[]
   variants?: Array<{
     id?: string
     variantId?: string
@@ -247,6 +250,9 @@ export const sellerProductApi = {
     if (payload.description) {
       formData.append('description', payload.description)
     }
+    if (payload.tags && payload.tags.length > 0) {
+      formData.append('tags', JSON.stringify(payload.tags))
+    }
     formData.append('slug', payload.slug)
     formData.append('categoryId', payload.categoryId)
     formData.append('shopId', payload.shopId)
@@ -274,6 +280,7 @@ export const sellerProductApi = {
     const formData = new FormData()
     if (payload.name !== undefined) formData.append('name', payload.name)
     if (payload.description !== undefined) formData.append('description', payload.description)
+    if (payload.tags !== undefined) formData.append('tags', JSON.stringify(payload.tags))
     if (payload.slug !== undefined) formData.append('slug', payload.slug)
     if (payload.categoryId !== undefined) formData.append('categoryId', payload.categoryId)
     if (payload.shopId !== undefined) formData.append('shopId', payload.shopId)

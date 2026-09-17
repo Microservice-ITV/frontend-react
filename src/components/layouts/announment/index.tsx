@@ -149,8 +149,8 @@ const buildAnnouncementComponent = (announcement: Announcement) => {
         component: AnnouncementNewUser,
         componentProps: {
           ...baseProps,
-          headline: titleText,
-          supportingText: secondaryText,
+          headline: getPrimaryContentText(announcement) ?? titleText,
+          supportingText: getExtraText(announcement) ?? secondaryText,
         },
       };
     case "BUY_TWO": {
@@ -323,7 +323,7 @@ export const Announcements = () => {
 
       <div
         key={activeAnnouncement.id}
-        style={{ animation: "announcementFade 500ms ease-in-out" }}
+        style={{ animation: "announcementFade 900ms ease-in-out" }}
       >
         <AnnouncementComponent {...componentProps} onDismiss={handleDismiss} />
       </div>

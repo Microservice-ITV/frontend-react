@@ -2,6 +2,7 @@ import { ecommerceReadRestClient } from '@/lib/api/ecommerceReadRestClient'
 import { productServiceAssetUrl } from '@/lib/api/apiConfig'
 import type { AxiosResponse } from 'axios'
 import type { Product } from '../types/productTypes'
+import { normalizeTags } from '@/features/products/utils/tagNormalization'
 
 function buildRecommendationImages(product: any): string[] {
     if (Array.isArray(product.images) && product.images.length > 0) {
@@ -35,14 +36,14 @@ export const recommendationApi = {
             throw new Error('Product ID is required.')
         }
 
-        const response = await ecommerceReadRestClient.get(`/catalog/products/${normalized}/related`)
+const response = await ecommerceReadRestClient.get(`/catalog/products/${normalized}/related`)
         const products = response.data.products.map((product: any) => ({
             id: product._id,
             name: product.title,
             price: typeof product.price === 'string' ? parseFloat(product.price) : product.price,
             images: buildRecommendationImages(product),
             categoryId: product.categoryId,
-            tags: product.tags || [],
+            tags: normalizeTags(product.tags),
         }))
 
         return {
@@ -60,6 +61,7 @@ export const recommendationApi = {
     /**
      * Fetch brought-together products for a given product ID
      * Calls ecommerce-read-service: GET /catalog/products/:productId/brought-together
+     * Calls ecommerce-read-service: GET /catalog/products/:productId/brought-together
      */
     getBroughtTogetherProducts: async (productId: string): Promise<AxiosResponse<BroughtTogetherProductsApiResponse>> => {
         const normalized = productId.trim()
@@ -74,7 +76,7 @@ export const recommendationApi = {
             price: typeof product.price === 'string' ? parseFloat(product.price) : product.price,
             images: buildRecommendationImages(product),
             categoryId: product.categoryId,
-            tags: product.tags || [],
+            tags: normalizeTags(product.tags),
         }))
 
         return {

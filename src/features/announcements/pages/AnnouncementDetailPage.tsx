@@ -40,6 +40,18 @@ const getSecondText = (announcement: Announcement): string | null => {
   return textElements[1]?.text?.trim() ?? null;
 };
 
+const getAnnouncementSummary = (announcement: Announcement): string =>
+  getElementText(announcement, [
+    "description",
+    "supportingtext",
+    "subtitle",
+  ]) ??
+  getElementText(announcement, ["summary", "message"]) ??
+  getSecondText(announcement) ??
+  announcement.name ??
+  announcement.announcementType?.name ??
+  "Explore this offer";
+
 const getDetailCta = (announcement: Announcement) => {
   switch (getAnnouncementTypeCode(announcement)) {
     case "NEXT_DAY":
@@ -57,6 +69,7 @@ const AnnouncementDetailPage = () => {
   const [otherAnnouncements, setOtherAnnouncements] = useState<Announcement[]>(
     [],
   );
+  const [activeAnnouncementCount, setActiveAnnouncementCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -66,6 +79,7 @@ const AnnouncementDetailPage = () => {
       if (!announcementId) {
         setAnnouncement(null);
         setOtherAnnouncements([]);
+        setActiveAnnouncementCount(0);
         setLoading(false);
         return;
       }
@@ -83,6 +97,7 @@ const AnnouncementDetailPage = () => {
 
         const activeAnnouncements = activeResponse.data ?? [];
         setAnnouncement(announcementResponse.data ?? null);
+        setActiveAnnouncementCount(activeAnnouncements.length);
         setOtherAnnouncements(
           activeAnnouncements.filter((item) => item.id !== announcementId),
         );
@@ -90,6 +105,7 @@ const AnnouncementDetailPage = () => {
         if (!ignore) {
           setAnnouncement(null);
           setOtherAnnouncements([]);
+          setActiveAnnouncementCount(0);
         }
       } finally {
         if (!ignore) {
@@ -114,12 +130,7 @@ const AnnouncementDetailPage = () => {
       return "";
     }
 
-    return (
-      getElementText(announcement, ["title", "headline", "heading"]) ??
-      announcement.name ??
-      announcement.announcementType?.name ??
-      "Announcement"
-    );
+    return announcement.title ?? announcement.name ?? "Announcement";
   }, [announcement]);
 
   const summary = useMemo(() => {
@@ -127,18 +138,7 @@ const AnnouncementDetailPage = () => {
       return "";
     }
 
-    return (
-      getElementText(announcement, [
-        "description",
-        "supportingtext",
-        "subtitle",
-      ]) ??
-      getElementText(announcement, ["summary", "message"]) ??
-      getSecondText(announcement) ??
-      announcement.name ??
-      announcement.announcementType?.name ??
-      "Explore this offer"
-    );
+    return getAnnouncementSummary(announcement);
   }, [announcement]);
 
   const extraText = useMemo(() => {
@@ -146,7 +146,7 @@ const AnnouncementDetailPage = () => {
       return "";
     }
 
-    return getSecondText(announcement) ?? "";
+    return announcement.description ?? "";
   }, [announcement]);
 
   const detailCta = useMemo(
@@ -264,7 +264,7 @@ const AnnouncementDetailPage = () => {
                           Campaign
                         </p>
                         <p className="mt-2 text-2xl font-black text-gray-900">
-                          {announcement.announcementType?.name ?? title}
+                          {title}
                         </p>
                       </div>
 
@@ -303,20 +303,12 @@ const AnnouncementDetailPage = () => {
               {otherAnnouncements.map((item) => {
                 const itemCode = getAnnouncementTypeCode(item);
                 const itemTitle =
+                  item.title ??
                   getElementText(item, ["title", "headline", "heading"]) ??
                   item.name ??
                   item.announcementType?.name ??
                   "Announcement";
-                const itemSummary =
-                  getElementText(item, [
-                    "description",
-                    "supportingtext",
-                    "subtitle",
-                  ]) ??
-                  getElementText(item, ["summary", "message"]) ??
-                  item.name ??
-                  item.announcementType?.name ??
-                  "Explore this offer";
+                const itemSummary = getAnnouncementSummary(item);
 
                 return (
                   <Link
@@ -351,7 +343,7 @@ const AnnouncementDetailPage = () => {
             </div>
           </div>
         </section>
-      ) : (
+      ) : activeAnnouncementCount === 0 ? (
         <div className="mx-auto max-w-7xl px-4 pb-8 pt-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <img
@@ -368,7 +360,7 @@ const AnnouncementDetailPage = () => {
             </p>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 };

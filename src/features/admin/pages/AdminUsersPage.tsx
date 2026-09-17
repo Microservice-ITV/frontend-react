@@ -26,7 +26,7 @@ import type { AdminUserRow } from '../types/userTypes'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const ROWS_PER_PAGE = 20
+const ROWS_PER_PAGE = 10
 
 type VerifiedFilter = 'all' | 'verified' | 'unverified'
 
@@ -172,42 +172,43 @@ const AdminUsersPage = () => {
         </div>
       )}
 
-      {/* Filter tabs + Search bar */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap gap-1">
-          {VERIFIED_TABS.map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => {
-                setVerifiedFilter(tab.key)
-                setPage(1)
-              }}
-              className={`rounded-lg px-4 py-2 text-xs font-medium transition-colors cursor-pointer ${
-                verifiedFilter === tab.key
-                  ? 'bg-slate-200 text-slate-900'
-                  : 'bg-white text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+      {/* Table card */}
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-semibold text-slate-900">All Users</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative w-full sm:w-52">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="search"
+                placeholder="Search name or email..."
+                value={search}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-8 pr-3 text-xs outline-none placeholder:text-slate-400 focus:border-emerald-500"
+              />
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {VERIFIED_TABS.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => {
+                    setVerifiedFilter(tab.key)
+                    setPage(1)
+                  }}
+                  className={`rounded px-2.5 py-1 text-xs font-medium ${
+                    verifiedFilter === tab.key
+                      ? 'bg-slate-200 text-slate-900'
+                      : 'bg-white text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
-        <div className="relative w-full sm:max-w-xs">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="search"
-            placeholder="Search name or email…"
-            value={search}
-            onChange={(e) => handleSearch(e.target.value)}
-            className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-4 text-sm outline-none placeholder:text-slate-400 focus:border-emerald-500"
-          />
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px]">
             <thead>

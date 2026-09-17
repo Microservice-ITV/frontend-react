@@ -11,9 +11,11 @@ export type DashboardMenuItem = {
   requiredCapabilities: readonly Capability[]
   icon?: LucideIcon
   badge?: string | number
+  children?: DashboardMenuItem[]
 }
 
 export type DashboardMenuSection = {
   title: string
   items: DashboardMenuItem[]
+  hideTitle?: boolean
 }

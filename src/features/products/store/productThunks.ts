@@ -21,6 +21,7 @@ export const searchProducts = createAsyncThunk<
             price: typeof product.price === 'string' ? parseFloat(product.price) : product.price,
             images: product.images ?? [],
             categoryId: product.categoryId,
+            tags: product.tags ?? [],
         }))
     } catch (error: unknown) {
         const message =
@@ -46,6 +47,7 @@ export const fetchProductsByCategory = createAsyncThunk<
             price: typeof product.price === 'string' ? parseFloat(product.price) : product.price,
             images: product.images ?? [],
             categoryId: product.categoryId,
+            tags: product.tags ?? [],
         }))
         return products
     } catch (error: unknown) {
@@ -143,6 +145,7 @@ export const fetchProductDetail = createAsyncThunk<
             brandName: product.brandName,
             primaryVariantId: product.primaryVariantId,
             variants: product.variants ?? [],
+            tags: product.tags ?? [],
         }
     } catch (err: unknown) {
         const message =
