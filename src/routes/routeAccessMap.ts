@@ -39,6 +39,7 @@ export const ROUTE_ACCESS = {
   superAdminSettings: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   superAdminHelpSupport: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   superAdminRbac: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+  superAdminAccounting: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   sellerFinanceOverview: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
   sellerFinanceTransactions: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
   superAdminFinanceOverview: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
