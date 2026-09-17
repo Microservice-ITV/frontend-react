@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import ProductGrid, { ProductGridSkeleton } from '@/features/products/components/ProductGrid'
+import Pagination from '@/components/ui/Pagination'
 import { fetchRecentProducts } from '@/features/products/store/productThunks'
 
-const PAGE_SIZE = 30
+const PAGE_SIZE = 10
 
 const RecentlyAddedPage = () => {
   const dispatch = useAppDispatch()
@@ -104,38 +105,12 @@ const RecentlyAddedPage = () => {
                 <p className="text-xs text-slate-600">
                   Showing {pageStart}-{pageEnd} of {recentProducts.length} products
                 </p>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={safePage === 1}
-                    className="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 disabled:opacity-50 cursor-pointer"
-                  >
-                    Previous
-                  </button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => setCurrentPage(p)}
-                      className={`px-3 py-1.5 text-xs cursor-pointer ${
-                        safePage === p
-                          ? 'bg-[var(--dni-primary)] text-white'
-                          : 'text-slate-600 hover:bg-slate-100'
-                      }`}
-                    >
-                      {p}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={safePage === totalPages}
-                    className="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 disabled:opacity-50 cursor-pointer"
-                  >
-                    Next
-                  </button>
-                </div>
+                <Pagination
+                  page={safePage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                  className="justify-center sm:justify-end"
+                />
               </div>
             )}
           </>
