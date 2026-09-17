@@ -76,6 +76,8 @@ import CatalogFormPage from "@/features/seller/pages/CatalogFormPage";
 import { CATALOG_ENTITY_CONFIG } from "@/features/seller/config/catalogEntityConfig";
 import SellerNotificationsPage from "@/features/seller/pages/SellerNotificationsPage";
 import SellerInvoicesPage from "@/features/seller/pages/SellerInvoicesPage";
+import PaymentsPage from "@/features/seller/pages/PaymentsPage";
+import PaymentDetailPage from "@/features/seller/pages/PaymentDetailPage";
 import SellerChatPage from "@/features/seller/pages/SellerChatPage";
 import SellerHelpSupportPage from "@/features/seller/pages/SellerHelpSupportPage";
 import SellerRegisterPage from "@/features/seller/pages/SellerRegisterPage";
@@ -241,6 +243,22 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.sellerOrders}
                 >
                   <SellerOrderDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="payments"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerOrders}>
+                  <PaymentsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="payments/:paymentId"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerOrders}>
+                  <PaymentDetailPage />
                 </ProtectedRoute>
               }
             />
@@ -564,6 +582,22 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.superAdminShops}
                 >
                   <AdminShopsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="payments"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                  <PaymentsPage admin />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="payments/:paymentId"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                  <PaymentDetailPage />
                 </ProtectedRoute>
               }
             />

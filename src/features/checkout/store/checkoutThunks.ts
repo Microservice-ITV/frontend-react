@@ -39,6 +39,7 @@ export const checkoutCart = createAsyncThunk<
             const response = await orderClient.post<SagaCheckoutResponse>('/saga/orders/checkout', {
                 idempotency_key: idempotencyKey,
                 user_id: String(userId),
+                payment_method: state.checkout.paymentMethod,
                 items: selectedItems.map(item => ({
                     product_id: item.productId,
                     qty: item.quantity,
