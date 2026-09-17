@@ -147,8 +147,8 @@ const ProductCard = ({ product }: ProductCardProps) => {
 
   const meta = useMemo(() => cardMeta(product.id), [product.id])
   const badgeLabel = useMemo(
-    () => formatBadgeLabel(product.tags?.[0] ?? product.text) || meta.badge.label,
-    [product.tags, product.text, meta.badge.label],
+    () => formatBadgeLabel(product.tags?.[0]) || meta.badge.label,
+    [product.tags, meta.badge.label],
   )
 
   const handleWishlist = (e: MouseEvent) => {
