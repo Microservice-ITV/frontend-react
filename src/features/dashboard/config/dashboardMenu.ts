@@ -25,6 +25,7 @@ import {
   Stamp,
   Palette,
   Ruler,
+  Calculator,
 } from 'lucide-react'
 import { CAPABILITIES } from '@/app/rbac/capabilities'
 import type { DashboardMenuSection } from '../types/dashboardTypes'
@@ -293,6 +294,64 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         area: 'super_admin',
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
         icon: Shield,
+      },
+    ],
+  },
+  {
+    title: 'ACCOUNTING',
+    hideTitle: true,
+    items: [
+      {
+        key: 'admin-accounting',
+        label: 'Accounting',
+        to: '/super-admin/accounting/overview',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: Calculator,
+        children: [
+          {
+            key: 'admin-accounting-overview',
+            label: 'Overview',
+            to: '/super-admin/accounting/overview',
+            area: 'super_admin',
+            requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+          },
+          {
+            key: 'admin-accounting-income',
+            label: 'Income',
+            to: '/super-admin/accounting/income',
+            area: 'super_admin',
+            requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+          },
+          {
+            key: 'admin-accounting-expenses',
+            label: 'Expenses',
+            to: '/super-admin/accounting/expenses',
+            area: 'super_admin',
+            requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+          },
+          {
+            key: 'admin-accounting-journal-entries',
+            label: 'Journal Entries',
+            to: '/super-admin/accounting/journal-entries',
+            area: 'super_admin',
+            requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+          },
+          {
+            key: 'admin-accounting-reports',
+            label: 'Reports',
+            to: '/super-admin/accounting/reports',
+            area: 'super_admin',
+            requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+          },
+          {
+            key: 'admin-accounting-chart-of-accounts',
+            label: 'Chart of Accounts',
+            to: '/super-admin/accounting/chart-of-accounts',
+            area: 'super_admin',
+            requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+          },
+        ],
       },
     ],
   },

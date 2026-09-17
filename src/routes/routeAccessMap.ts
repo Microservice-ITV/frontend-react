@@ -39,4 +39,5 @@ export const ROUTE_ACCESS = {
   superAdminSettings: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   superAdminHelpSupport: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   superAdminRbac: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+  superAdminAccounting: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
 } as const

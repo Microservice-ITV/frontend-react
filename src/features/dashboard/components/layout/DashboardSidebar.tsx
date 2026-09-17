@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import {
   X,
   Zap,
@@ -25,6 +25,7 @@ type TooltipState = {
 
 const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
   const sections = useDashboardMenu(area);
+  const location = useLocation();
   const [collapsedSections, setCollapsedSections] = useState<
     Record<string, boolean>
   >({});
@@ -54,40 +55,87 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
 
   const hideTooltip = () => setTooltip(null);
 
-  const renderItems = (items: (typeof sections)[number]["items"]) => (
+  const renderItems = (
+    items: (typeof sections)[number]["items"],
+    nested = false,
+  ) => (
     <div className="mt-1 space-y-0.5">
       {items.map((item) => {
         const Icon = item.icon;
+        const hasChildren = item.children && item.children.length > 0;
+        const isParentActive = item.children?.some((child) =>
+          location.pathname.startsWith(child.to),
+        );
+        const isItemCollapsed = collapsedSections[item.key] ?? false;
+        const isItemExpanded = collapsedSections[item.key] ?? Boolean(isParentActive);
         return (
-          <NavLink
-            key={item.key}
-            to={item.to}
-            onClick={onClose}
-            onMouseEnter={(e) => showTooltip(e, item.label, item.badge)}
-            onMouseLeave={hideTooltip}
-            className={({ isActive }) =>
-              `group relative flex items-center rounded-md py-2 text-xs transition-colors ${
-                isSidebarCollapsed ? "justify-center px-2" : "gap-3 px-3"
-              } ${
-                isActive
-                  ? "bg-emerald-600 text-white"
-                  : "text-slate-300 hover:bg-slate-900 hover:text-white"
-              }`
-            }
-          >
-            {Icon && <Icon size={18} className="shrink-0" />}
+          <div key={item.key}>
+            <div className="flex items-center">
+              {hasChildren && !isSidebarCollapsed ? (
+                <button
+                  type="button"
+                  onClick={() => toggleSection(item.key)}
+                  className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-slate-400 transition-colors hover:bg-slate-900 hover:text-slate-300"
+                  aria-label={`${isItemExpanded ? "Collapse" : "Expand"} ${item.label}`}
+                  aria-expanded={isItemExpanded}
+                >
+                  <span>{item.label}</span>
+                  <ChevronDown
+                    size={14}
+                    className={`transition-transform duration-200 ease-out ${
+                      isItemExpanded ? "rotate-0" : "-rotate-90"
+                    }`}
+                  />
+                </button>
+              ) : (
+                <NavLink
+                  to={item.to}
+                  onClick={onClose}
+                  onMouseEnter={(e) => showTooltip(e, item.label, item.badge)}
+                  onMouseLeave={hideTooltip}
+                  className={({ isActive }) =>
+                    `group relative flex min-w-0 flex-1 items-center rounded-md py-2 text-xs transition-colors ${
+                      isSidebarCollapsed
+                        ? "justify-center px-2"
+                        : nested
+                          ? "gap-3 pl-9 pr-3"
+                          : "gap-3 px-3"
+                    } ${
+                      isActive || isParentActive
+                        ? "bg-emerald-600 text-white"
+                        : "text-slate-300 hover:bg-slate-900 hover:text-white"
+                    }`
+                  }
+                >
+                  {Icon && <Icon size={18} className="shrink-0" />}
 
-            {!isSidebarCollapsed && (
-              <>
-                <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                {item.badge != null && (
-                  <span className="shrink-0 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-medium text-white">
-                    {item.badge}
-                  </span>
-                )}
-              </>
+                  {!isSidebarCollapsed && (
+                    <>
+                      <span className="min-w-0 flex-1 truncate">
+                        {item.label}
+                      </span>
+                      {item.badge != null && (
+                        <span className="shrink-0 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-medium text-white">
+                          {item.badge}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </NavLink>
+              )}
+            </div>
+            {!isSidebarCollapsed && hasChildren && (
+              <div
+                className={`grid transition-[grid-template-rows] duration-200 ease-out ${
+                  isItemExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+                }`}
+              >
+                <div className="overflow-hidden space-y-0.5">
+                  {renderItems(item.children!, true)}
+                </div>
+              </div>
             )}
-          </NavLink>
+          </div>
         );
       })}
     </div>
@@ -152,7 +200,9 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
 
           return (
             <div key={section.title} className="mb-4">
-              {isSidebarCollapsed ? (
+              {section.hideTitle ? (
+                renderItems(section.items)
+              ) : isSidebarCollapsed ? (
                 <>
                   <div className="mx-1 mb-2 border-t border-slate-800" />
                   {renderItems(section.items)}
