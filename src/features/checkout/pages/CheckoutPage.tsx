@@ -34,6 +34,39 @@ type StoredCheckoutSession = {
 
 const terminalCheckoutStatuses = new Set(['PAID', 'COMPLETED', 'FAILED', 'FAILED_PAYMENT', 'EXPIRED'])
 const terminalSagaStatuses = new Set(['COMPLETED', 'FAILED', 'TIMEOUT'])
+const stockReadyCheckoutStatuses = new Set([
+    'STOCK_CONFIRMED',
+    'PAYMENT_INTENT_READY',
+    'PAYMENT_PENDING_CONFIRMATION',
+    'PENDING_PAYMENT',
+    'PAID',
+    'COMPLETED',
+])
+
+const CheckoutSummarySkeleton = () => (
+    <div
+        aria-busy="true"
+        aria-label="Confirming stock availability"
+        className="animate-pulse bg-[#fffefb] border-t border-dashed border-black/10 px-6 py-6"
+    >
+        <div className="space-y-4">
+            <div className="flex justify-between">
+                <div className="h-4 w-32 rounded bg-gray-200" />
+                <div className="h-4 w-16 rounded bg-gray-200" />
+            </div>
+            <div className="flex justify-between">
+                <div className="h-4 w-28 rounded bg-gray-200" />
+                <div className="h-4 w-16 rounded bg-gray-200" />
+            </div>
+            <div className="h-24 rounded-xl bg-gray-100" />
+            <div className="flex justify-between border-t border-black/10 pt-4">
+                <div className="h-5 w-28 rounded bg-gray-200" />
+                <div className="h-8 w-24 rounded bg-gray-200" />
+            </div>
+            <div className="h-12 w-full rounded bg-gray-200" />
+        </div>
+    </div>
+)
 
 const CheckoutPage = () => {
     const dispatch = useAppDispatch()
@@ -92,6 +125,7 @@ const CheckoutPage = () => {
     const sagaId = useAppSelector(state => state.checkout.sagaId)
     const sagaStatus = useAppSelector(state => state.checkout.sagaStatus)
     const checkoutStorageKey = authUser?.id ? `dni.active-checkout.${authUser.id}` : null
+    const isStockReady = paymentStatus ? stockReadyCheckoutStatuses.has(paymentStatus) : false
 
     const refreshAddresses = useCallback(async () => {
         if (!authUser?.id) return
@@ -330,8 +364,6 @@ const CheckoutPage = () => {
         }
     }, [dispatch, currentCheckout, loading, hasDeliveryAddress])
 
-    // Restart checkout when the user switches Prepaid ↔ COD after a session exists,
-    // so payment_method on the server matches the UI selection.
     useEffect(() => {
         if (!hasDeliveryAddress) return
         if (!currentCheckout?.checkout_id) return
@@ -447,13 +479,17 @@ const CheckoutPage = () => {
 
                     {/* RIGHT COLUMN - Order Summary */}
                     <div className="lg:sticky lg:top-24 lg:self-start mt-4">
-                        <CheckoutSummary
-                            checkout={checkout}
-                            hasDeliveryAddress={hasDeliveryAddress}
-                            onRequireAddress={openAddressSelectionModal}
-                            deliveryAddress={selectedDeliveryAddress}
-                            cartItems={items}
-                        />
+                        {isStockReady ? (
+                            <CheckoutSummary
+                                checkout={checkout}
+                                hasDeliveryAddress={hasDeliveryAddress}
+                                onRequireAddress={openAddressSelectionModal}
+                                deliveryAddress={selectedDeliveryAddress}
+                                cartItems={items}
+                            />
+                        ) : (
+                            <CheckoutSummarySkeleton />
+                        )}
                     </div>
                 </div>
                     {sagaId && (

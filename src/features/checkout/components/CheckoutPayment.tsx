@@ -4,7 +4,6 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   setPaymentMethod,
   selectPaymentMethod,
-  selectSessionPaymentMethod,
   type PaymentMethod,
 } from "../store/checkoutSlice";
 import { visaIcon } from "@/assets/icons";
@@ -16,19 +15,12 @@ type CheckoutPaymentProps = {
 const CheckoutPayment = ({ totalAmount }: CheckoutPaymentProps) => {
   const dispatch = useDispatch();
   const selectedPaymentMethod = useSelector(selectPaymentMethod);
-  const sessionPaymentMethod = useSelector(selectSessionPaymentMethod);
-  const sessionLocked = sessionPaymentMethod !== null;
 
   const handlePaymentMethodChange = useCallback(
     (method: PaymentMethod) => {
-      if (sessionLocked && method !== sessionPaymentMethod) {
-        // CheckoutPage restarts the session when paymentMethod diverges.
-        dispatch(setPaymentMethod(method));
-        return;
-      }
       dispatch(setPaymentMethod(method));
     },
-    [dispatch, sessionLocked, sessionPaymentMethod],
+    [dispatch],
   );
 
   const isPrepaid = selectedPaymentMethod === "card";
