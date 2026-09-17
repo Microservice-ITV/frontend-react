@@ -393,6 +393,9 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
           },
         ],
       },
+    ],
+  },
+  {
     title: 'FINANCE',
     items: [
       {
