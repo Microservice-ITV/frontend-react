@@ -330,7 +330,7 @@ const CheckoutPage = () => {
         }
     }, [dispatch, currentCheckout, loading, hasDeliveryAddress])
 
-    // Restart checkout when the user switches Card ↔ COD after a session exists,
+    // Restart checkout when the user switches Prepaid ↔ COD after a session exists,
     // so payment_method on the server matches the UI selection.
     useEffect(() => {
         if (!hasDeliveryAddress) return
@@ -439,10 +439,10 @@ const CheckoutPage = () => {
                 />
                 <CheckoutItems checkout={checkout} />
                 
-                <div className="grid lg:grid-cols-[1fr_380px] gap-6 lg:gap-8 mt-4">
+                <div className="grid lg:grid-cols-[1fr_400px] gap-6 lg:gap-8 mt-4">
                     {/* LEFT COLUMN - Payment Method Sections */}
                     <div className="space-y-4">
-                        <CheckoutPayment />
+                        <CheckoutPayment totalAmount={checkout.totalPayment} />
                     </div>
 
                     {/* RIGHT COLUMN - Order Summary */}
