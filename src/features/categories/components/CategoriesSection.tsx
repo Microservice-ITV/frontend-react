@@ -13,6 +13,10 @@ const CategoriesSection = () => {
     }
   }, [dispatch, status]);
 
+  const categoriesWithProducts = items.filter(
+    (cat) => (cat._count?.products ?? 0) > 0
+  );
+
   return (
     <section className="pt-6">
       <h1 className="mb-5 px-4 sm:px-6 text-base uppercase font-semibold text-gray-600">
@@ -29,7 +33,7 @@ const CategoriesSection = () => {
         </div>
       )}
 
-      {status === "succeeded" && <CategoryGrid items={items} />}
+      {status === "succeeded" && <CategoryGrid items={categoriesWithProducts} />}
     </section>
   );
 };

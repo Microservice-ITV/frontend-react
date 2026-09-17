@@ -55,6 +55,14 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
 
   const hideTooltip = () => setTooltip(null);
 
+    const allItemPaths = sections.flatMap((section) =>
+    section.items.map((item) => item.to),
+  );
+  const isParentPath = (path: string) =>
+    allItemPaths.some(
+      (other) => other !== path && other.startsWith(`${path}/`),
+    );
+
   const renderItems = (
     items: (typeof sections)[number]["items"],
     nested = false,
@@ -67,7 +75,9 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
           location.pathname.startsWith(child.to),
         );
         const isItemCollapsed = collapsedSections[item.key] ?? false;
-        const isItemExpanded = collapsedSections[item.key] ?? Boolean(isParentActive);
+        const isItemExpanded =
+          collapsedSections[item.key] ?? Boolean(isParentActive);
+
         return (
           <div key={item.key}>
             <div className="flex items-center">
@@ -90,8 +100,11 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
               ) : (
                 <NavLink
                   to={item.to}
+                  end={isParentPath(item.to)}
                   onClick={onClose}
-                  onMouseEnter={(e) => showTooltip(e, item.label, item.badge)}
+                  onMouseEnter={(e) =>
+                    showTooltip(e, item.label, item.badge)
+                  }
                   onMouseLeave={hideTooltip}
                   className={({ isActive }) =>
                     `group relative flex min-w-0 flex-1 items-center rounded-md py-2 text-xs transition-colors ${
@@ -124,10 +137,13 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
                 </NavLink>
               )}
             </div>
+
             {!isSidebarCollapsed && hasChildren && (
               <div
                 className={`grid transition-[grid-template-rows] duration-200 ease-out ${
-                  isItemExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+                  isItemExpanded
+                    ? "grid-rows-[1fr]"
+                    : "grid-rows-[0fr]"
                 }`}
               >
                 <div className="overflow-hidden space-y-0.5">

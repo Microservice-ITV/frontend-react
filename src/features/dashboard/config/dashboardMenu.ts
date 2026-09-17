@@ -26,6 +26,8 @@ import {
   Palette,
   Ruler,
   Calculator,
+  DollarSign,
+  Receipt,
 } from 'lucide-react'
 import { CAPABILITIES } from '@/app/rbac/capabilities'
 import type { DashboardMenuSection } from '../types/dashboardTypes'
@@ -118,6 +120,27 @@ export const DASHBOARD_MENU_SELLER: DashboardMenuSection[] = [
         area: 'seller',
         requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
         icon: FileText,
+      },
+    ],
+  },
+  {
+    title: 'FINANCE',
+    items: [
+      {
+        key: 'seller-finance-overview',
+        label: 'Finance Overview',
+        to: '/seller/finance',
+        area: 'seller',
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: DollarSign,
+      },
+      {
+        key: 'seller-finance-transactions',
+        label: 'Transactions',
+        to: '/seller/finance/transactions',
+        area: 'seller',
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: Receipt,
       },
     ],
   },
@@ -352,6 +375,24 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
             requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
           },
         ],
+      },
+    title: 'FINANCE',
+    items: [
+      {
+        key: 'admin-finance-overview',
+        label: 'Finance Overview',
+        to: '/super-admin/finance',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: DollarSign,
+      },
+      {
+        key: 'admin-finance-transactions',
+        label: 'Transactions',
+        to: '/super-admin/finance/transactions',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: Receipt,
       },
     ],
   },

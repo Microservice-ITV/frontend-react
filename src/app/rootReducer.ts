@@ -21,6 +21,8 @@ import heroBannerReducer from "@/features/heroBanners/store/heroBannerSlice";
 import promoCardReducer from "@/features/promoCards/store/promoCardSlice";
 import announcementTypeReducer from "@/features/announcements/store/announcementTypeSlice";
 import announcementReducer from "@/features/announcements/store/announcementSlice";
+import aiAssistantReducer from "@/features/ai/store/aiAssistantSlice";
+import wishlistReducer from "@/features/wishlist/store/wishlistSlice";
 
 // Single source of truth for all state
 const rootReducer = combineReducers({
@@ -47,6 +49,8 @@ const rootReducer = combineReducers({
   promoCards: promoCardReducer,
   announcementTypes: announcementTypeReducer,
   announcements: announcementReducer,
+  aiAssistant: aiAssistantReducer,
+  wishlist: wishlistReducer,
 });
 
 export default rootReducer;

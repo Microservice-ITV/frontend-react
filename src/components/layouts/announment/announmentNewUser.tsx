@@ -108,13 +108,7 @@ const AnnouncementNewUser = ({
 
         <span className="hidden h-[30px] shrink-0 flex-col items-center justify-center rounded-md bg-[#FFC93C] px-3 leading-tight sm:inline-flex">
           <span className="text-[11px] font-bold text-[#0B5D3B]">
-            {supportingText ?? (
-              <>
-                Welcome to our store! Get{" "}
-                <span className="font-bold text-[13px]">$12</span> off your
-                first order
-              </>
-            )}
+            {supportingText}
           </span>
         </span>
 

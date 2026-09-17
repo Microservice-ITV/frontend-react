@@ -3,6 +3,7 @@ import { ecommerceReadRestClient } from '@/lib/api/ecommerceReadRestClient'
 import type { AxiosResponse } from 'axios'
 import { productClient } from '@/lib/api/productClient'
 import type { ProductVariant } from '@/features/products/types/productTypes'
+import { normalizeTags } from '@/features/products/utils/tagNormalization'
 
 // API RESPONSE TYPES (RAW BACKEND)
 interface ProductsApiResponse {
@@ -73,6 +74,7 @@ type CatalogProductGraphItem = {
     productId: string
     title: string
     price: number
+    tags?: string[]
     images?: string[]
     /** Read model may set this while `images` is still empty (event ordering). */
     imageUrl?: string
@@ -136,6 +138,7 @@ type CatalogProductDetailGraph = {
     shopId: string
     images: string[]
     imageUrl: string
+    tags?: string[]
     variants: CatalogVariantGraph[]
 }
 
@@ -146,6 +149,7 @@ const CATALOG_PRODUCTS_BY_CATEGORY_QUERY = `
         productId
         title
         price
+        tags
         images
         imageUrl
         categoryId
@@ -182,6 +186,7 @@ const CATALOG_PRODUCT_BY_ID_QUERY = `
       shopId
       images
       imageUrl
+      tags
       variants {
         variantId
         sku
@@ -349,6 +354,7 @@ export const productApi = {
                 id: row.productId,
                 name: row.title,
                 price: row.price,
+                tags: normalizeTags(row.tags),
                 images: buildCatalogListImages(row),
                 categoryId: row.categoryId ?? '',
             })),
@@ -390,6 +396,7 @@ export const productApi = {
                 id: row.productId,
                 name: row.title,
                 price: row.price,
+                tags: normalizeTags(row.tags),
                 images: buildCatalogListImages(row),
                 categoryId: row.categoryId ?? '',
             })),
@@ -475,6 +482,7 @@ export const productApi = {
                 brandName: p.brandName ?? '',
                 primaryVariantId: p.primaryVariantId?.trim() ? p.primaryVariantId : null,
                 variants,
+                tags: normalizeTags(p.tags),
             },
         }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { fetchProductsByCategory } from '@/features/products/store/productThunks'
@@ -6,7 +6,10 @@ import { fetchCategories } from '@/features/categories/store/categoryThunks'
 import ProductSidebar from '../components/ProductSidebar'
 import ProductSortBar from '../components/ProductSortBar'
 import ProductGrid from '../components/ProductGrid'
+import Pagination from '@/components/ui/Pagination'
 import { normalizeProductSort, type ProductSortKey } from '../utils/productSort'
+
+const PAGE_SIZE = 12
 
 const ProductListPage = () => {
   const { id } = useParams<{ id: string }>()
@@ -15,6 +18,7 @@ const ProductListPage = () => {
   const { items, status } = useAppSelector((s) => s.products)
   const { items: categories, status: categoriesStatus } = useAppSelector((s) => s.categories)
   const [sort, setSort] = useState<ProductSortKey>(() => normalizeProductSort(searchParams.get('sort')))
+  const [currentPage, setCurrentPage] = useState(1)
 
   useEffect(() => {
     const nextSort = normalizeProductSort(searchParams.get('sort'))
@@ -30,6 +34,7 @@ const ProductListPage = () => {
   useEffect(() => {
     if (id) {
       dispatch(fetchProductsByCategory({ categoryId: id, sort }))
+      setCurrentPage(1)
     }
   }, [dispatch, id, sort])
 
@@ -39,6 +44,15 @@ const ProductListPage = () => {
     next.set('sort', nextSort)
     setSearchParams(next, { replace: true })
   }
+
+  const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE))
+  const safePage = Math.min(currentPage, totalPages)
+  const pagedProducts = useMemo(
+    () => items.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [items, safePage],
+  )
+  const pageStart = items.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1
+  const pageEnd = Math.min(safePage * PAGE_SIZE, items.length)
 
   return (
     <div className="bg-[#f5f5f5]">
@@ -57,7 +71,25 @@ const ProductListPage = () => {
               </div>
             )}
 
-            {status === 'succeeded' && <ProductGrid products={items} />}
+            {status === 'succeeded' && (
+              <>
+                <ProductGrid products={pagedProducts} />
+
+                {totalPages > 1 && (
+                  <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
+                    <p className="text-xs text-slate-600">
+                      Showing {pageStart}-{pageEnd} of {items.length} products
+                    </p>
+                    <Pagination
+                      page={safePage}
+                      totalPages={totalPages}
+                      onPageChange={setCurrentPage}
+                      className="justify-center sm:justify-end"
+                    />
+                  </div>
+                )}
+              </>
+            )}
           </section>
         </div>
       </div>
