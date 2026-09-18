@@ -72,7 +72,7 @@ const FLASH_DEALS = [
   },
 ];
 
-const CARD_WIDTH_PX = 240;
+const CARD_WIDTH_PX = 220;
 const GAP_PX = 16;
 const COLUMNS_PER_STEP = 4;
 
@@ -142,28 +142,29 @@ const FlashDealsSection = () => {
 
   return (
     <section className="relative w-full border border-[var(--dni-cart-border)] bg-white">
-      <div className="flex items-center justify-between gap-4 px-4 py-4 border-[var(--dni-cart-border)]">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center gap-4 px-4 py-4 border-[var(--dni-cart-border)]">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
           <div className="flex items-center gap-2 text-[var(--dni-primary)]">
             <Flame className="h-7 w-7 fill-[var(--dni-primary)]" />
-            <span className="text-2xl font-black uppercase tracking-[0.04em] text-[var(--dni-primary)]">
+            <span className="text-xl font-bold uppercase tracking-[0.04em] text-[var(--dni-primary)]">
               Flash Deals
             </span>
           </div>
 
           <div className="flex items-center gap-2 ml-4 border-l border-[var(--dni-cart-border)] pl-4">
-            {timerBlocks.map((block, idx) => (
-              <div key={idx} className="flex items-center gap-1.5">
-                <span className="flex h-10 min-w-[36px] items-center justify-center bg-[var(--dni-primary)] px-2 text-[13px] font-bold text-white font-mono">
-                  {block}
-                </span>
-                {idx < 2 && (
-                  <span className="text-[13px] font-bold text-slate-700 font-mono">
-                    :
+            <div className="flex items-start gap-1.5">
+              {timerBlocks.map((block, idx) => (
+                <div key={idx} className="flex flex-col items-center">
+                  <div className="relative flex h-10 min-w-[42px] items-center justify-center overflow-hidden rounded-md bg-[var(--dni-primary)] px-2 text-sm font-bold text-white font-mono shadow-inner">
+                    <span className="absolute inset-x-0 top-0 h-1/2 border-b border-white/10 bg-[var(--dni-primary)]" />
+                    <span className="relative">{block}</span>
+                  </div>
+                  <span className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                    {["Hrs", "Min", "Sec"][idx]}
                   </span>
-                )}
-              </div>
-            ))}
+                </div>
+              ))}
+            </div>
             <span className="ml-1 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
               Ends Soon
             </span>
@@ -172,7 +173,7 @@ const FlashDealsSection = () => {
 
         <Link
           to="/flash-deals"
-          className="group inline-flex items-center gap-1.5 text-sm font-bold text-[var(--dni-primary)] hover:text-[var(--dni-primary-hover)] transition-colors"
+          className="group inline-flex shrink-0 items-center gap-1.5 text-sm font-bold text-[var(--dni-primary)] hover:text-[var(--dni-primary-hover)] transition-colors"
         >
           <span>View All</span>
           <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />

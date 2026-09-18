@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import ProductGrid from "@/features/products/components/ProductGrid";
 import { fetchRecentProducts } from "@/features/products/store/productThunks";
+import { ChevronRight } from "lucide-react";
 
 const HOME_PREVIEW_COUNT = 10;
 
@@ -27,7 +28,10 @@ const RecentlyAddedSection = () => {
   );
 
   return (
-    <section className="px-4 py-4 sm:px-6" aria-labelledby="recently-added-heading">
+    <section
+      className="px-4 py-4 sm:px-6"
+      aria-labelledby="recently-added-heading"
+    >
       <div className="mb-5 flex items-center justify-between gap-3">
         <h1
           id="recently-added-heading"
@@ -38,9 +42,10 @@ const RecentlyAddedSection = () => {
         {showViewAll && (
           <Link
             to="/recently-added"
-            className="shrink-0 text-sm font-medium text-[var(--dni-primary)] hover:underline"
+            className="group inline-flex shrink-0 items-center gap-1.5 text-sm font-bold text-[var(--dni-primary)] hover:text-[var(--dni-primary-hover)] transition-colors"
           >
-            View all
+            <span>View All</span>
+            <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
           </Link>
         )}
       </div>
