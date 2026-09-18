@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight, Flame } from "lucide-react";
+import { ChevronLeft, ChevronRight, Flame } from "lucide-react";
+import FlashDealCard from "./FlashDealCard";
 
 const FLASH_DEALS = [
   {
@@ -71,9 +72,15 @@ const FLASH_DEALS = [
   },
 ];
 
+const CARD_WIDTH_PX = 240;
+const GAP_PX = 16;
+const COLUMNS_PER_STEP = 4;
+
 const FlashDealsSection = () => {
   const [timeLeft, setTimeLeft] = useState(1 * 3600 + 55 * 60 + 29);
-  const dealsTrackRef = useRef<HTMLDivElement | null>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -93,121 +100,127 @@ const FlashDealsSection = () => {
     String(seconds).padStart(2, "0"),
   ];
 
-  const scrollDeals = (direction: "next") => {
-    const travel = dealsTrackRef.current;
-    if (!travel) return;
+  const updateScrollAffordance = useCallback(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const { scrollLeft, scrollWidth, clientWidth } = el;
+    const maxScroll = Math.max(0, scrollWidth - clientWidth);
+    const epsilon = 8;
+    setCanScrollLeft(scrollLeft > epsilon);
+    setCanScrollRight(maxScroll > epsilon && scrollLeft < maxScroll - epsilon);
+  }, []);
 
-    const cards = Array.from(
-      travel.querySelectorAll<HTMLElement>("[data-deal-card]"),
-    );
-    const step = cards.length ? cards[0].offsetWidth + 12 : 220;
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
 
-    travel.scrollBy({
-      left: direction === "next" ? step : -step,
+    updateScrollAffordance();
+    el.addEventListener("scroll", updateScrollAffordance, { passive: true });
+    el.addEventListener("scrollend", updateScrollAffordance);
+    const ro = new ResizeObserver(() => updateScrollAffordance());
+    ro.observe(el);
+
+    const t = window.setTimeout(updateScrollAffordance, 100);
+
+    return () => {
+      el.removeEventListener("scroll", updateScrollAffordance);
+      el.removeEventListener("scrollend", updateScrollAffordance);
+      ro.disconnect();
+      window.clearTimeout(t);
+    };
+  }, [updateScrollAffordance]);
+
+  const scrollByStep = (direction: "left" | "right") => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const step = (CARD_WIDTH_PX + GAP_PX) * COLUMNS_PER_STEP;
+    el.scrollBy({
+      left: direction === "left" ? -step : step,
       behavior: "smooth",
     });
   };
 
   return (
-    <section className="relative w-full border border-gray-100 bg-white p-4">
-      <div className="mb-4 flex items-center justify-between gap-3">
+    <section className="relative w-full border border-[var(--dni-cart-border)] bg-white">
+      <div className="flex items-center justify-between gap-4 px-4 py-4 border-[var(--dni-cart-border)]">
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-[var(--dni-primary)]">
-            <Flame className="h-6 w-6 fill-[var(--dni-primary)]" />
-            <span className="text-xl font-black uppercase tracking-[0.04em] text-[var(--dni-primary)]">
+          <div className="flex items-center gap-2 text-[var(--dni-primary)]">
+            <Flame className="h-7 w-7 fill-[var(--dni-primary)]" />
+            <span className="text-2xl font-black uppercase tracking-[0.04em] text-[var(--dni-primary)]">
               Flash Deals
             </span>
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2 ml-4 border-l border-[var(--dni-cart-border)] pl-4">
             {timerBlocks.map((block, idx) => (
-              <div key={idx} className="flex items-center gap-1">
-                <span className="flex h-7 min-w-[28px] items-center justify-center bg-[var(--dni-primary)] px-1 text-[11px] font-black text-white">
+              <div key={idx} className="flex items-center gap-1.5">
+                <span className="flex h-10 min-w-[36px] items-center justify-center bg-[var(--dni-primary)] px-2 text-[13px] font-bold text-white font-mono">
                   {block}
                 </span>
                 {idx < 2 && (
-                  <span className="text-[11px] font-black text-[#374151]">
+                  <span className="text-[13px] font-bold text-slate-700 font-mono">
                     :
                   </span>
                 )}
               </div>
             ))}
+            <span className="ml-1 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+              Ends Soon
+            </span>
           </div>
         </div>
 
         <Link
           to="/flash-deals"
-          className="group inline-flex items-center gap-1 text-sm font-semibold text-[var(--dni-primary)]"
+          className="group inline-flex items-center gap-1.5 text-sm font-bold text-[var(--dni-primary)] hover:text-[var(--dni-primary-hover)] transition-colors"
         >
-          <span>See All</span>
+          <span>View All</span>
           <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
         </Link>
       </div>
 
-      <div className="group relative">
+      <div className="relative px-4 py-4">
+        {canScrollLeft && (
+          <button
+            type="button"
+            aria-label="Previous flash deals"
+            onClick={() => scrollByStep("left")}
+            className="absolute left-0 top-1/2 z-10 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-md transition duration-200 hover:scale-150 hover:bg-gray-50 hover:border-[var(--dni-primary)] cursor-pointer"
+          >
+            <ChevronLeft className="h-5 w-5" aria-hidden />
+          </button>
+        )}
+
         <div
-          ref={dealsTrackRef}
-          className="scrollbar-hide flex gap-3 overflow-x-auto pb-1"
+          ref={scrollerRef}
+          className="overflow-x-auto overflow-y-hidden scrollbar-hide"
         >
-          {FLASH_DEALS.map((deal) => (
-            <div
-              key={deal.id}
-              data-deal-card
-              className="w-[180px] min-w-[180px] snap-start border border-gray-100 bg-white shadow-[0_2px_0_rgba(17,24,39,0.02)] transition-all hover:border-emerald-200 hover:shadow-[0_4px_18px_rgba(17,24,39,0.06)] sm:w-[200px] sm:min-w-[200px]"
-            >
-              <div className="relative">
-                <div className="relative aspect-[4/3] overflow-hidden bg-[#fafafa]">
-                  <img
-                    src={deal.image}
-                    alt={deal.name}
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                  />
-                  <span className="absolute left-2 top-2 z-10 bg-[var(--dni-primary)] px-1.5 py-0.5 text-[9px] font-bold text-white">
-                    Mall
-                  </span>
-                  <span className="absolute right-2 top-2 z-10 bg-[#f7f7f7] px-1.5 py-0.5 text-[10px] font-black text-[var(--dni-primary)]">
-                    -{deal.discount}%
-                  </span>
-                </div>
+          <div
+            className="flex min-w-max gap-4"
+            style={{ width: `max-content` }}
+          >
+            {FLASH_DEALS.map((deal) => (
+              <div
+                key={deal.id}
+                className="shrink-0"
+                style={{ width: `${CARD_WIDTH_PX}px` }}
+              >
+                <FlashDealCard deal={deal} />
               </div>
-
-              <div className="space-y-2 p-3">
-                <div className="flex items-baseline justify-center gap-1 text-[var(--dni-primary)]">
-                  <span className="text-lg font-black leading-none">
-                    ${deal.price.toFixed(2)}
-                  </span>
-                  <span className="text-[10px] text-[#9ca3af] line-through">
-                    ${deal.originalPrice.toFixed(2)}
-                  </span>
-                </div>
-
-                <p className="min-h-[2.75rem] text-center text-[12px] font-medium leading-4 text-[#1f2937]">
-                  {deal.name}
-                </p>
-
-                <div className="relative h-2.5 overflow-hidden bg-gray-100">
-                  <div
-                    className="h-full bg-[var(--dni-primary)]"
-                    style={{ width: `${deal.soldPercent}%` }}
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center gap-1 text-[8px] font-bold text-white">
-                    <Flame className="h-2.5 w-2.5 fill-white" />
-                    <span>{deal.stockText}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
-        <button
-          type="button"
-          aria-label="Next Flash Deals"
-          onClick={() => scrollDeals("next")}
-          className="absolute -right-3 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 opacity-0 shadow-[0_4px_12px_rgba(17,24,39,0.08)] transition-all duration-200 group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-gray-50 hover:text-[var(--dni-primary)]"
-        >
-          <ChevronRight className="h-5 w-5" />
-        </button>
+        {canScrollRight && (
+          <button
+            type="button"
+            aria-label="Next flash deals"
+            onClick={() => scrollByStep("right")}
+            className="absolute right-0 top-1/2 z-10 flex h-8 w-8 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-md transition duration-200 hover:scale-150 hover:bg-gray-50 hover:border-[var(--dni-primary)] cursor-pointer"
+          >
+            <ChevronRight className="h-5 w-5" aria-hidden />
+          </button>
+        )}
       </div>
     </section>
   );
