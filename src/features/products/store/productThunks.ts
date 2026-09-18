@@ -75,6 +75,7 @@ export const fetchRecentProducts = createAsyncThunk<
                     ? [productServiceAssetUrl(product.image)]
                     : (product.images ?? []).map((image) => productServiceAssetUrl(image)),
                 categoryId: product.categoryId ?? '',
+                tags: product.tags ?? [],
             })),
             hasNextPage: response.hasNextPage,
             nextCursor: response.nextCursor,
