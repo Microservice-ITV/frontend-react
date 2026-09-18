@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Zap, ChevronRight } from "lucide-react";
 import FlashDealCard from "../components/FlashDealCard";
@@ -110,12 +110,15 @@ const DEALS = [
   },
 ];
 
-const SESSION_TIMES = [
-  { time: "10:30", label: "Ongoing", isActive: true },
-  { time: "12:30", label: "Coming Soon", isActive: false },
-  { time: "16:30", label: "Coming Soon", isActive: false },
-  { time: "18:30", label: "Coming Soon", isActive: false },
+/** 24h "HH:MM" — deal-drop times, repeating daily. */
+const DEAL_SLOTS = [
+  { time: "10:30", label: "Morning Rush" },
+  { time: "12:30", label: "Lunch Deals" },
+  { time: "16:30", label: "Afternoon Picks" },
+  { time: "18:30", label: "Evening Specials" },
 ];
+
+type DealSlotStatus = "live" | "next" | "upcoming";
 
 const getNextSessionEnd = () => {
   const end = new Date();
@@ -126,12 +129,30 @@ const getNextSessionEnd = () => {
 
 const pad = (value: number) => String(value).padStart(2, "0");
 
+function parseSlotTime(time: string, base: Date): Date {
+  const [hours, minutes] = time.split(":").map(Number);
+  const d = new Date(base);
+  d.setHours(hours, minutes, 0, 0);
+  return d;
+}
+
+function formatSlotCountdown(ms: number): string {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${s.toString().padStart(2, "0")}s`;
+  return `${s}s`;
+}
+
 const FlashDealsPage = () => {
   const [activeCategory, setActiveCategory] = useState("Top Picks");
   const [timeLeft, setTimeLeft] = useState(() => {
     const end = getNextSessionEnd();
     return Math.max(0, Math.floor((end.getTime() - Date.now()) / 1000));
   });
+  const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -143,6 +164,7 @@ const FlashDealsPage = () => {
           );
         return prev - 1;
       });
+      setNow(new Date());
     }, 1000);
     return () => clearInterval(timer);
   }, []);
@@ -155,9 +177,68 @@ const FlashDealsPage = () => {
     (deal) => activeCategory === "Top Picks" || deal.tag === activeCategory,
   );
 
+  // Which slot is live/next/upcoming, computed from the clock — no manual
+  // isActive flag needed. The live slot (or, before the first drop, the
+  // next one) is always rotated to the front of the array.
+  const dealSlots = useMemo(() => {
+    const todaySlotDates = DEAL_SLOTS.map((slot) =>
+      parseSlotTime(slot.time, now),
+    );
+
+    let liveIndex = -1;
+    for (let i = 0; i < todaySlotDates.length; i++) {
+      if (todaySlotDates[i] <= now) liveIndex = i;
+    }
+
+    let nextIndex: number;
+    let nextSlotDate: Date;
+
+    if (liveIndex === -1) {
+      nextIndex = 0;
+      nextSlotDate = todaySlotDates[0];
+    } else if (liveIndex + 1 < DEAL_SLOTS.length) {
+      nextIndex = liveIndex + 1;
+      nextSlotDate = todaySlotDates[nextIndex];
+    } else {
+      nextIndex = 0;
+      nextSlotDate = new Date(todaySlotDates[0]);
+      nextSlotDate.setDate(nextSlotDate.getDate() + 1);
+    }
+
+    const msUntilNext = nextSlotDate.getTime() - now.getTime();
+
+    const withStatus = DEAL_SLOTS.map((slot, index) => {
+      if (index === liveIndex) {
+        return {
+          ...slot,
+          status: "live" as DealSlotStatus,
+          countdown: `Ends in ${formatSlotCountdown(msUntilNext)}`,
+        };
+      }
+      if (index === nextIndex) {
+        return {
+          ...slot,
+          status: "next" as DealSlotStatus,
+          countdown: `Starts in ${formatSlotCountdown(msUntilNext)}`,
+        };
+      }
+      return {
+        ...slot,
+        status: "upcoming" as DealSlotStatus,
+        countdown: `Starts at ${slot.time}`,
+      };
+    });
+
+    const rotateFrom = liveIndex === -1 ? nextIndex : liveIndex;
+    return [
+      ...withStatus.slice(rotateFrom),
+      ...withStatus.slice(0, rotateFrom),
+    ];
+  }, [now]);
+
   return (
     <div className="min-h-screen bg-[#f5f5f5] text-gray-900">
-      <section className="border-b border-[var(--dni-border)] bg-white">
+      <section className="border-[var(--dni-border)] bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-center gap-3 px-4 py-1.5 sm:px-6">
           <span className="hidden h-px w-10 bg-[#d1d5db] sm:block" />
           <div className="flex items-center gap-1.5 text-[var(--dni-primary)]">
@@ -190,26 +271,59 @@ const FlashDealsPage = () => {
         </div>
       </section>
 
-      <section className="bg-[#f3f3f3] py-0">
+      <section className="py-4 bg-[#ffffff]">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="grid grid-cols-4 overflow-hidden border border-[#e5e7eb] bg-[#4b4f53]">
-            {SESSION_TIMES.map((slot, index) => (
-              <button
+          <div className="flex items-center gap-2.5 overflow-x-auto pb-1 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:justify-center sm:overflow-visible sm:pb-0 sm:snap-none">
+            {dealSlots.map((slot, index) => (
+              <div
                 key={slot.time}
-                type="button"
-                className={`flex min-h-[64px] flex-col items-center justify-center px-3 py-2 text-center transition-colors ${
-                  slot.isActive
-                    ? "bg-[var(--dni-primary)] text-white"
-                    : "bg-[#4b4f53] text-white/85"
-                } ${index > 0 ? "border-l border-white/10" : ""}`}
+                className="flex items-center gap-2.5 snap-start"
               >
-                <span className="text-[17px] font-bold tracking-tight">
-                  {slot.time}
-                </span>
-                <span className="mt-0.5 text-[11px] text-current/90">
-                  {slot.label}
-                </span>
-              </button>
+                {index > 0 && (
+                  <div className="h-px w-4 shrink-0 bg-[#d0d3d6]" />
+                )}
+
+                <div
+                  className={`relative flex h-[60px] w-[168px] shrink-0 flex-col items-center justify-center gap-1 rounded-lg px-4 text-center sm:h-[64px] sm:w-[200px] ${
+                    slot.status === "live"
+                      ? "bg-[var(--dni-primary)] text-white shadow-sm"
+                      : slot.status === "next"
+                        ? "border border-[#f0b429] bg-[#fff8e8]"
+                        : "border border-[#e5e7eb] bg-white opacity-70"
+                  }`}
+                >
+                  {slot.status === "live" && (
+                    <span className="absolute right-3 top-3 flex h-2.5 w-2.5">
+                      <span className="absolute inline-flex h-full w-full motion-safe:animate-ping rounded-full bg-white/70" />
+                      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-white" />
+                    </span>
+                  )}
+
+                  <span
+                    className={`text-base font-bold tracking-tight sm:text-lg ${
+                      slot.status === "live"
+                        ? "text-white"
+                        : slot.status === "next"
+                          ? "text-[#8a5a00]"
+                          : "text-[#6b7280]"
+                    }`}
+                  >
+                    {slot.time}
+                  </span>
+
+                  <span
+                    className={`text-[11px] font-medium ${
+                      slot.status === "live"
+                        ? "text-white/85"
+                        : slot.status === "next"
+                          ? "text-[#b45309]"
+                          : "text-[#9ca3af]"
+                    }`}
+                  >
+                    {slot.countdown}
+                  </span>
+                </div>
+              </div>
             ))}
           </div>
         </div>

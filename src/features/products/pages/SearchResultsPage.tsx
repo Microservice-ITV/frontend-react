@@ -43,7 +43,7 @@ const SearchResultsPage = () => {
   return (
     <div className="bg-[#f5f5f5] min-h-screen pt-4 sm:pt-5 pb-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="mb-6 flex sm:flex-row sm:items-center gap-3">
+        <div className="mb-6 flex sm:flex-row sm:items-center justify-between gap-3">
           <h1 className="text-lg sm:text-xl font-semibold text-gray-800">
             Search results for &ldquo;{query}&rdquo;
           </h1>

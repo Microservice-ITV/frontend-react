@@ -233,36 +233,36 @@ async function postGraphQL<TData>(query: string, variables: Record<string, unkno
 }
 
 async function fetchCatalogProductsGraphQL(
-    categoryId: string,
-    search?: string,
-    sort?: string,
+  categoryId?: string,
+  search?: string,
+  sort?: string,
 ): Promise<CatalogProductGraphItem[]> {
-    const collected: CatalogProductGraphItem[] = []
-    let page = 1
-    let totalPages = 1
+  const collected: CatalogProductGraphItem[] = [];
+  let page = 1;
+  let totalPages = 1;
 
-    do {
-            const data = await postGraphQL<CatalogProductsGraphQLData>(
-                CATALOG_PRODUCTS_BY_CATEGORY_QUERY,
-                {
-                    page,
-                    limit: PAGE_LIMIT,
-                    categoryId,
-                    search: search || null,
-                    sort: sort || null,
-                },
-            )
+  do {
+    const data = await postGraphQL<CatalogProductsGraphQLData>(
+      CATALOG_PRODUCTS_BY_CATEGORY_QUERY,
+      {
+        page,
+        limit: PAGE_LIMIT,
+        categoryId: categoryId || null,
+        search: search || null,
+        sort: sort || null,
+      },
+    );
 
-        const payload = data.catalogProducts
-        const items = payload?.items ?? []
-        const total = payload?.total ?? items.length
-        const limit = payload?.limit ?? PAGE_LIMIT
-        collected.push(...items)
-        totalPages = Math.max(1, Math.ceil(total / limit))
-        page += 1
-    } while (page <= totalPages)
+    const payload = data.catalogProducts;
+    const items = payload?.items ?? [];
+    const total = payload?.total ?? items.length;
+    const limit = payload?.limit ?? PAGE_LIMIT;
+    collected.push(...items);
+    totalPages = Math.max(1, Math.ceil(total / limit));
+    page += 1;
+  } while (page <= totalPages);
 
-    return collected
+  return collected;
 }
 
 function buildImages(p: CatalogProductDetailGraph): string[] {
@@ -338,160 +338,187 @@ function mapGraphVariant(v: CatalogVariantGraph): ProductVariant {
 }
 
 export const productApi = {
-    /**
-     * Search products by keyword across title, description, sku, and brand name.
-     */
-    search: async (query: string, sort?: string): Promise<AxiosResponse<ProductsApiResponse>> => {
-        const normalized = query.trim()
-        if (!normalized) {
-            throw new Error('Search query is required.')
-        }
+  /**
+   * Search products by keyword across title, description, sku, and brand name.
+   */
+  search: async (
+    query: string,
+    sort?: string,
+    categoryId?: string,
+  ): Promise<AxiosResponse<ProductsApiResponse>> => {
+    const normalized = query.trim();
+    if (!normalized) {
+      throw new Error("Search query is required.");
+    }
 
-        const rows = await fetchCatalogProductsGraphQL('', normalized, sort)
-        const data: ProductsApiResponse = {
-            success: true,
-            data: rows.map((row) => ({
-                id: row.productId,
-                name: row.title,
-                price: row.price,
-                tags: normalizeTags(row.tags),
-                images: buildCatalogListImages(row),
-                categoryId: row.categoryId ?? '',
-            })),
-        }
+    const rows = await fetchCatalogProductsGraphQL(
+      categoryId?.trim() || undefined,
+      normalized,
+      sort,
+    );
+    const data: ProductsApiResponse = {
+      success: true,
+      data: rows.map((row) => ({
+        id: row.productId,
+        name: row.title,
+        price: row.price,
+        tags: normalizeTags(row.tags),
+        images: buildCatalogListImages(row),
+        categoryId: row.categoryId ?? "",
+      })),
+    };
 
-        return {
-            data,
-            status: 200,
-            statusText: 'OK',
-            headers: {},
-            config: {} as never,
-        } as AxiosResponse<ProductsApiResponse>
-    },
+    return {
+      data,
+      status: 200,
+      statusText: "OK",
+      headers: {},
+      config: {} as never,
+    } as AxiosResponse<ProductsApiResponse>;
+  },
 
-    getRecentProducts: async (limit = 10, cursor?: string): Promise<RecentProductsApiResponse> => {
-        const response = await ecommerceReadRestClient.get<RecentProductsApiResponse>('/catalog/products/recent', {
-            params: {
-                limit,
-                ...(cursor ? { cursor } : {}),
-            },
-        })
+  getRecentProducts: async (
+    limit = 10,
+    cursor?: string,
+  ): Promise<RecentProductsApiResponse> => {
+    const response =
+      await ecommerceReadRestClient.get<RecentProductsApiResponse>(
+        "/catalog/products/recent",
+        {
+          params: {
+            limit,
+            ...(cursor ? { cursor } : {}),
+          },
+        },
+      );
 
-        return response.data
-    },
+    return response.data;
+  },
 
-    /**
-     * Buyer category listing: ecommerce-read-service GraphQL → MongoDB `product_reads`.
-     */
-    getByCategory: async (categoryId: string, sort?: string): Promise<AxiosResponse<ProductsApiResponse>> => {
-        const normalized = categoryId.trim()
-        if (!normalized) {
-            throw new Error('Category id is required.')
-        }
+  /**
+   * Buyer category listing: ecommerce-read-service GraphQL → MongoDB `product_reads`.
+   */
+  getByCategory: async (
+    categoryId: string,
+    sort?: string,
+  ): Promise<AxiosResponse<ProductsApiResponse>> => {
+    const normalized = categoryId.trim();
+    if (!normalized) {
+      throw new Error("Category id is required.");
+    }
 
-        const rows = await fetchCatalogProductsGraphQL(normalized, undefined, sort)
-        const data: ProductsApiResponse = {
-            success: true,
-            data: rows.map((row) => ({
-                id: row.productId,
-                name: row.title,
-                price: row.price,
-                tags: normalizeTags(row.tags),
-                images: buildCatalogListImages(row),
-                categoryId: row.categoryId ?? '',
-            })),
-        }
+    const rows = await fetchCatalogProductsGraphQL(normalized, undefined, sort);
+    const data: ProductsApiResponse = {
+      success: true,
+      data: rows.map((row) => ({
+        id: row.productId,
+        name: row.title,
+        price: row.price,
+        tags: normalizeTags(row.tags),
+        images: buildCatalogListImages(row),
+        categoryId: row.categoryId ?? "",
+      })),
+    };
 
-        return {
-            data,
-            status: 200,
-            statusText: 'OK',
-            headers: {},
-            config: {} as never,
-        } as AxiosResponse<ProductsApiResponse>
-    },
+    return {
+      data,
+      status: 200,
+      statusText: "OK",
+      headers: {},
+      config: {} as never,
+    } as AxiosResponse<ProductsApiResponse>;
+  },
 
-    /**
-     * Buyer product detail: same read projection as listing (consistent pricing/stock with catalog).
-     */
-    getDetail: async (productId: string): Promise<AxiosResponse<ProductDetailApiResponse>> => {
-        const normalized = productId.trim()
-        if (!normalized) {
-            throw new Error('Product id is required.')
-        }
+  /**
+   * Buyer product detail: same read projection as listing (consistent pricing/stock with catalog).
+   */
+  getDetail: async (
+    productId: string,
+  ): Promise<AxiosResponse<ProductDetailApiResponse>> => {
+    const normalized = productId.trim();
+    if (!normalized) {
+      throw new Error("Product id is required.");
+    }
 
-        const data = await postGraphQL<CatalogProductByIdGraphQLData>(CATALOG_PRODUCT_BY_ID_QUERY, {
-            productId: normalized,
-        })
+    const data = await postGraphQL<CatalogProductByIdGraphQLData>(
+      CATALOG_PRODUCT_BY_ID_QUERY,
+      {
+        productId: normalized,
+      },
+    );
 
-        const p = data.catalogProductById
-        if (!p) {
-            const err = new Error('Product not found.') as Error & { status?: number }
-            err.status = 404
-            throw err
-        }
+    const p = data.catalogProductById;
+    if (!p) {
+      const err = new Error("Product not found.") as Error & {
+        status?: number;
+      };
+      err.status = 404;
+      throw err;
+    }
 
-        const stock =
-            typeof p.totalAvailableStock === 'number'
-                ? p.totalAvailableStock
-                : typeof p.shopAvailableStock === 'number'
-                  ? p.shopAvailableStock
-                  : 0
+    const stock =
+      typeof p.totalAvailableStock === "number"
+        ? p.totalAvailableStock
+        : typeof p.shopAvailableStock === "number"
+          ? p.shopAvailableStock
+          : 0;
 
-        const parentId = p.parentCategoryId?.trim() ? p.parentCategoryId : null
-        const variants = (p.variants ?? []).map(mapGraphVariant)
-        const minPrice = Number(p.minPrice ?? p.price ?? 0)
-        const maxPrice = Number(p.maxPrice ?? p.price ?? 0)
-        const displayPrice = variants.length === 1 ? variants[0].price : minPrice
-        let shopName: string | undefined
-        let shopSlug: string | undefined
+    const parentId = p.parentCategoryId?.trim() ? p.parentCategoryId : null;
+    const variants = (p.variants ?? []).map(mapGraphVariant);
+    const minPrice = Number(p.minPrice ?? p.price ?? 0);
+    const maxPrice = Number(p.maxPrice ?? p.price ?? 0);
+    const displayPrice = variants.length === 1 ? variants[0].price : minPrice;
+    let shopName: string | undefined;
+    let shopSlug: string | undefined;
 
-        try {
-            const response = await productClient.get<{
-                success: boolean
-                data?: { shop?: { name?: string; slug?: string } }
-            }>(`/products/${p.productId}`)
-            shopName = response.data.data?.shop?.name
-            shopSlug = response.data.data?.shop?.slug
-        } catch {
-            // Keep the catalog detail usable if the product service is unavailable.
-        }
+    try {
+      const response = await productClient.get<{
+        success: boolean;
+        data?: { shop?: { name?: string; slug?: string } };
+      }>(`/products/${p.productId}`);
+      shopName = response.data.data?.shop?.name;
+      shopSlug = response.data.data?.shop?.slug;
+    } catch {
+      // Keep the catalog detail usable if the product service is unavailable.
+    }
 
-        const detail: ProductDetailApiResponse = {
-            success: true,
-            data: {
-                id: p.productId,
-                name: p.title,
-                slug: p.slug,
-                description: p.description,
-                sku: p.sku,
-                stock,
-                price: displayPrice,
-                images: buildImages(p),
-                categoryId: p.categoryId,
-                category: {
-                    id: p.categoryId,
-                    name: p.categoryName,
-                    slug: p.categorySlug,
-                    parentId,
-                },
-                shop: shopPlaceholder(p.shopId, shopName, shopSlug),
-                currency: p.currency ?? 'MMK',
-                minPrice,
-                maxPrice,
-                brandName: p.brandName ?? '',
-                primaryVariantId: p.primaryVariantId?.trim() ? p.primaryVariantId : null,
-                variants,
-                tags: normalizeTags(p.tags),
-            },
-        }
+    const detail: ProductDetailApiResponse = {
+      success: true,
+      data: {
+        id: p.productId,
+        name: p.title,
+        slug: p.slug,
+        description: p.description,
+        sku: p.sku,
+        stock,
+        price: displayPrice,
+        images: buildImages(p),
+        categoryId: p.categoryId,
+        category: {
+          id: p.categoryId,
+          name: p.categoryName,
+          slug: p.categorySlug,
+          parentId,
+        },
+        shop: shopPlaceholder(p.shopId, shopName, shopSlug),
+        currency: p.currency ?? "MMK",
+        minPrice,
+        maxPrice,
+        brandName: p.brandName ?? "",
+        primaryVariantId: p.primaryVariantId?.trim()
+          ? p.primaryVariantId
+          : null,
+        variants,
+        tags: normalizeTags(p.tags),
+      },
+    };
 
-        return {
-            data: detail,
-            status: 200,
-            statusText: 'OK',
-            headers: {},
-            config: {} as never,
-        } as AxiosResponse<ProductDetailApiResponse>
-    },
-}
+    return {
+      data: detail,
+      status: 200,
+      statusText: "OK",
+      headers: {},
+      config: {} as never,
+    } as AxiosResponse<ProductDetailApiResponse>;
+  },
+};
