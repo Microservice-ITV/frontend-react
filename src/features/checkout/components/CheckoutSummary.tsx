@@ -114,7 +114,7 @@ const CheckoutSummary = ({
   const dispatch = useAppDispatch()
   const stripe = useStripe()
   const elements = useElements()
-  const { currentCheckout, currentStatus, clientSecret, paymentStatus, isPlacingOrder, isAwaitingFinalStatus, error } = useAppSelector(
+  const { currentCheckout, currentStatus, clientSecret, paymentStatus, isPlacingOrder, isAwaitingFinalStatus, error, paymentMethod, sessionPaymentMethod } = useAppSelector(
     state => state.checkout
   )
 
@@ -278,14 +278,26 @@ const CheckoutSummary = ({
       return
     }
 
-    if (!stripe || !elements || !clientSecret) {
-      dispatch(setCheckoutError('Payment is not ready yet.'))
-      return
-    }
+    const effectivePaymentMethod = sessionPaymentMethod ?? paymentMethod
+    const isCard = effectivePaymentMethod === 'card'
+    let card: ReturnType<NonNullable<typeof elements>['getElement']> | null = null
 
-    const card = elements.getElement(CardElement)
-    if (!card) {
-      dispatch(setCheckoutError('Card input is not available.'))
+    if (isCard) {
+      if (!stripe || !elements || !clientSecret) {
+        dispatch(setCheckoutError('Payment is not ready yet.'))
+        return
+      }
+
+      card = elements.getElement(CardElement)
+      if (!card) {
+        dispatch(setCheckoutError('Card input is not available.'))
+        return
+      }
+    } else if (effectivePaymentMethod !== 'cod') {
+      dispatch(setCheckoutError('Invalid payment method selected.'))
+      return
+    } else if (!clientSecret) {
+      dispatch(setCheckoutError('Cash on Delivery is not ready yet. Please wait a moment.'))
       return
     }
 
@@ -304,57 +316,64 @@ const CheckoutSummary = ({
         setPromoCodeStatus(addressResponse.data.promo_code_status)
         setPromoCodeMessage(addressResponse.data.promo_code_message ?? null)
       }
-      console.info('[PlaceOrder] Address updated, confirming payment with Stripe...')
+      console.info('[PlaceOrder] Address updated...')
 
-      if (addressResponse.data?.already_succeeded) {
-        console.info('[PlaceOrder] Payment intent already succeeded, skipping confirmCardPayment')
-        dispatch(setCheckoutPaymentStatus('PAYMENT_PENDING_CONFIRMATION'))
-        dispatch(setAwaitingFinalStatus(true))
-        dispatch(setCheckoutError(null))
-        dispatch(setCheckoutPlacingOrder(false))
-        return
-      }
+      if (isCard) {
+        console.info('[PlaceOrder] Confirming payment with Stripe...')
 
-      const updatedClientSecret = addressResponse.data?.payment?.client_secret
-      const effectiveClientSecret = updatedClientSecret ?? clientSecret
+        if (addressResponse.data?.already_succeeded) {
+          console.info('[PlaceOrder] Payment intent already succeeded, skipping confirmCardPayment')
+          dispatch(setCheckoutPaymentStatus('PAYMENT_PENDING_CONFIRMATION'))
+          dispatch(setAwaitingFinalStatus(true))
+          dispatch(setCheckoutError(null))
+          dispatch(setCheckoutPlacingOrder(false))
+          return
+        }
 
-      const result = await stripe.confirmCardPayment(effectiveClientSecret, {
-        payment_method: {
-          card,
-          billing_details: {
-            name: user?.name,
-            email: user?.email,
+        const updatedClientSecret = addressResponse.data?.payment?.client_secret
+        const effectiveClientSecret = updatedClientSecret ?? clientSecret
+
+        const result = await stripe!.confirmCardPayment(effectiveClientSecret!, {
+          payment_method: {
+            card: card!,
+            billing_details: {
+              name: user?.name,
+              email: user?.email,
+            },
           },
-        },
-      })
+        })
 
-      console.info('[PlaceOrder] Stripe confirmCardPayment result:', {
-        hasError: !!result.error,
-        paymentIntentStatus: result.paymentIntent?.status,
-        errorMessage: result.error?.message,
-      })
+        console.info('[PlaceOrder] Stripe confirmCardPayment result:', {
+          hasError: !!result.error,
+          paymentIntentStatus: result.paymentIntent?.status,
+          errorMessage: result.error?.message,
+        })
 
-      if (
-        result.error &&
-        (result.error.code === 'payment_intent_unexpected_state' ||
-          /already succeeded/i.test(result.error.message ?? ''))
-      ) {
-        console.info('[PlaceOrder] Payment intent already succeeded per Stripe, proceeding to polling')
+        if (
+          result.error &&
+          (result.error.code === 'payment_intent_unexpected_state' ||
+            /already succeeded/i.test(result.error.message ?? ''))
+        ) {
+          console.info('[PlaceOrder] Payment intent already succeeded per Stripe, proceeding to polling')
+          dispatch(setCheckoutPaymentStatus('PAYMENT_PENDING_CONFIRMATION'))
+          dispatch(setAwaitingFinalStatus(true))
+          dispatch(setCheckoutError(null))
+          dispatch(setCheckoutPlacingOrder(false))
+          return
+        }
+
+        if (result.error) {
+          dispatch(setCheckoutError(result.error.message ?? 'Payment confirmation failed.'))
+          dispatch(setAwaitingFinalStatus(false))
+          dispatch(setCheckoutPlacingOrder(false))
+          return
+        }
+
         dispatch(setCheckoutPaymentStatus('PAYMENT_PENDING_CONFIRMATION'))
-        dispatch(setAwaitingFinalStatus(true))
-        dispatch(setCheckoutError(null))
-        dispatch(setCheckoutPlacingOrder(false))
-        return
+      } else {
+        console.info('[PlaceOrder] Cash on Delivery order placed, awaiting payment collection...')
+        dispatch(setCheckoutPaymentStatus('PENDING_PAYMENT'))
       }
-
-      if (result.error) {
-        dispatch(setCheckoutError(result.error.message ?? 'Payment confirmation failed.'))
-        dispatch(setAwaitingFinalStatus(false))
-        dispatch(setCheckoutPlacingOrder(false))
-        return
-      }
-
-      dispatch(setCheckoutPaymentStatus('PAYMENT_PENDING_CONFIRMATION'))
       dispatch(setAwaitingFinalStatus(true))
       dispatch(setCheckoutError(null))
       dispatch(setCheckoutPlacingOrder(false))
@@ -401,6 +420,8 @@ const CheckoutSummary = ({
     paymentStatus === 'FAILED_PAYMENT' ||
     paymentStatus === 'EXPIRED'
 
+  const effectivePaymentMethod = sessionPaymentMethod ?? paymentMethod
+  const isCard = effectivePaymentMethod === 'card'
   const canPlaceOrder =
     !!clientSecret &&
     !isPlacingOrder &&
@@ -410,6 +431,39 @@ const CheckoutSummary = ({
       paymentStatus === 'PAYMENT_INTENT_READY' ||
       paymentStatus === 'PAYMENT_PENDING_CONFIRMATION' ||
       paymentStatus === 'PENDING_PAYMENT')
+
+  const statusMessage = (() => {
+    if (error) return error
+    if (paymentStatus === 'PAID' || paymentStatus === 'COMPLETED') {
+      return 'Order completed successfully.'
+    }
+    if (paymentStatus === 'FAILED_PAYMENT') {
+      return 'Payment failed. Please try again.'
+    }
+    if (paymentStatus === 'STOCK_CONFIRMED') {
+      return 'Stock confirmed. Finalizing payment...'
+    }
+    if (paymentStatus === 'PENDING_STOCK') {
+      return 'Confirming stock availability...'
+    }
+    if (paymentStatus === 'EXPIRED') {
+      return 'Checkout expired. Please start a new checkout.'
+    }
+    if (!hasDeliveryAddress) {
+      return 'Please add your delivery address to continue.'
+    }
+    if (isAwaitingFinalStatus) {
+      return isCard
+        ? 'Waiting for payment confirmation...'
+        : 'Confirming your Cash on Delivery order...'
+    }
+    if (clientSecret) {
+      return isCard
+        ? 'Payment ready. You can place your order.'
+        : 'Cash on Delivery ready. Place your order to confirm.'
+    }
+    return 'Preparing payment...'
+  })()
 
   const {
     merchandiseSubtotal,
@@ -544,23 +598,7 @@ const CheckoutSummary = ({
 
       <div className="text-right">
         <p className="text-xs text-gray-500">
-          {error
-            ? error
-            : paymentStatus === 'PAID' || paymentStatus === 'COMPLETED'
-              ? 'Order completed successfully.'
-              : paymentStatus === 'FAILED_PAYMENT'
-                ? 'Payment failed. Please try again.'
-                : paymentStatus === 'STOCK_CONFIRMED'
-                  ? 'Stock confirmed. Finalizing payment...'
-                  : paymentStatus === 'PENDING_STOCK'
-                    ? 'Confirming stock availability...'
-                    : paymentStatus === 'EXPIRED'
-                      ? 'Checkout expired. Please start a new checkout.'
-                      : !hasDeliveryAddress
-                        ? 'Please add your delivery address to continue.'
-                        : clientSecret
-                          ? 'Payment ready. You can place your order.'
-                          : 'Preparing payment...'}
+          {statusMessage}
         </p>
       </div>
     </div>

@@ -3,13 +3,7 @@ import { Link } from "react-router-dom";
 
 const WishlistEmptyState = () => {
   return (
-    <section
-      className="min-h-[20rem] py-10 sm:min-h-[20rem] sm:py-12"
-      style={{
-        backgroundImage:
-          "radial-gradient(circle at 15% 20%, rgba(16, 185, 129, 0.12) 0, transparent 42%), radial-gradient(circle at 85% 10%, rgba(5, 150, 105, 0.08) 0, transparent 38%)",
-      }}
-    >
+    <section className="min-h-[20rem] py-10 sm:min-h-[20rem] sm:py-12 bg-white">
       <div className="mx-auto flex max-w-md flex-col items-center text-center">
         {/* ICON */}
         <div className="mb-6 flex h-32 w-32 items-center justify-center rounded-full bg-rose-50">

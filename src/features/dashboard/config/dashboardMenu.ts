@@ -25,6 +25,7 @@ import {
   Stamp,
   Palette,
   Ruler,
+  CreditCard,
   Calculator,
   DollarSign,
   Receipt,
@@ -120,6 +121,14 @@ export const DASHBOARD_MENU_SELLER: DashboardMenuSection[] = [
         area: "seller",
         requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
         icon: FileText,
+      },
+      {
+        key: 'seller-payments',
+        label: 'Payments',
+        to: '/seller/payments',
+        area: 'seller',
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: CreditCard,
       },
     ],
   },
@@ -239,10 +248,18 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         icon: Building2,
       },
       {
-        key: "admin-categories",
-        label: "Categories",
-        to: "/super-admin/categories",
-        area: "super_admin",
+        key: 'admin-payments',
+        label: 'Payments',
+        to: '/super-admin/payments',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: CreditCard,
+      },
+      {
+        key: 'admin-categories',
+        label: 'Categories',
+        to: '/super-admin/categories',
+        area: 'super_admin',
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
         icon: Tags,
       },
@@ -379,7 +396,7 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
     ],
   },
   {
-    title: "FINANCE",
+    title: 'FINANCE',
     items: [
       {
         key: "admin-finance-overview",
@@ -458,4 +475,4 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
       },
     ],
   },
-];
+]

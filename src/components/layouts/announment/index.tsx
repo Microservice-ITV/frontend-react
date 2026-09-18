@@ -151,6 +151,7 @@ const buildAnnouncementComponent = (announcement: Announcement) => {
           ...baseProps,
           headline: getPrimaryContentText(announcement) ?? titleText,
           supportingText: getExtraText(announcement) ?? secondaryText,
+          promoLabel: titleText,
         },
       };
     case "BUY_TWO": {
