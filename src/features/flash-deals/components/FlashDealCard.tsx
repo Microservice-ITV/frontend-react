@@ -24,8 +24,8 @@ const FlashDealCard = ({ deal }: FlashDealCardProps) => {
     <article className="
       group relative flex h-full flex-col overflow-hidden
       border border-[var(--dni-cart-border)] bg-white
-      transition-[border-color,box-shadow] duration-200
-      hover:border-[var(--dni-primary)] hover:shadow-[0_8px_30px_rgba(16,185,129,0.12)]
+      transition-[border-color,background-color] duration-150
+      hover:border-[var(--dni-primary)] hover:bg-[var(--dni-primary-soft)]
     ">
       <Link
         to={`/products/${deal.id}`}
@@ -35,7 +35,7 @@ const FlashDealCard = ({ deal }: FlashDealCardProps) => {
           <img
             src={deal.image}
             alt={deal.name}
-            className="absolute inset-0 h-full w-full object-cover p-2 transition-transform duration-300 group-hover:scale-[1.02]"
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover p-2"
             loading="lazy"
           />
 

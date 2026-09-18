@@ -76,17 +76,36 @@ const CARD_WIDTH_PX = 220;
 const GAP_PX = 16;
 const COLUMNS_PER_STEP = 4;
 
+const getNextSessionEnd = () => {
+  const end = new Date();
+  end.setMinutes(0, 0, 0);
+  end.setHours(end.getHours() + 1);
+  return end;
+};
+
+const pad = (value: number) => String(value).padStart(2, "0");
+
 const FlashDealsSection = () => {
-  const [timeLeft, setTimeLeft] = useState(1 * 3600 + 55 * 60 + 29);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(true);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const [timeLeft, setTimeLeft] = useState(() => {
+    const end = getNextSessionEnd();
+    return Math.max(0, Math.floor((end.getTime() - Date.now()) / 1000));
+  });
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
+      setTimeLeft((prev) => {
+        if (prev <= 1)
+          return Math.max(
+            0,
+            Math.floor((getNextSessionEnd().getTime() - Date.now()) / 1000),
+          );
+        return prev - 1;
+      });
     }, 1000);
-
     return () => clearInterval(timer);
   }, []);
 
@@ -94,11 +113,7 @@ const FlashDealsSection = () => {
   const minutes = Math.floor((timeLeft % 3600) / 60);
   const seconds = timeLeft % 60;
 
-  const timerBlocks = [
-    String(hours).padStart(2, "0"),
-    String(minutes).padStart(2, "0"),
-    String(seconds).padStart(2, "0"),
-  ];
+  const timerBlocks = [pad(hours), pad(minutes), pad(seconds)];
 
   const updateScrollAffordance = useCallback(() => {
     const el = scrollerRef.current;
@@ -142,25 +157,28 @@ const FlashDealsSection = () => {
 
   return (
     <section className="relative w-full border border-[var(--dni-cart-border)] bg-white">
-      <div className="flex items-center gap-4 px-4 py-4 border-[var(--dni-cart-border)]">
+      <div className="flex items-center gap-4 px-4 py-4 border-b border-[var(--dni-cart-border)]">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <div className="flex items-center gap-2 text-[var(--dni-primary)]">
             <Flame className="h-7 w-7 fill-[var(--dni-primary)]" />
-            <span className="text-xl font-bold uppercase tracking-[0.04em] text-[var(--dni-primary)]">
-              Flash Deals
+            <span className="text-xl font-black uppercase tracking-tight">
+              Flash
+            </span>
+            <span className="text-xl font-medium uppercase tracking-tight">
+              Deals
             </span>
           </div>
 
           <div className="flex items-center gap-2 ml-4 border-l border-[var(--dni-cart-border)] pl-4">
-            <div className="flex items-start gap-1.5">
+            <div className="flex items-center gap-1.5">
               {timerBlocks.map((block, idx) => (
-                <div key={idx} className="flex flex-col items-center">
-                  <div className="relative flex h-10 min-w-[42px] items-center justify-center overflow-hidden rounded-md bg-[var(--dni-primary)] px-2 text-sm font-bold text-white font-mono shadow-inner">
+                <div key={idx} className="flex items-center gap-1">
+                  <span className="relative flex h-10 min-w-[36px] items-center justify-center overflow-hidden bg-[var(--dni-primary)] px-2 text-sm font-bold text-white font-mono shadow-inner">
                     <span className="absolute inset-x-0 top-0 h-1/2 border-b border-white/10 bg-[var(--dni-primary)]" />
                     <span className="relative">{block}</span>
-                  </div>
-                  <span className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                    {["Hrs", "Min", "Sec"][idx]}
+                  </span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                    {[":", ":", ":"][idx]}
                   </span>
                 </div>
               ))}
@@ -186,7 +204,7 @@ const FlashDealsSection = () => {
             type="button"
             aria-label="Previous flash deals"
             onClick={() => scrollByStep("left")}
-            className="absolute left-0 top-1/2 z-10 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-md transition duration-200 hover:scale-150 hover:bg-gray-50 hover:border-[var(--dni-primary)] cursor-pointer"
+            className="absolute left-0 top-1/2 z-10 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-md transition duration-200 hover:scale-115 hover:bg-gray-50 hover:border-[var(--dni-primary)] cursor-pointer"
           >
             <ChevronLeft className="h-5 w-5" aria-hidden />
           </button>
@@ -217,7 +235,7 @@ const FlashDealsSection = () => {
             type="button"
             aria-label="Next flash deals"
             onClick={() => scrollByStep("right")}
-            className="absolute right-0 top-1/2 z-10 flex h-8 w-8 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-md transition duration-200 hover:scale-150 hover:bg-gray-50 hover:border-[var(--dni-primary)] cursor-pointer"
+            className="absolute right-0 top-1/2 z-10 flex h-8 w-8 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-md transition duration-200 hover:scale-115 hover:bg-gray-50 hover:border-[var(--dni-primary)] cursor-pointer"
           >
             <ChevronRight className="h-5 w-5" aria-hidden />
           </button>
