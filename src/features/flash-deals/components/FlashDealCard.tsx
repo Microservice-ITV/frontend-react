@@ -31,11 +31,11 @@ const FlashDealCard = ({ deal }: FlashDealCardProps) => {
         to={`/products/${deal.id}`}
         className="flex min-h-0 flex-1 flex-col"
       >
-        <div className="relative w-full aspect-[4/3] bg-[#fafafa] overflow-hidden">
+        <div className="relative w-full shrink-0 bg-[#fafafa] pt-[100%]">
           <img
             src={deal.image}
             alt={deal.name}
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+            className="absolute inset-0 h-full w-full object-cover p-2 transition-transform duration-300 group-hover:scale-[1.02]"
             loading="lazy"
           />
 
