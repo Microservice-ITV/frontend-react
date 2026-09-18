@@ -59,6 +59,7 @@ export interface RecentProductApiItem {
     images?: string[]
     categoryId?: string
     createdAt: string
+    tags?: string[]
 }
 
 export interface RecentProductsApiResponse {
