@@ -1,17 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  ArrowRight,
-  BadgePercent,
-  Clock,
-  Flame,
-  Megaphone,
-  PackageCheck,
-  ShieldCheck,
-  ShoppingBag,
-  Truck,
-  Zap,
-} from "lucide-react";
+import { ArrowRight, Zap, ChevronRight } from "lucide-react";
+import FlashDealCard from "../components/FlashDealCard";
 
 const DEAL_CATEGORIES = [
   "Top Picks",
@@ -28,13 +18,11 @@ const DEALS = [
     image:
       "https://images.unsplash.com/photo-1546435770-a3e426bf472b?auto=format&fit=crop&w=900&q=80",
     tag: "Electronics",
-    dealPrice: 19.9,
+    price: 19.9,
     originalPrice: 59.9,
     discount: 67,
-    sold: "2.4k",
-    gradient: "from-[var(--dni-primary-50)] to-white",
     stockText: "SELLING FAST",
-    stockProgress: 78,
+    soldPercent: 78,
   },
   {
     id: 2,
@@ -42,13 +30,11 @@ const DEALS = [
     image:
       "https://images.unsplash.com/photo-1582515073490-39981397c445?auto=format&fit=crop&w=900&q=80",
     tag: "Home & Living",
-    dealPrice: 45.5,
+    price: 45.5,
     originalPrice: 129,
     discount: 65,
-    sold: "1.8k",
-    gradient: "from-[var(--dni-primary-100)] to-white",
     stockText: "SELLING FAST",
-    stockProgress: 62,
+    soldPercent: 62,
   },
   {
     id: 3,
@@ -56,13 +42,11 @@ const DEALS = [
     image:
       "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=900&q=80",
     tag: "Beauty",
-    dealPrice: 12.9,
+    price: 12.9,
     originalPrice: 32.9,
     discount: 61,
-    sold: "3.1k",
-    gradient: "from-[#fff1f2] to-white",
     stockText: "SELLING FAST",
-    stockProgress: 88,
+    soldPercent: 88,
   },
   {
     id: 4,
@@ -70,13 +54,11 @@ const DEALS = [
     image:
       "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=900&q=80",
     tag: "Electronics",
-    dealPrice: 89,
+    price: 89,
     originalPrice: 199,
     discount: 55,
-    sold: "962",
-    gradient: "from-[#f5f3ff] to-white",
     stockText: "SELLING FAST",
-    stockProgress: 45,
+    soldPercent: 45,
   },
   {
     id: 5,
@@ -84,13 +66,11 @@ const DEALS = [
     image:
       "https://images.unsplash.com/photo-1556228578-8c89e6adf883?auto=format&fit=crop&w=900&q=80",
     tag: "Mom & Baby",
-    dealPrice: 24.9,
+    price: 24.9,
     originalPrice: 54.9,
     discount: 55,
-    sold: "1.2k",
-    gradient: "from-[var(--dni-primary-50)] to-white",
     stockText: "LOW STOCK",
-    stockProgress: 33,
+    soldPercent: 33,
   },
   {
     id: 6,
@@ -98,13 +78,11 @@ const DEALS = [
     image:
       "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=80",
     tag: "Fashion",
-    dealPrice: 36,
+    price: 36,
     originalPrice: 79.9,
     discount: 55,
-    sold: "2.7k",
-    gradient: "from-[#f5f5f5] to-white",
     stockText: "SELLING FAST",
-    stockProgress: 71,
+    soldPercent: 71,
   },
   {
     id: 7,
@@ -112,13 +90,11 @@ const DEALS = [
     image:
       "https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?auto=format&fit=crop&w=900&q=80",
     tag: "Electronics",
-    dealPrice: 27.9,
+    price: 27.9,
     originalPrice: 59.9,
     discount: 53,
-    sold: "4.5k",
-    gradient: "from-[#f3f4f6] to-white",
     stockText: "SELLING FAST",
-    stockProgress: 91,
+    soldPercent: 91,
   },
   {
     id: 8,
@@ -126,13 +102,11 @@ const DEALS = [
     image:
       "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=80",
     tag: "Home & Living",
-    dealPrice: 32.5,
+    price: 32.5,
     originalPrice: 68,
     discount: 52,
-    sold: "1.6k",
-    gradient: "from-[#f3f4f6] to-white",
     stockText: "LOW STOCK",
-    stockProgress: 28,
+    soldPercent: 28,
   },
 ];
 
@@ -195,19 +169,22 @@ const FlashDealsPage = () => {
               Deals
             </span>
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-[#6b7280]">
-            <Clock size={14} />
-            <span className="hidden sm:inline">Ends in</span>
-            <div className="flex items-center gap-1 text-white">
-              {[hours, minutes, seconds].map((value, index) => (
-                <div key={index} className="flex items-center gap-1">
-                  <span className="min-w-[22px] rounded-sm bg-[#1f2937] px-1 py-0.5 text-center text-[11px] font-bold">
-                    {pad(value)}
+          <div className="ml-4 flex items-center gap-2 border-l border-[var(--dni-cart-border)] pl-4">
+            {[pad(hours), pad(minutes), pad(seconds)].map((block, index) => (
+              <div key={index} className="flex items-center gap-1.5">
+                <span className="flex h-10 min-w-[36px] items-center justify-center bg-[var(--dni-primary)] px-2 font-mono text-[13px] font-bold text-white">
+                  {block}
+                </span>
+                {index < 2 && (
+                  <span className="font-mono text-[13px] font-bold text-slate-700">
+                    :
                   </span>
-                  {index < 2 && <span className="text-[#1f2937]">:</span>}
-                </div>
-              ))}
-            </div>
+                )}
+              </div>
+            ))}
+            <span className="ml-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              Ends Soon
+            </span>
           </div>
           <span className="hidden h-px w-10 bg-[#d1d5db] sm:block" />
         </div>
@@ -267,62 +244,9 @@ const FlashDealsPage = () => {
       </section>
 
       <section className="bg-[#f5f5f5] px-4 pb-10 pt-3 sm:px-6">
-        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-2.5 sm:grid-cols-[repeat(auto-fill,minmax(220px,1fr))] sm:gap-3 items-stretch">
           {filteredDeals.map((deal) => (
-            <div
-              key={deal.id}
-              className="flex min-w-0 flex-col overflow-hidden bg-white shadow-[0_1px_3px_rgba(17,24,39,0.04)]"
-            >
-              <div
-                className={`relative aspect-square overflow-hidden bg-gradient-to-br ${deal.gradient}`}
-              >
-                <div className="absolute left-0 top-2 z-10 bg-[var(--dni-primary)] px-1.5 py-0.5 text-[10px] font-bold text-white">
-                  Mall
-                </div>
-                <img
-                  src={deal.image}
-                  alt={deal.name}
-                  className="h-full w-full object-cover"
-                />
-              </div>
-
-              <div className="flex min-h-[172px] flex-1 flex-col gap-2 p-3">
-                <p className="min-h-[2.75rem] text-[13px] font-medium leading-5 text-[#1f2937] line-clamp-2">
-                  {deal.name}
-                </p>
-
-                <div className="flex items-center gap-1 text-[11px] text-[#9ca3af]">
-                  <span className="line-through">
-                    ${deal.originalPrice.toFixed(2)}
-                  </span>
-                  <span className="bg-[var(--dni-primary-soft)] px-1 text-[10px] font-bold text-[var(--dni-primary)]">
-                    -{deal.discount}%
-                  </span>
-                </div>
-
-                <div className="text-xl font-black leading-none text-[var(--dni-primary)]">
-                  ${deal.dealPrice.toFixed(2)}
-                </div>
-
-                <div className="mt-auto flex items-center gap-2">
-                  <div className="relative h-3 min-w-0 flex-1 overflow-hidden rounded-full bg-[#f3f4f6]">
-                    <div
-                      className="h-full bg-[var(--dni-primary)]"
-                      style={{ width: `${deal.stockProgress}%` }}
-                    />
-                    <span className="absolute inset-0 text-center text-[8px] font-bold leading-3 text-white">
-                      {deal.stockText}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    className="shrink-0 bg-[var(--dni-primary)] px-3 py-2 text-xs font-bold text-white transition-opacity hover:opacity-95"
-                  >
-                    Buy Now
-                  </button>
-                </div>
-              </div>
-            </div>
+            <FlashDealCard key={deal.id} deal={deal} />
           ))}
         </div>
       </section>
