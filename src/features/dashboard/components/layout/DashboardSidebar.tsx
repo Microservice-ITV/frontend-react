@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { NavLink, useLocation } from "react-router-dom";
+import brandLogo from "@/public/brand-logo.svg";
 import {
   X,
   Zap,
@@ -167,8 +168,12 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
         <div
           className={`flex items-center gap-2 ${isSidebarCollapsed ? "lg:justify-center" : ""}`}
         >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500">
-            <Zap size={18} className="text-white" />
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden">
+            <img
+              src={brandLogo}
+              alt="Brand Logo"
+              className="w-8 h-8 rounded-sm object-contain"
+            />
           </div>
           {!isSidebarCollapsed && (
             <div>
@@ -209,6 +214,7 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
 
       <nav
         className={`flex-1 overflow-y-auto py-3 ${isSidebarCollapsed ? "px-2" : "px-3"}`}
+        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
         {sections.map((section) => {
           const isSectionCollapsed = collapsedSections[section.title] ?? false;
