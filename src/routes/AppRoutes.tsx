@@ -85,6 +85,8 @@ import AdminShopEditPage from "@/features/admin/pages/AdminShopEditPage";
 import AdminShopsPage from "@/features/admin/pages/AdminShopsPage";
 import AdminUsersPage from "@/features/admin/pages/AdminUsersPage";
 import AdminIncomePage from "@/features/admin/pages/AdminIncomePage";
+import AdminExpensePage from "@/features/admin/pages/AdminExpensePage";
+import AdminExpenseCategoriesPage from "@/features/admin/pages/AdminExpenseCategoriesPage";
 import CommonNotificationsPage from "@/features/common/pages/CommonNotificationsPage";
 import CommonChatPage from "@/features/common/pages/CommonChatPage";
 import CommonHelpSupportPage from "@/features/common/pages/CommonHelpSupportPage";
@@ -99,6 +101,9 @@ import SellerFinanceOverviewPage from "@/features/finance/pages/SellerFinanceOve
 import SellerFinanceTransactionsPage from "@/features/finance/pages/SellerFinanceTransactionsPage";
 import AdminFinanceOverviewPage from "@/features/finance/pages/AdminFinanceOverviewPage";
 import AdminFinanceTransactionsPage from "@/features/finance/pages/AdminFinanceTransactionsPage";
+import AdminAccountingOverviewPage from "@/features/accounting/pages/AdminAccountingOverviewPage";
+import AdminChartOfAccountsPage from "@/features/accounting/pages/AdminChartOfAccountsPage";
+import AdminJournalEntriesPage from "@/features/accounting/pages/AdminJournalEntriesPage";
 
 const AppRoutes = () => {
   return (
@@ -904,10 +909,7 @@ const AppRoutes = () => {
                 <ProtectedRoute
                   requiredCapabilities={ROUTE_ACCESS.superAdminAccounting}
                 >
-                  <DashboardPlaceholderPage
-                    title="Accounting"
-                    description="Platform accounting, payments, and financial reporting will be managed here."
-                  />
+                  <AdminAccountingOverviewPage />
                 </ProtectedRoute>
               }
             />
@@ -918,9 +920,49 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.superAdminAccounting}
                 >
                   <AdminIncomePage />
-                  </ProtectedRoute>
+                </ProtectedRoute>
               }
-          />
+            />
+            <Route
+              path="accounting/expenses"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminAccounting}
+                >
+                  <AdminExpensePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/expense-categories"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminAccounting}
+                >
+                  <AdminExpenseCategoriesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/chart-of-accounts"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminAccounting}
+                >
+                  <AdminChartOfAccountsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/journal-entries"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminAccounting}
+                >
+                  <AdminJournalEntriesPage />
+                </ProtectedRoute>
+              }
+            />
 
           <Route
               path="finance"
