@@ -4,7 +4,7 @@ import { useAppSelector, useAppDispatch } from "@/app/hooks";
 import { searchProducts } from "@/features/products/store/productThunks";
 import { fetchCategories } from "@/features/categories/store/categoryThunks";
 import {
-  selectCategories,
+  selectCategoriesWithProducts,
   selectCategoriesStatus,
 } from "@/features/categories/store/categorySelectors";
 
@@ -19,8 +19,7 @@ export function useNavbarSearch() {
 
   const searchResults = useAppSelector((s) => s.products.searchResults || []);
   const searchStatus = useAppSelector((s) => s.products.searchStatus || "idle");
-  const rawCategories = useAppSelector(selectCategories);
-  const categories = rawCategories.filter((c) => (c._count?.products ?? 0) > 0);
+  const categories = useAppSelector(selectCategoriesWithProducts);
   const categoriesStatus = useAppSelector(selectCategoriesStatus);
 
   const [searchQuery, setSearchQuery] = useState("");
