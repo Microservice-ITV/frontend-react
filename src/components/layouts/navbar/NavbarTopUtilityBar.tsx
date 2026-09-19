@@ -45,6 +45,7 @@ const NavbarTopUtilityBar = () => {
                     <Link to="#" className="hover:text-black">
                         Notifications
                     </Link>
+                    */}
                 </div>
 
                 {/* Desktop Announcement Badge */}
