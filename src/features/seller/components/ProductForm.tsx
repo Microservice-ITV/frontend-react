@@ -656,22 +656,24 @@ const ProductForm = ({
                   </div>
 
                   <div className="space-y-4">
-                    {fields.map((field, index) => {
-                      const row = variantsWatched?.[index];
-                      const base = row?.basePrice ? Number(row.basePrice) : NaN;
-                      const markup = parseOptionalPercent(
-                        row?.profitThresholdPercent ?? "",
-                      );
-                      const disc = parseOptionalPercent(
-                        row?.discountPercent ?? "",
-                      );
-                      const listOk = !Number.isNaN(base) && base > 0;
-                      const listPrice = listOk
-                        ? computeListPrice(base, markup)
-                        : null;
-                      const effective = listOk
-                        ? computeEffectiveSellingPrice(base, markup, disc)
-                        : null;
+{fields.map((field, index) => {
+      const row = variantsWatched?.[index];
+      const base = row?.basePrice ? Number(row.basePrice) : NaN;
+      const markup = parseOptionalPercent(
+        row?.profitThresholdPercent ?? "",
+      );
+      const disc = parseOptionalPercent(
+        row?.discountPercent ?? "",
+      );
+      const listOk = !Number.isNaN(base) && base > 0;
+      const listPrice = listOk
+        ? computeListPrice(base, markup)
+        : null;
+      const effective = listOk
+        ? computeEffectiveSellingPrice(base, markup, disc)
+        : null;
+      const sellingPriceDisplay = listPrice != null ? `$${listPrice.toFixed(2)}` : "—";
+      const sellingPriceInputValue = listPrice != null ? listPrice.toFixed(2) : "";
 
                       return (
                         <div
@@ -817,6 +819,26 @@ const ProductForm = ({
                             <div className="min-w-0">
                               <label
                                 className="mb-1 block text-xs font-medium text-slate-700"
+                                htmlFor={`sellingPrice-${index}`}
+                              >
+                                Selling price ($)
+                              </label>
+                              <input
+                                id={`sellingPrice-${index}`}
+                                type="text"
+                                inputMode="decimal"
+                                autoComplete="off"
+                                spellCheck={false}
+                                readOnly
+                                placeholder="0.00"
+                                value={sellingPriceInputValue}
+                                title="Automatically calculated from base price and markup %"
+                                className="w-full min-w-0 cursor-not-allowed rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-emerald-500"
+                              />
+                            </div>
+                            <div className="min-w-0">
+                              <label
+                                className="mb-1 block text-xs font-medium text-slate-700"
                                 htmlFor={`markup-${index}`}
                               >
                                 Markup %
@@ -936,11 +958,9 @@ const ProductForm = ({
 
                           <div className="mt-3 flex flex-wrap gap-4 border-t border-slate-200 pt-3 text-xs text-slate-600">
                             <span>
-                              List price:{" "}
+                              Selling price (list):{" "}
                               <strong className="text-slate-900">
-                                {listPrice != null
-                                  ? `$${listPrice.toFixed(2)}`
-                                  : "—"}
+                                {sellingPriceDisplay}
                               </strong>
                             </span>
                             <span>

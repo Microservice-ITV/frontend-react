@@ -26,6 +26,15 @@ export function mapApiProductVariantsToFormShape(
   }
   const variants: ProductFormValues['variants'] = raw.map((v) => {
     const id = v.id ?? v.variantId ?? ''
+
+    // Clean up stock assignment to avoid parser confusion
+    let resolvedStock = ''
+    if (v.stock != null && String(v.stock).trim() !== '') {
+      resolvedStock = String(v.stock)
+    } else if (v.shopStock != null && String(v.shopStock).trim() !== '') {
+      resolvedStock = String(v.shopStock)
+    }
+
     return {
       serverVariantId: typeof id === 'string' && id.length > 0 ? id : undefined,
       colorId: v.colorId ?? '',
@@ -42,14 +51,10 @@ export function mapApiProductVariantsToFormShape(
         v.discountPercent != null && String(v.discountPercent).trim() !== ''
           ? String(v.discountPercent)
           : '0',
-      stock:
-        v.stock != null && String(v.stock).trim() !== ''
-          ? String(v.stock)
-          : v.shopStock != null && String(v.shopStock).trim() !== ''
-            ? String(v.shopStock)
-            : '',
+      stock: resolvedStock,
     }
   })
+
   const primaryIdx = raw.findIndex((v) => v.isPrimary)
   return {
     variants,
