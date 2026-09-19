@@ -1,21 +1,22 @@
 import { useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { fetchCategories } from "@/features/categories/store/categoryThunks";
+import {
+  selectCategoriesStatus,
+  selectCategoriesWithProducts,
+} from "@/features/categories/store/categorySelectors";
 import CategoryGrid from "./CategoryGrid";
 
 const CategoriesSection = () => {
   const dispatch = useAppDispatch();
-  const { items, status } = useAppSelector((s) => s.categories);
+  const categoriesWithProducts = useAppSelector(selectCategoriesWithProducts);
+  const status = useAppSelector(selectCategoriesStatus);
 
   useEffect(() => {
     if (status === "idle") {
       void dispatch(fetchCategories());
     }
   }, [dispatch, status]);
-
-  const categoriesWithProducts = items.filter(
-    (cat) => (cat._count?.products ?? 0) > 0
-  );
 
   return (
     <section className="pt-6">
