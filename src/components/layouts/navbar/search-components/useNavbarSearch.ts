@@ -19,7 +19,8 @@ export function useNavbarSearch() {
 
   const searchResults = useAppSelector((s) => s.products.searchResults || []);
   const searchStatus = useAppSelector((s) => s.products.searchStatus || "idle");
-  const categories = useAppSelector(selectCategories);
+  const rawCategories = useAppSelector(selectCategories);
+  const categories = rawCategories.filter((c) => (c._count?.products ?? 0) > 0);
   const categoriesStatus = useAppSelector(selectCategoriesStatus);
 
   const [searchQuery, setSearchQuery] = useState("");
