@@ -1,6 +1,7 @@
 import { configureStore } from '@reduxjs/toolkit'
 import rootReducer from './rootReducer'
 import { cartPersistenceMiddleware } from '@/features/cart/middleware/cartPersistenceMiddleware'
+import { cartActivityMiddleware } from '@/features/cart/middleware/cartActivityMiddleware'
 import { wishlistPersistenceMiddleware } from '@/features/wishlist/middleware/wishlistPersistenceMiddleware'
 import { wishlistServerSyncMiddleware } from '@/features/wishlist/middleware/wishlistServerSyncMiddleware'
 
@@ -13,6 +14,7 @@ export const store = configureStore({ // configureStore = to combine reducer
     middleware: getDefaultMiddleware =>
         getDefaultMiddleware().concat(
             cartPersistenceMiddleware,
+            cartActivityMiddleware,
             wishlistPersistenceMiddleware,
             wishlistServerSyncMiddleware,
         ),

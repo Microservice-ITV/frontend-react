@@ -255,20 +255,55 @@ const AdminDeliveryQuoteDetailPage = () => {
             </section>
 
             <section className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6 lg:col-span-2">
+              <h2 className="text-sm font-semibold text-slate-900">Products</h2>
+              {quote.items && quote.items.length > 0 ? (
+                <ul className="mt-3 space-y-2">
+                  {quote.items.map((item, index) => (
+                    <li
+                      key={`${item.productId}-${item.variantId ?? index}`}
+                      className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-slate-900">
+                          {item.productName ?? item.productId}
+                        </p>
+                        {item.variantId && (
+                          <p className="truncate font-mono text-[11px] text-slate-400">
+                            {item.variantId}
+                          </p>
+                        )}
+                      </div>
+                      <span className="shrink-0 text-xs text-slate-500">
+                        × {item.quantity}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 text-sm text-slate-500">—</p>
+              )}
+            </section>
+
+            <section className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6 lg:col-span-2">
               <h2 className="text-sm font-semibold text-slate-900">References</h2>
               <dl className="mt-2">
                 <DetailRow
-                  label="Shop ID"
-                  value={<span className="font-mono text-xs">{quote.shopId}</span>}
+                  label="Shop"
+                  value={
+                    quote.shopName ?? (
+                      <span className="font-mono text-xs">{quote.shopId}</span>
+                    )
+                  }
                 />
                 <DetailRow
-                  label="Customer ID"
+                  label="Customer"
                   value={
-                    quote.customerId ? (
+                    quote.customerName ??
+                    (quote.customerId ? (
                       <span className="font-mono text-xs">{quote.customerId}</span>
                     ) : (
-                      '—'
-                    )
+                      'Guest'
+                    ))
                   }
                 />
                 <DetailRow
@@ -281,10 +316,6 @@ const AdminDeliveryQuoteDetailPage = () => {
                       {quote.pricingRule.name} (v{quote.pricingVersion})
                     </Link>
                   }
-                />
-                <DetailRow
-                  label="Route calculation"
-                  value={<span className="font-mono text-xs">{quote.routeCalculationId}</span>}
                 />
                 <DetailRow label="Updated" value={formatDateTime(quote.updatedAt)} />
               </dl>

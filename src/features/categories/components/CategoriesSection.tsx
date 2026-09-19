@@ -1,11 +1,16 @@
 import { useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { fetchCategories } from "@/features/categories/store/categoryThunks";
+import {
+  selectCategoriesStatus,
+  selectCategoriesWithProducts,
+} from "@/features/categories/store/categorySelectors";
 import CategoryGrid from "./CategoryGrid";
 
 const CategoriesSection = () => {
   const dispatch = useAppDispatch();
-  const { items, status } = useAppSelector((s) => s.categories);
+  const categoriesWithProducts = useAppSelector(selectCategoriesWithProducts);
+  const status = useAppSelector(selectCategoriesStatus);
 
   useEffect(() => {
     if (status === "idle") {
@@ -29,7 +34,7 @@ const CategoriesSection = () => {
         </div>
       )}
 
-      {status === "succeeded" && <CategoryGrid items={items} />}
+      {status === "succeeded" && <CategoryGrid items={categoriesWithProducts} />}
     </section>
   );
 };
