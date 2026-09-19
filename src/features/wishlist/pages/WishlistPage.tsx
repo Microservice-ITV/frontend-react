@@ -10,6 +10,7 @@ import WishlistEmptyState from "../components/WishlistEmptyState";
 import ProductGrid, {
   ProductGridSkeleton,
 } from "@/features/products/components/ProductGrid";
+import Pagination from "@/components/ui/Pagination";
 import type {
   Product,
   ProductDetail,
@@ -173,32 +174,12 @@ const WishlistPage = () => {
         ) : null}
 
         {totalPages > 1 && (
-          <nav
-            className="flex items-center justify-center gap-3 pt-2"
-            aria-label="Wishlist pages"
-          >
-            <button
-              type="button"
-              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-              disabled={currentPage === 1}
-              className="border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Previous
-            </button>
-            <span className="text-sm text-gray-600">
-              Page {currentPage} of {totalPages}
-            </span>
-            <button
-              type="button"
-              onClick={() =>
-                setCurrentPage((page) => Math.min(totalPages, page + 1))
-              }
-              disabled={currentPage === totalPages}
-              className="border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Next
-            </button>
-          </nav>
+          <Pagination
+            page={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            className="justify-center pt-2"
+          />
         )}
       </div>
     </main>

@@ -17,4 +17,5 @@ export interface RawProduct {
     sku?: string
     images?: string[]
     categoryId: string
+    tags?: string[]
 }

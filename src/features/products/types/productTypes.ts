@@ -2,9 +2,11 @@
 export interface Product {
   id: string
   name: string
+  text?: string
   price: number
   images: string[]
   categoryId: string
+  tags?: string[]
 }
 
 /** One SKU row from ecommerce-read `product_reads.variants`. */
@@ -36,6 +38,7 @@ export interface ProductVariant {
 export interface ProductDetail {
   id: string
   name: string
+  text?: string
   slug: string
   description?: string
   /** Optional product demo video (YouTube URL). */
@@ -65,6 +68,7 @@ export interface ProductDetail {
   brandName: string
   primaryVariantId: string | null
   variants: ProductVariant[]
+  tags?: string[]
 }
 
 // Redux state

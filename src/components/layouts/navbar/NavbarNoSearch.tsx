@@ -16,7 +16,7 @@ const NavbarNoSearch = () => {
   const pageName = getPageName(pathname);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-emerald-50">
+    <header className="sticky top-0 z-50 bg-emerald-50">
       <Announcements />
       <NavbarTopUtilityBar />
 
@@ -44,4 +44,3 @@ const NavbarNoSearch = () => {
 
 
 export default NavbarNoSearch
-

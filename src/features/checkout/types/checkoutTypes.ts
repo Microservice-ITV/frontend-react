@@ -23,6 +23,7 @@ export type CheckoutPaymentStatus =
 export interface CheckoutStatusResponse {
     checkout_id: string
     status: CheckoutPaymentStatus
+    payment_method?: string
     client_secret?: string
     payment?: {
         payment_id: string

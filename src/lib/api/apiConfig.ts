@@ -32,6 +32,10 @@ export const PROMOTION_SERVICE_BASE_URL =
     import.meta.env.VITE_PROMOTION_SERVICE_URL ??
     'http://localhost:5007'
 
+export const ACCOUNTING_SERVICE_BASE_URL =
+    import.meta.env.VITE_ACCOUNTING_SERVICE_URL ??
+    'http://localhost:4005/api/v1'
+
 export const ECOMMERCE_READ_SERVICE_BASE_URL =
     import.meta.env.VITE_ECOMMERCE_READ_SERVICE_URL ??
     'http://localhost:5004'
