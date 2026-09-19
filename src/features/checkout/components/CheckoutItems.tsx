@@ -108,10 +108,11 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
                 <div className="flex flex-col gap-2">
                   <span className="text-sm font-medium text-gray-900">Message for Seller</span>
 
-                  <input
-                    className="w-full border px-3 py-2 text-sm text-gray-700 rounded border-[var(--dni-cart-border)] outline-none"
+                  <textarea
+                    rows="5"
+                    className="w-full border px-3 py-2 text-sm text-gray-700 rounded border-(--dni-cart-border) outline-none"
                     placeholder="Please leave a message"
-                  />
+                  ></textarea>
                 </div>
               </div>
 

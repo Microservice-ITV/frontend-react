@@ -77,7 +77,7 @@ const CategoryGrid = ({ items }: Props) => {
         className="overflow-x-auto overflow-y-hidden scrollbar-hide"
       >
         <ul
-          className="grid w-full min-w-max grid-flow-col grid-rows-2"
+          className="grid w-full min-w-max grid-flow-col grid-rows-1"
           style={{ gridAutoColumns: `minmax(${COL_WIDTH_PX}px, 1fr)` }}
         >
           {items.map((cat) => (
