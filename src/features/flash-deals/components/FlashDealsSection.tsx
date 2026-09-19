@@ -1,91 +1,55 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight, Flame } from "lucide-react";
-
-const FLASH_DEALS = [
-  {
-    id: 1,
-    name: "Wireless Earbuds Pro",
-    image:
-      "https://images.unsplash.com/photo-1546435770-a3e426bf472b?auto=format&fit=crop&w=900&q=80",
-    price: 19.98,
-    originalPrice: 59.9,
-    discount: 67,
-    stockText: "ONLY 8 LEFT",
-    soldPercent: 85,
-  },
-  {
-    id: 2,
-    name: "Premium Ceramic Cookware Set",
-    image:
-      "https://images.unsplash.com/photo-1582515073490-39981397c445?auto=format&fit=crop&w=900&q=80",
-    price: 20.7,
-    originalPrice: 129,
-    discount: 65,
-    stockText: "SELLING FAST",
-    soldPercent: 70,
-  },
-  {
-    id: 3,
-    name: "Hydrating Lip Tint Trio",
-    image:
-      "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=900&q=80",
-    price: 42.5,
-    originalPrice: 89.9,
-    discount: 17,
-    stockText: "SELLING FAST",
-    soldPercent: 60,
-  },
-  {
-    id: 4,
-    name: "Mini Robot Vacuum",
-    image:
-      "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=900&q=80",
-    price: 114.5,
-    originalPrice: 199,
-    discount: 25,
-    stockText: "SELLING FAST",
-    soldPercent: 75,
-  },
-  {
-    id: 5,
-    name: "Organic Baby Skincare Kit",
-    image:
-      "https://images.unsplash.com/photo-1556228578-8c89e6adf883?auto=format&fit=crop&w=900&q=80",
-    price: 17.7,
-    originalPrice: 54.9,
-    discount: 43,
-    stockText: "ONLY 8 LEFT",
-    soldPercent: 90,
-  },
-  {
-    id: 6,
-    name: "Athletic Running Shoes",
-    image:
-      "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=80",
-    price: 26.6,
-    originalPrice: 79.9,
-    discount: 43,
-    stockText: "ONLY 4 LEFT",
-    soldPercent: 95,
-  },
-];
+import { flashDealApi, type ActiveFlashDealItem } from "@/lib/api/flashDealClient";
+import { productServiceAssetUrl } from "@/lib/api/apiConfig";
 
 const FlashDealsSection = () => {
-  const [timeLeft, setTimeLeft] = useState(1 * 3600 + 55 * 60 + 29);
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [deals, setDeals] = useState<ActiveFlashDealItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const dealsTrackRef = useRef<HTMLDivElement | null>(null);
+  const endAtTargetRef = useRef<number | null>(null);
+  const serverTimeOffsetRef = useRef(0);
+
+  useEffect(() => {
+    const fetchDeals = async () => {
+      try {
+        const data = await flashDealApi.getActiveFlashDeals(10);
+        setDeals(data.items);
+        serverTimeOffsetRef.current = Date.parse(data.serverTime) - Date.now();
+        const nearestEnd = data.items.reduce<number | null>(
+          (min, deal) => {
+            const end = Date.parse(deal.endAt);
+            return min === null || end < min ? end : min;
+          },
+          null,
+        );
+        endAtTargetRef.current = nearestEnd;
+        setTimeLeft(nearestEnd === null ? null : Math.max(0, nearestEnd + serverTimeOffsetRef.current - Date.now()));
+      } catch (error) {
+        console.error('Failed to fetch flash deals:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDeals();
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
+      const target = endAtTargetRef.current;
+      if (target === null) return;
+      const remaining = Math.max(0, target + serverTimeOffsetRef.current - Date.now());
+      setTimeLeft(Math.floor(remaining / 1000));
     }, 1000);
 
     return () => clearInterval(timer);
   }, []);
 
-  const hours = Math.floor(timeLeft / 3600);
-  const minutes = Math.floor((timeLeft % 3600) / 60);
-  const seconds = timeLeft % 60;
+  const hours = timeLeft === null ? 0 : Math.floor(timeLeft / 3600);
+  const minutes = timeLeft === null ? 0 : Math.floor((timeLeft % 3600) / 60);
+  const seconds = timeLeft === null ? 0 : timeLeft % 60;
 
   const timerBlocks = [
     String(hours).padStart(2, "0"),
@@ -108,17 +72,17 @@ const FlashDealsSection = () => {
     });
   };
 
-  return (
-    <section className="relative w-full border border-gray-100 bg-white p-4">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-[var(--dni-primary)]">
-            <Flame className="h-6 w-6 fill-[var(--dni-primary)]" />
-            <span className="text-xl font-black uppercase tracking-[0.04em] text-[var(--dni-primary)]">
-              Flash Deals
-            </span>
-          </div>
+  const renderHeader = () => (
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 text-[var(--dni-primary)]">
+          <Flame className="h-6 w-6 fill-[var(--dni-primary)]" />
+          <span className="text-xl font-black uppercase tracking-[0.04em] text-[var(--dni-primary)]">
+            Flash Deals
+          </span>
+        </div>
 
+        {timeLeft !== null && (
           <div className="flex items-center gap-1">
             {timerBlocks.map((block, idx) => (
               <div key={idx} className="flex items-center gap-1">
@@ -133,23 +97,78 @@ const FlashDealsSection = () => {
               </div>
             ))}
           </div>
-        </div>
-
-        <Link
-          to="/flash-deals"
-          className="group inline-flex items-center gap-1 text-sm font-semibold text-[var(--dni-primary)]"
-        >
-          <span>See All</span>
-          <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
-        </Link>
+        )}
       </div>
+
+      <Link
+        to="/flash-deals"
+        className="group inline-flex items-center gap-1 text-sm font-semibold text-[var(--dni-primary)]"
+      >
+        <span>See All</span>
+        <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
+      </Link>
+    </div>
+  );
+
+  if (loading) {
+    return (
+      <section className="relative w-full border border-gray-100 bg-white p-4">
+        {renderHeader()}
+
+        <div className="group relative">
+          <div
+            ref={dealsTrackRef}
+            className="scrollbar-hide flex gap-3 overflow-x-auto pb-1"
+          >
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                data-deal-card
+                className="w-[180px] min-w-[180px] snap-start border border-gray-100 bg-white shadow-[0_2px_0_rgba(17,24,39,0.02)] animate-pulse sm:w-[200px] sm:min-w-[200px]"
+              >
+                <div className="relative">
+                  <div className="relative aspect-[4/3] overflow-hidden bg-[#fafafa]">
+                    <div className="absolute inset-0 bg-slate-100" />
+                    <span className="absolute left-2 top-2 z-10 bg-[var(--dni-primary)] px-1.5 py-0.5 text-[9px] font-bold text-white">
+                      Mall
+                    </span>
+                  </div>
+                </div>
+                <div className="space-y-2 p-3">
+                  <div className="h-6 bg-slate-100 rounded w-24 mx-auto" />
+                  <div className="h-4 bg-slate-100 rounded w-3/4" />
+                  <div className="h-3 bg-slate-100 rounded-full w-full" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (deals.length === 0 || timeLeft === null) {
+    return (
+      <section className="relative w-full border border-gray-100 bg-white p-4">
+        {renderHeader()}
+
+        <div className="text-center py-8 text-slate-500 text-sm">
+          No active flash deals at the moment.
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="relative w-full border border-gray-100 bg-white p-4">
+      {renderHeader()}
 
       <div className="group relative">
         <div
           ref={dealsTrackRef}
           className="scrollbar-hide flex gap-3 overflow-x-auto pb-1"
         >
-          {FLASH_DEALS.map((deal) => (
+          {deals.map((deal) => (
             <div
               key={deal.id}
               data-deal-card
@@ -158,7 +177,7 @@ const FlashDealsSection = () => {
               <div className="relative">
                 <div className="relative aspect-[4/3] overflow-hidden bg-[#fafafa]">
                   <img
-                    src={deal.image}
+                    src={deal.image ? productServiceAssetUrl(deal.image) : ''}
                     alt={deal.name}
                     className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                   />
@@ -185,12 +204,12 @@ const FlashDealsSection = () => {
                   {deal.name}
                 </p>
 
-                <div className="relative h-2.5 overflow-hidden bg-gray-100">
+                <div className="relative h-4 overflow-hidden bg-gray-100">
                   <div
                     className="h-full bg-[var(--dni-primary)]"
-                    style={{ width: `${deal.soldPercent}%` }}
+                    style={{ width: `${Math.min(100, deal.soldPercent)}%` }}
                   />
-                  <div className="absolute inset-0 flex items-center justify-center gap-1 text-[8px] font-bold text-white">
+                  <div className="absolute inset-0 flex items-center justify-center gap-1 text-[9px] font-bold text-white">
                     <Flame className="h-2.5 w-2.5 fill-white" />
                     <span>{deal.stockText}</span>
                   </div>

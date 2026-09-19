@@ -94,6 +94,11 @@ import AnnouncementDetailPage from "@/features/announcements/pages/AnnouncementD
 import { PhoneAuthPage } from "@/features/auth/pages/PhoneAuthPage";
 import { PhoneOtpPage } from "@/features/auth/pages/PhoneOtpPage";
 import PromotionEnginePage from "@/features/promotions/pages/PromotionEnginePage";
+import PromotionEngineLayout from "@/features/promotions/pages/PromotionEngineLayout";
+import FlashDealsAdminPage from "@/features/flash-deals/pages/FlashDealsAdminPage";
+import NewFlashDealPage from "@/features/flash-deals/pages/NewFlashDealPage";
+import FlashDealDetailPage from "@/features/flash-deals/pages/FlashDealDetailPage";
+import EditFlashDealPage from "@/features/flash-deals/pages/EditFlashDealPage";
 import SellerFinanceOverviewPage from "@/features/finance/pages/SellerFinanceOverviewPage";
 import SellerFinanceTransactionsPage from "@/features/finance/pages/SellerFinanceTransactionsPage";
 import AdminFinanceOverviewPage from "@/features/finance/pages/AdminFinanceOverviewPage";
@@ -853,10 +858,61 @@ const AppRoutes = () => {
                 <ProtectedRoute
                   requiredCapabilities={ROUTE_ACCESS.promotionsView}
                 >
-                  <PromotionEnginePage />
+                  <PromotionEngineLayout />
                 </ProtectedRoute>
               }
-            />
+            >
+              <Route
+                index
+                element={
+                  <ProtectedRoute
+                    requiredCapabilities={ROUTE_ACCESS.promotionsView}
+                  >
+                    <PromotionEnginePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="flash-deals"
+                element={
+                  <ProtectedRoute
+                    requiredCapabilities={ROUTE_ACCESS.promotionsView}
+                  >
+                    <FlashDealsAdminPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="flash-deals/:flashDealId"
+                element={
+                  <ProtectedRoute
+                    requiredCapabilities={ROUTE_ACCESS.promotionsView}
+                  >
+                    <FlashDealDetailPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="flash-deals/:flashDealId/edit"
+                element={
+                  <ProtectedRoute
+                    requiredCapabilities={ROUTE_ACCESS.promotionsView}
+                  >
+                    <EditFlashDealPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="flash-deals/new"
+                element={
+                  <ProtectedRoute
+                    requiredCapabilities={ROUTE_ACCESS.promotionsView}
+                  >
+                    <NewFlashDealPage />
+                  </ProtectedRoute>
+                }
+              />
+            </Route>
             <Route
               path="finance"
               element={

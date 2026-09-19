@@ -1,9 +1,8 @@
-import { useMemo, type MouseEvent } from "react";
-// import { useMemo, useState, type MouseEvent } from 'react'
+import { useMemo, useState, type MouseEvent } from "react";
 import { Link } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { addToCart } from "@/features/cart/store/cartSlice";
-// import { selectCartItems } from '@/features/cart/store/cartSelectors'
+import { selectCartItems } from "@/features/cart/store/cartSelectors";
 import { toggleWishlist } from "@/features/wishlist/store/wishlistSlice";
 // import { toggleWishlist, addToWishlist } from '@/features/wishlist/store/wishlistSlice'
 import { selectIsWishlisted } from "@/features/wishlist/store/wishlistSelectors";
@@ -147,8 +146,8 @@ interface ProductCardProps {
 const ProductCard = ({ product }: ProductCardProps) => {
   const dispatch = useAppDispatch();
   const wishlisted = useAppSelector((s) => selectIsWishlisted(s, product.id));
-  // const cartItems = useAppSelector(selectCartItems)
-  // const [justAdded, setJustAdded] = useState(false)
+  const cartItems = useAppSelector(selectCartItems)
+  const [justAdded, setJustAdded] = useState(false)
 
   const meta = useMemo(() => cardMeta(product.id), [product.id])
   const badgeLabel = useMemo(
