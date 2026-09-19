@@ -1,0 +1,344 @@
+import axios, { AxiosResponse } from 'axios'
+import { shippingClient } from '@/lib/api/shippingClient'
+
+export type PricingRuleStatus = 'ACTIVE' | 'INACTIVE'
+export type WeightRoundingMethod = 'ROUND_UP' | 'ROUND_DOWN' | 'ROUND_NEAREST'
+export type DeliveryServiceType = 'STANDARD'
+
+export type WeightRateDto = {
+  baseWeightKg: number
+  baseFee: number
+  additionalWeightKg: number
+  additionalFee: number
+}
+
+export type DistanceRateDto = {
+  id?: string
+  minDistanceKm: number
+  maxDistanceKm: number | null
+  fee: number
+}
+
+export type DeliveryPricingRuleDto = {
+  id: string
+  name: string
+  serviceType: DeliveryServiceType
+  dimensionalDivisor: number
+  weightRoundingMethod: WeightRoundingMethod
+  weightRoundingIncrement: number
+  currency: string
+  minimumFee: number
+  maximumFee: number
+  effectiveFrom: string
+  effectiveUntil: string | null
+  version: number
+  status: PricingRuleStatus
+  createdAt: string
+  updatedAt: string
+  weightRate: WeightRateDto | null
+  distanceRates: DistanceRateDto[]
+}
+
+export type PricingRuleDistanceRateInput = {
+  minDistanceKm: number
+  maxDistanceKm: number | null
+  fee: number
+}
+
+export type CreatePricingRulePayload = {
+  name: string
+  serviceType: DeliveryServiceType
+  dimensionalDivisor: number
+  weightRoundingMethod: WeightRoundingMethod
+  weightRoundingIncrement: number
+  currency: string
+  minimumFee: number
+  maximumFee: number
+  effectiveFrom: string
+  effectiveUntil: string | null
+  status: PricingRuleStatus
+  weightRate?: WeightRateDto
+  distanceRates?: PricingRuleDistanceRateInput[]
+}
+
+export type UpdatePricingRulePayload = Partial<CreatePricingRulePayload>
+
+export type PricingRuleListData = {
+  total: number
+  page: number
+  pageSize: number
+  rules: DeliveryPricingRuleDto[]
+}
+
+export type ListPricingRulesParams = {
+  page?: number
+  pageSize?: number
+  status?: PricingRuleStatus
+  serviceType?: DeliveryServiceType
+  search?: string
+}
+
+export type DeliveryQuoteStatus = 'ACTIVE' | 'EXPIRED' | 'USED' | 'CANCELLED'
+
+export type DeliveryQuotePricingRuleSummary = {
+  id: string
+  name: string
+  serviceType: DeliveryServiceType
+  version: number
+}
+
+export type DeliveryQuoteDto = {
+  id: string
+  quoteNumber: string
+  customerId: string | null
+  shopId: string
+  pickupLatitude: number
+  pickupLongitude: number
+  destinationLatitude: number
+  destinationLongitude: number
+  distanceKm: number
+  durationMinutes: number
+  actualWeightKg: number
+  volumetricWeightKg: number
+  chargeableWeightKg: number
+  baseFee: number
+  distanceFee: number
+  weightFee: number
+  additionalFee: number
+  totalFee: number
+  currency: string
+  pricingRuleId: string
+  pricingVersion: number
+  pricingRule: DeliveryQuotePricingRuleSummary
+  routeCalculationId: string
+  status: DeliveryQuoteStatus
+  expiresAt: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type DeliveryQuoteListData = {
+  total: number
+  page: number
+  pageSize: number
+  quotes: DeliveryQuoteDto[]
+}
+
+export type ListDeliveryQuotesParams = {
+  page?: number
+  pageSize?: number
+  status?: DeliveryQuoteStatus
+  shopId?: string
+  search?: string
+}
+
+export type PricingRuleSummaryDto = {
+  id: string
+  name: string
+  serviceType: DeliveryServiceType
+  currency: string
+  status: PricingRuleStatus
+  version: number
+}
+
+export type AdminWeightRateDto = WeightRateDto & {
+  id: string
+  pricingRuleId: string
+  pricingRule: PricingRuleSummaryDto
+  createdAt: string
+  updatedAt: string
+}
+
+export type WeightRateListData = {
+  total: number
+  page: number
+  pageSize: number
+  weightRates: AdminWeightRateDto[]
+}
+
+export type CreateWeightRatePayload = {
+  pricingRuleId: string
+  baseWeightKg: number
+  baseFee: number
+  additionalWeightKg: number
+  additionalFee: number
+}
+
+export type UpdateWeightRatePayload = Partial<Omit<CreateWeightRatePayload, 'pricingRuleId'>>
+
+export type ListWeightRatesParams = {
+  page?: number
+  pageSize?: number
+  pricingRuleId?: string
+  search?: string
+}
+
+export type AdminDistanceRangeDto = {
+  id: string
+  pricingRuleId: string
+  minDistanceKm: number
+  maxDistanceKm: number | null
+  fee: number
+  pricingRule: PricingRuleSummaryDto
+  createdAt: string
+  updatedAt: string
+}
+
+export type DistanceRangeListData = {
+  total: number
+  page: number
+  pageSize: number
+  distanceRanges: AdminDistanceRangeDto[]
+}
+
+export type CreateDistanceRangePayload = {
+  pricingRuleId: string
+  minDistanceKm: number
+  maxDistanceKm: number | null
+  fee: number
+}
+
+export type UpdateDistanceRangePayload = {
+  minDistanceKm?: number
+  maxDistanceKm?: number | null
+  fee?: number
+}
+
+export type ListDistanceRangesParams = {
+  page?: number
+  pageSize?: number
+  pricingRuleId?: string
+  search?: string
+}
+
+type ApiEnvelope<T> = {
+  success: boolean
+  data: T
+}
+
+const getApiErrorMessage = (error: unknown, fallback: string): string => {
+  if (axios.isAxiosError(error)) {
+    if (!error.response) {
+      if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+        return 'Cannot reach the shipping service. Check that it is running on port 5020, then try again.'
+      }
+      return error.message || fallback
+    }
+    const data = error.response.data as
+      | { error?: { message?: string } | string; message?: string }
+      | undefined
+    const nested = typeof data?.error === 'object' ? data?.error?.message : data?.error
+    const message = nested ?? data?.message
+    if (typeof message === 'string' && message.trim()) return message
+    if (error.response.status === 502 || error.response.status === 503) {
+      return 'Shipping service is temporarily unavailable. Please try again in a moment.'
+    }
+  }
+  if (error instanceof Error && error.message) return error.message
+  return fallback
+}
+
+export const adminShippingApi = {
+  listPricingRules(
+    params: ListPricingRulesParams = {},
+  ): Promise<AxiosResponse<ApiEnvelope<PricingRuleListData>>> {
+    return shippingClient.get('/admin/pricing-rules', { params })
+  },
+
+  getPricingRule(id: string): Promise<AxiosResponse<ApiEnvelope<DeliveryPricingRuleDto>>> {
+    return shippingClient.get(`/admin/pricing-rules/${id}`)
+  },
+
+  createPricingRule(
+    payload: CreatePricingRulePayload,
+  ): Promise<AxiosResponse<ApiEnvelope<DeliveryPricingRuleDto>>> {
+    return shippingClient.post('/admin/pricing-rules', payload)
+  },
+
+  updatePricingRule(
+    id: string,
+    payload: UpdatePricingRulePayload,
+  ): Promise<AxiosResponse<ApiEnvelope<DeliveryPricingRuleDto>>> {
+    return shippingClient.put(`/admin/pricing-rules/${id}`, payload)
+  },
+
+  deletePricingRule(
+    id: string,
+  ): Promise<AxiosResponse<ApiEnvelope<{ deleted: boolean; id: string }>>> {
+    return shippingClient.delete(`/admin/pricing-rules/${id}`)
+  },
+
+  listWeightRates(
+    params: ListWeightRatesParams = {},
+  ): Promise<AxiosResponse<ApiEnvelope<WeightRateListData>>> {
+    return shippingClient.get('/admin/weight-rates', { params })
+  },
+
+  getWeightRate(id: string): Promise<AxiosResponse<ApiEnvelope<AdminWeightRateDto>>> {
+    return shippingClient.get(`/admin/weight-rates/${id}`)
+  },
+
+  createWeightRate(
+    payload: CreateWeightRatePayload,
+  ): Promise<AxiosResponse<ApiEnvelope<AdminWeightRateDto>>> {
+    return shippingClient.post('/admin/weight-rates', payload)
+  },
+
+  updateWeightRate(
+    id: string,
+    payload: UpdateWeightRatePayload,
+  ): Promise<AxiosResponse<ApiEnvelope<AdminWeightRateDto>>> {
+    return shippingClient.put(`/admin/weight-rates/${id}`, payload)
+  },
+
+  deleteWeightRate(
+    id: string,
+  ): Promise<AxiosResponse<ApiEnvelope<{ deleted: boolean; id: string }>>> {
+    return shippingClient.delete(`/admin/weight-rates/${id}`)
+  },
+
+  listDistanceRanges(
+    params: ListDistanceRangesParams = {},
+  ): Promise<AxiosResponse<ApiEnvelope<DistanceRangeListData>>> {
+    return shippingClient.get('/admin/distance-ranges', { params })
+  },
+
+  getDistanceRange(id: string): Promise<AxiosResponse<ApiEnvelope<AdminDistanceRangeDto>>> {
+    return shippingClient.get(`/admin/distance-ranges/${id}`)
+  },
+
+  createDistanceRange(
+    payload: CreateDistanceRangePayload,
+  ): Promise<AxiosResponse<ApiEnvelope<AdminDistanceRangeDto>>> {
+    return shippingClient.post('/admin/distance-ranges', payload)
+  },
+
+  updateDistanceRange(
+    id: string,
+    payload: UpdateDistanceRangePayload,
+  ): Promise<AxiosResponse<ApiEnvelope<AdminDistanceRangeDto>>> {
+    return shippingClient.put(`/admin/distance-ranges/${id}`, payload)
+  },
+
+  deleteDistanceRange(
+    id: string,
+  ): Promise<AxiosResponse<ApiEnvelope<{ deleted: boolean; id: string }>>> {
+    return shippingClient.delete(`/admin/distance-ranges/${id}`)
+  },
+
+  listDeliveryQuotes(
+    params: ListDeliveryQuotesParams = {},
+  ): Promise<AxiosResponse<ApiEnvelope<DeliveryQuoteListData>>> {
+    return shippingClient.get('/admin/quotes', { params })
+  },
+
+  getDeliveryQuote(id: string): Promise<AxiosResponse<ApiEnvelope<DeliveryQuoteDto>>> {
+    return shippingClient.get(`/admin/quotes/${id}`)
+  },
+
+  cancelDeliveryQuote(id: string): Promise<AxiosResponse<ApiEnvelope<DeliveryQuoteDto>>> {
+    return shippingClient.post(`/admin/quotes/${id}/cancel`)
+  },
+
+  getApiErrorMessage,
+}

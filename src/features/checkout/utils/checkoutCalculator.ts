@@ -9,8 +9,6 @@ export interface CheckoutTotals {
     groupedByShop: Record<string, CartItem[]>
 }
 
-const DEFAULT_SHOP_SHIPPING = 1.99
-
 export const calculateCheckout = (
     items: CartItem[],
     opts?: {
@@ -37,8 +35,10 @@ export const calculateCheckout = (
     const useApiFees = opts?.feesByShop && Object.keys(opts.feesByShop).length > 0
     const apiTotal = opts?.totalShippingFee
 
-    let shippingSubtotal: number
-    let shippingDiscount: number
+    // No fake fallback: until the real calculate API succeeds, shipping is 0 and the
+    // checkout surfaces an explicit "shipping unavailable" message instead of a stub fee.
+    let shippingSubtotal = 0
+    const shippingDiscount = 0
 
     if (useApiFees && opts?.feesByShop) {
         const fees = opts.feesByShop
@@ -47,13 +47,9 @@ export const calculateCheckout = (
         } else {
             shippingSubtotal = shopIds.reduce((sum, id) => {
                 const amount = fees[id]?.amount
-                return sum + (amount != null && amount >= 0 ? amount : DEFAULT_SHOP_SHIPPING)
+                return sum + (amount != null && amount >= 0 ? amount : 0)
             }, 0)
         }
-        shippingDiscount = 0
-    } else {
-        shippingSubtotal = shopIds.length * DEFAULT_SHOP_SHIPPING
-        shippingDiscount = shippingSubtotal > 0 ? DEFAULT_SHOP_SHIPPING : 0
     }
 
     const totalPayment =

@@ -16,7 +16,6 @@ import {
   FolderOpen,
   Tags,
   Percent,
-  LayoutGrid,
   Home,
   Image,
   RectangleHorizontal,
@@ -29,6 +28,9 @@ import {
   Calculator,
   DollarSign,
   Receipt,
+  Truck,
+  Scale,
+  Route,
 } from "lucide-react";
 import { CAPABILITIES } from "@/app/rbac/capabilities";
 import type { DashboardMenuSection } from "../types/dashboardTypes";
@@ -264,6 +266,60 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         icon: Tags,
       },
       {
+        key: 'admin-users',
+        label: 'Users',
+        to: '/super-admin/users',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: UserCog,
+      },
+    ],
+  },
+  {
+    title: 'SHIPPING',
+    items: [
+      {
+        key: 'admin-delivery-pricing',
+        label: 'Delivery Pricing',
+        to: '/super-admin/shipping/pricing-rules',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: Truck,
+      },
+      {
+        key: 'admin-weight-rates',
+        label: 'Weight Rates',
+        to: '/super-admin/shipping/weight-rates',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: Scale,
+      },
+      {
+        key: 'admin-distance-ranges',
+        label: 'Distance Ranges',
+        to: '/super-admin/shipping/distance-ranges',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: Route,
+      },
+      {
+        key: 'admin-delivery-quotes',
+        label: 'Delivery Quotes',
+        to: '/super-admin/shipping/quotes',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: FileText,
+      },
+    ],
+  },
+  {
+    title: 'STOREFRONT',
+    items: [
+      {
+        key: 'admin-home-features',
+        label: 'Home Features',
+        to: '/super-admin/home-features',
+        area: 'super_admin',
         key: "admin-home-features",
         label: "Home Features",
         to: "/super-admin/home-features",
@@ -296,6 +352,12 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         icon: RectangleHorizontal,
       },
       {
+        key: 'admin-promotions',
+        label: 'Promotions',
+        to: '/super-admin/promotion-engine',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PROMOTIONS_VIEW],
+        icon: Percent,
         key: "admin-announcement-types",
         label: "Announcement Types",
         to: "/super-admin/announcement-types",
@@ -312,6 +374,10 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         icon: Megaphone,
       },
       {
+        key: 'admin-announcement-types',
+        label: 'Announcement Types',
+        to: '/super-admin/announcement-types',
+        area: 'super_admin',
         key: "admin-users",
         label: "Users",
         to: "/super-admin/users",
@@ -325,8 +391,13 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         to: "/super-admin/system",
         area: "super_admin",
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
-        icon: Server,
+        icon: LayoutList,
       },
+    ],
+  },
+  {
+    title: 'SECURITY',
+    items: [
       {
         key: "admin-rbac",
         label: "RBAC",
@@ -334,6 +405,14 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         area: "super_admin",
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
         icon: Shield,
+      },
+      {
+        key: 'admin-system',
+        label: 'System',
+        to: '/super-admin/system',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: Server,
       },
     ],
   },
