@@ -3,7 +3,17 @@ import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Link } from "react-router-dom";
-import { ChevronDown, Plus, Trash2, X } from "lucide-react";
+import {
+  ArrowLeftRight,
+  ArrowUpDown,
+  Box,
+  ChevronDown,
+  Plus,
+  Ruler,
+  Trash2,
+  Weight,
+  X,
+} from "lucide-react";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import {
   sanitizeIntegerInput,
@@ -36,6 +46,23 @@ const toSlug = (value: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
 
+/**
+ * Sanitizes input so only digits and a single decimal point are accepted.
+ * Caps decimal places according to the database precision (2 or 3).
+ */
+const sanitizeDecimalInput = (value: string, maxDecimals: number = 2) => {
+  let clean = value.replace(/[^0-9.]/g, "");
+  const parts = clean.split(".");
+  if (parts.length > 2) {
+    clean = `${parts[0]}.${parts.slice(1).join("")}`;
+  }
+  const [intPart, decPart] = clean.split(".");
+  if (decPart !== undefined) {
+    return `${intPart}.${decPart.slice(0, maxDecimals)}`;
+  }
+  return clean;
+};
+
 /** Matches product-service `priceField` / `optionalPercent`: parseFloat, positive base, percent ranges. */
 const basePriceField = z
   .string()
@@ -60,6 +87,18 @@ const optionalPercentField = (label: string, max: number) =>
     .refine(
       (s) => s === "" || (parseFloat(s) >= 0 && parseFloat(s) <= max),
       `${label} must be between 0 and ${max}`,
+    );
+
+/** Supports required DECIMAL(10,2) or DECIMAL(10,3) values. */
+const dimensionField = (label: string, maxDecimals: number = 2) =>
+  z
+    .string()
+    .trim()
+    .min(1, `${label} is required`)
+    .transform((s) => s.replace(/\.+$/, ""))
+    .refine(
+      (s) => new RegExp(`^\\d+(\\.\\d{1,${maxDecimals}})?$`).test(s),
+      `${label}: numbers only (up to ${maxDecimals} decimal places)`,
     );
 
 const variantRowSchema = z.object({
@@ -89,6 +128,11 @@ const variantRowSchema = z.object({
         Number.isInteger(Number(v)),
       "Invalid stock",
     ),
+  // Dimensions DECIMAL(10,2) and Weight DECIMAL(10,3)
+  length: dimensionField("Length", 2),
+  width: dimensionField("Width", 2),
+  height: dimensionField("Height", 2),
+  weight: dimensionField("Weight", 3),
 });
 
 export const productFormSchema = z
@@ -183,6 +227,10 @@ export const defaultVariantRow = (): ProductFormValues["variants"][number] => ({
   profitThresholdPercent: "0",
   discountPercent: "0",
   stock: "",
+  length: "",
+  width: "",
+  height: "",
+  weight: "",
 });
 
 const ProductForm = ({
@@ -329,6 +377,7 @@ const ProductForm = ({
         <input type="hidden" {...register("shopId")} />
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
+          {/* Left Column: Product Information */}
           <div>
             <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
               <h2 className="text-base font-bold text-slate-900">
@@ -540,6 +589,7 @@ const ProductForm = ({
             </div>
           </div>
 
+          {/* Right Column: Organization & Variants */}
           <div className="space-y-6">
             <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
               <h2 className="text-base font-bold text-slate-900">
@@ -575,6 +625,7 @@ const ProductForm = ({
                   two decimal places.
                 </p>
               </div>
+
               <div className="mt-6 space-y-4">
                 <div>
                   <p className="mb-1.5 block text-xs font-medium text-slate-700">
@@ -931,6 +982,208 @@ const ProductForm = ({
                                   {errors.variants[index]?.stock?.message}
                                 </p>
                               )}
+                            </div>
+                          </div>
+
+                          {/* Dimensions & Weight Section */}
+                          <div className="mt-4 border-t border-slate-200/70 pt-3.5">
+                            {/* Header with Circular Emerald Badge */}
+                            <div className="mb-4 flex items-center gap-2.5">
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-emerald-300 bg-emerald-50/60 text-emerald-600 shadow-2xs">
+                                <Box size={16} />
+                              </div>
+                              <div>
+                                <h3 className="text-xs font-bold text-slate-900 sm:text-sm">
+                                  Dimensions & Weight
+                                </h3>
+                                <p className="text-[11px] text-slate-500">
+                                  Enter product size and weight for shipping and
+                                  logistics.
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* 4 Inputs Matching Base Price Height (py-2 text-sm) with Number-Only validation */}
+                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                              {/* Length (DECIMAL 10,2) */}
+                              <div>
+                                <label
+                                  htmlFor={`length-${index}`}
+                                  className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-slate-700"
+                                >
+                                  Length (cm)
+                                </label>
+                                <div className="relative flex items-center">
+                                  <Box
+                                    size={14}
+                                    className="pointer-events-none absolute left-3 text-slate-400"
+                                  />
+                                  <Controller
+                                    name={`variants.${index}.length`}
+                                    control={control}
+                                    render={({ field }) => (
+                                      <input
+                                        id={`length-${index}`}
+                                        type="text"
+                                        inputMode="decimal"
+                                        autoComplete="off"
+                                        placeholder="e.g. 33.10"
+                                        value={field.value ?? ""}
+                                        onBlur={field.onBlur}
+                                        onChange={(e) =>
+                                          field.onChange(
+                                            sanitizeDecimalInput(
+                                              e.target.value,
+                                              2,
+                                            ),
+                                          )
+                                        }
+                                        className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-8.5 pr-3 text-sm text-slate-800 outline-none placeholder:text-slate-300 focus:border-emerald-500"
+                                      />
+                                    )}
+                                  />
+                                </div>
+                                {errors.variants?.[index]?.length && (
+                                  <p className="mt-1 text-xs text-red-600">
+                                    {errors.variants[index]?.length?.message}
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* Width (DECIMAL 10,2) */}
+                              <div>
+                                <label
+                                  htmlFor={`width-${index}`}
+                                  className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-slate-700"
+                                >
+                                  Width (cm)
+                                </label>
+                                <div className="relative flex items-center">
+                                  <ArrowLeftRight
+                                    size={14}
+                                    className="pointer-events-none absolute left-3 text-slate-400"
+                                  />
+                                  <Controller
+                                    name={`variants.${index}.width`}
+                                    control={control}
+                                    render={({ field }) => (
+                                      <input
+                                        id={`width-${index}`}
+                                        type="text"
+                                        inputMode="decimal"
+                                        autoComplete="off"
+                                        placeholder="e.g. 33.10"
+                                        value={field.value ?? ""}
+                                        onBlur={field.onBlur}
+                                        onChange={(e) =>
+                                          field.onChange(
+                                            sanitizeDecimalInput(
+                                              e.target.value,
+                                              2,
+                                            ),
+                                          )
+                                        }
+                                        className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-8.5 pr-3 text-sm text-slate-800 outline-none placeholder:text-slate-300 focus:border-emerald-500"
+                                      />
+                                    )}
+                                  />
+                                </div>
+                                {errors.variants?.[index]?.width && (
+                                  <p className="mt-1 text-xs text-red-600">
+                                    {errors.variants[index]?.width?.message}
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* Height (DECIMAL 10,2) */}
+                              <div>
+                                <label
+                                  htmlFor={`height-${index}`}
+                                  className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-slate-700"
+                                >
+                                  Height (cm)
+                                </label>
+                                <div className="relative flex items-center">
+                                  <ArrowUpDown
+                                    size={14}
+                                    className="pointer-events-none absolute left-3 text-slate-400"
+                                  />
+                                  <Controller
+                                    name={`variants.${index}.height`}
+                                    control={control}
+                                    render={({ field }) => (
+                                      <input
+                                        id={`height-${index}`}
+                                        type="text"
+                                        inputMode="decimal"
+                                        autoComplete="off"
+                                        placeholder="e.g. 33.10"
+                                        value={field.value ?? ""}
+                                        onBlur={field.onBlur}
+                                        onChange={(e) =>
+                                          field.onChange(
+                                            sanitizeDecimalInput(
+                                              e.target.value,
+                                              2,
+                                            ),
+                                          )
+                                        }
+                                        className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-8.5 pr-3 text-sm text-slate-800 outline-none placeholder:text-slate-300 focus:border-emerald-500"
+                                      />
+                                    )}
+                                  />
+                                </div>
+                                {errors.variants?.[index]?.height && (
+                                  <p className="mt-1 text-xs text-red-600">
+                                    {errors.variants[index]?.height?.message}
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* Weight (DECIMAL 10,3 - allows up to 3 decimals) */}
+                              <div>
+                                <label
+                                  htmlFor={`weight-${index}`}
+                                  className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-slate-700"
+                                >
+                                  Weight (kg)
+                                </label>
+                                <div className="relative flex items-center">
+                                  <Weight
+                                    size={14}
+                                    className="pointer-events-none absolute left-3 text-slate-400"
+                                  />
+                                  <Controller
+                                    name={`variants.${index}.weight`}
+                                    control={control}
+                                    render={({ field }) => (
+                                      <input
+                                        id={`weight-${index}`}
+                                        type="text"
+                                        inputMode="decimal"
+                                        autoComplete="off"
+                                        placeholder="e.g. 33.500"
+                                        value={field.value ?? ""}
+                                        onBlur={field.onBlur}
+                                        onChange={(e) =>
+                                          field.onChange(
+                                            sanitizeDecimalInput(
+                                              e.target.value,
+                                              3,
+                                            ),
+                                          )
+                                        }
+                                        className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-8.5 pr-3 text-sm text-slate-800 outline-none placeholder:text-slate-300 focus:border-emerald-500"
+                                      />
+                                    )}
+                                  />
+                                </div>
+                                {errors.variants?.[index]?.weight && (
+                                  <p className="mt-1 text-xs text-red-600">
+                                    {errors.variants[index]?.weight?.message}
+                                  </p>
+                                )}
+                              </div>
                             </div>
                           </div>
 

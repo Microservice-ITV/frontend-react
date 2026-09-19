@@ -75,6 +75,10 @@ export type SellerProductVariantPayload = {
   profitThresholdPercent?: number
   discountPercent?: number
   stock: number
+  length?: number
+  width?: number
+  height?: number
+  weight?: number
   isPrimary?: boolean
 }
 
@@ -137,6 +141,10 @@ export type ProductDetailReadItem = {
     price?: number | string
     stock?: number | string
     shopStock?: number | string
+    length?: number | string | null
+    width?: number | string | null
+    height?: number | string | null
+    weight?: number | string | null
     isPrimary?: boolean
   }>
 }
