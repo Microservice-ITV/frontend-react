@@ -7,6 +7,8 @@ import type {
 } from '../types/checkoutTypes'
 import type { SagaStatusResponse } from '../types/sagaTypes'
 
+export type PaymentMethod = 'card' | 'cod'
+
 interface CheckoutState {
     currentCheckout: CheckoutResponse | null
     currentStatus: CheckoutStatusResponse | null
@@ -17,6 +19,8 @@ interface CheckoutState {
     clientSecret: string | null
     isPlacingOrder: boolean
     isAwaitingFinalStatus: boolean
+    paymentMethod: PaymentMethod
+    sessionPaymentMethod: PaymentMethod | null
     loading: boolean
     error: string | null
 }
@@ -31,6 +35,8 @@ const initialState: CheckoutState = {
     clientSecret: null,
     isPlacingOrder: false,
     isAwaitingFinalStatus: false,
+    paymentMethod: 'card',
+    sessionPaymentMethod: null,
     loading: false,
     error: null,
 }
@@ -53,6 +59,10 @@ const checkoutSlice = createSlice({
             state.error = null
             state.isPlacingOrder = false
             state.isAwaitingFinalStatus = false
+            state.sessionPaymentMethod = null
+        },
+        setPaymentMethod(state, action: { payload: PaymentMethod }) {
+            state.paymentMethod = action.payload
         },
         setCheckoutPlacingOrder(state, action: { payload: boolean }) {
             state.isPlacingOrder = action.payload
@@ -101,6 +111,7 @@ const checkoutSlice = createSlice({
                 state.paymentStatus = null
                 state.clientSecret = null
                 state.isAwaitingFinalStatus = false
+                state.sessionPaymentMethod = state.paymentMethod
             })
             .addCase(checkoutCart.rejected, (state, action) => {
                 state.loading = false
@@ -116,6 +127,13 @@ const checkoutSlice = createSlice({
                 const secret = action.payload.client_secret ?? action.payload.payment?.client_secret
                 if (secret) {
                     state.clientSecret = secret
+                }
+                if (typeof action.payload.payment_method === 'string') {
+                    const pm = action.payload.payment_method as PaymentMethod
+                    if (pm === 'card' || pm === 'cod') {
+                        state.sessionPaymentMethod = pm
+                        state.paymentMethod = pm
+                    }
                 }
                 if (['PAID', 'COMPLETED', 'FAILED', 'FAILED_PAYMENT', 'EXPIRED'].includes(action.payload.status)) {
                     state.isAwaitingFinalStatus = false
@@ -178,6 +196,8 @@ export const selectSagaId = (state: { checkout: CheckoutState }) => state.checko
 export const selectSagaStatistics = (state: { checkout: CheckoutState }) => state.checkout.sagaStatistics
 export const selectIsCheckoutLoading = (state: { checkout: CheckoutState }) => state.checkout.loading
 export const selectCheckoutError = (state: { checkout: CheckoutState }) => state.checkout.error
+export const selectPaymentMethod = (state: { checkout: CheckoutState }) => state.checkout.paymentMethod
+export const selectSessionPaymentMethod = (state: { checkout: CheckoutState }) => state.checkout.sessionPaymentMethod
 
 // Memoized selectors
 export const selectIsSagaCompleted = createSelector(
@@ -218,6 +238,7 @@ export const {
     setSagaStatus,
     setSagaId,
     setSagaStatistics,
+    setPaymentMethod,
 } = checkoutSlice.actions
 
 export default checkoutSlice.reducer

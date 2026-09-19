@@ -5,6 +5,10 @@ import { Megaphone, X } from "lucide-react";
 export type AnnouncementNewUserProps = {
   ctaLabel?: string;
   ctaTo?: string;
+  headline?: string;
+  supportingText?: string;
+  promoLabel?: string;
+  onDismiss?: () => void;
 };
 
 export const NEW_USER_ANNOUNCEMENT_DISMISS_EVENT =
@@ -47,11 +51,16 @@ const GiftIllustration = () => (
 const AnnouncementNewUser = ({
   ctaLabel = "Shop Now",
   ctaTo = "/",
+  headline,
+  supportingText,
+  promoLabel,
+  onDismiss,
 }: AnnouncementNewUserProps = {}) => {
   const [visible, setVisible] = useState(true);
 
   const handleDismiss = () => {
     setVisible(false);
+    onDismiss?.();
     window.dispatchEvent(new Event(NEW_USER_ANNOUNCEMENT_DISMISS_EVENT));
   };
 
@@ -87,8 +96,12 @@ const AnnouncementNewUser = ({
         />
 
         <p className="flex min-w-0 items-center gap-2 truncate sm:gap-3">
-          <span className="font-bold text-[#FFD54A]">$12</span>
-          <span className="font-bold text-white">New User Voucher</span>
+          <span className="font-bold text-[#FFD54A]">
+            {promoLabel ?? "$12"}
+          </span>
+          <span className="font-bold text-white">
+            {headline ?? "New User Voucher"}
+          </span>
           <span
             className="hidden h-4 w-px bg-white/50 sm:inline-block"
             aria-hidden
@@ -97,9 +110,7 @@ const AnnouncementNewUser = ({
 
         <span className="hidden h-[30px] shrink-0 flex-col items-center justify-center rounded-md bg-[#FFC93C] px-3 leading-tight sm:inline-flex">
           <span className="text-[11px] font-bold text-[#0B5D3B]">
-            Welcome to our store! Get{" "}
-            <span className="font-bold text-[13px]">$12</span> off your first
-            order
+            {supportingText}
           </span>
         </span>
 

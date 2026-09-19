@@ -2,6 +2,9 @@ import type { ProductDetailReadItem, SellerProductVariantPayload } from '@/featu
 import { defaultVariantRow, type ProductFormValues } from '@/features/seller/components/ProductForm'
 import { parseOptionalPercent } from '@/utils/variantPricing'
 
+const parseOptionalDimension = (value: string) =>
+  value.trim() === '' ? null : Number(value)
+
 export function mapProductFormToVariantsPayload(
   values: ProductFormValues,
 ): SellerProductVariantPayload[] {
@@ -13,6 +16,10 @@ export function mapProductFormToVariantsPayload(
     profitThresholdPercent: parseOptionalPercent(v.profitThresholdPercent),
     discountPercent: parseOptionalPercent(v.discountPercent),
     stock: Number(v.stock),
+    length: parseOptionalDimension(v.length),
+    width: parseOptionalDimension(v.width),
+    height: parseOptionalDimension(v.height),
+    weight: parseOptionalDimension(v.weight),
     isPrimary: i === values.primaryVariantIndex,
   }))
 }
@@ -51,7 +58,16 @@ export function mapApiProductVariantsToFormShape(
         v.discountPercent != null && String(v.discountPercent).trim() !== ''
           ? String(v.discountPercent)
           : '0',
-      stock: resolvedStock,
+      stock:
+        v.stock != null && String(v.stock).trim() !== ''
+          ? String(v.stock)
+          : v.shopStock != null && String(v.shopStock).trim() !== ''
+            ? String(v.shopStock)
+            : '',
+          length: v.length != null && String(v.length).trim() !== '' ? String(v.length) : '',
+          width: v.width != null && String(v.width).trim() !== '' ? String(v.width) : '',
+          height: v.height != null && String(v.height).trim() !== '' ? String(v.height) : '',
+          weight: v.weight != null && String(v.weight).trim() !== '' ? String(v.weight) : '',
     }
   })
 

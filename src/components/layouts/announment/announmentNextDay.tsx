@@ -5,6 +5,9 @@ import { X } from "lucide-react";
 export type AnnouncementNextDayProps = {
   ctaLabel?: string;
   ctaTo?: string;
+  headline?: string;
+  supportingText?: string;
+  onDismiss?: () => void;
 };
 
 export const NEXT_DAY_ANNOUNCEMENT_DISMISS_EVENT =
@@ -89,11 +92,15 @@ const GiftAccent = () => (
 const AnnouncementNextDay = ({
   ctaLabel = "Shop Now",
   ctaTo = "/",
+  headline,
+  supportingText,
+  onDismiss,
 }: AnnouncementNextDayProps = {}) => {
   const [visible, setVisible] = useState(true);
 
   const handleDismiss = () => {
     setVisible(false);
+    onDismiss?.();
     window.dispatchEvent(new Event(NEXT_DAY_ANNOUNCEMENT_DISMISS_EVENT));
   };
 
@@ -128,7 +135,7 @@ const AnnouncementNextDay = ({
 
         <p className="flex min-w-0 items-center gap-2 truncate sm:gap-3">
           <span className="font-bold text-[#0B5D3B]">
-            Next-Day Delivery{" "}
+            {headline ?? "Next-Day Delivery"}{" "}
             <span
               className="inline-block text-[13px] text-[#F5C518]"
               aria-hidden
@@ -141,7 +148,7 @@ const AnnouncementNextDay = ({
             aria-hidden
           />
           <span className="hidden font-semibold text-[#6B7280] sm:inline">
-            Order today, get it tomorrow!
+            {supportingText ?? "Order today, get it tomorrow!"}
           </span>
         </p>
 

@@ -13,19 +13,22 @@ import {
   selectRelatedProducts,
   selectBroughtTogetherProducts,
 } from "@/features/products/store/recommendationsSlice";
-import { selectCartItems } from "@/features/cart/store/cartSelectors";
+import {
+  selectCartProductKey,
+} from "@/features/cart/store/cartSelectors";
 import ProductGrid, {
   ProductGridSkeleton,
 } from "@/features/products/components/ProductGrid";
+import Pagination from "@/components/ui/Pagination";
 
 const CartSeeMorePage = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
-  const items = useAppSelector(selectCartItems);
+  const cartProductKey = useAppSelector(selectCartProductKey);
   const cartProductIds = useMemo(
-    () => [...new Set(items.map((i) => i.productId).filter(Boolean))],
-    [items],
+    () => (cartProductKey ? cartProductKey.split(",") : []),
+    [cartProductKey],
   );
 
   const relatedProducts = useAppSelector(selectRelatedProducts);
@@ -38,7 +41,7 @@ const CartSeeMorePage = () => {
       dispatch(fetchRelatedProducts(cartProductIds));
       dispatch(fetchBroughtTogetherProducts(cartProductIds));
     }
-  }, [dispatch, cartProductIds]);
+  }, [dispatch, cartProductKey]);
 
   const excludeIds = useMemo(() => new Set(cartProductIds), [cartProductIds]);
 
@@ -60,7 +63,7 @@ const CartSeeMorePage = () => {
     });
   }, [relatedProducts, broughtTogetherProducts, excludeIds]);
 
-  const PAGE_SIZE = 30;
+  const PAGE_SIZE = 10;
   const [currentPage, setCurrentPage] = useState(1);
   const totalPages = Math.max(1, Math.ceil(allProducts.length / PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
@@ -139,42 +142,12 @@ const CartSeeMorePage = () => {
                 <p className="text-xs text-slate-600">
                   Showing {pageStart}-{pageEnd} of {allProducts.length} products
                 </p>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={safePage === 1}
-                    className="rounded px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 disabled:opacity-50 cursor-pointer"
-                  >
-                    Previous
-                  </button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                    (p) => (
-                      <button
-                        key={p}
-                        type="button"
-                        onClick={() => setCurrentPage(p)}
-                        className={`rounded px-3 py-1.5 text-xs cursor-pointer ${
-                          safePage === p
-                            ? "bg-emerald-600 text-white"
-                            : "text-slate-600 hover:bg-slate-100"
-                        }`}
-                      >
-                        {p}
-                      </button>
-                    ),
-                  )}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setCurrentPage((p) => Math.min(totalPages, p + 1))
-                    }
-                    disabled={safePage === totalPages}
-                    className="rounded px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 disabled:opacity-50 cursor-pointer"
-                  >
-                    Next
-                  </button>
-                </div>
+                <Pagination
+                  page={safePage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                  className="justify-center sm:justify-end"
+                />
               </div>
             )}
           </>
