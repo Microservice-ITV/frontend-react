@@ -72,7 +72,7 @@ const TrafficSourcesChart = ({
                 stroke="none"
               >
                 {data.map((entry) => (
-                  <Cell key={entry.statusId} fill={STATUS_LABELS[entry.statusId]?.color ?? '#94a3b8'} />
+                  <Cell key={entry.statusId} fill={statusLabels[entry.statusId]?.color ?? '#94a3b8'} />
                 ))}
               </Pie>
             </PieChart>

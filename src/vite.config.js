@@ -21,6 +21,13 @@ export default defineConfig({
         secure: true,
         rewrite: (path) => path.replace(/^\/nominatim/, ''),
       },
+      /** Photon (komoot geocoding) — primary geocoder; proxied in dev to avoid strict privacy blocking. */
+      '/photon': {
+        target: 'https://photon.komoot.io',
+        changeOrigin: true,
+        secure: true,
+        rewrite: (path) => path.replace(/^\/photon/, ''),
+      },
     },
   }, // later needs to remove
   resolve: {

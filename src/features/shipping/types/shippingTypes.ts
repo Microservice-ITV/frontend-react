@@ -14,6 +14,8 @@ export type ShopShippingProfileRow = {
 export type ShopCalculatedShipping = {
     shopId: string
     amount: number | null
+    /** ISO currency code from the calculate API (e.g. MMK). */
+    currency?: string
     methodLabel?: string
     etaHint?: string
     /** Business days from shipping service calculate API */

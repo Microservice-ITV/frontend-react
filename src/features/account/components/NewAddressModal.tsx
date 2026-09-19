@@ -10,7 +10,7 @@ import { createUserAddress, updateUserAddress } from '../store/accountThunks'
 import { locationApi, type StateOption, type CityOption, type DistrictOption, type WardOption } from '../api/locationApi'
 import type { UpsertAddressPayload, UserAddress } from '../types/addressTypes'
 import { MapLocationPicker } from '@/components/maps/MapLocationPicker'
-import { forwardGeocodeNominatim } from '@/lib/geocoding/nominatim'
+import { forwardGeocodeAddress } from '@/lib/geocoding/geocode'
 
 type Props = {
   /** Called after a successful create/update; receives the saved address from the API. */
@@ -144,6 +144,7 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
 
   const [latitude, setLatitude] = useState<number | null>(() => parseCoordinate(initialAddress?.latitude))
   const [longitude, setLongitude] = useState<number | null>(() => parseCoordinate(initialAddress?.longitude))
+  const [geocodeStatus, setGeocodeStatus] = useState<'idle' | 'locating' | 'located' | 'failed'>('idle')
   const pinLat = parseCoordinate(latitude)
   const pinLng = parseCoordinate(longitude)
   const mapSectionRef = useRef<HTMLDivElement | null>(null)
@@ -262,6 +263,7 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
 
   useEffect(() => {
     geocodeWardRef.current = null
+    setGeocodeStatus('idle')
   }, [mode, initialAddress?.address_id])
 
   /**
@@ -269,7 +271,10 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
    * After the user picks a ward, we suggest a pin via OSM Nominatim (approximate area center).
    */
   useEffect(() => {
-    if (!selectedState || !selectedCity || !selectedDistrict || !selectedWard) return
+    if (!selectedState || !selectedCity || !selectedDistrict || !selectedWard) {
+      setGeocodeStatus('idle')
+      return
+    }
 
     if (geocodeWardRef.current === selectedWard.id) return
 
@@ -280,6 +285,7 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
       geocodeWardRef.current === null
     ) {
       geocodeWardRef.current = selectedWard.id
+      setGeocodeStatus('located')
       return
     }
 
@@ -294,14 +300,19 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
       state: selectedState.name,
     }
     let cancelled = false
+    setGeocodeStatus('locating')
     const t = window.setTimeout(() => {
-      void forwardGeocodeNominatim(geocodeParts).then((pt) => {
-        if (cancelled || !pt) return
-        if (seq !== geocodeSeqRef.current) return
+      void forwardGeocodeAddress(geocodeParts).then((pt) => {
+        if (cancelled || seq !== geocodeSeqRef.current) return
         if (userMapInteractionRef.current !== epoch) return
+        if (!pt) {
+          setGeocodeStatus('failed')
+          return
+        }
         setLatitude(pt.lat)
         setLongitude(pt.lng)
         geocodeWardRef.current = wardId
+        setGeocodeStatus('located')
       })
     }, 450)
     return () => {
@@ -557,9 +568,17 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
         {canEditAddressDetails && (
           <div ref={mapSectionRef} className="mt-2 space-y-1">
             <p className="text-[10px] text-gray-500">
-              After you choose a ward, we search OpenStreetMap and pick the best matching area (not always the exact
-              doorway). Drag the pin to fine-tune.
+              After you choose a ward, we locate the area on the map (not always the exact doorway). Drag the pin to
+              fine-tune your exact spot.
             </p>
+            {geocodeStatus === 'locating' && (
+              <p className="text-[10px] text-gray-500">Locating this ward on the map…</p>
+            )}
+            {geocodeStatus === 'failed' && (
+              <p className="text-[10px] text-amber-600">
+                Couldn&apos;t find this ward automatically. Tap the map at your exact spot to drop the pin.
+              </p>
+            )}
             {pinLat != null && pinLng != null && (
               <p className="text-[10px] text-gray-600 font-mono">
                 Pin: {pinLat.toFixed(6)}, {pinLng.toFixed(6)}
@@ -574,6 +593,7 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
                   userMapInteractionRef.current += 1
                   setLatitude(lat)
                   setLongitude(lng)
+                  setGeocodeStatus('located')
                 }}
               />
             </div>

@@ -94,6 +94,8 @@ export function normalizeCalculateResponse(data: unknown): {
         const amount = num(
             r.shippingFee ?? r.fee ?? r.amount ?? r.totalShipping ?? r.calculatedFee ?? r.price,
         )
+        const currency =
+            typeof r.currency === 'string' && r.currency.trim() ? r.currency.trim() : undefined
         const estimatedDays = num(r.estimatedDays)
         const methodLabel =
             typeof r.method === 'string'
@@ -117,6 +119,7 @@ export function normalizeCalculateResponse(data: unknown): {
         byShopId[shopId] = {
             shopId,
             amount,
+            currency,
             methodLabel,
             etaHint,
             estimatedDays,

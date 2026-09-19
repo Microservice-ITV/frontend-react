@@ -27,9 +27,9 @@ const NavbarTopUtilityBar = () => {
         <div className="bg-gray-50 text-xs text-gray-600 overflow-visible">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 flex justify-between h-8 items-center gap-2">
                 <div className="flex space-x-4 items-center">
-                    {/* <Link to={startSellingTo} className="hover:text-black">
+                    <Link to={startSellingTo} className="hover:text-black">
                         Start Selling
-                    </Link> */}
+                    </Link>
                     <Link to="/help-centre" className="hover:text-black">
                         Help
                     </Link>
