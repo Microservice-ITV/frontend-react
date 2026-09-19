@@ -17,6 +17,10 @@ export interface ProductVariant {
   compareAtPrice: number | null
   effectiveSellingPrice: number
   shopStock: number
+  length: number | null
+  width: number | null
+  height: number | null
+  weight: number | null
   isPrimary: boolean
   colorId: string
   colorName: string
