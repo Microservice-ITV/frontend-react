@@ -400,11 +400,11 @@ const CheckoutPage = () => {
             return
         }
 
-        const effectiveMethod = sessionPaymentMethod ?? paymentMethod
-        const isCod = effectiveMethod === 'cod'
-        // Card: poll until Stripe client_secret is ready, then again after place order.
-        // COD: keep polling until intent metadata is ready, and after place order
-        // until authorize → payment.completed marks the session PAID.
+        const effectivePaymentMethod = sessionPaymentMethod ?? paymentMethod
+        const isCod = effectivePaymentMethod === 'cod'
+        // Prepaid: poll until Stripe client_secret is ready, then again after place order.
+        // COD: keep polling until intent metadata (client_secret) is ready, then after
+        // place order until authorize → payment.completed marks the session PAID.
         const shouldPollForClientSecret = !clientSecret
         const shouldPollForFinalStatus = isAwaitingFinalStatus
         const shouldPollForCodReady =
