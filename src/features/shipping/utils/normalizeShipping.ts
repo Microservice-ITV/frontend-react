@@ -123,6 +123,13 @@ export function normalizeCalculateResponse(data: unknown): {
             methodLabel,
             etaHint,
             estimatedDays,
+            distanceKm: num(r.distanceKm),
+            actualWeightKg: num(r.actualWeightKg),
+            volumetricWeightKg: num(r.volumetricWeightKg),
+            chargeableWeightKg: num(r.chargeableWeightKg),
+            baseFee: num(r.baseFee),
+            distanceFee: num(r.distanceFee),
+            weightFee: num(r.weightFee),
             raw: row,
         }
     }

@@ -283,10 +283,22 @@ const AdminDeliveryQuotesPage = () => {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-600">
-                      <span className="line-clamp-1 font-mono text-[11px]">{quote.shopId}</span>
-                      {quote.customerId && (
-                        <span className="mt-0.5 block text-[11px] text-slate-400">
-                          customer {quote.customerId}
+                      {quote.shopName ? (
+                        <span className="line-clamp-1 font-medium text-slate-700">
+                          {quote.shopName}
+                        </span>
+                      ) : (
+                        <span className="line-clamp-1 font-mono text-[11px]">{quote.shopId}</span>
+                      )}
+                      <span className="mt-0.5 block text-[11px] text-slate-400">
+                        {quote.customerName ??
+                          (quote.customerId ? `customer ${quote.customerId}` : 'Guest')}
+                      </span>
+                      {quote.items && quote.items.length > 0 && (
+                        <span className="mt-0.5 block line-clamp-1 text-[11px] text-slate-400">
+                          {quote.items
+                            .map((item) => item.productName ?? item.productId)
+                            .join(', ')}
                         </span>
                       )}
                     </td>

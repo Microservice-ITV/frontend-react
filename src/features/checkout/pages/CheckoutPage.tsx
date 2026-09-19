@@ -250,9 +250,18 @@ const CheckoutPage = () => {
                 address: selectedDeliveryAddress,
                 items,
                 cacheKey: shippingCalculateCacheKey,
+                customer: { id: authUser?.id, name: authUser?.name },
             }),
         )
-    }, [dispatch, hasDeliveryAddress, selectedDeliveryAddress, items, shippingCalculateCacheKey])
+    }, [
+        dispatch,
+        hasDeliveryAddress,
+        selectedDeliveryAddress,
+        items,
+        shippingCalculateCacheKey,
+        authUser?.id,
+        authUser?.name,
+    ])
 
     // Drop any stale checkout session from Redux/storage when the user has no saved addresses yet.
     useEffect(() => {
