@@ -5,7 +5,7 @@ import type { Category } from '../types/categoryTypes'
 
 export const fetchCategories = createAsyncThunk<Category[], void, {rejectValue: string}>(
     'categories/fetchCategories',
-    async (_, { rejectWithValue }) => { // "_" => no argument is passed
+    async (_, { rejectWithValue }) => {
         try {
             const response = await categoryApi.getAll()
             const payload = response.data
@@ -13,6 +13,7 @@ export const fetchCategories = createAsyncThunk<Category[], void, {rejectValue: 
             return list.map((c) => ({
                 ...c,
                 image: c.image ? productServiceAssetUrl(c.image) : c.image,
+                _count: c._count,
             }))
         } catch (error: any) {
             const message = error?.response?.data?.message || error.message || 'Failed to load categories'

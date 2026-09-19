@@ -35,7 +35,6 @@ export const RegisterPage = () => {
 
     try {
       const recaptchaToken = await getRecaptchaToken('register')
-      if (!recaptchaToken) return
 
       await dispatch(
         register({ ...normalizedForm, recaptchaToken })

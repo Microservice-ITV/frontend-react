@@ -1,8 +1,7 @@
 import { chatIcon, fastDeliveryIcon } from '@/assets/icons'
 import { CheckoutTotals } from '../utils/checkoutCalculator'
 import { useAppSelector } from '@/app/hooks'
-
-const DEFAULT_SHIPPING_DISPLAY = 1.99
+import { formatProductPrice } from '@/features/products/utils/formatProductPrice'
 
 interface CheckoutItemsProps {
   checkout: CheckoutTotals
@@ -35,10 +34,10 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
           0
         )
         const feeRow = feesByShopId[shopId]
-        const shippingFee =
+        const hasFee =
           calculateStatus === 'succeeded' && feeRow?.amount != null && feeRow.amount >= 0
-            ? feeRow.amount
-            : DEFAULT_SHIPPING_DISPLAY
+        const shippingFee = hasFee ? (feeRow?.amount as number) : 0
+        const shippingCurrency = feeRow?.currency ?? 'MMK'
         const rawMethod = feeRow?.methodLabel?.trim()
         const methodTitle =
           rawMethod === 'STANDARD'
@@ -84,13 +83,13 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
                   </div>
 
                   <div className="text-right">
-                    <div className="md:text-right text-sm">${item.price.toFixed(2)}</div>
+                    <div className="md:text-right text-sm">{formatProductPrice(item.price)}</div>
                     <div className="text-xs line-through text-gray-400">$29.52</div>
                   </div>
 
                   <div className="md:text-center text-sm">{item.quantity}</div>
 
-                  <div className="md:text-right text-sm font-medium">${subtotal.toFixed(2)}</div>
+                  <div className="md:text-right text-sm font-medium">{formatProductPrice(subtotal)}</div>
                 </div>
               )
             })}
@@ -109,10 +108,11 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
                 <div className="flex flex-col gap-2">
                   <span className="text-sm font-medium text-gray-900">Message for Seller</span>
 
-                  <input
-                    className="w-full border px-3 py-2 text-sm text-gray-700 rounded border-[var(--dni-cart-border)] outline-none"
+                  <textarea
+                    rows="5"
+                    className="w-full border px-3 py-2 text-sm text-gray-700 rounded border-(--dni-cart-border) outline-none"
                     placeholder="Please leave a message"
-                  />
+                  ></textarea>
                 </div>
               </div>
 
@@ -136,8 +136,12 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
                     <span className="text-sm font-medium whitespace-nowrap">
                       {calculateStatus === 'loading' ? (
                         <span className="text-gray-400">…</span>
+                      ) : hasFee ? (
+                        formatProductPrice(shippingFee, shippingCurrency)
+                      ) : calculateStatus === 'failed' ? (
+                        <span className="text-red-500">Unavailable</span>
                       ) : (
-                        `$${shippingFee.toFixed(2)}`
+                        <span className="text-gray-400">—</span>
                       )}
                     </span>
                   </div>
@@ -186,7 +190,7 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
             {/* ================= ORDER TOTAL ================= */}
             <div className="flex justify-end items-center px-6 py-5 bg-[#fafdff]">
               <span className="text-sm text-gray-600 mr-3">Order Total ({shopQuantity} Items):</span>
-              <span className="text-xl font-semibold text-emerald-600">${shopTotal.toFixed(2)}</span>
+              <span className="text-xl font-semibold text-emerald-600">{formatProductPrice(shopTotal)}</span>
             </div>
           </div>
         )

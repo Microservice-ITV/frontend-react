@@ -4,7 +4,6 @@ import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { addToCart } from "@/features/cart/store/cartSlice";
 import { selectCartItems } from "@/features/cart/store/cartSelectors";
 import { toggleWishlist } from "@/features/wishlist/store/wishlistSlice";
-// import { toggleWishlist, addToWishlist } from '@/features/wishlist/store/wishlistSlice'
 import { selectIsWishlisted } from "@/features/wishlist/store/wishlistSelectors";
 import { fetchShopProfilesForCurrentCart } from "@/features/shipping/store/shippingThunks";
 import { Product } from "../types/productTypes";
@@ -151,11 +150,9 @@ const ProductCard = ({ product }: ProductCardProps) => {
 
   const meta = useMemo(() => cardMeta(product.id), [product.id])
   const badgeLabel = useMemo(
-    () => formatBadgeLabel(product.tags?.[0] ?? product.text) || meta.badge.label,
-    [product.tags, product.text, meta.badge.label],
+    () => formatBadgeLabel(product.tags?.[0]) || meta.badge.label,
+    [product.tags, meta.badge.label],
   )
-  const inCart = cartItems.some((item) => item.productId === product.id)
-  const showSaveForLater = wishlisted || justAdded || inCart
 
   const handleWishlist = (e: MouseEvent) => {
     e.preventDefault();
@@ -180,16 +177,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
       }),
     );
     void dispatch(fetchShopProfilesForCurrentCart());
-    // setJustAdded(true)
   };
-
-  /*
-  const handleSaveForLater = (e: MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    dispatch(addToWishlist(product.id))
-  }
-  */
 
   return (
     <article
@@ -280,25 +268,6 @@ const ProductCard = ({ product }: ProductCardProps) => {
       </Link>
 
       {/* CTA — always visible, flush to card bottom */}
-      {/*
-      {showSaveForLater ? (
-        <button
-          type="button"
-          onClick={handleSaveForLater}
-          className="
-            mt-1 flex h-10 w-full items-center justify-center gap-1.5
-            rounded-none border-t border-[var(--dni-primary)]/30
-            bg-[var(--dni-primary-soft)] text-sm font-semibold text-[var(--dni-primary)]
-            transition-colors hover:bg-[var(--dni-primary-100)]
-          "
-        >
-          <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden>
-            <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" />
-          </svg>
-          Save for Later
-        </button>
-      ) : (
-        */}
       <button
         type="button"
         onClick={handleAddToCart}
@@ -321,4 +290,4 @@ const ProductCard = ({ product }: ProductCardProps) => {
   );
 };
 
-export default ProductCard;
+export default ProductCard
