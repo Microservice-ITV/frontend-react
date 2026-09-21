@@ -278,6 +278,14 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         icon: Building2,
       }),
       withSearch({
+        key: 'admin-invoices',
+        label: 'Invoices',
+        to: '/super-admin/invoices',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: FileText,
+      }),
+      withSearch({
         key: 'admin-payments',
         label: 'Payments',
         to: '/super-admin/payments',
@@ -293,14 +301,14 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
         icon: Tags,
       }),
-      {
+      withSearch({
         key: 'admin-users',
         label: 'Users',
         to: '/super-admin/users',
         area: 'super_admin',
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
         icon: UserCog,
-      },
+      }),
     ],
   },
   {

@@ -154,7 +154,83 @@ const AccountSidebar = ({ onNavigate }: AccountSidebarProps) => {
             <Coins className="w-4 h-4 shrink-0 stroke-[2]" />
             <span>My DNI Coins</span>
           </NavLink>
-        </div>
+
+          <NavLink
+            to="/account/notifications"
+            className={({ isActive }) =>
+              `${accountLinkBase} ${isActive ? accountLinkActive : accountLinkInactive}`
+            }
+            onClick={() => onNavigate?.()}
+          >
+            Notification Settings
+          </NavLink>
+
+          <button
+            type="button"
+            className={`${accountLinkBase} text-gray-700 w-full text-left`}
+            onClick={() => onNavigate?.()}
+          >
+            Privacy Settings
+          </button>
+        </nav>
+      </div>
+
+      {/* My Purchase / Notifications / Vouchers / Coins */}
+      <div className="pt-2 space-y-1">
+        <NavLink
+          to="/account/orders"
+          className={({ isActive }) =>
+            `${bottomLinkBase} ${isActive ? bottomLinkActive : bottomLinkInactive}`
+          }
+          onClick={() => onNavigate?.()}
+        >
+          <img src={myPurchaseIcon} alt="" className="w-4 h-4 shrink-0" aria-hidden />
+          <span>My Purchase</span>
+        </NavLink>
+
+        <NavLink
+          to="/account/invoices"
+          className={({ isActive }) =>
+            `${bottomLinkBase} ${isActive ? bottomLinkActive : bottomLinkInactive}`
+          }
+          onClick={() => onNavigate?.()}
+        >
+          <img src={myPurchaseIcon} alt="" className="w-4 h-4 shrink-0" aria-hidden />
+          <span>My Invoices</span>
+        </NavLink>
+
+        <NavLink
+          to="/account/notifications-center"
+          className={({ isActive }) =>
+            `${bottomLinkBase} ${isActive ? bottomLinkActive : bottomLinkInactive}`
+          }
+          onClick={() => onNavigate?.()}
+        >
+          <img src={notificationsIcon} alt="" className="w-4 h-4 shrink-0" aria-hidden />
+          <span>Notifications</span>
+        </NavLink>
+
+        <NavLink
+          to="/account/my-vouchers"
+          className={({ isActive }) =>
+            `${bottomLinkBase} ${isActive ? bottomLinkActive : bottomLinkInactive}`
+          }
+          onClick={() => onNavigate?.()}
+        >
+          <img src={myVouchersIcon} alt="" className="w-4 h-4 shrink-0" aria-hidden />
+          <span>My Vouchers</span>
+        </NavLink>
+
+        <NavLink
+          to="/account/my-coins"
+          className={({ isActive }) =>
+            `${bottomLinkBase} ${isActive ? bottomLinkActive : bottomLinkInactive}`
+          }
+          onClick={() => onNavigate?.()}
+        >
+          <img src={myDniCoinsIcon} alt="" className="w-4 h-4 shrink-0" aria-hidden />
+          <span>My DNI Coins</span>
+        </NavLink>
       </div>
     </aside>
   );

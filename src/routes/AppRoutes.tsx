@@ -55,6 +55,7 @@ import NotificationsPage from "@/features/account/pages/NotificationsPage";
 import NotificationsCenterPage from "@/features/account/pages/NotificationsCenterPage";
 import OrdersPage from "@/features/account/pages/OrdersPage";
 import OrderTrackingPage from "@/features/account/pages/OrderTrackingPage";
+import CustomerInvoicesPage from "@/features/account/pages/CustomerInvoicesPage";
 import VouchersPage from "@/features/account/pages/VouchersPage";
 import CoinsPage from "@/features/account/pages/CoinsPage";
 import { ROUTE_ACCESS } from "./routeAccessMap";
@@ -97,6 +98,7 @@ import AdminDistanceRangeDetailPage from "@/features/admin/pages/AdminDistanceRa
 import AdminDeliveryQuotesPage from "@/features/admin/pages/AdminDeliveryQuotesPage";
 import AdminDeliveryQuoteDetailPage from "@/features/admin/pages/AdminDeliveryQuoteDetailPage";
 import AdminUsersPage from "@/features/admin/pages/AdminUsersPage";
+import AdminInvoicesPage from "@/features/admin/pages/AdminInvoicesPage";
 import AdminIncomePage from "@/features/admin/pages/AdminIncomePage";
 import AdminExpensePage from "@/features/admin/pages/AdminExpensePage";
 import AdminExpenseCategoriesPage from "@/features/admin/pages/AdminExpenseCategoriesPage";
@@ -185,6 +187,7 @@ const AppRoutes = () => {
                 </ProtectedRoute>
               }
             />
+            <Route path="invoices" element={<CustomerInvoicesPage />} />
             <Route path="my-vouchers" element={<VouchersPage />} />
             <Route path="my-coins" element={<CoinsPage />} />
           </Route>
@@ -1041,6 +1044,16 @@ const AppRoutes = () => {
                     title="User Administration"
                     description="Global user operations, moderation, and support workflows are planned for this page."
                   /> */}
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="invoices"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminInvoices}
+                >
+                  <AdminInvoicesPage />
                 </ProtectedRoute>
               }
             />
