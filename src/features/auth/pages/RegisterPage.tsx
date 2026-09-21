@@ -16,16 +16,10 @@ export const RegisterPage = () => {
   const navigate = useNavigate();
 
   const { status, error, registerDraft } = useAppSelector((s) => s.auth);
+
   const [form, setForm] = useState(registerDraft);
 
   const isLoading = status === "loading";
-
-  // Calculate completion percentage for the scroll / completion indicator
-  const filledFields = [form.name, form.email, form.password].filter(
-    (val) => val.trim().length > 0,
-  ).length;
-  const progressPercentage = (filledFields / 3) * 100;
-
   const isFormValid =
     form.name.trim() && form.email.trim() && form.password.trim();
 
@@ -41,7 +35,7 @@ export const RegisterPage = () => {
     };
 
     try {
-      const recaptchaToken = await getRecaptchaToken('register')
+      const recaptchaToken = await getRecaptchaToken("register");
 
       await dispatch(register({ ...normalizedForm, recaptchaToken })).unwrap();
 
@@ -59,52 +53,29 @@ export const RegisterPage = () => {
     }
   };
 
+  // Keep register draft in Redux so values survive remounts (but reset on full reload).
   useEffect(() => {
+    // storing password in-memory only (Redux is not persisted) so it clears on page reload
+    // and is cleared automatically when registration succeeds.
     dispatch(setRegisterDraft(form));
   }, [dispatch, form]);
 
   return (
-    <div className="min-h-screen bg-[#f4fbf7] px-4 py-6 flex flex-col items-center justify-center relative">
-      {/* Top Scroll / Form Completion Indicator Bar */}
-      <div className="fixed top-0 left-0 right-0 h-1 bg-gray-200 z-50">
-        <div
-          className="h-full bg-[#10b981] transition-all duration-300 ease-out"
-          style={{ width: `${progressPercentage}%` }}
-        />
-      </div>
-
-      <Card className="w-full max-w-md p-6 sm:p-7 relative shadow-sm border border-emerald-100 bg-white rounded-2xl">
-        {/* Profile Avatar Badge Icon */}
-        <div className="absolute -top-7 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full bg-[#e6f4ea] border-4 border-white flex items-center justify-center shadow-sm">
-          <svg
-            className="w-6 h-6 text-[#10b981]"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-            />
-          </svg>
-        </div>
-
+    <div className="min-h-screen bg-gray-50 px-4 pt-8 pb-12 flex flex-col items-center">
+      <Card className="w-full max-w-md p-8">
         {/* Title */}
-        <div className="text-center mt-4 mb-3">
-          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">
-            Create an account
-          </h1>
-          <p className="mt-1 text-xs text-gray-500">
-            Join us and start shopping today
-          </p>
-        </div>
+        <h1 className="text-2xl font-semibold text-gray-900 text-center">
+          Create an account
+        </h1>
+
+        <p className="mt-2 text-sm text-gray-600 text-center">
+          Join us and start shopping today
+        </p>
 
         {/* Error message */}
         {error && (
           <div
-            className="mb-3 flex items-start gap-2 rounded-sm border border-red-200 bg-[#fff6f6] px-3 py-2 text-xs text-red-700"
+            className="mt-4 flex items-start gap-2 rounded-sm border border-red-200 bg-[#fff6f6] px-3 py-2 text-xs text-red-700"
             role="alert"
             aria-live="polite"
           >
@@ -117,7 +88,7 @@ export const RegisterPage = () => {
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <Input
             label="Name"
             placeholder="John Doe"
@@ -135,51 +106,45 @@ export const RegisterPage = () => {
             required
           />
 
-          <div>
-            <Input
-              label="Password"
-              type="password"
-              placeholder="••••••••"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              required
-            />
-            <p className="mt-1 text-[11px] text-gray-400">
-              Must be at least 8 characters
-            </p>
-          </div>
-
+          <Input
+            label="Password"
+            type="password"
+            placeholder="••••••••"
+            value={form.password}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
+            required
+          />
+          <p className="text-xs text-gray-500">Must be at least 8 characters</p>
           {/* reCAPTCHA Notice */}
-          <div className="flex items-center gap-2.5 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
-            <div className="text-emerald-600 text-base">🛡️</div>
-            <div className="text-[11px] text-gray-600">
-              <span className="font-medium text-gray-700">
+          <div className="flex gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+            <div className="text-blue-600 text-lg">🛡️</div>
+            <div className="text-xs text-gray-600">
+              <p className="font-semibold text-gray-700">
                 Protected by Google reCAPTCHA
-              </span>
+              </p>
+              <p>We use reCAPTCHA to prevent spam and abuse.</p>
             </div>
           </div>
 
-          {/* Button */}
+          {/* Button (same as Navbar color) */}
           <Button
             type="submit"
             loading={isLoading}
             disabled={!isFormValid || isLoading}
-            className="w-full bg-[#10b981] hover:bg-[#059669] text-white transition-colors"
           >
             Create Account
           </Button>
 
           {/* Social Register */}
-          <div className="pt-1">
-            <SocialAuthSection />
-          </div>
-
+          <SocialAuthSection />
           {/* Phone Authentication Divider */}
-          <div className="flex items-center gap-3 my-1">
+          <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-gray-200" />
-            <span className="text-[10px] font-medium uppercase tracking-wider text-gray-400">
+
+            <span className="text-xs font-medium uppercase tracking-wider text-gray-400">
               Or
             </span>
+
             <div className="h-px flex-1 bg-gray-200" />
           </div>
 
@@ -188,7 +153,7 @@ export const RegisterPage = () => {
         </form>
 
         {/* Footer */}
-        <p className="mt-4 text-xs text-center text-gray-600">
+        <p className="mt-6 text-sm text-center text-gray-600">
           Already have an account?{" "}
           <Link to="/login" className="font-medium text-black hover:underline">
             Login
@@ -196,12 +161,11 @@ export const RegisterPage = () => {
         </p>
 
         {/* Legal */}
-        <p className="mt-2 text-[10px] text-center text-gray-400">
+        <p className="mt-4 text-[10px] text-center text-gray-400">
           This site is protected by reCAPTCHA and the Google
           <a
             href="https://policies.google.com/privacy"
             target="_blank"
-            rel="noreferrer"
             className="underline mx-1"
           >
             Privacy Policy
@@ -210,7 +174,6 @@ export const RegisterPage = () => {
           <a
             href="https://policies.google.com/terms"
             target="_blank"
-            rel="noreferrer"
             className="underline ml-1"
           >
             Terms of Service

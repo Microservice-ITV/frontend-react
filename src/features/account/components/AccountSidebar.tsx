@@ -4,7 +4,6 @@ import {
   User,
   MapPin,
   CreditCard,
-  Lock,
   Bell,
   Shield,
   ShoppingBag,
@@ -31,17 +30,18 @@ const AccountSidebar = ({ onNavigate }: AccountSidebarProps) => {
 
   return (
     <aside className="w-full md:w-64 flex-shrink-0 select-none">
-      {/* White container card matching the right side card */}
       <div className="bg-white rounded-lg border border-slate-100 shadow-sm p-4 sm:p-5">
         {/* User Profile Header */}
         <div className="flex items-center gap-3.5 pb-5 border-b border-slate-100">
           <div className="w-12 h-12 rounded-full bg-slate-200/90 border border-slate-200 flex items-center justify-center text-slate-700 font-bold text-base shadow-2xs">
             {userInitial}
           </div>
+
           <div className="flex flex-col min-w-0">
             <span className="text-sm font-bold text-slate-900 truncate">
               {user?.name ?? "thatnaing tun"}
             </span>
+
             <NavLink
               to="/account/profile"
               className="mt-0.5 inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-[#008f51] transition-colors"
@@ -88,15 +88,6 @@ const AccountSidebar = ({ onNavigate }: AccountSidebarProps) => {
               <span>Banks &amp; Cards</span>
             </NavLink>
 
-            {/* <NavLink
-              to="/account/change-password"
-              className={navItemClass}
-              onClick={() => onNavigate?.()}
-            >
-              <Lock className="w-4 h-4 shrink-0 stroke-[2]" />
-              <span>Change Password</span>
-            </NavLink> */}
-
             <NavLink
               to="/account/notifications"
               className={navItemClass}
@@ -129,6 +120,15 @@ const AccountSidebar = ({ onNavigate }: AccountSidebarProps) => {
           </NavLink>
 
           <NavLink
+            to="/account/invoices"
+            className={navItemClass}
+            onClick={() => onNavigate?.()}
+          >
+            <ShoppingBag className="w-4 h-4 shrink-0 stroke-[2]" />
+            <span>My Invoices</span>
+          </NavLink>
+
+          <NavLink
             to="/account/notifications-center"
             className={navItemClass}
             onClick={() => onNavigate?.()}
@@ -154,83 +154,7 @@ const AccountSidebar = ({ onNavigate }: AccountSidebarProps) => {
             <Coins className="w-4 h-4 shrink-0 stroke-[2]" />
             <span>My DNI Coins</span>
           </NavLink>
-
-          <NavLink
-            to="/account/notifications"
-            className={({ isActive }) =>
-              `${accountLinkBase} ${isActive ? accountLinkActive : accountLinkInactive}`
-            }
-            onClick={() => onNavigate?.()}
-          >
-            Notification Settings
-          </NavLink>
-
-          <button
-            type="button"
-            className={`${accountLinkBase} text-gray-700 w-full text-left`}
-            onClick={() => onNavigate?.()}
-          >
-            Privacy Settings
-          </button>
-        </nav>
-      </div>
-
-      {/* My Purchase / Notifications / Vouchers / Coins */}
-      <div className="pt-2 space-y-1">
-        <NavLink
-          to="/account/orders"
-          className={({ isActive }) =>
-            `${bottomLinkBase} ${isActive ? bottomLinkActive : bottomLinkInactive}`
-          }
-          onClick={() => onNavigate?.()}
-        >
-          <img src={myPurchaseIcon} alt="" className="w-4 h-4 shrink-0" aria-hidden />
-          <span>My Purchase</span>
-        </NavLink>
-
-        <NavLink
-          to="/account/invoices"
-          className={({ isActive }) =>
-            `${bottomLinkBase} ${isActive ? bottomLinkActive : bottomLinkInactive}`
-          }
-          onClick={() => onNavigate?.()}
-        >
-          <img src={myPurchaseIcon} alt="" className="w-4 h-4 shrink-0" aria-hidden />
-          <span>My Invoices</span>
-        </NavLink>
-
-        <NavLink
-          to="/account/notifications-center"
-          className={({ isActive }) =>
-            `${bottomLinkBase} ${isActive ? bottomLinkActive : bottomLinkInactive}`
-          }
-          onClick={() => onNavigate?.()}
-        >
-          <img src={notificationsIcon} alt="" className="w-4 h-4 shrink-0" aria-hidden />
-          <span>Notifications</span>
-        </NavLink>
-
-        <NavLink
-          to="/account/my-vouchers"
-          className={({ isActive }) =>
-            `${bottomLinkBase} ${isActive ? bottomLinkActive : bottomLinkInactive}`
-          }
-          onClick={() => onNavigate?.()}
-        >
-          <img src={myVouchersIcon} alt="" className="w-4 h-4 shrink-0" aria-hidden />
-          <span>My Vouchers</span>
-        </NavLink>
-
-        <NavLink
-          to="/account/my-coins"
-          className={({ isActive }) =>
-            `${bottomLinkBase} ${isActive ? bottomLinkActive : bottomLinkInactive}`
-          }
-          onClick={() => onNavigate?.()}
-        >
-          <img src={myDniCoinsIcon} alt="" className="w-4 h-4 shrink-0" aria-hidden />
-          <span>My DNI Coins</span>
-        </NavLink>
+        </div>
       </div>
     </aside>
   );
