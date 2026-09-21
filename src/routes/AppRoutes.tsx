@@ -110,6 +110,9 @@ import AnnouncementDetailPage from "@/features/announcements/pages/AnnouncementD
 import { PhoneAuthPage } from "@/features/auth/pages/PhoneAuthPage";
 import { PhoneOtpPage } from "@/features/auth/pages/PhoneOtpPage";
 import PromotionEnginePage from "@/features/promotions/pages/PromotionEnginePage";
+import AdminFlashDealsPage from "@/features/flash-deals/pages/AdminFlashDealsPage";
+import NewFlashDealPage from "@/features/flash-deals/pages/NewFlashDealPage";
+import EditFlashDealPage from "@/features/flash-deals/pages/EditFlashDealPage";
 import SellerFinanceOverviewPage from "@/features/finance/pages/SellerFinanceOverviewPage";
 import SellerFinanceTransactionsPage from "@/features/finance/pages/SellerFinanceTransactionsPage";
 import AdminFinanceOverviewPage from "@/features/finance/pages/AdminFinanceOverviewPage";
@@ -1081,6 +1084,36 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.promotionsView}
                 >
                   <PromotionEnginePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="promotion-engine/flash-deals"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.promotionsView}
+                >
+                  <AdminFlashDealsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="promotion-engine/flash-deals/new"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.promotionsView}
+                >
+                  <NewFlashDealPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="promotion-engine/flash-deals/:id/edit"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.promotionsView}
+                >
+                  <EditFlashDealPage />
                 </ProtectedRoute>
               }
             />

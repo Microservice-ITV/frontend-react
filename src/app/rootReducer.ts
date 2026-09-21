@@ -1,15 +1,15 @@
 import { combineReducers } from "@reduxjs/toolkit";
 
-import authReducer from '@/features/auth/store/authSlice'
-import accountReducer from '@/features/account/store/accountSlice'
-import productsReducer from '@/features/products/store/productSlice'
-import recommendationsReducer from '@/features/products/store/recommendationsSlice'
-import categoryReducer from '@/features/categories/store/categorySlice'
-import cartReducer from '@/features/cart/store/cartSlice'
-import checkoutReducer from '@/features/checkout/store/checkoutSlice'
-import sellerProductsReducer from '@/features/seller/store/sellerProductsSlice'
-import sellerCategoriesReducer from '@/features/seller/store/sellerCategoriesSlice'
-import sellerOrdersReducer from '@/features/seller/store/sellerOrdersSlice'
+import authReducer from "@/features/auth/store/authSlice";
+import accountReducer from "@/features/account/store/accountSlice";
+import productsReducer from "@/features/products/store/productSlice";
+import recommendationsReducer from "@/features/products/store/recommendationsSlice";
+import categoryReducer from "@/features/categories/store/categorySlice";
+import cartReducer from "@/features/cart/store/cartSlice";
+import checkoutReducer from "@/features/checkout/store/checkoutSlice";
+import sellerProductsReducer from "@/features/seller/store/sellerProductsSlice";
+import sellerCategoriesReducer from "@/features/seller/store/sellerCategoriesSlice";
+import sellerOrdersReducer from "@/features/seller/store/sellerOrdersSlice";
 import adminShopsReducer from "@/features/admin/store/adminShopsSlice";
 import adminDashboardReducer from "@/features/admin/store/adminDashboardSlice";
 import adminRbacReducer from "@/features/admin/store/adminRbacSlice";
@@ -23,6 +23,7 @@ import homeFeatureReducer from "@/features/homeFeatures/store/homeFeatureSlice";
 import homeQuickActionsReducer from "@/features/home/store/homeSlice";
 import heroBannerReducer from "@/features/heroBanners/store/heroBannerSlice";
 import promoCardReducer from "@/features/promoCards/store/promoCardSlice";
+import flashDealsReducer from "@/features/flash-deals/store/flashDealSlice";
 import announcementTypeReducer from "@/features/announcements/store/announcementTypeSlice";
 import announcementReducer from "@/features/announcements/store/announcementSlice";
 import aiAssistantReducer from "@/features/ai/store/aiAssistantSlice";
@@ -55,6 +56,7 @@ const rootReducer = combineReducers({
   homeQuickActions: homeQuickActionsReducer,
   heroBanners: heroBannerReducer,
   promoCards: promoCardReducer,
+  flashDeals: flashDealsReducer,
   announcementTypes: announcementTypeReducer,
   announcements: announcementReducer,
   aiAssistant: aiAssistantReducer,

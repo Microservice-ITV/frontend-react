@@ -11,6 +11,11 @@ export interface CartItem {
     price: number
     quantity: number
 
+    // flash-deal promo origin (present only for flash-deal cart lines)
+    flashDealId?: string
+    flashDealItemId?: string
+    originalPrice?: number
+
     // selection state
     selected: boolean
 }
