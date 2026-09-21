@@ -1,418 +1,331 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import {
-  ArrowRight,
-  BadgePercent,
-  Clock,
-  Flame,
-  Megaphone,
-  PackageCheck,
-  ShieldCheck,
-  ShoppingBag,
-  Truck,
-  Zap,
-} from 'lucide-react'
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { ArrowRight, Zap } from "lucide-react";
+import FlashDealCard from "../components/FlashDealCard";
 
 const DEAL_CATEGORIES = [
-  'All',
-  'Fashion',
-  'Home & Living',
-  'Electronics',
-  'Beauty',
-  'Mom & Baby',
-]
+  "Top Picks",
+  "12PM Snack & Save",
+  "Mooncake",
+  "Buy Today, Get Today",
+  "Home Appliances",
+];
 
 const DEALS = [
   {
-    name: 'Wireless Earbuds Pro',
-    image: '🎧',
-    tag: 'Electronics',
-    dealPrice: 19.9,
+    id: 1,
+    name: "Wireless Earbuds Pro",
+    image:
+      "https://images.unsplash.com/photo-1546435770-a3e426bf472b?auto=format&fit=crop&w=900&q=80",
+    tag: "Electronics",
+    price: 19.9,
     originalPrice: 59.9,
     discount: 67,
-    sold: '2.4k',
-    gradient: 'from-sky-100 to-indigo-50',
+    stockText: "SELLING FAST",
+    soldPercent: 78,
   },
   {
-    name: 'Premium Ceramic Cookware Set',
-    image: '🍳',
-    tag: 'Home & Living',
-    dealPrice: 45.5,
-    originalPrice: 129.0,
+    id: 2,
+    name: "Premium Ceramic Cookware Set",
+    image:
+      "https://images.unsplash.com/photo-1582515073490-39981397c445?auto=format&fit=crop&w=900&q=80",
+    tag: "Home & Living",
+    price: 45.5,
+    originalPrice: 129,
     discount: 65,
-    sold: '1.8k',
-    gradient: 'from-emerald-100 to-teal-50',
+    stockText: "SELLING FAST",
+    soldPercent: 62,
   },
   {
-    name: 'Hydrating Lip Tint Trio',
-    image: '💄',
-    tag: 'Beauty',
-    dealPrice: 12.9,
+    id: 3,
+    name: "Hydrating Lip Tint Trio",
+    image:
+      "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=900&q=80",
+    tag: "Beauty",
+    price: 12.9,
     originalPrice: 32.9,
     discount: 61,
-    sold: '3.1k',
-    gradient: 'from-rose-100 to-pink-50',
+    stockText: "SELLING FAST",
+    soldPercent: 88,
   },
   {
-    name: 'Mini Robot Vacuum',
-    image: '🤖',
-    tag: 'Electronics',
-    dealPrice: 89.0,
-    originalPrice: 199.0,
+    id: 4,
+    name: "Mini Robot Vacuum",
+    image:
+      "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=900&q=80",
+    tag: "Electronics",
+    price: 89,
+    originalPrice: 199,
     discount: 55,
-    sold: '962',
-    gradient: 'from-violet-100 to-purple-50',
+    stockText: "SELLING FAST",
+    soldPercent: 45,
   },
   {
-    name: 'Organic Baby Skincare Kit',
-    image: '🧴',
-    tag: 'Mom & Baby',
-    dealPrice: 24.9,
+    id: 5,
+    name: "Organic Baby Skincare Kit",
+    image:
+      "https://images.unsplash.com/photo-1556228578-8c89e6adf883?auto=format&fit=crop&w=900&q=80",
+    tag: "Mom & Baby",
+    price: 24.9,
     originalPrice: 54.9,
     discount: 55,
-    sold: '1.2k',
-    gradient: 'from-emerald-100 to-teal-50',
+    stockText: "LOW STOCK",
+    soldPercent: 33,
   },
   {
-    name: 'Athletic Running Shoes',
-    image: '👟',
-    tag: 'Fashion',
-    dealPrice: 36.0,
+    id: 6,
+    name: "Athletic Running Shoes",
+    image:
+      "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=80",
+    tag: "Fashion",
+    price: 36,
     originalPrice: 79.9,
     discount: 55,
-    sold: '2.7k',
-    gradient: 'from-lime-100 to-green-50',
+    stockText: "SELLING FAST",
+    soldPercent: 71,
   },
   {
-    name: 'Portable Power Bank 20K',
-    image: '🔋',
-    tag: 'Electronics',
-    dealPrice: 27.9,
+    id: 7,
+    name: "Portable Power Bank 20K",
+    image:
+      "https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?auto=format&fit=crop&w=900&q=80",
+    tag: "Electronics",
+    price: 27.9,
     originalPrice: 59.9,
     discount: 53,
-    sold: '4.5k',
-    gradient: 'from-cyan-100 to-blue-50',
+    stockText: "SELLING FAST",
+    soldPercent: 91,
   },
   {
-    name: 'Memory Foam Pillow Pair',
-    image: '🛏️',
-    tag: 'Home & Living',
-    dealPrice: 32.5,
-    originalPrice: 68.0,
+    id: 8,
+    name: "Memory Foam Pillow Pair",
+    image:
+      "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=80",
+    tag: "Home & Living",
+    price: 32.5,
+    originalPrice: 68,
     discount: 52,
-    sold: '1.6k',
-    gradient: 'from-slate-100 to-gray-50',
+    stockText: "LOW STOCK",
+    soldPercent: 28,
   },
-]
+];
 
-const HOW_IT_WORKS = [
-  {
-    icon: Clock,
-    title: 'Limited time only',
-    description:
-      'Each flash deal session runs for a short window — when the timer hits zero, prices change.',
-  },
-  {
-    icon: BadgePercent,
-    title: 'Real discounts, up front',
-    description:
-      'Deal prices are shown clearly next to the original price, so the savings are easy to see.',
-  },
-  {
-    icon: PackageCheck,
-    title: 'Act fast, stock is limited',
-    description:
-      'Popular deals can sell out during a session, so add to cart while the offer is live.',
-  },
-]
+/** 24h "HH:MM" — deal-drop times, repeating daily. */
+const DEAL_SLOTS = [
+  { time: "10:30", label: "Morning Rush" },
+  { time: "12:30", label: "Lunch Deals" },
+  { time: "16:30", label: "Afternoon Picks" },
+  { time: "18:30", label: "Evening Specials" },
+];
 
-const SESSION_TIMES = [
-  { time: '8:00 AM', label: 'Morning drop' },
-  { time: '12:00 PM', label: 'Lunchtime drop' },
-  { time: '6:00 PM', label: 'Evening drop' },
-  { time: '10:00 PM', label: 'Late-night drop' },
-]
+type DealSlotStatus = "live" | "next" | "upcoming";
 
 const getNextSessionEnd = () => {
-  const end = new Date()
-  end.setMinutes(0, 0, 0)
-  end.setHours(end.getHours() + 1)
-  return end
+  const end = new Date();
+  end.setMinutes(0, 0, 0);
+  end.setHours(end.getHours() + 1);
+  return end;
+};
+
+const pad = (value: number) => String(value).padStart(2, "0");
+
+function parseSlotTime(time: string, base: Date): Date {
+  const [hours, minutes] = time.split(":").map(Number);
+  const d = new Date(base);
+  d.setHours(hours, minutes, 0, 0);
+  return d;
 }
 
-const pad = (value: number) => String(value).padStart(2, '0')
+function formatSlotCountdown(ms: number): string {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${s.toString().padStart(2, "0")}s`;
+  return `${s}s`;
+}
+
+const CARD_WIDTH_PX = 220;
+const GAP_PX = 16;
 
 const FlashDealsPage = () => {
-  const [activeCategory, setActiveCategory] = useState('All')
+
+  const [activeCategory, setActiveCategory] = useState("Top Picks");
   const [timeLeft, setTimeLeft] = useState(() => {
-    const end = getNextSessionEnd()
-    return Math.max(0, Math.floor((end.getTime() - Date.now()) / 1000))
-  })
+    const end = getNextSessionEnd();
+    return Math.max(0, Math.floor((end.getTime() - Date.now()) / 1000));
+  });
+  const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
-        if (prev <= 1) return Math.max(0, Math.floor((getNextSessionEnd().getTime() - Date.now()) / 1000))
-        return prev - 1
-      })
-    }, 1000)
-    return () => clearInterval(timer)
-  }, [])
+        if (prev <= 1)
+          return Math.max(
+            0,
+            Math.floor((getNextSessionEnd().getTime() - Date.now()) / 1000),
+          );
+        return prev - 1;
+      });
+      setNow(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
-  const hours = Math.floor(timeLeft / 3600)
-  const minutes = Math.floor((timeLeft % 3600) / 60)
-  const seconds = timeLeft % 60
+  const hours = Math.floor(timeLeft / 3600);
+  const minutes = Math.floor((timeLeft % 3600) / 60);
+  const seconds = timeLeft % 60;
 
-  const filteredDeals =
-    activeCategory === 'All'
-      ? DEALS
-      : DEALS.filter((deal) => deal.tag === activeCategory)
+  const filteredDeals = DEALS.filter(
+    (deal) => activeCategory === "Top Picks" || deal.tag === activeCategory,
+  );
+
+  // Which slot is live/next/upcoming, computed from the clock — no manual
+  // isActive flag needed. The live slot (or, before the first drop, the
+  // next one) is always rotated to the front of the array.
+  const dealSlots = useMemo(() => {
+    const todaySlotDates = DEAL_SLOTS.map((slot) =>
+      parseSlotTime(slot.time, now),
+    );
+
+    let liveIndex = -1;
+    for (let i = 0; i < todaySlotDates.length; i++) {
+      if (todaySlotDates[i] <= now) liveIndex = i;
+    }
+
+    let nextIndex: number;
+    let nextSlotDate: Date;
+
+    if (liveIndex === -1) {
+      nextIndex = 0;
+      nextSlotDate = todaySlotDates[0];
+    } else if (liveIndex + 1 < DEAL_SLOTS.length) {
+      nextIndex = liveIndex + 1;
+      nextSlotDate = todaySlotDates[nextIndex];
+    } else {
+      nextIndex = 0;
+      nextSlotDate = new Date(todaySlotDates[0]);
+      nextSlotDate.setDate(nextSlotDate.getDate() + 1);
+    }
+
+    const msUntilNext = nextSlotDate.getTime() - now.getTime();
+
+    const withStatus = DEAL_SLOTS.map((slot, index) => {
+      if (index === liveIndex) {
+        return {
+          ...slot,
+          status: "live" as DealSlotStatus,
+          countdown: `Ends in ${formatSlotCountdown(msUntilNext)}`,
+        };
+      }
+      if (index === nextIndex) {
+        return {
+          ...slot,
+          status: "next" as DealSlotStatus,
+          countdown: `Starts in ${formatSlotCountdown(msUntilNext)}`,
+        };
+      }
+      return {
+        ...slot,
+        status: "upcoming" as DealSlotStatus,
+        countdown: `Starts at ${slot.time}`,
+      };
+    });
+
+    const rotateFrom = liveIndex === -1 ? nextIndex : liveIndex;
+    return [
+      ...withStatus.slice(rotateFrom),
+      ...withStatus.slice(0, rotateFrom),
+    ];
+  }, [now]);
 
   return (
-    <div className="bg-[#f5f5f5] pb-10">
-      {/* Hero */}
-      <section className="relative overflow-hidden border-b border-[var(--dni-cart-border)] bg-gradient-to-br from-emerald-50 via-white to-gray-50">
-        <div
-          className="pointer-events-none absolute inset-0 opacity-60"
-          style={{
-            backgroundImage:
-              'radial-gradient(circle at 15% 20%, rgba(16, 185, 129, 0.12) 0, transparent 42%), radial-gradient(circle at 85% 10%, rgba(5, 150, 105, 0.08) 0, transparent 38%)',
-          }}
-        />
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 py-14 sm:py-20">
-          <div className="grid items-center gap-10 lg:grid-cols-2">
-            <div>
-              <p className="flex items-center gap-2 text-sm font-medium uppercase tracking-widest text-emerald-600">
-                <Zap size={16} fill="currentColor" />
-                Flash Deals
-              </p>
-              <h1 className="mt-3 text-3xl sm:text-4xl md:text-5xl font-bold leading-tight text-gray-900">
-                Big savings, limited time. Grab them before they are gone.
-              </h1>
-              <p className="mt-4 max-w-2xl text-base sm:text-lg text-gray-600 leading-relaxed">
-                Every hour brings fresh deals across fashion, home, beauty,
-                electronics, and more. Prices drop for a short window — watch the
-                countdown and check out before the session ends.
-              </p>
-              <div className="mt-8 flex flex-wrap gap-3">
-                <a
-                  href="#ongoing-deals"
-                  className="inline-flex items-center justify-center gap-2 rounded bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors"
-                >
-                  <Flame size={18} />
-                  Shop the deals
-                </a>
-                <Link
-                  to="/seller-centre"
-                  className="inline-flex items-center justify-center rounded border border-emerald-600 bg-white px-5 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 transition-colors"
-                >
-                  Join as a seller
-                </Link>
-              </div>
-            </div>
-
-            {/* Countdown */}
-            <div className="rounded-sm border border-[var(--dni-cart-border)] bg-white shadow-sm p-6 sm:p-8">
-              <div className="flex items-center gap-3 text-emerald-600">
-                <Zap size={22} fill="currentColor" strokeWidth={1.75} />
-                <p className="text-xs font-semibold uppercase tracking-wide">
-                  Session ends in
-                </p>
-              </div>
-              <div className="mt-4 flex items-center justify-center gap-3">
-                {[
-                  { value: pad(hours), label: 'Hours' },
-                  { value: pad(minutes), label: 'Minutes' },
-                  { value: pad(seconds), label: 'Seconds' },
-                ].map((block, index) => (
-                  <div key={block.label} className="flex items-center gap-3">
-                    {index > 0 && (
-                      <span className="text-2xl font-bold text-gray-300">:</span>
-                    )}
-                    <div className="text-center">
-                      <div className="flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-sm bg-gradient-to-br from-emerald-600 to-emerald-700 text-2xl sm:text-3xl font-bold text-white tabular-nums shadow-sm">
-                        {block.value}
-                      </div>
-                      <p className="mt-2 text-xs text-gray-500">{block.label}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <p className="mt-5 text-center text-sm text-gray-600">
-                New deals drop every hour. Set your reminder so you never miss a
-                session.
-              </p>
-              <div className="mt-6 grid grid-cols-2 gap-2">
-                {SESSION_TIMES.map((session) => (
-                  <div
-                    key={session.label}
-                    className="flex items-center gap-2 rounded-sm border border-gray-100 bg-[#fafafa] px-3 py-2.5"
-                  >
-                    <Clock size={16} className="text-emerald-600" />
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">
-                        {session.time}
-                      </p>
-                      <p className="text-[11px] text-gray-500">
-                        {session.label}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+    <div className="min-h-screen bg-[#f5f5f5] text-gray-900">
+      <section className="border-[var(--dni-border)] bg-white">
+        <div className="mx-auto flex max-w-7xl items-center justify-center gap-3 px-4 py-1.5 sm:px-6">
+          <span className="hidden h-px w-10 bg-[#d1d5db] sm:block" />
+          <div className="flex items-center gap-1.5 text-[var(--dni-primary)]">
+            <Zap size={18} className="fill-current" />
+            <span className="text-xl font-black uppercase tracking-tight">
+              Flash
+            </span>
+            <span className="text-xl font-medium uppercase tracking-tight">
+              Deals
+            </span>
           </div>
-        </div>
-      </section>
-
-      {/* How it works */}
-      <section className="mx-auto max-w-7xl px-4 sm:px-6 mt-8">
-        <div className="grid gap-3 sm:grid-cols-3">
-          {HOW_IT_WORKS.map(({ icon: Icon, title, description }) => (
-            <div
-              key={title}
-              className="flex items-start gap-3 rounded-sm border border-[var(--dni-cart-border)] bg-white p-4 sm:p-5"
-            >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-emerald-50 text-emerald-600">
-                <Icon size={20} strokeWidth={1.75} />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-900">{title}</p>
-                <p className="mt-1 text-xs sm:text-sm text-gray-500 leading-relaxed">
-                  {description}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Ongoing deals */}
-      <section
-        id="ongoing-deals"
-        className="mx-auto max-w-7xl px-4 sm:px-6 mt-8 scroll-mt-28"
-      >
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="text-lg sm:text-xl font-bold text-gray-900">
-              Ongoing flash deals
-            </h2>
-            <p className="mt-1 text-sm text-gray-500">
-              Prices shown are active for this session only.
-            </p>
-          </div>
-          <Link
-            to="/"
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-600 hover:text-emerald-700 transition-colors"
-          >
-            View all deals
-            <ArrowRight size={16} />
-          </Link>
-        </div>
-
-        {/* Category filter */}
-        <div className="mb-4 flex flex-wrap gap-2">
-          {DEAL_CATEGORIES.map((category) => (
-            <button
-              key={category}
-              type="button"
-              onClick={() => setActiveCategory(category)}
-              aria-pressed={activeCategory === category}
-              className={`rounded-sm px-4 py-2 text-sm font-medium transition-colors ${
-                activeCategory === category
-                  ? 'bg-emerald-600 text-white'
-                  : 'border border-[var(--dni-cart-border)] bg-white text-gray-700 hover:border-emerald-300 hover:text-emerald-700'
-              }`}
-            >
-              {category}
-            </button>
-          ))}
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {filteredDeals.map((deal) => (
-            <Link
-              key={deal.name}
-              to="/"
-              className="group rounded-sm border border-[var(--dni-cart-border)] bg-white p-4 transition-all hover:shadow-md hover:-translate-y-[1px]"
-            >
-              <div className="relative">
-                <div
-                  className={`flex aspect-[4/3] items-center justify-center rounded-sm bg-gradient-to-br ${deal.gradient}`}
-                >
-                  <span className="text-5xl" aria-hidden>
-                    {deal.image}
+          <div className="ml-4 flex items-center gap-2 border-l border-[var(--dni-cart-border)] pl-4">
+            {[pad(hours), pad(minutes), pad(seconds)].map((block, index) => (
+              <div key={index} className="flex items-center gap-1.5">
+                <span className="flex h-10 min-w-[36px] items-center justify-center bg-[var(--dni-primary)] px-2 font-mono text-[13px] font-bold text-white">
+                  {block}
+                </span>
+                {index < 2 && (
+                  <span className="font-mono text-[13px] font-bold text-slate-700">
+                    :
                   </span>
-                </div>
-                <div className="absolute left-2 top-2 rounded-sm bg-emerald-600 px-2 py-1 text-xs font-bold text-white shadow-sm">
-                  -{deal.discount}%
-                </div>
-                <div className="absolute bottom-2 left-2 flex items-center gap-1 rounded-sm bg-emerald-600 px-2 py-1 text-[11px] font-bold text-white">
-                  <Zap size={11} fill="currentColor" />
-                  Flash Deal
-                </div>
+                )}
               </div>
-              <p className="mt-3 line-clamp-2 text-sm text-gray-700 min-h-[2.5rem]">
-                {deal.name}
-              </p>
-              <div className="mt-2 flex items-center gap-2">
-                <span className="text-lg font-bold text-emerald-600">
-                  ${deal.dealPrice.toFixed(2)}
-                </span>
-                <span className="text-xs text-gray-400 line-through">
-                  ${deal.originalPrice.toFixed(2)}
-                </span>
-              </div>
-              <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
-                <span>{deal.sold} sold</span>
-                <span className="rounded-sm border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-emerald-700">
-                  {deal.tag}
-                </span>
-              </div>
-            </Link>
-          ))}
+            ))}
+            <span className="ml-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              Ends Soon
+            </span>
+          </div>
+          <span className="hidden h-px w-10 bg-[#d1d5db] sm:block" />
         </div>
       </section>
 
-      {/* Why shop flash deals */}
-      <section className="mx-auto max-w-7xl px-4 sm:px-6 mt-8">
-        <div className="bg-white border border-[var(--dni-cart-border)] rounded-sm px-5 py-6 sm:px-8 sm:py-8">
-          <h2 className="text-lg sm:text-xl font-bold text-gray-900">
-            Why shop Ecommerce Flash Deals?
-          </h2>
-          <p className="mt-1 text-sm text-gray-500">
-            Serious savings, clear prices, and a reason to check in every hour.
-          </p>
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            {[
-              {
-                icon: BadgePercent,
-                title: 'Genuine price drops',
-                description:
-                  'Deal prices are compared against the regular price, so you always know what you are saving.',
-              },
-              {
-                icon: ShieldCheck,
-                title: 'Shop with confidence',
-                description:
-                  'Ecommerce buyer protection and easy checkout apply to flash deal purchases like any order.',
-              },
-              {
-                icon: Truck,
-                title: 'Shipping you can count on',
-                description:
-                  'Track your order from the moment it leaves the seller until it reaches your door.',
-              },
-            ].map(({ icon: Icon, title, description }) => (
-              <div key={title} className="flex items-start gap-3 rounded-sm border border-[var(--dni-cart-border)] bg-[#fafafa] p-4 sm:p-5">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-emerald-50 text-emerald-600">
-                  <Icon size={20} strokeWidth={1.75} />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">{title}</p>
-                  <p className="mt-1 text-xs sm:text-sm text-gray-500 leading-relaxed">
-                    {description}
-                  </p>
+      <section className="py-4 bg-[#ffffff]">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="flex items-center gap-2.5 overflow-x-auto pb-1 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:justify-center sm:overflow-visible sm:pb-0 sm:snap-none">
+            {dealSlots.map((slot, index) => (
+              <div
+                key={slot.time}
+                className="flex items-center gap-2.5 snap-start"
+              >
+                {index > 0 && (
+                  <div className="h-px w-4 shrink-0 bg-[#d0d3d6]" />
+                )}
+
+                <div
+                  className={`relative flex h-[60px] w-[168px] shrink-0 flex-col items-center justify-center gap-1 rounded-lg px-4 text-center sm:h-[64px] sm:w-[200px] ${
+                    slot.status === "live"
+                      ? "bg-[var(--dni-primary)] text-white shadow-sm"
+                      : slot.status === "next"
+                        ? "border border-[#f0b429] bg-[#fff8e8]"
+                        : "border border-[#e5e7eb] bg-white opacity-70"
+                  }`}
+                >
+                  {slot.status === "live" && (
+                    <span className="absolute right-3 top-3 flex h-2.5 w-2.5">
+                      <span className="absolute inline-flex h-full w-full motion-safe:animate-ping rounded-full bg-white/70" />
+                      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-white" />
+                    </span>
+                  )}
+
+                  <span
+                    className={`text-base font-bold tracking-tight sm:text-lg ${
+                      slot.status === "live"
+                        ? "text-white"
+                        : slot.status === "next"
+                          ? "text-[#8a5a00]"
+                          : "text-[#6b7280]"
+                    }`}
+                  >
+                    {slot.time}
+                  </span>
+
+                  <span
+                    className={`text-[11px] font-medium ${
+                      slot.status === "live"
+                        ? "text-white/85"
+                        : slot.status === "next"
+                          ? "text-[#b45309]"
+                          : "text-[#9ca3af]"
+                    }`}
+                  >
+                    {slot.countdown}
+                  </span>
                 </div>
               </div>
             ))}
@@ -420,86 +333,47 @@ const FlashDealsPage = () => {
         </div>
       </section>
 
-      {/* For sellers */}
-      <section className="mx-auto max-w-7xl px-4 sm:px-6 mt-8">
-        <div className="grid gap-6 lg:grid-cols-2 bg-white border border-[var(--dni-cart-border)] rounded-sm overflow-hidden">
-          <div className="p-6 sm:p-10 flex flex-col justify-center">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
-              Are you a seller? Get your products featured
-            </h2>
-            <p className="mt-4 text-sm sm:text-base text-gray-600 leading-relaxed">
-              Flash Deals give selected products a big visibility boost for a
-              limited time. Shoppers who land on a flash deal are shopping with
-              intent — and many end up browsing your shop while they are there.
-            </p>
-            <p className="mt-3 text-sm sm:text-base text-gray-600 leading-relaxed">
-              Ecommerce recommends top-performing products for upcoming
-              sessions. Keep healthy stock and strong ratings to improve your
-              chances of being featured.
-            </p>
+      <section className="border-b border-[var(--dni-border)] bg-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="flex h-[52px] items-stretch gap-0 overflow-x-auto scrollbar-hide">
+            {DEAL_CATEGORIES.map((category) => (
+              <button
+                key={category}
+                type="button"
+                onClick={() => setActiveCategory(category)}
+                className={`min-w-[150px] shrink-0 border-b-[3px] px-4 py-2 text-sm font-medium transition-colors ${
+                  activeCategory === category
+                    ? "border-[var(--dni-primary)] text-[var(--dni-primary)]"
+                    : "border-transparent text-[#4b5563] hover:text-[#111827]"
+                }`}
+              >
+                {category}
+              </button>
+            ))}
+            {/* <button
+              type="button"
+              className="ml-auto inline-flex min-w-[110px] shrink-0 items-center justify-center gap-1 border-l border-[#e5e7eb] px-4 py-2 text-sm font-medium text-[#374151]"
+            >
+              More
+              <ArrowRight size={14} className="text-[var(--dni-primary)]" />
+            </button> */}
           </div>
-          <div className="rounded-sm border border-emerald-100 bg-gradient-to-br from-emerald-50 via-teal-50 to-white p-5 sm:p-6 flex items-center">
-            <div className="w-full">
-              <div className="flex items-center gap-3 text-emerald-600">
-                <Megaphone size={22} strokeWidth={1.75} />
-                <p className="text-xs font-semibold uppercase tracking-wide">
-                  Built for sellers
-                </p>
-              </div>
-              <p className="mt-3 text-base sm:text-lg font-semibold text-gray-900 leading-snug">
-                Stand a chance to be featured in hourly flash deal sessions and
-                turn limited-time offers into lasting customers.
-              </p>
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Link
-                  to="/become-a-seller"
-                  className="inline-flex items-center justify-center rounded bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors"
-                >
-                  Become a seller
-                </Link>
-                <Link
-                  to="/seller-centre"
-                  className="inline-flex items-center justify-center rounded border border-emerald-600 bg-white px-5 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 transition-colors"
-                >
-                  Open Seller Centre
-                </Link>
-              </div>
+        </div>
+      </section>
+
+      <section className="bg-[#f5f5f5] py-4">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="border border-[var(--dni-cart-border)] bg-white p-4">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4 sm:gap-4">
+              {filteredDeals.map((deal) => (
+                <FlashDealCard key={deal.id} deal={deal} />
+              ))}
             </div>
           </div>
         </div>
       </section>
-
-      {/* CTA */}
-      <section className="mx-auto max-w-7xl px-4 sm:px-6 mt-8">
-        <div className="rounded-sm border border-[var(--dni-cart-border)] bg-gradient-to-br from-emerald-50 via-white to-gray-50 px-6 py-10 sm:px-10 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-600 text-white">
-            <ShoppingBag size={22} />
-          </div>
-          <h2 className="mt-4 text-xl sm:text-2xl font-bold text-gray-900">
-            Your next great deal is ticking
-          </h2>
-          <p className="mt-2 text-sm sm:text-base text-gray-600 max-w-xl mx-auto">
-            Browse hourly sessions, add to cart before the timer runs out, and
-            save on products you love.
-          </p>
-          <div className="mt-6 flex flex-wrap justify-center gap-3">
-            <a
-              href="#ongoing-deals"
-              className="inline-flex items-center justify-center rounded bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors"
-            >
-              Shop flash deals
-            </a>
-            <Link
-              to="/mall"
-              className="inline-flex items-center justify-center rounded border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              Ecommerce Mall
-            </Link>
-          </div>
-        </div>
-      </section>
     </div>
-  )
-}
+  );
+};
 
-export default FlashDealsPage
+export default FlashDealsPage;

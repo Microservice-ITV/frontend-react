@@ -1,6 +1,7 @@
-import { useEffect, useRef, type CSSProperties } from 'react'
-import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api'
+import { useEffect, useMemo, useRef, type CSSProperties } from 'react'
+import { GoogleMap, MarkerF, useJsApiLoader } from '@react-google-maps/api'
 import { DEFAULT_MAP_CENTER, MAP_PICKER_HEIGHT_PX, MAP_PICKER_HINT_TEXT } from './mapConstants'
+import { GRAB_LIKE_MAP_STYLES, MAP_PIN_DATA_URI } from './googleMapStyles'
 import type { LatLng } from '@/types/geo'
 import type { MapLocationPickerProps } from './mapLocationPickerTypes'
 
@@ -9,9 +10,13 @@ const MAP_CONTAINER_STYLE: CSSProperties = {
     height: `${MAP_PICKER_HEIGHT_PX}px`,
 }
 
+const PIN_WIDTH = 36
+const PIN_HEIGHT = 47
+
 /**
- * Google Maps pin picker. Requires billing-enabled GCP + `VITE_GOOGLE_MAPS_API_KEY`.
- * Enable when `VITE_MAP_PROVIDER=google`.
+ * Grab/Foodpanda-style Google Maps pin picker (custom muted theme + brand pin).
+ * Requires a billing-enabled Google Cloud project + `VITE_GOOGLE_MAPS_API_KEY`.
+ * Enabled via `VITE_MAP_PROVIDER=google`.
  */
 export function GoogleMapLocationPicker({ latitude, longitude, onChange, className }: MapLocationPickerProps) {
     const apiKey = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined)?.trim()
@@ -31,7 +36,15 @@ export function GoogleMapLocationPicker({ latitude, longitude, onChange, classNa
         )
     }
 
-    return <GoogleMapInner apiKey={apiKey} latitude={latitude} longitude={longitude} onChange={onChange} className={className} />
+    return (
+        <GoogleMapInner
+            apiKey={apiKey}
+            latitude={latitude}
+            longitude={longitude}
+            onChange={onChange}
+            className={className}
+        />
+    )
 }
 
 type InnerProps = MapLocationPickerProps & { apiKey: string }
@@ -56,15 +69,48 @@ function GoogleMapInner({ apiKey, latitude, longitude, onChange, className }: In
         initialCenterRef.current = hasPin ? { lat: latitude!, lng: longitude! } : DEFAULT_MAP_CENTER
     }
 
+    const pinIcon = useMemo<google.maps.Icon | undefined>(() => {
+        if (!isLoaded || typeof google === 'undefined') return undefined
+        return {
+            url: MAP_PIN_DATA_URI,
+            scaledSize: new google.maps.Size(PIN_WIDTH, PIN_HEIGHT),
+            anchor: new google.maps.Point(PIN_WIDTH / 2, PIN_HEIGHT),
+        }
+    }, [isLoaded])
+
+    const useVector = (import.meta.env.VITE_GOOGLE_MAPS_VECTOR ?? 'true') !== 'false'
+
+    const mapOptions = useMemo<google.maps.MapOptions>(() => {
+        const base: google.maps.MapOptions = {
+            disableDefaultUI: true,
+            zoomControl: true,
+            fullscreenControl: false,
+            streetViewControl: false,
+            mapTypeControl: false,
+            clickableIcons: false,
+            gestureHandling: 'greedy',
+            isFractionalZoomEnabled: true,
+        }
+
+        // Vector: sharper labels, road/building names and 3D buildings (Grab-like). Inline `styles`
+        // are ignored by vector maps — use a Map ID + Cloud style if a custom palette is needed.
+        if (useVector) {
+            return {
+                ...base,
+                renderingType: 'vector' as unknown as google.maps.RenderingType,
+            }
+        }
+
+        return { ...base, styles: GRAB_LIKE_MAP_STYLES }
+    }, [useVector])
+
     useEffect(() => {
         if (!isLoaded || !hasPin || latitude == null || longitude == null) return
-        if (hadPinRef.current) return
         const id = window.setTimeout(() => {
-            if (hadPinRef.current) return
             const map = mapRef.current
             if (!map) return
             map.panTo({ lat: latitude, lng: longitude })
-            map.setZoom(16)
+            map.setZoom(18)
             hadPinRef.current = true
         }, 0)
         return () => window.clearTimeout(id)
@@ -94,17 +140,13 @@ function GoogleMapInner({ apiKey, latitude, longitude, onChange, className }: In
             <GoogleMap
                 mapContainerStyle={MAP_CONTAINER_STYLE}
                 center={initialCenterRef.current}
-                zoom={hasPin ? 16 : 13}
-                options={{
-                    streetViewControl: false,
-                    mapTypeControl: false,
-                    fullscreenControl: true,
-                }}
+                zoom={hasPin ? 18 : 14}
+                options={mapOptions}
                 onLoad={(map) => {
                     mapRef.current = map
                     if (latitude != null && longitude != null) {
                         map.panTo({ lat: latitude, lng: longitude })
-                        map.setZoom(16)
+                        map.setZoom(18)
                     }
                     hadPinRef.current = hasPin
                 }}
@@ -117,8 +159,9 @@ function GoogleMapInner({ apiKey, latitude, longitude, onChange, className }: In
                 }}
             >
                 {hasPin && (
-                    <Marker
+                    <MarkerF
                         position={{ lat: latitude!, lng: longitude! }}
+                        icon={pinIcon}
                         draggable
                         onDragEnd={(e) => {
                             if (e.latLng) onChange(e.latLng.lat(), e.latLng.lng())

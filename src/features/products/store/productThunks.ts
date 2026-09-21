@@ -9,26 +9,34 @@ const RECENT_PRODUCTS_LIMIT = 10
    SEARCH PRODUCTS
 --------------------------------- */
 export const searchProducts = createAsyncThunk<
-    Product[],
-    { query: string; sort?: string },
-    { rejectValue: string }
->('products/search', async ({ query, sort }, { rejectWithValue }) => {
+  Product[],
+  { query: string; sort?: string; categoryId?: string },
+  { rejectValue: string }
+>(
+  "products/search",
+  async ({ query, sort, categoryId }, { rejectWithValue }) => {
     try {
-        const response = await productApi.search(query, sort)
-        return response.data.data.map((product) => ({
-            id: product.id,
-            name: product.name,
-            price: typeof product.price === 'string' ? parseFloat(product.price) : product.price,
-            images: product.images ?? [],
-            categoryId: product.categoryId,
-        }))
+      const response = await productApi.search(query, sort, categoryId);
+      return response.data.data.map((product) => ({
+        id: product.id,
+        name: product.name,
+        price:
+          typeof product.price === "string"
+            ? parseFloat(product.price)
+            : product.price,
+        images: product.images ?? [],
+        categoryId: product.categoryId,
+        tags: product.tags ?? [],
+      }));
     } catch (error: unknown) {
-        const message =
-            (error as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-            (error instanceof Error ? error.message : 'Search failed')
-        return rejectWithValue(message)
+      const message =
+        (error as { response?: { data?: { message?: string } } })?.response
+          ?.data?.message ??
+        (error instanceof Error ? error.message : "Search failed");
+      return rejectWithValue(message);
     }
-})
+  },
+);
 
 /* ------------------------------
    LIST PRODUCTS BY CATEGORY
@@ -46,6 +54,7 @@ export const fetchProductsByCategory = createAsyncThunk<
             price: typeof product.price === 'string' ? parseFloat(product.price) : product.price,
             images: product.images ?? [],
             categoryId: product.categoryId,
+            tags: product.tags ?? [],
         }))
         return products
     } catch (error: unknown) {
@@ -73,6 +82,7 @@ export const fetchRecentProducts = createAsyncThunk<
                     ? [productServiceAssetUrl(product.image)]
                     : (product.images ?? []).map((image) => productServiceAssetUrl(image)),
                 categoryId: product.categoryId ?? '',
+                tags: product.tags ?? [],
             })),
             hasNextPage: response.hasNextPage,
             nextCursor: response.nextCursor,
@@ -143,6 +153,7 @@ export const fetchProductDetail = createAsyncThunk<
             brandName: product.brandName,
             primaryVariantId: product.primaryVariantId,
             variants: product.variants ?? [],
+            tags: product.tags ?? [],
         }
     } catch (err: unknown) {
         const message =

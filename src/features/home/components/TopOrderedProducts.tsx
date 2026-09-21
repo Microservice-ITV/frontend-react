@@ -47,6 +47,10 @@ const TopOrderedProducts = () => {
             .catch(() => setStatus('error'))
     }
 
+    if (status === 'empty') {
+        return null
+    }
+
     return (
         <section aria-labelledby="top-ordered-products-heading" className="pt-6">
             <div className="mb-5 flex items-center justify-between px-4 sm:px-6">
@@ -66,10 +70,6 @@ const TopOrderedProducts = () => {
                     <div className="grid w-full min-w-max grid-flow-col auto-cols-[200px] gap-3">
                         {Array.from({ length: 6 }, (_, index) => <TopOrderedProductSkeleton key={index} />)}
                     </div>
-                )}
-
-                {status === 'empty' && (
-                    <p className="py-10 text-center text-sm text-gray-500">No top ordered products available.</p>
                 )}
 
                 {status === 'error' && (

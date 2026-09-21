@@ -3,9 +3,19 @@ import type { CartItem, CartState } from '../types/cartTypes'
 import { normalizeVariantId, sameCartLine } from './cartLine'
 
 function normalizeIncomingItem(payload: CartItem): CartItem {
+    const toPositive = (value: unknown): number | null => {
+        if (value == null || value === '') return null
+        const n = typeof value === 'number' ? value : Number(String(value).trim())
+        return Number.isFinite(n) && n > 0 ? n : null
+    }
+
     return {
         ...payload,
         variantId: normalizeVariantId(payload.variantId),
+        weightKg: toPositive(payload.weightKg),
+        lengthCm: toPositive(payload.lengthCm),
+        widthCm: toPositive(payload.widthCm),
+        heightCm: toPositive(payload.heightCm),
     }
 }
 
@@ -24,11 +34,16 @@ const cartSlice = createSlice({
             if (existing) {
                 existing.quantity = Math.min(existing.quantity + payload.quantity, 99)
                 if (payload.variantLabel) existing.variantLabel = payload.variantLabel
+                // Refresh parcel data so shipping uses the latest product weight/dims.
+                if (payload.weightKg != null) existing.weightKg = payload.weightKg
+                if (payload.lengthCm != null) existing.lengthCm = payload.lengthCm
+                if (payload.widthCm != null) existing.widthCm = payload.widthCm
+                if (payload.heightCm != null) existing.heightCm = payload.heightCm
             } else {
                 state.items.push({
                     ...payload,
                     quantity: Math.min(payload.quantity, 99),
-                    selected: false,
+                    selected: payload.selected ?? false,
                 })
             }
         },

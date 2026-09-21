@@ -1,6 +1,11 @@
 import { createAsyncThunk } from '@reduxjs/toolkit'
 import type { RootState } from '@/app/store'
-import { shippingApi, buildCalculatePayload } from '../api/shippingApi'
+import {
+    shippingApi,
+    buildCalculatePayload,
+    resolveDeliveryCoordinates,
+    type CalculateShippingCustomer,
+} from '../api/shippingApi'
 import { normalizeBatchShopProfiles, normalizeCalculateResponse } from '../utils/normalizeShipping'
 import type { UserAddress } from '@/features/account/types/addressTypes'
 import type { CartItem } from '@/features/cart/types/cartTypes'
@@ -63,16 +68,23 @@ export type FetchCalculateArgs = {
     items: CartItem[]
     /** Dedupe key: address id + cart fingerprint */
     cacheKey: string
+    customer?: CalculateShippingCustomer
 }
 
 export const fetchCheckoutShippingCalculation = createAsyncThunk(
     'shipping/calculate',
-    async ({ address, items, cacheKey }: FetchCalculateArgs, { rejectWithValue }) => {
+    async ({ address, items, cacheKey, customer }: FetchCalculateArgs, { rejectWithValue }) => {
         try {
             if (items.length === 0) {
                 return { byShopId: {}, totalShippingFee: null, cacheKey, raw: null as unknown }
             }
-            const payload = buildCalculatePayload(address, items)
+            const coords = await resolveDeliveryCoordinates(address)
+            if (!coords) {
+                return rejectWithValue(
+                    'We could not locate this delivery address on the map. Add a map pin to your address and try again.',
+                )
+            }
+            const payload = buildCalculatePayload(address, items, coords, customer)
             const res = await shippingApi.calculateShipping(payload)
             const body = res.data as Record<string, unknown> | unknown
             const inner =
