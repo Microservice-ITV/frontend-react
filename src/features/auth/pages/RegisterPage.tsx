@@ -41,8 +41,7 @@ export const RegisterPage = () => {
     };
 
     try {
-      const recaptchaToken = await getRecaptchaToken("register");
-      if (!recaptchaToken) return;
+      const recaptchaToken = await getRecaptchaToken('register')
 
       await dispatch(register({ ...normalizedForm, recaptchaToken })).unwrap();
 

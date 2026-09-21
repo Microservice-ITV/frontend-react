@@ -13,6 +13,7 @@ import type { UserAddress } from '@/features/account/types/addressTypes'
 import type { CartItem } from '@/features/cart/types/cartTypes'
 import type { CheckoutShopShippingPayload } from '../api/checkoutApi'
 import type { CheckoutStatusResponse } from '../types/checkoutTypes'
+import { formatProductPrice } from '@/features/products/utils/formatProductPrice'
 
 interface CheckoutSummaryProps {
   checkout: CheckoutTotals
@@ -122,6 +123,7 @@ const CheckoutSummary = ({
   const feesByShopId = useAppSelector(state => state.shipping.feesByShopId)
   const totalShippingFee = useAppSelector(state => state.shipping.totalShippingFee)
   const shippingCalculateStatus = useAppSelector(state => state.shipping.calculateStatus)
+  const shippingCalculateError = useAppSelector(state => state.shipping.calculateError)
   const [promotionDiscount, setPromotionDiscount] = useState(0)
   const [authoritativeTotal, setAuthoritativeTotal] = useState<number | null>(null)
   const [promotionQuoteLoading, setPromotionQuoteLoading] = useState(false)
@@ -273,16 +275,26 @@ const CheckoutSummary = ({
       return
     }
 
+    if (shippingCalculateStatus !== 'succeeded' || totalShippingFee == null) {
+      dispatch(
+        setCheckoutError(
+          shippingCalculateError?.trim() ||
+            'Delivery fee is not ready yet. Please wait for it to calculate, or check your delivery address.',
+        ),
+      )
+      return
+    }
+
     if (promoCodeInput.trim() && !appliedPromoCode) {
       dispatch(setCheckoutError('Apply a valid promo code before placing your order, or clear the field.'))
       return
     }
 
     const effectivePaymentMethod = sessionPaymentMethod ?? paymentMethod
-    const isCard = effectivePaymentMethod === 'card'
+    const isPrepaid = effectivePaymentMethod === 'prepaid'
     let card: ReturnType<NonNullable<typeof elements>['getElement']> | null = null
 
-    if (isCard) {
+    if (isPrepaid) {
       if (!stripe || !elements || !clientSecret) {
         dispatch(setCheckoutError('Payment is not ready yet.'))
         return
@@ -318,7 +330,7 @@ const CheckoutSummary = ({
       }
       console.info('[PlaceOrder] Address updated...')
 
-      if (isCard) {
+      if (isPrepaid) {
         console.info('[PlaceOrder] Confirming payment with Stripe...')
 
         if (addressResponse.data?.already_succeeded) {
@@ -421,7 +433,7 @@ const CheckoutSummary = ({
     paymentStatus === 'EXPIRED'
 
   const effectivePaymentMethod = sessionPaymentMethod ?? paymentMethod
-  const isCard = effectivePaymentMethod === 'card'
+  const isPrepaid = effectivePaymentMethod === 'prepaid'
   const canPlaceOrder =
     !!clientSecret &&
     !isPlacingOrder &&
@@ -453,12 +465,12 @@ const CheckoutSummary = ({
       return 'Please add your delivery address to continue.'
     }
     if (isAwaitingFinalStatus) {
-      return isCard
+      return isPrepaid
         ? 'Waiting for payment confirmation...'
         : 'Confirming your Cash on Delivery order...'
     }
     if (clientSecret) {
-      return isCard
+      return isPrepaid
         ? 'Payment ready. You can place your order.'
         : 'Cash on Delivery ready. Place your order to confirm.'
     }
@@ -480,12 +492,12 @@ const CheckoutSummary = ({
       <div className="text-sm text-gray-700 mb-6">
         <div className="flex justify-between mb-3">
           <span className="text-gray-600">Merchandise Subtotal</span>
-          <span className="text-gray-900">${merchandiseSubtotal.toFixed(2)}</span>
+          <span className="text-gray-900">{formatProductPrice(merchandiseSubtotal)}</span>
         </div>
 
         <div className="flex justify-between mb-3">
           <span className="text-gray-600">Shipping Subtotal</span>
-          <span className="text-gray-900">${shippingSubtotal.toFixed(2)}</span>
+          <span className="text-gray-900">{formatProductPrice(shippingSubtotal)}</span>
         </div>
 
         <div className="mb-4 space-y-3 rounded-xl border border-emerald-100 bg-emerald-50/70 p-3">
@@ -544,16 +556,16 @@ const CheckoutSummary = ({
             {promotionQuoteLoading ? (
               <span className="text-xs font-medium text-emerald-700">Checking…</span>
             ) : (
-              <span className="text-lg font-bold text-emerald-700">-${promotionDiscount.toFixed(2)}</span>
+              <span className="text-lg font-bold text-emerald-700">-{formatProductPrice(promotionDiscount)}</span>
             )}
           </div>
           <div className="flex items-center justify-between text-xs">
             <span className="text-gray-600">Shipping discount</span>
-            <span className="font-medium text-emerald-700">-${shippingDiscount.toFixed(2)}</span>
+            <span className="font-medium text-emerald-700">-{formatProductPrice(shippingDiscount)}</span>
           </div>
           <div className="flex items-center justify-between text-xs">
             <span className="text-gray-600">Promotion discount</span>
-            <span className="font-semibold text-emerald-700">-${promotionDiscount.toFixed(2)}</span>
+            <span className="font-semibold text-emerald-700">-{formatProductPrice(promotionDiscount)}</span>
           </div>
         </div>
 
@@ -562,7 +574,7 @@ const CheckoutSummary = ({
             Total Payment:
           </span>
           <span className="text-3xl font-semibold text-emerald-600">
-            ${displayedTotal.toFixed(2)}
+            {formatProductPrice(displayedTotal)}
           </span>
         </div>
         {promotionQuoteError && (

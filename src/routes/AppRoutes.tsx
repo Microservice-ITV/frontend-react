@@ -85,6 +85,17 @@ import AdminOverviewPage from "@/features/admin/pages/AdminOverviewPage";
 import AdminShopDetailPage from "@/features/admin/pages/AdminShopDetailPage";
 import AdminShopEditPage from "@/features/admin/pages/AdminShopEditPage";
 import AdminShopsPage from "@/features/admin/pages/AdminShopsPage";
+import AdminPricingRulesPage from "@/features/admin/pages/AdminPricingRulesPage";
+import AdminPricingRuleFormPage from "@/features/admin/pages/AdminPricingRuleFormPage";
+import AdminPricingRuleDetailPage from "@/features/admin/pages/AdminPricingRuleDetailPage";
+import AdminWeightRatesPage from "@/features/admin/pages/AdminWeightRatesPage";
+import AdminWeightRateFormPage from "@/features/admin/pages/AdminWeightRateFormPage";
+import AdminWeightRateDetailPage from "@/features/admin/pages/AdminWeightRateDetailPage";
+import AdminDistanceRangesPage from "@/features/admin/pages/AdminDistanceRangesPage";
+import AdminDistanceRangeFormPage from "@/features/admin/pages/AdminDistanceRangeFormPage";
+import AdminDistanceRangeDetailPage from "@/features/admin/pages/AdminDistanceRangeDetailPage";
+import AdminDeliveryQuotesPage from "@/features/admin/pages/AdminDeliveryQuotesPage";
+import AdminDeliveryQuoteDetailPage from "@/features/admin/pages/AdminDeliveryQuoteDetailPage";
 import AdminUsersPage from "@/features/admin/pages/AdminUsersPage";
 import AdminIncomePage from "@/features/admin/pages/AdminIncomePage";
 import AdminExpensePage from "@/features/admin/pages/AdminExpensePage";
@@ -773,6 +784,146 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.superAdminShops}
                 >
                   <AdminShopDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/pricing-rules/new"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminPricingRuleFormPage mode="create" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/pricing-rules/:id/edit"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminPricingRuleFormPage mode="edit" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/pricing-rules"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminPricingRulesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/pricing-rules/:id"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminPricingRuleDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/weight-rates/new"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminWeightRateFormPage mode="create" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/weight-rates/:id/edit"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminWeightRateFormPage mode="edit" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/weight-rates"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminWeightRatesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/weight-rates/:id"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminWeightRateDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/distance-ranges/new"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminDistanceRangeFormPage mode="create" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/distance-ranges/:id/edit"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminDistanceRangeFormPage mode="edit" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/distance-ranges"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminDistanceRangesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/distance-ranges/:id"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminDistanceRangeDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/quotes/:id"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminDeliveryQuoteDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/quotes"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminDeliveryQuotesPage />
                 </ProtectedRoute>
               }
             />

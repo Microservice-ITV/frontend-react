@@ -113,6 +113,10 @@ type CatalogVariantGraph = {
     sizeId: string
     sizeName: string
     sizeCode: string
+    length?: number | null
+    width?: number | null
+    height?: number | null
+    weight?: number | null
     imageIndexes?: number[] | null
 }
 
@@ -206,6 +210,10 @@ const CATALOG_PRODUCT_BY_ID_QUERY = `
         sizeId
         sizeName
         sizeCode
+        length
+        width
+        height
+        weight
         imageIndexes
       }
     }
@@ -299,6 +307,12 @@ function shopPlaceholder(shopId: string, name?: string, slug?: string): { id: st
     }
 }
 
+function toNullableDimension(raw: unknown): number | null {
+    if (raw === null || raw === undefined || raw === '') return null
+    const n = Number(raw)
+    return Number.isFinite(n) && n > 0 ? n : null
+}
+
 function normalizeImageIndexes(raw: unknown): number[] | undefined {
     if (!Array.isArray(raw) || raw.length === 0) return undefined
     const out: number[] = []
@@ -334,6 +348,10 @@ function mapGraphVariant(v: CatalogVariantGraph): ProductVariant {
         sizeId: v.sizeId ?? '',
         sizeName: v.sizeName ?? '',
         sizeCode: v.sizeCode ?? '',
+        length: toNullableDimension(v.length),
+        width: toNullableDimension(v.width),
+        height: toNullableDimension(v.height),
+        weight: toNullableDimension(v.weight),
         ...(imageIndexes ? { imageIndexes } : {}),
     }
 }

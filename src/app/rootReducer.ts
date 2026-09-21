@@ -14,6 +14,10 @@ import adminShopsReducer from "@/features/admin/store/adminShopsSlice";
 import adminDashboardReducer from "@/features/admin/store/adminDashboardSlice";
 import adminRbacReducer from "@/features/admin/store/adminRbacSlice";
 import adminUsersReducer from "@/features/admin/store/adminUsersSlice";
+import adminPricingRulesReducer from "@/features/admin/store/adminPricingRulesSlice";
+import adminWeightRatesReducer from "@/features/admin/store/adminWeightRatesSlice";
+import adminDistanceRangesReducer from "@/features/admin/store/adminDistanceRangesSlice";
+import adminDeliveryQuotesReducer from "@/features/admin/store/adminDeliveryQuotesSlice";
 import shippingReducer from "@/features/shipping/store/shippingSlice";
 import homeFeatureReducer from "@/features/homeFeatures/store/homeFeatureSlice";
 import homeQuickActionsReducer from "@/features/home/store/homeSlice";
@@ -41,6 +45,10 @@ const rootReducer = combineReducers({
   adminDashboard: adminDashboardReducer,
   adminRbac: adminRbacReducer,
   adminUsers: adminUsersReducer,
+  adminPricingRules: adminPricingRulesReducer,
+  adminWeightRates: adminWeightRatesReducer,
+  adminDistanceRanges: adminDistanceRangesReducer,
+  adminDeliveryQuotes: adminDeliveryQuotesReducer,
   // adminFlashDeals: adminFlashDealsReducer,
   // flashDeals: flashDealsReducer,
   homeFeatures: homeFeatureReducer,
