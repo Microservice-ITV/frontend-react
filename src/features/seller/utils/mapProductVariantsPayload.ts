@@ -47,6 +47,29 @@ export function mapApiProductVariantsToFormShape(
   }
   const variants: ProductFormValues['variants'] = raw.map((v) => {
     const id = v.id ?? v.variantId ?? ''
+    const toFiniteNumber = (value: unknown): number | undefined => {
+      if (value === null || value === undefined || String(value).trim() === '') {
+        return undefined
+      }
+      const parsed = Number(value)
+      return Number.isFinite(parsed) ? parsed : undefined
+    }
+    const basePrice = toFiniteNumber(v.basePrice)
+    const discountPercent = toFiniteNumber(v.discountPercent) ?? 0
+    const directListPrice =
+      toFiniteNumber(v.listPrice) ?? toFiniteNumber(v.sellingPrice)
+    const effectivePrice =
+      toFiniteNumber(v.effectiveSellingPrice) ?? toFiniteNumber(v.price)
+    const markupPercent = toFiniteNumber(v.profitThresholdPercent)
+    const resolvedListPrice =
+      directListPrice ??
+      (basePrice !== undefined && markupPercent !== undefined
+        ? basePrice * (1 + markupPercent / 100)
+        : undefined) ??
+      (effectivePrice !== undefined && discountPercent < 100
+        ? effectivePrice / (1 - discountPercent / 100)
+        : undefined) ??
+      basePrice
 
     // Clean up stock assignment to avoid parser confusion
     let resolvedStock = ''
@@ -60,17 +83,11 @@ export function mapApiProductVariantsToFormShape(
       serverVariantId: typeof id === 'string' && id.length > 0 ? id : undefined,
       colorId: v.colorId ?? '',
       sizeId: v.sizeId ?? '',
-      basePrice:
-        v.basePrice != null && String(v.basePrice).trim() !== ''
-          ? String(v.basePrice)
-          : '',
-      profitThresholdPercent:
-        v.profitThresholdPercent != null && String(v.profitThresholdPercent).trim() !== ''
-          ? String(v.profitThresholdPercent)
-          : '0',
+      basePrice: basePrice !== undefined ? String(basePrice) : '',
+      listPrice: resolvedListPrice !== undefined ? String(resolvedListPrice) : '',
       discountPercent:
-        v.discountPercent != null && String(v.discountPercent).trim() !== ''
-          ? String(v.discountPercent)
+        toFiniteNumber(v.discountPercent) !== undefined
+          ? String(discountPercent)
           : '0',
       stock:
         v.stock != null && String(v.stock).trim() !== ''
