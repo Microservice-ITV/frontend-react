@@ -123,6 +123,17 @@ const AccountSidebar = ({ onNavigate }: AccountSidebarProps) => {
         </NavLink>
 
         <NavLink
+          to="/account/invoices"
+          className={({ isActive }) =>
+            `${bottomLinkBase} ${isActive ? bottomLinkActive : bottomLinkInactive}`
+          }
+          onClick={() => onNavigate?.()}
+        >
+          <img src={myPurchaseIcon} alt="" className="w-4 h-4 shrink-0" aria-hidden />
+          <span>My Invoices</span>
+        </NavLink>
+
+        <NavLink
           to="/account/notifications-center"
           className={({ isActive }) =>
             `${bottomLinkBase} ${isActive ? bottomLinkActive : bottomLinkInactive}`

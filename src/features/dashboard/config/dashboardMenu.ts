@@ -215,6 +215,14 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         icon: Building2,
       },
       {
+        key: 'admin-invoices',
+        label: 'Invoices',
+        to: '/super-admin/invoices',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: FileText,
+      },
+      {
         key: 'admin-categories',
         label: 'Categories',
         to: '/super-admin/categories',
