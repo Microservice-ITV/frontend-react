@@ -314,10 +314,6 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
     title: 'STOREFRONT',
     items: [
       {
-        key: 'admin-home-features',
-        label: 'Home Features',
-        to: '/super-admin/home-features',
-        area: 'super_admin',
         key: "admin-home-features",
         label: "Home Features",
         to: "/super-admin/home-features",
@@ -350,7 +346,6 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         icon: RectangleHorizontal,
       },
       withSearch({
-      {
         key: 'admin-promotions',
         label: 'Promotions',
         to: '/super-admin/promotion-engine',
