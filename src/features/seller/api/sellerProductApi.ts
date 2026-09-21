@@ -136,6 +136,8 @@ export type ProductDetailReadItem = {
     colorId?: string
     sizeId?: string
     basePrice?: number | string
+    listPrice?: number | string
+    sellingPrice?: number | string
     profitThresholdPercent?: number | string
     discountPercent?: number | string
     effectiveSellingPrice?: number | string
