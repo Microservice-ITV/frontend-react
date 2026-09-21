@@ -1,6 +1,9 @@
 import type { ProductDetailReadItem, SellerProductVariantPayload } from '@/features/seller/api/sellerProductApi'
 import { defaultVariantRow, type ProductFormValues } from '@/features/seller/components/ProductForm'
-import { parseOptionalPercent } from '@/utils/variantPricing'
+import {
+  computeProfitThresholdPercent,
+  parseOptionalPercent,
+} from '@/utils/variantPricing'
 
 const parseOptionalDimension = (value: string) =>
   value.trim() === '' ? null : Number(value)
@@ -8,20 +11,31 @@ const parseOptionalDimension = (value: string) =>
 export function mapProductFormToVariantsPayload(
   values: ProductFormValues,
 ): SellerProductVariantPayload[] {
-  return values.variants.map((v, i) => ({
-    ...(v.serverVariantId ? { id: v.serverVariantId } : {}),
-    colorId: v.colorId,
-    sizeId: v.sizeId,
-    basePrice: Number(v.basePrice),
-    profitThresholdPercent: parseOptionalPercent(v.profitThresholdPercent),
-    discountPercent: parseOptionalPercent(v.discountPercent),
-    stock: Number(v.stock),
-    length: parseOptionalDimension(v.length),
-    width: parseOptionalDimension(v.width),
-    height: parseOptionalDimension(v.height),
-    weight: parseOptionalDimension(v.weight),
-    isPrimary: i === values.primaryVariantIndex,
-  }))
+  return values.variants.map((v, i) => {
+    const basePrice = Number(v.basePrice)
+    const listPrice = Number(v.listPrice)
+
+    return {
+      ...(v.serverVariantId ? { id: v.serverVariantId } : {}),
+      colorId: v.colorId,
+      sizeId: v.sizeId,
+      basePrice,
+      listPrice,
+      // The form collects selling/list price, not a markup input. Derive the
+      // percentage expected by Product Service from those two values.
+      profitThresholdPercent:
+        Number.isFinite(basePrice) && basePrice > 0 && Number.isFinite(listPrice)
+          ? computeProfitThresholdPercent(basePrice, listPrice)
+          : 0,
+      discountPercent: parseOptionalPercent(v.discountPercent),
+      stock: Number(v.stock),
+      length: parseOptionalDimension(v.length),
+      width: parseOptionalDimension(v.width),
+      height: parseOptionalDimension(v.height),
+      weight: parseOptionalDimension(v.weight),
+      isPrimary: i === values.primaryVariantIndex,
+    }
+  })
 }
 
 export function mapApiProductVariantsToFormShape(
