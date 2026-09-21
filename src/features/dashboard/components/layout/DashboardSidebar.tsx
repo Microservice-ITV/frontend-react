@@ -56,7 +56,7 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
 
   const hideTooltip = () => setTooltip(null);
 
-    const allItemPaths = sections.flatMap((section) =>
+  const allItemPaths = sections.flatMap((section) =>
     section.items.map((item) => item.to),
   );
   const isParentPath = (path: string) =>
@@ -103,9 +103,7 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
                   to={item.to}
                   end={isParentPath(item.to)}
                   onClick={onClose}
-                  onMouseEnter={(e) =>
-                    showTooltip(e, item.label, item.badge)
-                  }
+                  onMouseEnter={(e) => showTooltip(e, item.label, item.badge)}
                   onMouseLeave={hideTooltip}
                   className={({ isActive }) =>
                     `group relative flex min-w-0 flex-1 items-center rounded-md py-2 text-xs transition-colors ${
@@ -142,9 +140,7 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
             {!isSidebarCollapsed && hasChildren && (
               <div
                 className={`grid transition-[grid-template-rows] duration-200 ease-out ${
-                  isItemExpanded
-                    ? "grid-rows-[1fr]"
-                    : "grid-rows-[0fr]"
+                  isItemExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
                 }`}
               >
                 <div className="overflow-hidden space-y-0.5">
@@ -165,8 +161,11 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
           isSidebarCollapsed ? "lg:flex-col lg:gap-3" : "justify-between"
         }`}
       >
-        <div
-          className={`flex items-center gap-2 ${isSidebarCollapsed ? "lg:justify-center" : ""}`}
+        {/* Wrap this block in a NavLink pointing to your dashboard route */}
+        <NavLink
+          to="/dashboard" // <-- Change this to your actual dashboard route path if different (e.g., "/" or "/admin")
+          onClick={onClose}
+          className={`flex items-center gap-2 group ${isSidebarCollapsed ? "lg:justify-center" : ""}`}
         >
           <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden">
             <img
@@ -177,7 +176,7 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
           </div>
           {!isSidebarCollapsed && (
             <div>
-              <p className="text-xs font-semibold text-white">
+              <p className="text-xs font-semibold text-white group-hover:text-emerald-400 transition-colors">
                 Daily Need Items
               </p>
               <p className="text-[9px] uppercase tracking-wider text-slate-400">
@@ -185,7 +184,7 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
               </p>
             </div>
           )}
-        </div>
+        </NavLink>
 
         <button
           type="button"

@@ -22,14 +22,14 @@ const FlashDealCard = ({ deal }: FlashDealCardProps) => {
 
   return (
     <article className="
-      group relative flex h-full flex-col overflow-hidden
+      group relative flex flex-col overflow-hidden
       border border-[var(--dni-cart-border)] bg-white
       transition-[border-color,background-color] duration-150
       hover:border-[var(--dni-primary)] hover:bg-[var(--dni-primary-soft)]
     ">
       <Link
         to={`/products/${deal.id}`}
-        className="flex min-h-0 flex-1 flex-col"
+        className="flex min-h-0 flex-1 flex-col h-full"
       >
         <div className="relative w-full shrink-0 bg-[#fafafa] pt-[100%]">
           <img
