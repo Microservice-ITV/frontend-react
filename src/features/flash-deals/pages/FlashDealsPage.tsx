@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Zap, ChevronRight } from "lucide-react";
+import { ArrowRight, Zap } from "lucide-react";
 import FlashDealCard from "../components/FlashDealCard";
 
 const DEAL_CATEGORIES = [
@@ -146,7 +146,11 @@ function formatSlotCountdown(ms: number): string {
   return `${s}s`;
 }
 
+const CARD_WIDTH_PX = 220;
+const GAP_PX = 16;
+
 const FlashDealsPage = () => {
+
   const [activeCategory, setActiveCategory] = useState("Top Picks");
   const [timeLeft, setTimeLeft] = useState(() => {
     const end = getNextSessionEnd();
@@ -346,22 +350,26 @@ const FlashDealsPage = () => {
                 {category}
               </button>
             ))}
-            <button
+            {/* <button
               type="button"
               className="ml-auto inline-flex min-w-[110px] shrink-0 items-center justify-center gap-1 border-l border-[#e5e7eb] px-4 py-2 text-sm font-medium text-[#374151]"
             >
               More
               <ArrowRight size={14} className="text-[var(--dni-primary)]" />
-            </button>
+            </button> */}
           </div>
         </div>
       </section>
 
-      <section className="bg-[#f5f5f5] px-4 pb-10 pt-3 sm:px-6">
-        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-2.5 sm:grid-cols-[repeat(auto-fill,minmax(220px,1fr))] sm:gap-3 items-stretch">
-          {filteredDeals.map((deal) => (
-            <FlashDealCard key={deal.id} deal={deal} />
-          ))}
+      <section className="bg-[#f5f5f5] py-4">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="border border-[var(--dni-cart-border)] bg-white p-4">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4 sm:gap-4">
+              {filteredDeals.map((deal) => (
+                <FlashDealCard key={deal.id} deal={deal} />
+              ))}
+            </div>
+          </div>
         </div>
       </section>
     </div>

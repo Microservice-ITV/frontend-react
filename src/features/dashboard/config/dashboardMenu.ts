@@ -34,6 +34,12 @@ import {
 } from "lucide-react";
 import { CAPABILITIES } from "@/app/rbac/capabilities";
 import type { DashboardMenuSection } from "../types/dashboardTypes";
+import { getSearchConfig } from "./searchConfigs";
+
+const withSearch = (item: DashboardMenuSection['items'][0]) => {
+  const search = getSearchConfig(item.key)
+  return search ? { ...item, search: { enabled: true, ...search } } : item
+}
 
 export const DASHBOARD_MENU_SELLER: DashboardMenuSection[] = [
   {
@@ -60,78 +66,70 @@ export const DASHBOARD_MENU_SELLER: DashboardMenuSection[] = [
   {
     title: "COMMERCE",
     items: [
-      {
-        key: "seller-categories",
-        label: "Categories",
-        to: "/seller/categories",
-        area: "seller",
-        requiredCapabilities: [CAPABILITIES.CATEGORIES_VIEW],
-        icon: Tags,
-      },
-      {
-        key: "seller-products",
-        label: "Products",
-        to: "/seller/products",
-        area: "seller",
-        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
-        icon: Package,
-      },
-      {
-        key: "seller-brands",
-        label: "Brands",
-        to: "/seller/brands",
-        area: "seller",
-        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
-        icon: Stamp,
-      },
-      {
-        key: "seller-colors",
-        label: "Colors",
-        to: "/seller/colors",
-        area: "seller",
-        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
-        icon: Palette,
-      },
-      {
-        key: "seller-sizes",
-        label: "Sizes",
-        to: "/seller/sizes",
-        area: "seller",
-        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
-        icon: Ruler,
-      },
-      {
-        key: "seller-promotions",
-        label: "Promotions",
-        to: "/seller/promotions",
-        area: "seller",
-        requiredCapabilities: [CAPABILITIES.PROMOTIONS_VIEW],
-        icon: Percent,
-      },
-      {
-        key: "seller-orders",
-        label: "Orders",
-        to: "/seller/orders",
-        area: "seller",
-        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
-        icon: ShoppingCart,
-      },
-      {
-        key: "seller-invoices",
-        label: "Invoices",
-        to: "/seller/invoices",
-        area: "seller",
-        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
-        icon: FileText,
-      },
-      {
-        key: 'seller-payments',
-        label: 'Payments',
-        to: '/seller/payments',
-        area: 'seller',
-        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
-        icon: CreditCard,
-      },
+withSearch({
+      key: "seller-categories",
+      label: "Categories",
+      to: "/seller/categories",
+      area: "seller",
+      requiredCapabilities: [CAPABILITIES.CATEGORIES_VIEW],
+      icon: Tags,
+    }),
+    withSearch({
+      key: "seller-products",
+      label: "Products",
+      to: "/seller/products",
+      area: "seller",
+      requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+      icon: Package,
+    }),
+    withSearch({
+      key: "seller-brands",
+      label: "Brands",
+      to: "/seller/brands",
+      area: "seller",
+      requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+      icon: Stamp,
+    }),
+    withSearch({
+      key: "seller-colors",
+      label: "Colors",
+      to: "/seller/colors",
+      area: "seller",
+      requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+      icon: Palette,
+    }),
+    withSearch({
+      key: "seller-sizes",
+      label: "Sizes",
+      to: "/seller/sizes",
+      area: "seller",
+      requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+      icon: Ruler,
+    }),
+    withSearch({
+      key: "seller-promotions",
+      label: "Promotions",
+      to: "/seller/promotions",
+      area: "seller",
+      requiredCapabilities: [CAPABILITIES.PROMOTIONS_VIEW],
+      icon: Percent,
+    }),
+    withSearch({
+      key: "seller-orders",
+      label: "Orders",
+      to: "/seller/orders",
+      area: "seller",
+      requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+      icon: ShoppingCart,
+    }),
+    withSearch({
+      key: 'seller-payments',
+      label: 'Payments',
+      to: '/seller/payments',
+      area: 'seller',
+      requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+      icon: CreditCard,
+    }),
     ],
   },
   {
@@ -241,30 +239,30 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
   {
     title: "PLATFORM",
     items: [
-      {
+      withSearch({
         key: "admin-shops",
         label: "Shops",
         to: "/super-admin/shops",
         area: "super_admin",
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
         icon: Building2,
-      },
-      {
+      }),
+      withSearch({
         key: 'admin-payments',
         label: 'Payments',
         to: '/super-admin/payments',
         area: 'super_admin',
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
         icon: CreditCard,
-      },
-      {
+      }),
+      withSearch({
         key: 'admin-categories',
         label: 'Categories',
         to: '/super-admin/categories',
         area: 'super_admin',
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
         icon: Tags,
-      },
+      }),
       {
         key: 'admin-users',
         label: 'Users',
@@ -327,14 +325,14 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
         icon: Home,
       },
-      {
+      withSearch({
         key: "admin-promotions",
         label: "Promotions",
         to: "/super-admin/promotion-engine",
         area: "super_admin",
         requiredCapabilities: [CAPABILITIES.PROMOTIONS_VIEW],
         icon: Percent,
-      },
+      }),
       {
         key: "admin-hero-banners",
         label: "Hero Banners",
@@ -351,40 +349,40 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
         icon: RectangleHorizontal,
       },
+      withSearch({
       {
         key: 'admin-promotions',
         label: 'Promotions',
         to: '/super-admin/promotion-engine',
         area: 'super_admin',
         requiredCapabilities: [CAPABILITIES.PROMOTIONS_VIEW],
-        icon: Percent,
-        key: "admin-announcement-types",
-        label: "Announcement Types",
-        to: "/super-admin/announcement-types",
-        area: "super_admin",
-        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
-        icon: LayoutList,
-      },
-      {
+        icon: Percent
+        
+      }),
+      withSearch({
         key: "admin-announcements",
         label: "Announcements",
         to: "/super-admin/announcements",
         area: "super_admin",
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
         icon: Megaphone,
-      },
-      {
+      }),
+      withSearch({
         key: 'admin-announcement-types',
         label: 'Announcement Types',
         to: '/super-admin/announcement-types',
         area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: LayoutList,
+        }),
+        withSearch({
         key: "admin-users",
         label: "Users",
         to: "/super-admin/users",
         area: "super_admin",
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
         icon: UserCog,
-      },
+      }),
       {
         key: "admin-system",
         label: "System",
