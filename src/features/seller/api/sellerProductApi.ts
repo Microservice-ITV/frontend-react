@@ -72,6 +72,8 @@ export type SellerProductVariantPayload = {
   colorId: string
   sizeId: string
   basePrice: number
+  /** Selling/list price before any discount. */
+  listPrice: number
   profitThresholdPercent?: number
   discountPercent?: number
   stock: number
