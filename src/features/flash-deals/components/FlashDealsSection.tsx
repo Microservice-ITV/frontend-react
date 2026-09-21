@@ -2,112 +2,145 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Flame } from "lucide-react";
 import FlashDealCard from "./FlashDealCard";
+import {
+  getFlashDealsByTimeSlot,
+  type FlashDealApiItem,
+} from "@/lib/api/flashDealClient";
 
-const FLASH_DEALS = [
-  {
-    id: 1,
-    name: "Wireless Earbuds Pro",
-    image:
-      "https://images.unsplash.com/photo-1546435770-a3e426bf472b?auto=format&fit=crop&w=900&q=80",
-    price: 19.98,
-    originalPrice: 59.9,
-    discount: 67,
-    stockText: "ONLY 8 LEFT",
-    soldPercent: 85,
-  },
-  {
-    id: 2,
-    name: "Premium Ceramic Cookware Set",
-    image:
-      "https://images.unsplash.com/photo-1582515073490-39981397c445?auto=format&fit=crop&w=900&q=80",
-    price: 20.7,
-    originalPrice: 129,
-    discount: 65,
-    stockText: "SELLING FAST",
-    soldPercent: 70,
-  },
-  {
-    id: 3,
-    name: "Hydrating Lip Tint Trio",
-    image:
-      "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=900&q=80",
-    price: 42.5,
-    originalPrice: 89.9,
-    discount: 17,
-    stockText: "SELLING FAST",
-    soldPercent: 60,
-  },
-  {
-    id: 4,
-    name: "Mini Robot Vacuum",
-    image:
-      "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=900&q=80",
-    price: 114.5,
-    originalPrice: 199,
-    discount: 25,
-    stockText: "SELLING FAST",
-    soldPercent: 75,
-  },
-  {
-    id: 5,
-    name: "Organic Baby Skincare Kit",
-    image:
-      "https://images.unsplash.com/photo-1556228578-8c89e6adf883?auto=format&fit=crop&w=900&q=80",
-    price: 17.7,
-    originalPrice: 54.9,
-    discount: 43,
-    stockText: "ONLY 8 LEFT",
-    soldPercent: 90,
-  },
-  {
-    id: 6,
-    name: "Athletic Running Shoes",
-    image:
-      "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=80",
-    price: 26.6,
-    originalPrice: 79.9,
-    discount: 43,
-    stockText: "ONLY 4 LEFT",
-    soldPercent: 95,
-  },
-];
+interface SectionDeal {
+  id: number | string;
+  productId: string;
+  flashDealId: string;
+  name: string;
+  image: string;
+  price: number;
+  originalPrice: number;
+  discount: number;
+  stockText: string;
+  soldPercent: number;
+  soldOut?: boolean;
+  startAt?: string;
+  endAt?: string;
+}
 
 const CARD_WIDTH_PX = 220;
 const GAP_PX = 16;
 const COLUMNS_PER_STEP = 4;
 
-const getNextSessionEnd = () => {
-  const end = new Date();
+const pad = (value: number) => String(value).padStart(2, "0");
+
+const getNextSessionEnd = (from: Date) => {
+  const end = new Date(from);
   end.setMinutes(0, 0, 0);
   end.setHours(end.getHours() + 1);
   return end;
 };
 
-const pad = (value: number) => String(value).padStart(2, "0");
+const normalizeDeal = (item: FlashDealApiItem): SectionDeal => ({
+  id: item.id,
+  productId: item.productId,
+  flashDealId: item.flashDealId,
+  name: item.name,
+  image: item.image,
+  price: Number(item.dealPrice) || 0,
+  originalPrice: Number(item.originalPrice) || 0,
+  discount: item.discount,
+  stockText: item.stockText,
+  soldPercent: item.stockProgress,
+  soldOut: item.soldOut,
+  startAt: item.startAt,
+  endAt: item.endAt,
+});
 
 const FlashDealsSection = () => {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
-  const [timeLeft, setTimeLeft] = useState(() => {
-    const end = getNextSessionEnd();
-    return Math.max(0, Math.floor((end.getTime() - Date.now()) / 1000));
-  });
+  const [deals, setDeals] = useState<SectionDeal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [serverOffsetMs, setServerOffsetMs] = useState(0);
+  const [countdownTargetMs, setCountdownTargetMs] = useState<number | null>(null);
+  const [timeLeft, setTimeLeft] = useState(0);
+
+  const syncedNow = () => new Date(Date.now() - serverOffsetMs);
+
+  const pickCountdownTarget = useCallback(
+    (items: SectionDeal[]) => {
+      const now = syncedNow();
+      const ongoingEnds = items
+        .flatMap((item) =>
+          item.startAt && item.endAt
+            ? [
+                {
+                  start: new Date(item.startAt).getTime(),
+                  end: new Date(item.endAt).getTime(),
+                },
+              ]
+            : [],
+        )
+        .filter((window) => window.start <= now.getTime() && window.end > now.getTime())
+        .map((window) => window.end);
+
+      if (ongoingEnds.length > 0) {
+        return Math.min(...ongoingEnds);
+      }
+
+      return getNextSessionEnd(now).getTime();
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [serverOffsetMs],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadDeals = async () => {
+      try {
+        const res = await getFlashDealsByTimeSlot({ limit: 12 });
+        if (cancelled) return;
+
+        const offset = Date.now() - new Date(res.data.serverTime).getTime();
+        const items = (res.data.items ?? []).map(normalizeDeal);
+
+        setServerOffsetMs(offset);
+        setDeals(items);
+        setCountdownTargetMs(pickCountdownTarget(items));
+      } catch (err) {
+        console.error("Failed to load flash deals:", err);
+        if (!cancelled) setError("Failed to load flash deals.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    loadDeals();
+    return () => {
+      cancelled = true;
+    };
+  }, [pickCountdownTarget]);
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1)
-          return Math.max(
-            0,
-            Math.floor((getNextSessionEnd().getTime() - Date.now()) / 1000),
-          );
-        return prev - 1;
-      });
+      const target = countdownTargetMs;
+      if (target === null) return;
+
+      const remaining = Math.max(
+        0,
+        Math.floor((target - syncedNow().getTime()) / 1000),
+      );
+
+      if (remaining === 0) {
+        setCountdownTargetMs(pickCountdownTarget(deals));
+        return;
+      }
+      setTimeLeft(remaining);
     }, 1000);
+
     return () => clearInterval(timer);
-  }, []);
+  }, [countdownTargetMs, deals, pickCountdownTarget]);
 
   const hours = Math.floor(timeLeft / 3600);
   const minutes = Math.floor((timeLeft % 3600) / 60);
@@ -143,7 +176,7 @@ const FlashDealsSection = () => {
       ro.disconnect();
       window.clearTimeout(t);
     };
-  }, [updateScrollAffordance]);
+  }, [updateScrollAffordance, loading, deals]);
 
   const scrollByStep = (direction: "left" | "right") => {
     const el = scrollerRef.current;
@@ -158,18 +191,15 @@ const FlashDealsSection = () => {
   return (
     <section className="relative w-full border border-[var(--dni-cart-border)] bg-white">
       <div className="flex items-center gap-4 px-4 py-4 border-b border-[var(--dni-cart-border)]">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className="flex items-center gap-4 flex-1 min-w-0">
           <div className="flex items-center gap-2 text-[var(--dni-primary)]">
             <Flame className="h-7 w-7 fill-[var(--dni-primary)]" />
-            <span className="text-xl font-black uppercase tracking-tight">
-              Flash
-            </span>
-            <span className="text-xl font-medium uppercase tracking-tight">
-              Deals
+            <span className="text-xl font-black uppercase tracking-tight whitespace-nowrap">
+              Flash Deals
             </span>
           </div>
 
-          <div className="flex items-center gap-2 ml-4 border-l border-[var(--dni-cart-border)] pl-4">
+          <div className="hidden items-center gap-2 border-l border-[var(--dni-cart-border)] pl-4 sm:flex">
             <div className="flex items-center gap-1.5">
               {timerBlocks.map((block, idx) => (
                 <div key={idx} className="flex items-center gap-1">
@@ -193,8 +223,12 @@ const FlashDealsSection = () => {
           to="/flash-deals"
           className="group inline-flex shrink-0 items-center gap-1.5 text-sm font-bold text-[var(--dni-primary)] hover:text-[var(--dni-primary-hover)] transition-colors"
         >
-          <span>View All</span>
-          <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
+          <span>
+            See All
+            <span className="inline-block transition-transform duration-200 group-hover:translate-x-1">
+              &nbsp;&gt;
+            </span>
+          </span>
         </Link>
       </div>
 
@@ -218,15 +252,52 @@ const FlashDealsSection = () => {
             className="flex min-w-max gap-4"
             style={{ width: `max-content` }}
           >
-            {FLASH_DEALS.map((deal) => (
-              <div
-                key={deal.id}
-                className="shrink-0"
-                style={{ width: `${CARD_WIDTH_PX}px` }}
-              >
-                <FlashDealCard deal={deal} />
+            {loading && (
+              <>
+                {Array.from({ length: 5 }).map((_, idx) => (
+                  <div
+                    key={idx}
+                    className="shrink-0"
+                    style={{ width: `${CARD_WIDTH_PX}px` }}
+                  >
+                    <div className="flex h-full min-h-[280px] flex-col border border-[var(--dni-cart-border)] bg-white">
+                      <div className="aspect-square w-full animate-pulse bg-[#e5e7eb]" />
+                      <div className="flex flex-1 flex-col gap-2 p-4">
+                        <div className="h-4 w-1/2 animate-pulse bg-[#e5e7eb]" />
+                        <div className="h-4 w-3/4 animate-pulse bg-[#e5e7eb]" />
+                        <div className="mt-auto h-5 w-full animate-pulse bg-[#e5e7eb]" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+
+            {!loading && error && (
+              <div className="w-full rounded-lg border border-[#fecaca] bg-[#fef2f2] px-6 py-8 text-center">
+                <p className="text-sm font-medium text-[#b91c1c]">{error}</p>
               </div>
-            ))}
+            )}
+
+            {!loading && !error && deals.length === 0 && (
+              <div className="w-full rounded-lg border border-[var(--dni-border)] bg-white px-6 py-8 text-center">
+                <p className="text-sm font-medium text-[#4b5563]">
+                  No flash deals available right now.
+                </p>
+              </div>
+            )}
+
+            {!loading &&
+              !error &&
+              deals.map((deal) => (
+                <div
+                  key={deal.id}
+                  className="shrink-0"
+                  style={{ width: `${CARD_WIDTH_PX}px` }}
+                >
+                  <FlashDealCard deal={deal} />
+                </div>
+              ))}
           </div>
         </div>
 
