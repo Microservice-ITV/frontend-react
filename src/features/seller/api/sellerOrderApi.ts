@@ -24,7 +24,59 @@ export type SellerOrderTotals = {
 export type SellerOrderPayment = {
   status: string
   transactionId: string
+  method?: string
   failedReason: string
+}
+
+export type PaymentRecord = {
+  id: string
+  orderId: string
+  invoiceNo?: string | null
+  amount: number
+  currency: string
+  status: string
+  provider: string
+  paymentMethod?: string | null
+  createdAt: string
+  updatedAt: string
+  deliveryStatus?: string | null
+  deliveryStatusId?: number | null
+}
+
+export type PaymentDetailEvent = {
+  id: string
+  type: string
+  providerEventId?: string | null
+  eventId?: string | null
+  payload?: unknown
+  createdAt: string
+}
+
+export type PaymentDetailOrder = {
+  orderId: string
+  checkoutId: string
+  paymentId: string | null
+  reservationId: string | null
+  orderStatusId: number
+  orderStatus: string
+  trackingNumber?: string | null
+  trackingUrl?: string | null
+  courierCode?: string | null
+  courierName?: string | null
+  shipmentCreatedAt?: string | null
+}
+
+export type PaymentDetail = PaymentRecord & {
+  checkoutId: string
+  reservationId?: string | null
+  failureReason?: string | null
+  gatewayPaymentId?: string | null
+  gatewayStatus?: string | null
+  correlationId?: string | null
+  expiresAt?: string | null
+  clientSecret?: string | null
+  events: PaymentDetailEvent[]
+  order?: PaymentDetailOrder | null
 }
 
 export type SellerDelivery = {
@@ -96,6 +148,7 @@ const SHOP_ORDERS_QUERY = `
       payment {
         status
         transactionId
+        method
         failedReason
       }
       fulfillment {
@@ -224,5 +277,42 @@ export const sellerOrderApi = {
   }> {
     const response = await orderClient.post(`/orders/${orderId}/create-shipment`, payload)
     return response.data
+  },
+
+  async collectPayment(orderId: string): Promise<{ order_id: string; payment_id: string; status: string }> {
+    const response = await orderClient.post(`/orders/${orderId}/collect-payment`)
+    return response.data
+  },
+
+  async paymentRecords(orderIds: string[]): Promise<PaymentRecord[]> {
+    if (orderIds.length === 0) return []
+    const chunks = Array.from({ length: Math.ceil(orderIds.length / 200) }, (_, index) =>
+      orderIds.slice(index * 200, index * 200 + 200),
+    )
+    const responses = await Promise.all(chunks.map((orderIdsChunk) =>
+      orderClient.get<{ data: PaymentRecord[] }>('/orders/payments', {
+        params: { order_ids: orderIdsChunk.join(',') },
+      }),
+    ))
+    return responses.flatMap((response) => response.data.data ?? [])
+  },
+
+  async paymentRecordsForShops(shopIds: string[]): Promise<PaymentRecord[]> {
+    if (shopIds.length === 0) return []
+    const responses = await Promise.all(
+      Array.from({ length: Math.ceil(shopIds.length / 50) }, (_, index) =>
+        orderClient.get<{ data: PaymentRecord[] }>('/orders/payments', {
+          params: { shop_ids: shopIds.slice(index * 50, index * 50 + 50).join(',') },
+        }),
+      ),
+    )
+    return responses.flatMap((response) => response.data.data ?? [])
+  },
+
+  async paymentDetail(paymentId: string): Promise<PaymentDetail> {
+    const response = await orderClient.get<{ data: PaymentDetail }>(
+      `/orders/payments/${paymentId}`,
+    )
+    return response.data.data
   },
 }

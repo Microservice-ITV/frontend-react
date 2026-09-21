@@ -1,15 +1,15 @@
-import { useEffect, useState } from 'react'
-import { heroBannerApi } from '@/features/heroBanners/api/heroBannerApi'
-import { promoCardApi } from '@/features/promoCards/api/promoCardApi'
-
-import type { HeroBanner } from '@/features/heroBanners/types/heroBannerTypes'
-import type { PromoCard } from '@/features/promoCards/types/promoCardTypes'
+import { useEffect, useState } from "react";
+import { heroBannerApi } from "@/features/heroBanners/api/heroBannerApi";
+import { promoCardApi } from "@/features/promoCards/api/promoCardApi";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import type { HeroBanner } from "@/features/heroBanners/types/heroBannerTypes";
+import type { PromoCard } from "@/features/promoCards/types/promoCardTypes";
 
 const HomeBanner = () => {
-  const [current, setCurrent] = useState(0)
-  const [heroBanners, setHeroBanners] = useState<HeroBanner[]>([])
-  const [sideBanners, setSideBanners] = useState<PromoCard[]>([])
-  const [loading, setLoading] = useState(true)
+  const [current, setCurrent] = useState(0);
+  const [heroBanners, setHeroBanners] = useState<HeroBanner[]>([]);
+  const [sideBanners, setSideBanners] = useState<PromoCard[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchBanners = async () => {
@@ -17,41 +17,41 @@ const HomeBanner = () => {
         const [heroRes, promoRes] = await Promise.all([
           heroBannerApi.getAll({ isActive: true }),
           promoCardApi.getAll(),
-        ])
+        ]);
 
         const activeHeroes = heroRes.data
           .filter((b) => b.isActive)
-          .sort((a, b) => a.sortOrder - b.sortOrder)
+          .sort((a, b) => a.sortOrder - b.sortOrder);
 
         const activePromos = promoRes.data
           .filter((p) => p.isActive)
           .sort((a, b) => {
-            if (a.position === b.position) return 0
-            return a.position === 'TOP' ? -1 : 1
-          })
+            if (a.position === b.position) return 0;
+            return a.position === "TOP" ? -1 : 1;
+          });
 
-        setHeroBanners(activeHeroes)
-        setSideBanners(activePromos)
+        setHeroBanners(activeHeroes);
+        setSideBanners(activePromos);
       } catch (error) {
-        console.error('Failed to load banners:', error)
+        console.error("Failed to load banners:", error);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchBanners()
-  }, [])
+    fetchBanners();
+  }, []);
 
   // Auto slide
   useEffect(() => {
-    if (heroBanners.length <= 1) return
+    if (heroBanners.length <= 1) return;
 
     const timer = setInterval(() => {
-      setCurrent((prev) => (prev + 1) % heroBanners.length)
-    }, 5000)
+      setCurrent((prev) => (prev + 1) % heroBanners.length);
+    }, 5000);
 
-    return () => clearInterval(timer)
-  }, [heroBanners.length])
+    return () => clearInterval(timer);
+  }, [heroBanners.length]);
 
   if (loading) {
     return (
@@ -66,11 +66,11 @@ const HomeBanner = () => {
           </div>
         </div>
       </section>
-    )
+    );
   }
 
   if (heroBanners.length === 0 && sideBanners.length === 0) {
-    return null
+    return null;
   }
 
   return (
@@ -79,7 +79,7 @@ const HomeBanner = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Main Carousel */}
           {heroBanners.length > 0 && (
-            <div className="relative md:col-span-2 overflow-hidden rounded-lg">
+            <div className="relative md:col-span-2 overflow-hidden rounded-lg group">
               <div
                 className="flex transition-transform duration-500"
                 style={{ transform: `translateX(-${current * 100}%)` }}
@@ -100,21 +100,22 @@ const HomeBanner = () => {
               <button
                 onClick={() =>
                   setCurrent(
-                    current === 0 ? heroBanners.length - 1 : current - 1
+                    current === 0 ? heroBanners.length - 1 : current - 1,
                   )
                 }
-                className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-2 rounded-full shadow cursor-pointer"
+                className="absolute left-2 top-1/2 -translate-y-1/2 text-white drop-shadow-md hover:text-gray-200 p-1 cursor-pointer opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+                aria-label="Previous slide"
               >
-                ‹
+                <ChevronLeft size={28} />
               </button>
 
+              {/* Right Arrow SVG (No background box) */}
               <button
-                onClick={() =>
-                  setCurrent((current + 1) % heroBanners.length)
-                }
-                className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-2 rounded-full shadow cursor-pointer"
+                onClick={() => setCurrent((current + 1) % heroBanners.length)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-white drop-shadow-md hover:text-gray-200 p-1 cursor-pointer opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+                aria-label="Next slide"
               >
-                ›
+                <ChevronRight size={28} />
               </button>
 
               {/* Dots */}
@@ -149,7 +150,7 @@ const HomeBanner = () => {
         </div>
       </div>
     </section>
-  )
-}
+  );
+};
 
-export default HomeBanner
+export default HomeBanner;

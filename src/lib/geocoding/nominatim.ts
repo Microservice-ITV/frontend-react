@@ -19,7 +19,7 @@ function normalizeForMatch(s: string): string {
     return normalize(s).replace(/\bward\b/g, '').replace(/\s+/g, ' ').trim()
 }
 
-function buildSearchQuery(parts: WardGeocodeParts): string {
+export function buildSearchQuery(parts: WardGeocodeParts): string {
     const ward = parts.ward.trim()
     const district = parts.district.trim()
     const city = parts.city.trim()
