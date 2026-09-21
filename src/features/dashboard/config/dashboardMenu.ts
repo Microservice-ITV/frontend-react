@@ -301,14 +301,14 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
         icon: Tags,
       }),
-      {
+      withSearch({
         key: 'admin-users',
         label: 'Users',
         to: '/super-admin/users',
         area: 'super_admin',
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
         icon: UserCog,
-      },
+      }),
     ],
   },
   {
