@@ -112,6 +112,11 @@ import { PhoneOtpPage } from "@/features/auth/pages/PhoneOtpPage";
 import PromotionEnginePage from "@/features/promotions/pages/PromotionEnginePage";
 import SellerFinanceOverviewPage from "@/features/finance/pages/SellerFinanceOverviewPage";
 import SellerFinanceTransactionsPage from "@/features/finance/pages/SellerFinanceTransactionsPage";
+import SellerAccountingOverviewPage from "@/features/accounting/pages/SellerAccountingOverviewPage";
+import SellerExpenseFormPage from "@/features/accounting/pages/SellerExpenseFormPage";
+import SellerExpensesPage from "@/features/accounting/pages/SellerExpensesPage";
+import SellerExpenseDetailPage from "@/features/accounting/pages/SellerExpenseDetailPage";
+import SellerJournalEntriesPage from "@/features/accounting/pages/SellerJournalEntriesPage";
 import AdminFinanceOverviewPage from "@/features/finance/pages/AdminFinanceOverviewPage";
 import AdminFinanceTransactionsPage from "@/features/finance/pages/AdminFinanceTransactionsPage";
 import AdminAccountingOverviewPage from "@/features/accounting/pages/AdminAccountingOverviewPage";
@@ -492,6 +497,60 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.sellerFinanceTransactions}
                 >
                   <SellerFinanceTransactionsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting"
+              element={<Navigate to="overview" replace />}
+            />
+            <Route
+              path="accounting/overview"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerAccounting}
+                >
+                  <SellerAccountingOverviewPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/expenses"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerAccounting}
+                >
+                  <SellerExpensesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/expenses/new"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerAccounting}
+                >
+                  <SellerExpenseFormPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/expenses/:expenseId"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerAccounting}
+                >
+                  <SellerExpenseDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/journal-entries"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerAccounting}
+                >
+                  <SellerJournalEntriesPage />
                 </ProtectedRoute>
               }
             />
