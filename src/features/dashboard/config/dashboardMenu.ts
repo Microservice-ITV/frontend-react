@@ -346,15 +346,6 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         icon: RectangleHorizontal,
       },
       withSearch({
-        key: 'admin-promotions',
-        label: 'Promotions',
-        to: '/super-admin/promotion-engine',
-        area: 'super_admin',
-        requiredCapabilities: [CAPABILITIES.PROMOTIONS_VIEW],
-        icon: Percent
-        
-      }),
-      withSearch({
         key: "admin-announcements",
         label: "Announcements",
         to: "/super-admin/announcements",
