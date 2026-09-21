@@ -43,6 +43,12 @@ export type CreateExpensePayload = {
   expenseCategoryId?: string
   category?: string
   description?: string
+  shopId?: string
+  organizationId?: string
+  sellerUserId?: string
+  employeeId?: string
+  organizationUnitId?: string
+  organizationUnitOrganizationId?: string
 }
 
 export const adminAccountingApi = {

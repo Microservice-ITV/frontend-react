@@ -1,5 +1,6 @@
 import {
   LayoutDashboard,
+  BookOpen,
   BarChart3,
   ShoppingCart,
   Package,
@@ -150,6 +151,35 @@ export const DASHBOARD_MENU_SELLER: DashboardMenuSection[] = [
         area: "seller",
         requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
         icon: Receipt,
+      },
+    ],
+  },
+  {
+    title: "ACCOUNTING",
+    items: [
+      {
+        key: "seller-accounting-overview",
+        label: "Accounting Overview",
+        to: "/seller/accounting/overview",
+        area: "seller",
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: Calculator,
+      },
+      {
+        key: "seller-accounting-expenses",
+        label: "Expenses",
+        to: "/seller/accounting/expenses",
+        area: "seller",
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: Receipt,
+      },
+      {
+        key: "seller-accounting-journal-entries",
+        label: "Journal Entries",
+        to: "/seller/accounting/journal-entries",
+        area: "seller",
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: BookOpen,
       },
     ],
   },
