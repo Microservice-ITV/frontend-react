@@ -28,10 +28,10 @@ const BADGE_POOL: BadgeTone[] = [
 ];
 
 const PLACEHOLDER_SRC =
-  'data:image/svg+xml;utf8,' +
+  "data:image/svg+xml;utf8," +
   encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600"><rect width="100%" height="100%" fill="#f5f5f5"/></svg>',
-  )
+  );
 
 function hashId(id: string): number {
   let h = 0;
@@ -40,14 +40,14 @@ function hashId(id: string): number {
 }
 
 function formatBadgeLabel(value?: string): string {
-  const raw = (value ?? '').trim()
-  if (!raw) return ''
-  const normalized = raw.replace(/\s+/g, ' ')
+  const raw = (value ?? "").trim();
+  if (!raw) return "";
+  const normalized = raw.replace(/\s+/g, " ");
   return normalized
-    .split(' ')
+    .split(" ")
     .filter(Boolean)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(' ')
+    .join(" ");
 }
 
 function cardMeta(productId: string) {
@@ -100,7 +100,6 @@ function BadgeIcon({ type }: { type: BadgeTone["icon"] }) {
       );
   }
 }
-
 function StarRow({ rating }: { rating: string }) {
   const value = Number(rating);
   return (
@@ -133,6 +132,26 @@ function StarRow({ rating }: { rating: string }) {
       })}
     </div>
   );
+}
+
+function ProductName({ name }: { name: string }) {
+  return (
+    <div className="group/name relative h-5">
+      <h3 className="line-clamp-1 text-sm font-semibold leading-5 text-slate-800">
+        {name}
+      </h3>
+      <span
+        role="tooltip"
+        className="
+          pointer-events-none absolute left-0 top-full z-20 mt-1 block w-max max-w-[240px]
+          rounded bg-slate-900 px-2 py-1 text-xs font-medium leading-snug text-white
+          opacity-0 shadow-lg transition-opacity duration-150 group-hover/name:opacity-100
+        "
+      >
+        {name}
+      </span>
+    </div>
+  )
 }
 
 interface ProductCardProps {
@@ -207,7 +226,6 @@ const ProductCard = ({ product }: ProductCardProps) => {
             <BadgeIcon type={meta.badge.icon} />
             <span className="truncate">{badgeLabel}</span>
           </span>
-
           {/* Wishlist */}
           <button
             type="button"
@@ -239,9 +257,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
 
         {/* META */}
         <div className="flex flex-1 flex-col gap-1.5 px-3 pb-2 pt-2.5">
-          <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-5 text-slate-800">
-            {product.name}
-          </h3>
+          <ProductName name={product.name} />
 
           <p className="text-base font-bold leading-none tracking-tight text-[var(--dni-primary)]">
             {formatProductPrice(product.price)}
@@ -287,4 +303,4 @@ const ProductCard = ({ product }: ProductCardProps) => {
   );
 };
 
-export default ProductCard
+export default ProductCard;

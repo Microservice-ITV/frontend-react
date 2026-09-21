@@ -55,6 +55,7 @@ import NotificationsPage from "@/features/account/pages/NotificationsPage";
 import NotificationsCenterPage from "@/features/account/pages/NotificationsCenterPage";
 import OrdersPage from "@/features/account/pages/OrdersPage";
 import OrderTrackingPage from "@/features/account/pages/OrderTrackingPage";
+import CustomerInvoicesPage from "@/features/account/pages/CustomerInvoicesPage";
 import VouchersPage from "@/features/account/pages/VouchersPage";
 import CoinsPage from "@/features/account/pages/CoinsPage";
 import { ROUTE_ACCESS } from "./routeAccessMap";
@@ -97,6 +98,7 @@ import AdminDistanceRangeDetailPage from "@/features/admin/pages/AdminDistanceRa
 import AdminDeliveryQuotesPage from "@/features/admin/pages/AdminDeliveryQuotesPage";
 import AdminDeliveryQuoteDetailPage from "@/features/admin/pages/AdminDeliveryQuoteDetailPage";
 import AdminUsersPage from "@/features/admin/pages/AdminUsersPage";
+import AdminInvoicesPage from "@/features/admin/pages/AdminInvoicesPage";
 import AdminIncomePage from "@/features/admin/pages/AdminIncomePage";
 import AdminExpensePage from "@/features/admin/pages/AdminExpensePage";
 import AdminExpenseCategoriesPage from "@/features/admin/pages/AdminExpenseCategoriesPage";
@@ -115,6 +117,11 @@ import NewFlashDealPage from "@/features/flash-deals/pages/NewFlashDealPage";
 import EditFlashDealPage from "@/features/flash-deals/pages/EditFlashDealPage";
 import SellerFinanceOverviewPage from "@/features/finance/pages/SellerFinanceOverviewPage";
 import SellerFinanceTransactionsPage from "@/features/finance/pages/SellerFinanceTransactionsPage";
+import SellerAccountingOverviewPage from "@/features/accounting/pages/SellerAccountingOverviewPage";
+import SellerExpenseFormPage from "@/features/accounting/pages/SellerExpenseFormPage";
+import SellerExpensesPage from "@/features/accounting/pages/SellerExpensesPage";
+import SellerExpenseDetailPage from "@/features/accounting/pages/SellerExpenseDetailPage";
+import SellerJournalEntriesPage from "@/features/accounting/pages/SellerJournalEntriesPage";
 import AdminFinanceOverviewPage from "@/features/finance/pages/AdminFinanceOverviewPage";
 import AdminFinanceTransactionsPage from "@/features/finance/pages/AdminFinanceTransactionsPage";
 import AdminAccountingOverviewPage from "@/features/accounting/pages/AdminAccountingOverviewPage";
@@ -183,6 +190,7 @@ const AppRoutes = () => {
                 </ProtectedRoute>
               }
             />
+            <Route path="invoices" element={<CustomerInvoicesPage />} />
             <Route path="my-vouchers" element={<VouchersPage />} />
             <Route path="my-coins" element={<CoinsPage />} />
           </Route>
@@ -495,6 +503,60 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.sellerFinanceTransactions}
                 >
                   <SellerFinanceTransactionsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting"
+              element={<Navigate to="overview" replace />}
+            />
+            <Route
+              path="accounting/overview"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerAccounting}
+                >
+                  <SellerAccountingOverviewPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/expenses"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerAccounting}
+                >
+                  <SellerExpensesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/expenses/new"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerAccounting}
+                >
+                  <SellerExpenseFormPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/expenses/:expenseId"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerAccounting}
+                >
+                  <SellerExpenseDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/journal-entries"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerAccounting}
+                >
+                  <SellerJournalEntriesPage />
                 </ProtectedRoute>
               }
             />
@@ -985,6 +1047,16 @@ const AppRoutes = () => {
                     title="User Administration"
                     description="Global user operations, moderation, and support workflows are planned for this page."
                   /> */}
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="invoices"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminInvoices}
+                >
+                  <AdminInvoicesPage />
                 </ProtectedRoute>
               }
             />

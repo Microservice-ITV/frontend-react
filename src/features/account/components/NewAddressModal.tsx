@@ -334,6 +334,10 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
     setSelectedCity(null)
     setSelectedDistrict(null)
     setSelectedWard(null)
+    setLatitude(null)
+    setLongitude(null)
+    geocodeWardRef.current = null
+    setGeocodeStatus('idle')
     setValue('stateId', state.id, { shouldDirty: true })
     setValue('cityId', null, { shouldDirty: true })
     setValue('districtId', null, { shouldDirty: true })
@@ -354,6 +358,10 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
     setSelectedCity(city)
     setSelectedDistrict(null)
     setSelectedWard(null)
+    setLatitude(null)
+    setLongitude(null)
+    geocodeWardRef.current = null
+    setGeocodeStatus('idle')
     setValue('cityId', city.id, { shouldDirty: true })
     setValue('districtId', null, { shouldDirty: true })
     setValue('wardId', null, { shouldDirty: true })
@@ -370,6 +378,10 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
   const selectDistrict = async (district: DistrictOption) => {
     setSelectedDistrict(district)
     setSelectedWard(null)
+    setLatitude(null)
+    setLongitude(null)
+    geocodeWardRef.current = null
+    setGeocodeStatus('idle')
     setValue('districtId', district.id, { shouldDirty: true })
     setValue('wardId', null, { shouldDirty: true })
     try {
@@ -381,12 +393,25 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
   }
 
   const selectWard = (ward: WardOption) => {
+    // New ward → clear previous pin so geocode can drop a fresh one for this selection.
+    if (selectedWard?.id !== ward.id) {
+      setLatitude(null)
+      setLongitude(null)
+      geocodeWardRef.current = null
+      setGeocodeStatus('idle')
+    }
     setSelectedWard(ward)
     setValue('wardId', ward.id, { shouldDirty: true })
   }
 
   const onSubmit = async (values: FormValues) => {
     if (!authUser?.id || !selectedState || !selectedCity || !selectedDistrict || !selectedWard) return
+
+    if (pinLat == null || pinLng == null) {
+      setGeocodeStatus('failed')
+      mapSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      return
+    }
 
     const payload: UpsertAddressPayload = {
       type: values.labelAs,
@@ -579,6 +604,11 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
                 Couldn&apos;t find this ward automatically. Tap the map at your exact spot to drop the pin.
               </p>
             )}
+            {isSubmitted && (pinLat == null || pinLng == null) && (
+              <p className="text-[10px] text-red-500">
+                Please drop a map pin for this address before submitting.
+              </p>
+            )}
             {pinLat != null && pinLng != null && (
               <p className="text-[10px] text-gray-600 font-mono">
                 Pin: {pinLat.toFixed(6)}, {pinLng.toFixed(6)}
@@ -586,7 +616,7 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
             )}
             <div className="overflow-hidden rounded-sm border border-gray-200">
               <MapLocationPicker
-                key={initialAddress?.address_id ?? 'new-address'}
+                key={`${initialAddress?.address_id ?? 'new-address'}-${selectedWard?.id ?? 'no-ward'}`}
                 latitude={pinLat}
                 longitude={pinLng}
                 onChange={(lat, lng) => {

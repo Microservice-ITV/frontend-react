@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronRight, Flame } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ArrowRight, Zap } from "lucide-react";
 import FlashDealCard from "../components/FlashDealCard";
 import {
   getFlashDealsByTimeSlot,
@@ -73,6 +75,9 @@ const slotKeyOf = (deal: Deal): string => {
   if (Number.isNaN(date.getTime())) return "";
   return `${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
 };
+
+const CARD_WIDTH_PX = 220;
+const GAP_PX = 16;
 
 const FlashDealsPage = () => {
   const [categories, setCategories] = useState<DealCategory[]>([]);

@@ -167,6 +167,10 @@ const SHOP_ORDERS_QUERY = `
           }
         }
       }
+      deliveryAddress {
+        recipientName
+        email
+      }
     }
   }
 `

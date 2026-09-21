@@ -106,9 +106,7 @@ function GoogleMapInner({ apiKey, latitude, longitude, onChange, className }: In
 
     useEffect(() => {
         if (!isLoaded || !hasPin || latitude == null || longitude == null) return
-        if (hadPinRef.current) return
         const id = window.setTimeout(() => {
-            if (hadPinRef.current) return
             const map = mapRef.current
             if (!map) return
             map.panTo({ lat: latitude, lng: longitude })

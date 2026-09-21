@@ -87,11 +87,21 @@ export type DeliveryQuotePricingRuleSummary = {
   version: number
 }
 
+export type DeliveryQuoteItemSnapshot = {
+  productId: string
+  variantId: string | null
+  productName: string | null
+  quantity: number
+}
+
 export type DeliveryQuoteDto = {
   id: string
   quoteNumber: string
   customerId: string | null
+  customerName: string | null
   shopId: string
+  shopName: string | null
+  items: DeliveryQuoteItemSnapshot[] | null
   pickupLatitude: number
   pickupLongitude: number
   destinationLatitude: number
@@ -110,7 +120,6 @@ export type DeliveryQuoteDto = {
   pricingRuleId: string
   pricingVersion: number
   pricingRule: DeliveryQuotePricingRuleSummary
-  routeCalculationId: string
   status: DeliveryQuoteStatus
   expiresAt: string
   createdAt: string

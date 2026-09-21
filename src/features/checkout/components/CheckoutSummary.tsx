@@ -291,10 +291,10 @@ const CheckoutSummary = ({
     }
 
     const effectivePaymentMethod = sessionPaymentMethod ?? paymentMethod
-    const isCard = effectivePaymentMethod === 'card'
+    const isPrepaid = effectivePaymentMethod === 'prepaid'
     let card: ReturnType<NonNullable<typeof elements>['getElement']> | null = null
 
-    if (isCard) {
+    if (isPrepaid) {
       if (!stripe || !elements || !clientSecret) {
         dispatch(setCheckoutError('Payment is not ready yet.'))
         return
@@ -330,7 +330,7 @@ const CheckoutSummary = ({
       }
       console.info('[PlaceOrder] Address updated...')
 
-      if (isCard) {
+      if (isPrepaid) {
         console.info('[PlaceOrder] Confirming payment with Stripe...')
 
         if (addressResponse.data?.already_succeeded) {
@@ -433,7 +433,7 @@ const CheckoutSummary = ({
     paymentStatus === 'EXPIRED'
 
   const effectivePaymentMethod = sessionPaymentMethod ?? paymentMethod
-  const isCard = effectivePaymentMethod === 'card'
+  const isPrepaid = effectivePaymentMethod === 'prepaid'
   const canPlaceOrder =
     !!clientSecret &&
     !isPlacingOrder &&
@@ -465,12 +465,12 @@ const CheckoutSummary = ({
       return 'Please add your delivery address to continue.'
     }
     if (isAwaitingFinalStatus) {
-      return isCard
+      return isPrepaid
         ? 'Waiting for payment confirmation...'
         : 'Confirming your Cash on Delivery order...'
     }
     if (clientSecret) {
-      return isCard
+      return isPrepaid
         ? 'Payment ready. You can place your order.'
         : 'Cash on Delivery ready. Place your order to confirm.'
     }

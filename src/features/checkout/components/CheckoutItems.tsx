@@ -157,6 +157,45 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
                     )}
                   </div>
 
+                  {hasFee &&
+                    (feeRow?.baseFee != null ||
+                      feeRow?.distanceFee != null ||
+                      feeRow?.weightFee != null) && (
+                      <div className="mt-2 space-y-0.5 text-xs text-gray-600">
+                        {feeRow?.distanceKm != null && (
+                          <div>Distance: {feeRow.distanceKm.toFixed(1)} km</div>
+                        )}
+                        {feeRow?.chargeableWeightKg != null && (
+                          <div>
+                            Chargeable weight: {feeRow.chargeableWeightKg.toFixed(2)} kg
+                            {feeRow.actualWeightKg != null &&
+                              feeRow.volumetricWeightKg != null && (
+                                <span className="text-gray-400">
+                                  {' '}
+                                  (actual {feeRow.actualWeightKg.toFixed(2)} · volumetric{' '}
+                                  {feeRow.volumetricWeightKg.toFixed(2)})
+                                </span>
+                              )}
+                          </div>
+                        )}
+                        {feeRow?.baseFee != null && (
+                          <div>
+                            Base fee: {formatProductPrice(feeRow.baseFee, shippingCurrency)}
+                          </div>
+                        )}
+                        {feeRow?.distanceFee != null && (
+                          <div>
+                            Distance fee: {formatProductPrice(feeRow.distanceFee, shippingCurrency)}
+                          </div>
+                        )}
+                        {feeRow?.weightFee != null && (
+                          <div>
+                            Weight fee: {formatProductPrice(feeRow.weightFee, shippingCurrency)}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                   <div className="mt-1 text-sm text-gray-600">
                     Get a $2.00 voucher if no delivery was attempted by 7 Feb 2026.
                   </div>

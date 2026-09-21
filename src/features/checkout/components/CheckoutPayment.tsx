@@ -23,7 +23,7 @@ const CheckoutPayment = ({ totalAmount }: CheckoutPaymentProps) => {
     [dispatch],
   );
 
-  const isPrepaid = selectedPaymentMethod === "card";
+  const isPrepaid = selectedPaymentMethod === "prepaid";
   const [selectedProvider, setSelectedProvider] = useState("card");
 
   const paymentProviders = [
@@ -51,7 +51,17 @@ const CheckoutPayment = ({ totalAmount }: CheckoutPaymentProps) => {
       logo: "/payment-ayapay.svg",
       logoClassName: "h-8 w-[88px]",
     },
+    {
+      id: "cbpay",
+      label: "CB pay",
+      logo: "/payment-cbpay.svg",
+      logoClassName: "h-8 w-[88px]",
+    },
   ];
+
+  const selectedProviderInfo =
+    paymentProviders.find((provider) => provider.id === selectedProvider) ??
+    paymentProviders[0];
 
   return (
     <div className="mt-4 overflow-hidden border border-gray-100 bg-white shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
@@ -60,7 +70,7 @@ const CheckoutPayment = ({ totalAmount }: CheckoutPaymentProps) => {
 
         <div className="flex flex-wrap gap-2">
           {[
-            { label: "Prepaid", value: "card" as PaymentMethod },
+            { label: "Prepaid", value: "prepaid" as PaymentMethod },
             { label: "Cash on Delivery", value: "cod" as PaymentMethod },
           ].map(({ label, value }) => {
             const selected = value === selectedPaymentMethod;
@@ -95,7 +105,7 @@ const CheckoutPayment = ({ totalAmount }: CheckoutPaymentProps) => {
             <h2 className="text-lg font-semibold text-gray-900">
               Method 1: Prepaid (Card, Wallet, etc.)
             </h2>
-            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5 sm:gap-3">
               {paymentProviders.map((provider) => {
                 const selected = selectedProvider === provider.id;
                 return (
@@ -126,63 +136,58 @@ const CheckoutPayment = ({ totalAmount }: CheckoutPaymentProps) => {
             </div>
           </div>
 
+          {selectedProvider === "card" && (
           <div className="flex flex-col gap-3 px-4 pb-5 sm:px-6 md:grid">
-            <div>
-              {selectedProvider === "card" && (
-                <div className="mt-4 max-w-full rounded-lg border border-gray-200 p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
-                  <div className="mb-4 flex items-center gap-3 text-sm font-medium text-gray-900">
-                    <span className="flex h-5 w-6 items-center justify-center rounded-sm bg-black text-white">
-                      <svg
-                        viewBox="0 0 24 18"
-                        className="h-3.5 w-4 fill-current"
-                      >
-                        <rect x="2" y="4" width="20" height="12" rx="1" />
-                        <rect x="2" y="7" width="20" height="2" fill="white" />
-                        <rect x="5" y="12" width="4" height="1" fill="white" />
-                      </svg>
-                    </span>
-                    Card
-                  </div>
-                  <label className="mb-1 block text-xs text-gray-500">
-                    Card information
-                  </label>
-                  <div className="rounded-lg border border-gray-300 bg-white px-3 py-3">
-                    <CardElement
-                      options={{
-                        hidePostalCode: true,
-                        style: {
-                          base: {
-                            fontSize: "14px",
-                            color: "#111827",
-                            "::placeholder": { color: "#9ca3af" },
-                          },
-                        },
-                      }}
-                    />
-                  </div>
-                  <label className="mb-1 mt-4 block text-xs text-gray-500">
-                    Cardholder name
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Full name on card"
-                    className="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus:border-[#5f8f80]"
+            <div >
+              <div className="mt-4 max-w-full rounded-lg border border-gray-200 p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+                <div className="mb-4 flex items-center gap-3 text-sm font-medium text-gray-900">
+                  <img
+                    src={selectedProviderInfo.logo}
+                    alt={selectedProviderInfo.label}
+                    className={`object-contain ${selectedProviderInfo.logoClassName}`}
                   />
-                  <label className="mb-1 mt-4 block text-xs text-gray-500">
-                    Country or region
-                  </label>
-                  <select
-                    defaultValue="Myanmar (Burma)"
-                    className="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 outline-none focus:border-[#5f8f80]"
-                  >
-                    <option>Myanmar (Burma)</option>
-                    <option>Thailand</option>
-                    <option>Singapore</option>
-                  </select>
+                  Pay with {selectedProviderInfo.label}
                 </div>
-              )}
+                <label className="mb-1 block text-xs text-gray-500">
+                  Card information
+                </label>
+                <div className="rounded-lg border border-gray-300 bg-white px-3 py-3">
+                  <CardElement
+                    options={{
+                      hidePostalCode: true,
+                      style: {
+                        base: {
+                          fontSize: "14px",
+                          color: "#111827",
+                          "::placeholder": { color: "#9ca3af" },
+                        },
+                      },
+                    }}
+                  />
+                </div>
+                <label className="mb-1 mt-4 block text-xs text-gray-500">
+                  Cardholder name
+                </label>
+                <input
+                  type="text"
+                  placeholder="Full name on card"
+                  className="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus:border-[#5f8f80]"
+                />
+                <label className="mb-1 mt-4 block text-xs text-gray-500">
+                  Country or region
+                </label>
+                <select
+                  defaultValue="Myanmar (Burma)"
+                  className="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 outline-none focus:border-[#5f8f80]"
+                >
+                  <option>Myanmar (Burma)</option>
+                  <option>Thailand</option>
+                  <option>Singapore</option>
+                </select>
+              </div>
             </div>
           </div>
+        )}
         </>
       )}
 

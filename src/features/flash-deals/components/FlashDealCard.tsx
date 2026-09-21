@@ -46,7 +46,7 @@ const FlashDealCard = ({ deal }: FlashDealCardProps) => {
 
   return (
     <article className="
-      group relative flex h-full flex-col overflow-hidden
+      group relative flex flex-col overflow-hidden
       border border-[var(--dni-cart-border)] bg-white
       transition-[border-color,box-shadow,background-color] duration-150
       hover:border-[var(--dni-primary)] hover:ring-1 hover:ring-[var(--dni-primary)] hover:bg-[var(--dni-primary-soft)]
