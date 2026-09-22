@@ -28,14 +28,15 @@ import {
 import { productServiceAssetUrl } from "@/lib/api/apiConfig";
 
 /** Split a comma-separated tags string into a deduped, trimmed array (max 20). */
-export const parseTagsInput = (raw: string): string[] => [
-  ...new Set(
-    raw
-      .split(",")
-      .map((tag) => tag.trim())
-      .filter(Boolean),
-  ),
-].slice(0, 20);
+export const parseTagsInput = (raw: string): string[] =>
+  [
+    ...new Set(
+      raw
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean),
+    ),
+  ].slice(0, 20);
 
 const toSlug = (value: string) =>
   value
@@ -257,7 +258,10 @@ const ProductForm = ({
     useState(false);
   const [editableExistingImages, setEditableExistingImages] =
     useState<string[]>(existingImageUrls);
-  const isImageSubmitError = submitError.toLowerCase().includes("image");
+  const normalizedSubmitError = submitError.toLowerCase();
+  const isImageSubmitError =
+    normalizedSubmitError.includes("image") ||
+    normalizedSubmitError.includes("photo");
   const imageSubmitError = isImageSubmitError
     ? imageSubmitErrorDismissed
       ? ""
@@ -359,10 +363,21 @@ const ProductForm = ({
 
   const handleFormSubmit = async (values: ProductFormValues) => {
     setImageSubmitErrorDismissed(false);
+    if (
+      mode === "edit" &&
+      editableExistingImages.length === 0 &&
+      imageFiles.length === 0
+    ) {
+      setImageError("Please upload at least one photo.");
+      return;
+    }
+    setImageError("");
     await onSubmit({
       values,
       imageFiles,
-      existingImageUrls: imageFiles.length > 0 ? [] : editableExistingImages,
+      // Send the retained URLs even when new files are selected. This lets the
+      // API keep the current gallery and append the new uploads in one update.
+      existingImageUrls: editableExistingImages,
     });
   };
 
@@ -482,9 +497,6 @@ const ProductForm = ({
                       } else {
                         setImageError("");
                       }
-                      if (incomingFiles.length > 0) {
-                        setEditableExistingImages([]);
-                      }
                       setImageFiles(uniqueByKey.slice(0, 3));
                       e.currentTarget.value = "";
                     }}
@@ -501,7 +513,7 @@ const ProductForm = ({
                   {editableExistingImages.length > 0 && (
                     <div className="mt-3">
                       <p className="mb-2 text-xs font-medium text-slate-600">
-                        Current images
+                        Existing images
                       </p>
                       <div className="grid grid-cols-3 gap-2">
                         {editableExistingImages.map((imageUrl, index) => (
@@ -535,37 +547,45 @@ const ProductForm = ({
                     </div>
                   )}
                   {imagePreviews.length > 0 && (
-                    <div className="mt-3 grid grid-cols-3 gap-2">
-                      {imagePreviews.map((preview, index) => (
-                        <div
-                          key={`${imageFiles[index]?.name ?? "preview"}-${index}`}
-                          className="relative overflow-hidden rounded-lg border border-slate-200 bg-slate-50"
-                        >
-                          <img
-                            src={preview}
-                            alt={
-                              imageFiles[index]?.name ?? `Image ${index + 1}`
-                            }
-                            className="h-24 w-full object-cover"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setImageSubmitErrorDismissed(true);
-                              setImageFiles((prev) =>
-                                prev.filter(
-                                  (_, fileIndex) => fileIndex !== index,
-                                ),
-                              );
-                              setImageError("");
-                            }}
-                            className="absolute right-1 top-1 rounded-full bg-black/70 p-1 text-white hover:bg-black/80"
-                            aria-label="Remove image"
+                    <div className="mt-3">
+                      <p className="mb-2 text-xs font-medium text-slate-600">
+                        New images to add
+                      </p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {imagePreviews.map((preview, index) => (
+                          <div
+                            key={`${imageFiles[index]?.name ?? "preview"}-${index}`}
+                            className="relative overflow-hidden rounded-lg border border-emerald-200 bg-emerald-50"
                           >
-                            <X size={12} />
-                          </button>
-                        </div>
-                      ))}
+                            <span className="absolute left-1 top-1 rounded bg-emerald-600 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                              New
+                            </span>
+                            <img
+                              src={preview}
+                              alt={
+                                imageFiles[index]?.name ?? `Image ${index + 1}`
+                              }
+                              className="h-24 w-full object-cover"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setImageSubmitErrorDismissed(true);
+                                setImageFiles((prev) =>
+                                  prev.filter(
+                                    (_, fileIndex) => fileIndex !== index,
+                                  ),
+                                );
+                                setImageError("");
+                              }}
+                              className="absolute right-1 top-1 rounded-full bg-black/70 p-1 text-white hover:bg-black/80"
+                              aria-label="Remove new image"
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -626,8 +646,8 @@ const ProductForm = ({
                   </li>
                 </ul>
                 <p className="mt-2 border-t border-slate-200/80 pt-2 text-slate-500">
-                  You enter base price, selling price, and discount. Markup % and
-                  customer pays are calculated automatically.
+                  You enter base price, selling price, and discount. Markup %
+                  and customer pays are calculated automatically.
                 </p>
                 <p className="mt-2 text-slate-500">
                   Selling price and discount accept decimals (e.g.{" "}
@@ -718,24 +738,32 @@ const ProductForm = ({
                   </div>
 
                   <div className="space-y-4">
-{fields.map((field, index) => {
-      const row = variantsWatched?.[index];
-      const base = row?.basePrice ? Number(row.basePrice) : NaN;
-      const list = row?.listPrice ? Number(row.listPrice) : NaN;
-      const disc = parseOptionalPercent(
-        row?.discountPercent ?? "",
-      );
-      const listOk = !Number.isNaN(base) && base > 0 && !Number.isNaN(list) && list > 0;
-      const markup = listOk
-        ? computeProfitThresholdPercent(base, list)
-        : null;
-      const effective = listOk
-        ? computeEffectiveSellingPrice(list, disc)
-        : null;
-      const listPriceDisplay = list ? `$${list.toFixed(2)}` : "—";
-      const listPriceInputValue = list ? list.toFixed(2) : "";
-      const effectivePriceDisplay = effective != null ? `$${effective.toFixed(2)}` : "—";
-      const markupDisplay = markup != null ? `${markup.toFixed(2)}%` : "—";
+                    {fields.map((field, index) => {
+                      const row = variantsWatched?.[index];
+                      const base = row?.basePrice ? Number(row.basePrice) : NaN;
+                      const list = row?.listPrice ? Number(row.listPrice) : NaN;
+                      const disc = parseOptionalPercent(
+                        row?.discountPercent ?? "",
+                      );
+                      const listOk =
+                        !Number.isNaN(base) &&
+                        base > 0 &&
+                        !Number.isNaN(list) &&
+                        list > 0;
+                      const markup = listOk
+                        ? computeProfitThresholdPercent(base, list)
+                        : null;
+                      const effective = listOk
+                        ? computeEffectiveSellingPrice(list, disc)
+                        : null;
+                      const listPriceDisplay = list
+                        ? `$${list.toFixed(2)}`
+                        : "—";
+                      const listPriceInputValue = list ? list.toFixed(2) : "";
+                      const effectivePriceDisplay =
+                        effective != null ? `$${effective.toFixed(2)}` : "—";
+                      const markupDisplay =
+                        markup != null ? `${markup.toFixed(2)}%` : "—";
 
                       return (
                         <div
@@ -935,7 +963,9 @@ const ProductForm = ({
                                   title="Automatically calculated from base price and selling price"
                                   className="w-full min-w-0 cursor-not-allowed rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 pr-7 text-sm font-medium text-slate-700 outline-none"
                                 />
-                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">%</span>
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+                                  %
+                                </span>
                               </div>
                             </div>
                             <div className="min-w-0">
@@ -1020,16 +1050,29 @@ const ProductForm = ({
                           <div className="mt-3 rounded-lg bg-emerald-50 p-3 border border-emerald-100">
                             <div className="flex flex-wrap items-center gap-4 text-sm">
                               <div className="flex items-center gap-2">
-                                <span className="text-slate-500">Selling price:</span>
-                                <strong className="text-slate-900">${list ? list.toFixed(2) : "—"}</strong>
+                                <span className="text-slate-500">
+                                  Selling price:
+                                </span>
+                                <strong className="text-slate-900">
+                                  ${list ? list.toFixed(2) : "—"}
+                                </strong>
                               </div>
                               <div className="flex items-center gap-2">
-                                <span className="text-slate-500">Customer pays:</span>
-                                <strong className="text-emerald-700">${effective != null ? effective.toFixed(2) : "—"}</strong>
+                                <span className="text-slate-500">
+                                  Customer pays:
+                                </span>
+                                <strong className="text-emerald-700">
+                                  $
+                                  {effective != null
+                                    ? effective.toFixed(2)
+                                    : "—"}
+                                </strong>
                               </div>
                               <div className="flex items-center gap-2">
                                 <span className="text-slate-500">Markup:</span>
-                                <strong className="text-slate-700">${markup != null ? markup.toFixed(2) : "—"}%</strong>
+                                <strong className="text-slate-700">
+                                  ${markup != null ? markup.toFixed(2) : "—"}%
+                                </strong>
                               </div>
                             </div>
                           </div>
