@@ -3,7 +3,17 @@ import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Link } from "react-router-dom";
-import { ChevronDown, Plus, Trash2, X } from "lucide-react";
+import {
+  ArrowLeftRight,
+  ArrowUpDown,
+  Box,
+  ChevronDown,
+  Plus,
+  Ruler,
+  Trash2,
+  Weight,
+  X,
+} from "lucide-react";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import {
   sanitizeIntegerInput,
@@ -12,7 +22,7 @@ import {
 } from "@/utils/decimalInput";
 import {
   computeEffectiveSellingPrice,
-  computeListPrice,
+  computeProfitThresholdPercent,
   parseOptionalPercent,
 } from "@/utils/variantPricing";
 import { productServiceAssetUrl } from "@/lib/api/apiConfig";
@@ -35,6 +45,23 @@ const toSlug = (value: string) =>
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
+
+/**
+ * Sanitizes input so only digits and a single decimal point are accepted.
+ * Caps decimal places according to the database precision (2 or 3).
+ */
+const sanitizeDecimalInput = (value: string, maxDecimals: number = 2) => {
+  let clean = value.replace(/[^0-9.]/g, "");
+  const parts = clean.split(".");
+  if (parts.length > 2) {
+    clean = `${parts[0]}.${parts.slice(1).join("")}`;
+  }
+  const [intPart, decPart] = clean.split(".");
+  if (decPart !== undefined) {
+    return `${intPart}.${decPart.slice(0, maxDecimals)}`;
+  }
+  return clean;
+};
 
 /** Matches product-service `priceField` / `optionalPercent`: parseFloat, positive base, percent ranges. */
 const basePriceField = z
@@ -62,6 +89,18 @@ const optionalPercentField = (label: string, max: number) =>
       `${label} must be between 0 and ${max}`,
     );
 
+/** Supports required DECIMAL(10,2) or DECIMAL(10,3) values. */
+const dimensionField = (label: string, maxDecimals: number = 2) =>
+  z
+    .string()
+    .trim()
+    .min(1, `${label} is required`)
+    .transform((s) => s.replace(/\.+$/, ""))
+    .refine(
+      (s) => new RegExp(`^\\d+(\\.\\d{1,${maxDecimals}})?$`).test(s),
+      `${label}: numbers only (up to ${maxDecimals} decimal places)`,
+    );
+
 const variantRowSchema = z.object({
   /** Set when editing an existing product variant (PATCH body `variants[].id`). */
   serverVariantId: z
@@ -75,7 +114,7 @@ const variantRowSchema = z.object({
     .uuid("Color is required"),
   sizeId: z.string().trim().min(1, "Size is required").uuid("Size is required"),
   basePrice: basePriceField,
-  profitThresholdPercent: optionalPercentField("Markup %", 10000),
+  listPrice: basePriceField,
   discountPercent: optionalPercentField("Discount %", 100),
   stock: z
     .string()
@@ -89,6 +128,11 @@ const variantRowSchema = z.object({
         Number.isInteger(Number(v)),
       "Invalid stock",
     ),
+  // Dimensions DECIMAL(10,2) and Weight DECIMAL(10,3)
+  length: dimensionField("Length", 2),
+  width: dimensionField("Width", 2),
+  height: dimensionField("Height", 2),
+  weight: dimensionField("Weight", 3),
 });
 
 export const productFormSchema = z
@@ -180,9 +224,13 @@ export const defaultVariantRow = (): ProductFormValues["variants"][number] => ({
   colorId: "",
   sizeId: "",
   basePrice: "",
-  profitThresholdPercent: "0",
+  listPrice: "",
   discountPercent: "0",
   stock: "",
+  length: "",
+  width: "",
+  height: "",
+  weight: "",
 });
 
 const ProductForm = ({
@@ -329,6 +377,7 @@ const ProductForm = ({
         <input type="hidden" {...register("shopId")} />
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
+          {/* Left Column: Product Information */}
           <div>
             <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
               <h2 className="text-base font-bold text-slate-900">
@@ -540,6 +589,7 @@ const ProductForm = ({
             </div>
           </div>
 
+          {/* Right Column: Organization & Variants */}
           <div className="space-y-6">
             <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
               <h2 className="text-base font-bold text-slate-900">
@@ -552,29 +602,41 @@ const ProductForm = ({
                 <ul className="mt-2 list-disc space-y-1.5 pl-4 text-slate-600 marker:text-slate-400">
                   <li>
                     <span className="font-medium text-slate-700">
-                      List price
+                      Base price
                     </span>{" "}
-                    — your base price plus markup (shown before any sale).
+                    — your cost per unit.
                   </li>
                   <li>
                     <span className="font-medium text-slate-700">
-                      Customer price
+                      Selling price
                     </span>{" "}
-                    — list price minus discount; this is what the buyer pays per
-                    unit.
+                    — price before discount; markup % is calculated from this.
+                  </li>
+                  <li>
+                    <span className="font-medium text-slate-700">
+                      Discount %
+                    </span>{" "}
+                    — discount on selling price.
+                  </li>
+                  <li>
+                    <span className="font-medium text-slate-700">
+                      Customer pays
+                    </span>{" "}
+                    — selling price minus discount (auto-calculated).
                   </li>
                 </ul>
                 <p className="mt-2 border-t border-slate-200/80 pt-2 text-slate-500">
-                  You only enter base, markup, and discount here. The customer
-                  price is calculated when you save.
+                  You enter base price, selling price, and discount. Markup % and
+                  customer pays are calculated automatically.
                 </p>
                 <p className="mt-2 text-slate-500">
-                  Markup and discount accept decimals (e.g.{" "}
+                  Selling price and discount accept decimals (e.g.{" "}
                   <span className="font-mono text-slate-600">0.5</span> for half
                   a percent), matching the product API. Base price uses up to
                   two decimal places.
                 </p>
               </div>
+
               <div className="mt-6 space-y-4">
                 <div>
                   <p className="mb-1.5 block text-xs font-medium text-slate-700">
@@ -656,22 +718,24 @@ const ProductForm = ({
                   </div>
 
                   <div className="space-y-4">
-                    {fields.map((field, index) => {
-                      const row = variantsWatched?.[index];
-                      const base = row?.basePrice ? Number(row.basePrice) : NaN;
-                      const markup = parseOptionalPercent(
-                        row?.profitThresholdPercent ?? "",
-                      );
-                      const disc = parseOptionalPercent(
-                        row?.discountPercent ?? "",
-                      );
-                      const listOk = !Number.isNaN(base) && base > 0;
-                      const listPrice = listOk
-                        ? computeListPrice(base, markup)
-                        : null;
-                      const effective = listOk
-                        ? computeEffectiveSellingPrice(base, markup, disc)
-                        : null;
+{fields.map((field, index) => {
+      const row = variantsWatched?.[index];
+      const base = row?.basePrice ? Number(row.basePrice) : NaN;
+      const list = row?.listPrice ? Number(row.listPrice) : NaN;
+      const disc = parseOptionalPercent(
+        row?.discountPercent ?? "",
+      );
+      const listOk = !Number.isNaN(base) && base > 0 && !Number.isNaN(list) && list > 0;
+      const markup = listOk
+        ? computeProfitThresholdPercent(base, list)
+        : null;
+      const effective = listOk
+        ? computeEffectiveSellingPrice(list, disc)
+        : null;
+      const listPriceDisplay = list ? `$${list.toFixed(2)}` : "—";
+      const listPriceInputValue = list ? list.toFixed(2) : "";
+      const effectivePriceDisplay = effective != null ? `$${effective.toFixed(2)}` : "—";
+      const markupDisplay = markup != null ? `${markup.toFixed(2)}%` : "—";
 
                       return (
                         <div
@@ -817,21 +881,21 @@ const ProductForm = ({
                             <div className="min-w-0">
                               <label
                                 className="mb-1 block text-xs font-medium text-slate-700"
-                                htmlFor={`markup-${index}`}
+                                htmlFor={`listPrice-${index}`}
                               >
-                                Markup %
+                                Selling price ($)
                               </label>
                               <Controller
-                                name={`variants.${index}.profitThresholdPercent`}
+                                name={`variants.${index}.listPrice`}
                                 control={control}
                                 render={({ field }) => (
                                   <input
-                                    id={`markup-${index}`}
+                                    id={`listPrice-${index}`}
                                     type="text"
                                     inputMode="decimal"
                                     autoComplete="off"
                                     spellCheck={false}
-                                    placeholder="0"
+                                    placeholder="0.00"
                                     className="w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500"
                                     name={field.name}
                                     ref={field.ref}
@@ -839,21 +903,40 @@ const ProductForm = ({
                                     onBlur={field.onBlur}
                                     onChange={(e) =>
                                       field.onChange(
-                                        sanitizePercentInput(e.target.value),
+                                        sanitizeMoneyInput(e.target.value),
                                       )
                                     }
                                   />
                                 )}
                               />
-                              {errors.variants?.[index]
-                                ?.profitThresholdPercent && (
+                              {errors.variants?.[index]?.listPrice && (
                                 <p className="mt-1 text-xs text-red-600">
-                                  {
-                                    errors.variants[index]
-                                      ?.profitThresholdPercent?.message
-                                  }
+                                  {errors.variants[index]?.listPrice?.message}
                                 </p>
                               )}
+                            </div>
+                            <div className="min-w-0">
+                              <label
+                                className="mb-1 block text-xs font-medium text-slate-700"
+                                htmlFor={`markup-${index}`}
+                              >
+                                Markup %
+                              </label>
+                              <div className="relative">
+                                <input
+                                  id={`markup-${index}`}
+                                  type="text"
+                                  inputMode="decimal"
+                                  autoComplete="off"
+                                  spellCheck={false}
+                                  readOnly
+                                  placeholder="0"
+                                  value={markupDisplay}
+                                  title="Automatically calculated from base price and selling price"
+                                  className="w-full min-w-0 cursor-not-allowed rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 pr-7 text-sm font-medium text-slate-700 outline-none"
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">%</span>
+                              </div>
                             </div>
                             <div className="min-w-0">
                               <label
@@ -934,23 +1017,223 @@ const ProductForm = ({
                             </div>
                           </div>
 
-                          <div className="mt-3 flex flex-wrap gap-4 border-t border-slate-200 pt-3 text-xs text-slate-600">
-                            <span>
-                              List price:{" "}
-                              <strong className="text-slate-900">
-                                {listPrice != null
-                                  ? `$${listPrice.toFixed(2)}`
-                                  : "—"}
-                              </strong>
-                            </span>
-                            <span>
-                              Customer price (effective):{" "}
-                              <strong className="text-emerald-700">
-                                {effective != null
-                                  ? `$${effective.toFixed(2)}`
-                                  : "—"}
-                              </strong>
-                            </span>
+                          <div className="mt-3 rounded-lg bg-emerald-50 p-3 border border-emerald-100">
+                            <div className="flex flex-wrap items-center gap-4 text-sm">
+                              <div className="flex items-center gap-2">
+                                <span className="text-slate-500">Selling price:</span>
+                                <strong className="text-slate-900">${list ? list.toFixed(2) : "—"}</strong>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-slate-500">Customer pays:</span>
+                                <strong className="text-emerald-700">${effective != null ? effective.toFixed(2) : "—"}</strong>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-slate-500">Markup:</span>
+                                <strong className="text-slate-700">${markup != null ? markup.toFixed(2) : "—"}%</strong>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Dimensions & Weight Section */}
+                          <div className="mt-4 border-t border-slate-200/70 pt-3.5">
+                            {/* Header with Circular Emerald Badge */}
+                            <div className="mb-4 flex items-center gap-2.5">
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-emerald-300 bg-emerald-50/60 text-emerald-600 shadow-2xs">
+                                <Box size={16} />
+                              </div>
+                              <div>
+                                <h3 className="text-xs font-bold text-slate-900 sm:text-sm">
+                                  Dimensions & Weight
+                                </h3>
+                                <p className="text-[11px] text-slate-500">
+                                  Enter product size and weight for shipping and
+                                  logistics.
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* 4 Inputs Matching Base Price Height (py-2 text-sm) with Number-Only validation */}
+                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                              {/* Length (DECIMAL 10,2) */}
+                              <div>
+                                <label
+                                  htmlFor={`length-${index}`}
+                                  className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-slate-700"
+                                >
+                                  Length (cm)
+                                </label>
+                                <div className="relative flex items-center">
+                                  <Box
+                                    size={14}
+                                    className="pointer-events-none absolute left-3 text-slate-400"
+                                  />
+                                  <Controller
+                                    name={`variants.${index}.length`}
+                                    control={control}
+                                    render={({ field }) => (
+                                      <input
+                                        id={`length-${index}`}
+                                        type="text"
+                                        inputMode="decimal"
+                                        autoComplete="off"
+                                        placeholder="e.g. 33.10"
+                                        value={field.value ?? ""}
+                                        onBlur={field.onBlur}
+                                        onChange={(e) =>
+                                          field.onChange(
+                                            sanitizeDecimalInput(
+                                              e.target.value,
+                                              2,
+                                            ),
+                                          )
+                                        }
+                                        className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-8.5 pr-3 text-sm text-slate-800 outline-none placeholder:text-slate-300 focus:border-emerald-500"
+                                      />
+                                    )}
+                                  />
+                                </div>
+                                {errors.variants?.[index]?.length && (
+                                  <p className="mt-1 text-xs text-red-600">
+                                    {errors.variants[index]?.length?.message}
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* Width (DECIMAL 10,2) */}
+                              <div>
+                                <label
+                                  htmlFor={`width-${index}`}
+                                  className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-slate-700"
+                                >
+                                  Width (cm)
+                                </label>
+                                <div className="relative flex items-center">
+                                  <ArrowLeftRight
+                                    size={14}
+                                    className="pointer-events-none absolute left-3 text-slate-400"
+                                  />
+                                  <Controller
+                                    name={`variants.${index}.width`}
+                                    control={control}
+                                    render={({ field }) => (
+                                      <input
+                                        id={`width-${index}`}
+                                        type="text"
+                                        inputMode="decimal"
+                                        autoComplete="off"
+                                        placeholder="e.g. 33.10"
+                                        value={field.value ?? ""}
+                                        onBlur={field.onBlur}
+                                        onChange={(e) =>
+                                          field.onChange(
+                                            sanitizeDecimalInput(
+                                              e.target.value,
+                                              2,
+                                            ),
+                                          )
+                                        }
+                                        className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-8.5 pr-3 text-sm text-slate-800 outline-none placeholder:text-slate-300 focus:border-emerald-500"
+                                      />
+                                    )}
+                                  />
+                                </div>
+                                {errors.variants?.[index]?.width && (
+                                  <p className="mt-1 text-xs text-red-600">
+                                    {errors.variants[index]?.width?.message}
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* Height (DECIMAL 10,2) */}
+                              <div>
+                                <label
+                                  htmlFor={`height-${index}`}
+                                  className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-slate-700"
+                                >
+                                  Height (cm)
+                                </label>
+                                <div className="relative flex items-center">
+                                  <ArrowUpDown
+                                    size={14}
+                                    className="pointer-events-none absolute left-3 text-slate-400"
+                                  />
+                                  <Controller
+                                    name={`variants.${index}.height`}
+                                    control={control}
+                                    render={({ field }) => (
+                                      <input
+                                        id={`height-${index}`}
+                                        type="text"
+                                        inputMode="decimal"
+                                        autoComplete="off"
+                                        placeholder="e.g. 33.10"
+                                        value={field.value ?? ""}
+                                        onBlur={field.onBlur}
+                                        onChange={(e) =>
+                                          field.onChange(
+                                            sanitizeDecimalInput(
+                                              e.target.value,
+                                              2,
+                                            ),
+                                          )
+                                        }
+                                        className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-8.5 pr-3 text-sm text-slate-800 outline-none placeholder:text-slate-300 focus:border-emerald-500"
+                                      />
+                                    )}
+                                  />
+                                </div>
+                                {errors.variants?.[index]?.height && (
+                                  <p className="mt-1 text-xs text-red-600">
+                                    {errors.variants[index]?.height?.message}
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* Weight (DECIMAL 10,3 - allows up to 3 decimals) */}
+                              <div>
+                                <label
+                                  htmlFor={`weight-${index}`}
+                                  className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-slate-700"
+                                >
+                                  Weight (kg)
+                                </label>
+                                <div className="relative flex items-center">
+                                  <Weight
+                                    size={14}
+                                    className="pointer-events-none absolute left-3 text-slate-400"
+                                  />
+                                  <Controller
+                                    name={`variants.${index}.weight`}
+                                    control={control}
+                                    render={({ field }) => (
+                                      <input
+                                        id={`weight-${index}`}
+                                        type="text"
+                                        inputMode="decimal"
+                                        autoComplete="off"
+                                        placeholder="e.g. 33.500"
+                                        value={field.value ?? ""}
+                                        onBlur={field.onBlur}
+                                        onChange={(e) =>
+                                          field.onChange(
+                                            sanitizeDecimalInput(
+                                              e.target.value,
+                                              3,
+                                            ),
+                                          )
+                                        }
+                                        className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-8.5 pr-3 text-sm text-slate-800 outline-none placeholder:text-slate-300 focus:border-emerald-500"
+                                      />
+                                    )}
+                                  />
+                                </div>
+                                {errors.variants?.[index]?.weight && (
+                                  <p className="mt-1 text-xs text-red-600">
+                                    {errors.variants[index]?.weight?.message}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       );

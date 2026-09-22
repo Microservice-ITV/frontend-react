@@ -21,29 +21,29 @@ const ProductListPage = () => {
   const [currentPage, setCurrentPage] = useState(1)
 
   useEffect(() => {
-    const nextSort = normalizeProductSort(searchParams.get('sort'))
-    setSort(nextSort)
-  }, [searchParams])
+    const nextSort = normalizeProductSort(searchParams.get("sort"));
+    setSort(nextSort);
+  }, [searchParams]);
 
   useEffect(() => {
-    if (categoriesStatus === 'idle' || categories.length === 0) {
-      void dispatch(fetchCategories())
+    if (categoriesStatus === "idle" || categories.length === 0) {
+      void dispatch(fetchCategories());
     }
-  }, [categoriesStatus, categories.length, dispatch])
+  }, [categoriesStatus, categories.length, dispatch]);
 
   useEffect(() => {
     if (id) {
       dispatch(fetchProductsByCategory({ categoryId: id, sort }))
       setCurrentPage(1)
     }
-  }, [dispatch, id, sort])
+  }, [dispatch, id, sort]);
 
   const handleSortChange = (nextSort: ProductSortKey) => {
-    setSort(nextSort)
-    const next = new URLSearchParams(searchParams)
-    next.set('sort', nextSort)
-    setSearchParams(next, { replace: true })
-  }
+    setSort(nextSort);
+    const next = new URLSearchParams(searchParams);
+    next.set("sort", nextSort);
+    setSearchParams(next, { replace: true });
+  };
 
   const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE))
   const safePage = Math.min(currentPage, totalPages)
@@ -55,17 +55,31 @@ const ProductListPage = () => {
   const pageEnd = Math.min(safePage * PAGE_SIZE, items.length)
 
   return (
-    <div className="bg-[#f5f5f5]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-        <div className="flex gap-4">
-          <aside className="w-[240px] shrink-0 hidden md:block">
+    <div className="bg-[#f5f5f5] h-[calc(100vh-140px)] overflow-hidden">
+      {/* Inline style to hide scrollbars universally across Chrome, Safari, Firefox, and Edge */}
+      <style>{`
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 h-full">
+        <div className="flex items-start gap-4 h-full">
+          {/* Sidebar with scrollbar hidden */}
+          <aside className="w-[240px] shrink-0 hidden md:block h-full overflow-y-auto no-scrollbar">
             <ProductSidebar activeCategoryId={id} />
           </aside>
 
-          <section className="flex-1">
-            <ProductSortBar sort={sort} onSortChange={handleSortChange} />
+          {/* Main section with scrollbar hidden */}
+          <section className="flex-1 min-w-0 h-full overflow-y-auto no-scrollbar pr-1 flex flex-col">
+            {/* Sort Bar: Sticky on desktop with a small bottom padding overlay to prevent any visual gap */}
+              <ProductSortBar sort={sort} onSortChange={handleSortChange} />
 
-            {status === 'loading' && (
+            {status === "loading" && (
               <div className="py-10 text-center text-sm text-gray-500">
                 Loading products...
               </div>
@@ -94,7 +108,7 @@ const ProductListPage = () => {
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default ProductListPage
+export default ProductListPage;

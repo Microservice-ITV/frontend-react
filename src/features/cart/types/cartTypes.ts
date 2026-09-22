@@ -11,6 +11,16 @@ export interface CartItem {
     price: number
     quantity: number
 
+    // flash-deal promo origin (present only for flash-deal cart lines)
+    flashDealId?: string
+    flashDealItemId?: string
+    originalPrice?: number
+    /** Per-unit shipping parcel data captured from the selected variant. */
+    weightKg?: number | null
+    lengthCm?: number | null
+    widthCm?: number | null
+    heightCm?: number | null
+
     // selection state
     selected: boolean
 }

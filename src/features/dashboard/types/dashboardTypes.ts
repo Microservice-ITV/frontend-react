@@ -1,7 +1,19 @@
 import type { LucideIcon } from 'lucide-react'
 import type { Capability } from '@/app/rbac/types'
+import type { SearchHit } from '../api/globalSearchApi'
 
 export type DashboardArea = 'seller' | 'super_admin'
+
+export type SearchConfig = {
+  enabled: boolean
+  domain: string
+  fetch: (
+    query: string,
+    opts: { userId?: string | null; activeShopId?: string | null },
+    signal?: AbortSignal,
+  ) => Promise<SearchHit[]>
+  makeTo: (hit: SearchHit) => string
+}
 
 export type DashboardMenuItem = {
   key: string
@@ -12,6 +24,7 @@ export type DashboardMenuItem = {
   icon?: LucideIcon
   badge?: string | number
   children?: DashboardMenuItem[]
+  search?: SearchConfig
 }
 
 export type DashboardMenuSection = {

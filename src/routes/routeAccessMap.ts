@@ -30,7 +30,9 @@ export const ROUTE_ACCESS = {
   superAdminOverview: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   superAdminAnalytics: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   superAdminShops: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+  superAdminShipping: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   superAdminUsers: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+  superAdminInvoices: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   superAdminSystem: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   superAdminMail: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   superAdminChat: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
@@ -42,6 +44,7 @@ export const ROUTE_ACCESS = {
   superAdminAccounting: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   sellerFinanceOverview: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
   sellerFinanceTransactions: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+  sellerAccounting: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
   superAdminFinanceOverview: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   superAdminFinanceTransactions: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
 } as const

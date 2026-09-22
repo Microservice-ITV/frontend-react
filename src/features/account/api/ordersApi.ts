@@ -9,6 +9,7 @@ const MY_ORDERS_QUERY = `
       createdAt
       placedAt
       items {
+        orderItemId
         productId
         sku
         slug
@@ -19,6 +20,7 @@ const MY_ORDERS_QUERY = `
         unitPrice
         lineTotal
         currency
+        shopId
       }
       totals {
         subtotal

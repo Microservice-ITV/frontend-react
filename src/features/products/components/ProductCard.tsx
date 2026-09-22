@@ -1,5 +1,6 @@
-import { useMemo, type MouseEvent } from "react";
+import { useMemo, useState, type MouseEvent } from "react";
 import { Link } from "react-router-dom";
+import { ImageIcon } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { addToCart } from "@/features/cart/store/cartSlice";
 import { toggleWishlist } from "@/features/wishlist/store/wishlistSlice";
@@ -28,10 +29,10 @@ const BADGE_POOL: BadgeTone[] = [
 ];
 
 const PLACEHOLDER_SRC =
-  'data:image/svg+xml;utf8,' +
+  "data:image/svg+xml;utf8," +
   encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600"><rect width="100%" height="100%" fill="#f5f5f5"/></svg>',
-  )
+  );
 
 function hashId(id: string): number {
   let h = 0;
@@ -40,14 +41,14 @@ function hashId(id: string): number {
 }
 
 function formatBadgeLabel(value?: string): string {
-  const raw = (value ?? '').trim()
-  if (!raw) return ''
-  const normalized = raw.replace(/\s+/g, ' ')
+  const raw = (value ?? "").trim();
+  if (!raw) return "";
+  const normalized = raw.replace(/\s+/g, " ");
   return normalized
-    .split(' ')
+    .split(" ")
     .filter(Boolean)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(' ')
+    .join(" ");
 }
 
 function cardMeta(productId: string) {
@@ -100,7 +101,6 @@ function BadgeIcon({ type }: { type: BadgeTone["icon"] }) {
       );
   }
 }
-
 function StarRow({ rating }: { rating: string }) {
   const value = Number(rating);
   return (
@@ -135,6 +135,26 @@ function StarRow({ rating }: { rating: string }) {
   );
 }
 
+function ProductName({ name }: { name: string }) {
+  return (
+    <div className="group/name relative h-5">
+      <h3 className="line-clamp-1 text-sm font-semibold leading-5 text-slate-800">
+        {name}
+      </h3>
+      <span
+        role="tooltip"
+        className="
+          pointer-events-none absolute left-0 top-full z-20 mt-1 block w-max max-w-[240px]
+          rounded bg-gray-500 px-2 py-1 text-xs font-medium leading-snug text-white
+          opacity-0 shadow-lg transition-opacity duration-150 group-hover/name:opacity-100
+        "
+      >
+        {name}
+      </span>
+    </div>
+  )
+}
+
 interface ProductCardProps {
   product: Product;
   /** @deprecated Kept for callers; card always shows Add to Cart. */
@@ -144,6 +164,8 @@ interface ProductCardProps {
 const ProductCard = ({ product }: ProductCardProps) => {
   const dispatch = useAppDispatch();
   const wishlisted = useAppSelector((s) => selectIsWishlisted(s, product.id));
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
 
   const meta = useMemo(() => cardMeta(product.id), [product.id])
   const badgeLabel = useMemo(
@@ -192,11 +214,25 @@ const ProductCard = ({ product }: ProductCardProps) => {
       >
         {/* IMAGE */}
         <div className="relative w-full shrink-0 bg-[#fafafa] pt-[100%]">
+          {!imageLoaded || imageFailed ? (
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <ImageIcon className="h-10 w-10 text-gray-300" aria-hidden />
+            </div>
+          ) : null}
           <img
             src={`${product.images?.[0] ?? "/placeholder.svg"}`}
             alt={product.name}
-            className="pointer-events-none absolute inset-0 h-full w-full object-fill p-2"
+            className={[
+              "pointer-events-none absolute inset-0 h-full w-full object-fill p-2",
+              "transition-opacity duration-200",
+              imageLoaded && !imageFailed ? "opacity-100" : "opacity-0",
+            ].join(" ")}
             loading="lazy"
+            onLoad={() => setImageLoaded(true)}
+            onError={() => {
+              setImageFailed(true);
+              setImageLoaded(false);
+            }}
           />
 
           {/* Status badge */}
@@ -207,7 +243,6 @@ const ProductCard = ({ product }: ProductCardProps) => {
             <BadgeIcon type={meta.badge.icon} />
             <span className="truncate">{badgeLabel}</span>
           </span>
-
           {/* Wishlist */}
           <button
             type="button"
@@ -239,9 +274,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
 
         {/* META */}
         <div className="flex flex-1 flex-col gap-1.5 px-3 pb-2 pt-2.5">
-          <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-5 text-slate-800">
-            {product.name}
-          </h3>
+          <ProductName name={product.name} />
 
           <p className="text-base font-bold leading-none tracking-tight text-[var(--dni-primary)]">
             {formatProductPrice(product.price)}

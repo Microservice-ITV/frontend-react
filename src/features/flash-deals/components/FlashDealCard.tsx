@@ -1,41 +1,72 @@
 import { Link } from "react-router-dom";
 import { Flame } from "lucide-react";
+import type { FlashDealApiItem } from "@/lib/api/flashDealClient";
 
-interface FlashDeal {
-  id: number;
-  name: string;
-  image: string;
-  price: number;
-  originalPrice: number;
-  discount: number;
-  stockText: string;
-  soldPercent: number;
-}
+const PLACEHOLDER_IMAGE = "/placeholder.svg";
 
 interface FlashDealCardProps {
-  deal: FlashDeal;
+  deal: FlashDealApiItem;
 }
 
 const FlashDealCard = ({ deal }: FlashDealCardProps) => {
-  const isHighUrgency = deal.soldPercent >= 90;
-  const isMediumUrgency = deal.soldPercent >= 75;
+  const productImage =
+    deal.image && deal.image.trim() !== "" ? deal.image : PLACEHOLDER_IMAGE;
+
+  const productName =
+    deal.name?.trim() !== "" ? deal.name : deal.flashDealName || "Flash Deal";
+
+  const dealPrice = Number(deal.dealPrice) || 0;
+  const originalPrice = Number(deal.originalPrice) || 0;
+
+  const discount =
+    originalPrice > 0
+      ? Math.round(((originalPrice - dealPrice) / originalPrice) * 100)
+      : Number(deal.discount) || 0;
+
+  const allocated = Number(deal.allocatedQuantity) || 0;
+  const remaining = Number(deal.remainingQuantity);
+  const computedSoldStock = Number.isFinite(remaining)
+    ? Math.max(0, allocated - remaining)
+    : Number.NaN;
+  const soldPercent =
+    allocated > 0 && Number.isFinite(computedSoldStock)
+      ? Math.min(100, Math.round((computedSoldStock / allocated) * 100))
+      : Number(deal.stockProgress) || 0;
+
+  const stockText =
+    deal.stockText ||
+    (deal.soldOut ? "SOLD OUT" : `${soldPercent}% SOLD`);
+
+  const isHighUrgency = soldPercent >= 90;
+  const isMediumUrgency = soldPercent >= 75;
 
   return (
     <article className="
-      group relative flex h-full flex-col overflow-hidden
+      group relative flex flex-col overflow-hidden
       border border-[var(--dni-cart-border)] bg-white
-      transition-[border-color,box-shadow] duration-200
-      hover:border-[var(--dni-primary)] hover:shadow-[0_8px_30px_rgba(16,185,129,0.12)]
+      transition-[border-color,background-color] duration-150
+      hover:border-[var(--dni-primary)] hover:bg-[var(--dni-primary-soft)]
     ">
       <Link
-        to={`/products/${deal.id}`}
-        className="flex min-h-0 flex-1 flex-col"
+        to={`/products/${deal.productId}`}
+        state={{
+          flashDealPromo: {
+            flashDealId: deal.flashDealId,
+            flashDealItemId: deal.id,
+            originalPrice,
+            promoPrice: dealPrice,
+            discount,
+            startAt: deal.startAt ?? null,
+            endAt: deal.endAt ?? null,
+          },
+        }}
+        className="flex min-h-0 flex-1 flex-col h-full"
       >
-        <div className="relative w-full aspect-[4/3] bg-[#fafafa] overflow-hidden">
+        <div className="relative w-full shrink-0 bg-[#fafafa] pt-[100%]">
           <img
-            src={deal.image}
-            alt={deal.name}
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+            src={productImage}
+            alt={productName}
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover p-2"
             loading="lazy"
           />
 
@@ -45,7 +76,7 @@ const FlashDealCard = ({ deal }: FlashDealCardProps) => {
               Flash
             </span>
             <span className="inline-flex items-center px-2 py-1 bg-white/95 backdrop-blur-sm text-[10px] font-black text-[var(--dni-primary)]">
-              -{deal.discount}%
+              -{discount}%
             </span>
           </div>
 
@@ -55,7 +86,7 @@ const FlashDealCard = ({ deal }: FlashDealCardProps) => {
               ${isHighUrgency ? 'bg-red-500 text-white' : isMediumUrgency ? 'bg-orange-500 text-white' : 'bg-[var(--dni-primary)] text-white'}
             `}>
               <Flame className="h-3 w-3 fill-current" />
-              {deal.stockText}
+              {stockText}
             </span>
           </div> */}
         </div>
@@ -63,26 +94,26 @@ const FlashDealCard = ({ deal }: FlashDealCardProps) => {
         <div className="flex flex-1 flex-col gap-2 p-4">
           <div className="flex items-baseline justify-between gap-2">
             <span className="text-base font-bold leading-none text-[var(--dni-primary)]">
-              MMK{deal.price.toFixed(2)}
+              MMK{dealPrice.toFixed(2)}
             </span>
             <span className="text-sm text-slate-400 line-through font-medium">
-              MMK{deal.originalPrice.toFixed(2)}
+              MMK{originalPrice.toFixed(2)}
             </span>
           </div>
 
           <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-5 text-slate-800">
-            {deal.name}
+            {productName}
           </h3>
 
           <div className="mt-auto">
             <div className="relative h-5 overflow-hidden bg-slate-300">
               <div
                 className="h-full bg-gradient-to-r from-[var(--dni-primary)] to-[var(--dni-primary-400)]"
-                style={{ width: `${deal.soldPercent}%` }}
+                style={{ width: `${soldPercent}%` }}
               />
               <div className="absolute inset-0 flex items-center justify-center gap-2 text-sm font-black text-white">
                 <Flame className="h-4 w-4 fill-white" />
-                <span>{deal.stockText}</span>
+                <span>{stockText}</span>
               </div>
             </div>
           </div>

@@ -72,9 +72,15 @@ export type SellerProductVariantPayload = {
   colorId: string
   sizeId: string
   basePrice: number
+  /** Selling/list price before any discount. */
+  listPrice: number
   profitThresholdPercent?: number
   discountPercent?: number
   stock: number
+  length?: number
+  width?: number
+  height?: number
+  weight?: number
   isPrimary?: boolean
 }
 
@@ -130,6 +136,8 @@ export type ProductDetailReadItem = {
     colorId?: string
     sizeId?: string
     basePrice?: number | string
+    listPrice?: number | string
+    sellingPrice?: number | string
     profitThresholdPercent?: number | string
     discountPercent?: number | string
     effectiveSellingPrice?: number | string
@@ -137,6 +145,10 @@ export type ProductDetailReadItem = {
     price?: number | string
     stock?: number | string
     shopStock?: number | string
+    length?: number | string | null
+    width?: number | string | null
+    height?: number | string | null
+    weight?: number | string | null
     isPrimary?: boolean
   }>
 }

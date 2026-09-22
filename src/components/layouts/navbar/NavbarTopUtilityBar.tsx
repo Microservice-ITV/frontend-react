@@ -30,13 +30,14 @@ const NavbarTopUtilityBar = () => {
                 <div className="flex space-x-4 items-center">
                     {/* <Link to={startSellingTo} className="hover:text-black">
                         Start Selling
-                    </Link> */}
+                    </Link>
                     <Link to="/help-centre" className="hover:text-black">
                         Help
                     </Link>
                     <Link to="#" className="hover:text-black">
                         Notifications
                     </Link>
+                    */}
                 </div>
 
                 {/* Desktop Announcement Badge */}

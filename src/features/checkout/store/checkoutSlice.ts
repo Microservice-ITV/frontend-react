@@ -7,7 +7,7 @@ import type {
 } from '../types/checkoutTypes'
 import type { SagaStatusResponse } from '../types/sagaTypes'
 
-export type PaymentMethod = 'card' | 'cod'
+export type PaymentMethod = 'prepaid' | 'cod'
 
 interface CheckoutState {
     currentCheckout: CheckoutResponse | null
@@ -35,7 +35,7 @@ const initialState: CheckoutState = {
     clientSecret: null,
     isPlacingOrder: false,
     isAwaitingFinalStatus: false,
-    paymentMethod: 'card',
+    paymentMethod: 'prepaid',
     sessionPaymentMethod: null,
     loading: false,
     error: null,
@@ -130,7 +130,7 @@ const checkoutSlice = createSlice({
                 }
                 if (typeof action.payload.payment_method === 'string') {
                     const pm = action.payload.payment_method as PaymentMethod
-                    if (pm === 'card' || pm === 'cod') {
+                    if (pm === 'prepaid' || pm === 'cod') {
                         state.sessionPaymentMethod = pm
                         state.paymentMethod = pm
                     }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { NavLink, useLocation } from "react-router-dom";
+import brandLogo from "@/public/brand-logo.svg";
 import {
   X,
   Zap,
@@ -55,7 +56,7 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
 
   const hideTooltip = () => setTooltip(null);
 
-    const allItemPaths = sections.flatMap((section) =>
+  const allItemPaths = sections.flatMap((section) =>
     section.items.map((item) => item.to),
   );
   const isParentPath = (path: string) =>
@@ -102,9 +103,7 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
                   to={item.to}
                   end={isParentPath(item.to)}
                   onClick={onClose}
-                  onMouseEnter={(e) =>
-                    showTooltip(e, item.label, item.badge)
-                  }
+                  onMouseEnter={(e) => showTooltip(e, item.label, item.badge)}
                   onMouseLeave={hideTooltip}
                   className={({ isActive }) =>
                     `group relative flex min-w-0 flex-1 items-center rounded-md py-2 text-xs transition-colors ${
@@ -141,9 +140,7 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
             {!isSidebarCollapsed && hasChildren && (
               <div
                 className={`grid transition-[grid-template-rows] duration-200 ease-out ${
-                  isItemExpanded
-                    ? "grid-rows-[1fr]"
-                    : "grid-rows-[0fr]"
+                  isItemExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
                 }`}
               >
                 <div className="overflow-hidden space-y-0.5">
@@ -164,15 +161,22 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
           isSidebarCollapsed ? "lg:flex-col lg:gap-3" : "justify-between"
         }`}
       >
-        <div
-          className={`flex items-center gap-2 ${isSidebarCollapsed ? "lg:justify-center" : ""}`}
+        {/* Wrap this block in a NavLink pointing to your dashboard route */}
+        <NavLink
+          to="/dashboard" // <-- Change this to your actual dashboard route path if different (e.g., "/" or "/admin")
+          onClick={onClose}
+          className={`flex items-center gap-2 group ${isSidebarCollapsed ? "lg:justify-center" : ""}`}
         >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500">
-            <Zap size={18} className="text-white" />
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden">
+            <img
+              src={brandLogo}
+              alt="Brand Logo"
+              className="w-8 h-8 rounded-sm object-contain"
+            />
           </div>
           {!isSidebarCollapsed && (
             <div>
-              <p className="text-xs font-semibold text-white">
+              <p className="text-xs font-semibold text-white group-hover:text-emerald-400 transition-colors">
                 Daily Need Items
               </p>
               <p className="text-[9px] uppercase tracking-wider text-slate-400">
@@ -180,7 +184,7 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
               </p>
             </div>
           )}
-        </div>
+        </NavLink>
 
         <button
           type="button"
@@ -209,6 +213,7 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
 
       <nav
         className={`flex-1 overflow-y-auto py-3 ${isSidebarCollapsed ? "px-2" : "px-3"}`}
+        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
         {sections.map((section) => {
           const isSectionCollapsed = collapsedSections[section.title] ?? false;

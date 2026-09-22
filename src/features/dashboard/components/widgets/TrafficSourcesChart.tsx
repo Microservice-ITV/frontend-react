@@ -80,30 +80,24 @@ const TrafficSourcesChart = ({
           className="relative h-48 w-48 shrink-0 sm:h-52 sm:w-52"
         >
           {dimensions && (
-            <ResponsiveContainer
-              width={dimensions.width}
-              height={dimensions.height}
-            >
-              <PieChart>
-                <Pie
-                  data={data}
-                  dataKey="count"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius="60%"
-                  outerRadius="90%"
-                  paddingAngle={2}
-                  stroke="none"
-                >
-                  {data.map((entry) => (
-                    <Cell
-                      key={entry.statusId}
-                      fill={statusLabels[entry.statusId]?.color ?? "#94a3b8"}
-                    />
-                  ))}
-                </Pie>
-              </PieChart>
-            </ResponsiveContainer>
+          <ResponsiveContainer width={dimensions.width} height={dimensions.height}>
+            <PieChart>
+              <Pie
+                data={data}
+                dataKey="value"
+                cx="50%"
+                cy="50%"
+                innerRadius="60%"
+                outerRadius="90%"
+                paddingAngle={2}
+                stroke="none"
+              >
+                {data.map((entry) => (
+                  <Cell key={entry.statusId} fill={statusLabels[entry.statusId]?.color ?? '#94a3b8'} />
+                ))}
+              </Pie>
+            </PieChart>
+          </ResponsiveContainer>
           )}
 
           <div className="absolute inset-0 flex items-center justify-center">
