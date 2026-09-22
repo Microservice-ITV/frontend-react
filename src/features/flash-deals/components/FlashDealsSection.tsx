@@ -7,140 +7,71 @@ import {
   type FlashDealApiItem,
 } from "@/lib/api/flashDealClient";
 
-interface SectionDeal {
-  id: number | string;
-  productId: string;
-  flashDealId: string;
-  name: string;
-  image: string;
-  price: number;
-  originalPrice: number;
-  discount: number;
-  stockText: string;
-  soldPercent: number;
-  soldOut?: boolean;
-  startAt?: string;
-  endAt?: string;
-}
-
 const CARD_WIDTH_PX = 220;
 const GAP_PX = 16;
 const COLUMNS_PER_STEP = 4;
 
-const pad = (value: number) => String(value).padStart(2, "0");
-
-const getNextSessionEnd = (from: Date) => {
-  const end = new Date(from);
+const getNextSessionEnd = () => {
+  const end = new Date();
   end.setMinutes(0, 0, 0);
   end.setHours(end.getHours() + 1);
   return end;
 };
 
-const normalizeDeal = (item: FlashDealApiItem): SectionDeal => ({
-  id: item.id,
-  productId: item.productId,
-  flashDealId: item.flashDealId,
-  name: item.name,
-  image: item.image,
-  price: Number(item.dealPrice) || 0,
-  originalPrice: Number(item.originalPrice) || 0,
-  discount: item.discount,
-  stockText: item.stockText,
-  soldPercent: item.stockProgress,
-  soldOut: item.soldOut,
-  startAt: item.startAt,
-  endAt: item.endAt,
-});
+const pad = (value: number) => String(value).padStart(2, "0");
 
 const FlashDealsSection = () => {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
-  const [deals, setDeals] = useState<SectionDeal[]>([]);
+  const [deals, setDeals] = useState<FlashDealApiItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [endTime, setEndTime] = useState<number>(() =>
+    getNextSessionEnd().getTime(),
+  );
 
-  const [serverOffsetMs, setServerOffsetMs] = useState(0);
-  const [countdownTargetMs, setCountdownTargetMs] = useState<number | null>(null);
-  const [timeLeft, setTimeLeft] = useState(0);
-
-  const syncedNow = () => new Date(Date.now() - serverOffsetMs);
-
-  const pickCountdownTarget = useCallback(
-    (items: SectionDeal[]) => {
-      const now = syncedNow();
-      const ongoingEnds = items
-        .flatMap((item) =>
-          item.startAt && item.endAt
-            ? [
-                {
-                  start: new Date(item.startAt).getTime(),
-                  end: new Date(item.endAt).getTime(),
-                },
-              ]
-            : [],
-        )
-        .filter((window) => window.start <= now.getTime() && window.end > now.getTime())
-        .map((window) => window.end);
-
-      if (ongoingEnds.length > 0) {
-        return Math.min(...ongoingEnds);
-      }
-
-      return getNextSessionEnd(now).getTime();
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [serverOffsetMs],
+  const [timeLeft, setTimeLeft] = useState(() =>
+    Math.max(0, Math.floor((endTime - Date.now()) / 1000)),
   );
 
   useEffect(() => {
     let cancelled = false;
-
-    const loadDeals = async () => {
-      try {
-        const res = await getFlashDealsByTimeSlot({ limit: 12 });
+    getFlashDealsByTimeSlot({ limit: 12, status: "ongoing" })
+      .then((res) => {
         if (cancelled) return;
-
-        const offset = Date.now() - new Date(res.data.serverTime).getTime();
-        const items = (res.data.items ?? []).map(normalizeDeal);
-
-        setServerOffsetMs(offset);
+        const items = res.data.items ?? [];
+        const slots = res.data.timeSlots ?? [];
         setDeals(items);
-        setCountdownTargetMs(pickCountdownTarget(items));
-      } catch (err) {
-        console.error("Failed to load flash deals:", err);
-        if (!cancelled) setError("Failed to load flash deals.");
-      } finally {
+        const activeSlot = slots.find((slot) => slot.isActive);
+        if (activeSlot) {
+          const ends = items
+            .filter((item) => item.slot === activeSlot.time)
+            .map((item) => {
+              const t = item.endAt ? new Date(item.endAt).getTime() : 0;
+              return Number.isFinite(t) && t > 0 ? t : 0;
+            })
+            .filter((t) => t > 0);
+          if (ends.length > 0) setEndTime(Math.max(...ends));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setDeals([]);
+      })
+      .finally(() => {
         if (!cancelled) setLoading(false);
-      }
-    };
-
-    loadDeals();
+      });
     return () => {
       cancelled = true;
     };
-  }, [pickCountdownTarget]);
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
-      const target = countdownTargetMs;
-      if (target === null) return;
-
-      const remaining = Math.max(
-        0,
-        Math.floor((target - syncedNow().getTime()) / 1000),
-      );
-
-      if (remaining === 0) {
-        setCountdownTargetMs(pickCountdownTarget(deals));
-        return;
-      }
-      setTimeLeft(remaining);
+      setTimeLeft(Math.max(0, Math.floor((endTime - Date.now()) / 1000)));
     }, 1000);
-
     return () => clearInterval(timer);
-  }, [countdownTargetMs, deals, pickCountdownTarget]);
+  }, [endTime]);
 
   const hours = Math.floor(timeLeft / 3600);
   const minutes = Math.floor((timeLeft % 3600) / 60);
@@ -169,14 +100,13 @@ const FlashDealsSection = () => {
     ro.observe(el);
 
     const t = window.setTimeout(updateScrollAffordance, 100);
-
     return () => {
       el.removeEventListener("scroll", updateScrollAffordance);
       el.removeEventListener("scrollend", updateScrollAffordance);
       ro.disconnect();
       window.clearTimeout(t);
     };
-  }, [updateScrollAffordance, loading, deals]);
+  }, [updateScrollAffordance]);
 
   const scrollByStep = (direction: "left" | "right") => {
     const el = scrollerRef.current;
@@ -191,15 +121,18 @@ const FlashDealsSection = () => {
   return (
     <section className="relative w-full border border-[var(--dni-cart-border)] bg-white">
       <div className="flex items-center gap-4 px-4 py-4 border-b border-[var(--dni-cart-border)]">
-        <div className="flex items-center gap-4 flex-1 min-w-0">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
           <div className="flex items-center gap-2 text-[var(--dni-primary)]">
             <Flame className="h-7 w-7 fill-[var(--dni-primary)]" />
-            <span className="text-xl font-black uppercase tracking-tight whitespace-nowrap">
-              Flash Deals
+            <span className="text-xl font-black uppercase tracking-tight">
+              Flash
+            </span>
+            <span className="text-xl font-medium uppercase tracking-tight">
+              Deals
             </span>
           </div>
 
-          <div className="hidden items-center gap-2 border-l border-[var(--dni-cart-border)] pl-4 sm:flex">
+          <div className="flex items-center gap-2 ml-4 border-l border-[var(--dni-cart-border)] pl-4">
             <div className="flex items-center gap-1.5">
               {timerBlocks.map((block, idx) => (
                 <div key={idx} className="flex items-center gap-1">
@@ -223,12 +156,8 @@ const FlashDealsSection = () => {
           to="/flash-deals"
           className="group inline-flex shrink-0 items-center gap-1.5 text-sm font-bold text-[var(--dni-primary)] hover:text-[var(--dni-primary-hover)] transition-colors"
         >
-          <span>
-            See All
-            <span className="inline-block transition-transform duration-200 group-hover:translate-x-1">
-              &nbsp;&gt;
-            </span>
-          </span>
+          <span>View All</span>
+          <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
         </Link>
       </div>
 
@@ -250,57 +179,50 @@ const FlashDealsSection = () => {
         >
           <div
             className="flex min-w-max gap-4"
-            style={{ width: `max-content` }}
+            style={{ width: "max-content" }}
           >
-            {loading && (
-              <>
-                {Array.from({ length: 5 }).map((_, idx) => (
+            {loading
+              ? Array.from({ length: 6 }).map((_, idx) => (
                   <div
-                    key={idx}
+                    key={`skeleton-${idx}`}
                     className="shrink-0"
                     style={{ width: `${CARD_WIDTH_PX}px` }}
                   >
-                    <div className="flex h-full min-h-[280px] flex-col border border-[var(--dni-cart-border)] bg-white">
-                      <div className="aspect-square w-full animate-pulse bg-[#e5e7eb]" />
-                      <div className="flex flex-1 flex-col gap-2 p-4">
-                        <div className="h-4 w-1/2 animate-pulse bg-[#e5e7eb]" />
-                        <div className="h-4 w-3/4 animate-pulse bg-[#e5e7eb]" />
-                        <div className="mt-auto h-5 w-full animate-pulse bg-[#e5e7eb]" />
+                    <div className="flex flex-col overflow-hidden border border-[var(--dni-cart-border)] bg-white">
+                      <div className="aspect-square animate-pulse bg-[#f0f0f0]" />
+                      <div className="space-y-2 p-4">
+                        <div className="h-4 w-1/2 animate-pulse bg-[#f0f0f0]" />
+                        <div className="h-3 w-3/4 animate-pulse bg-[#f0f0f0]" />
+                        <div className="h-5 w-full animate-pulse bg-[#f0f0f0]" />
                       </div>
                     </div>
                   </div>
-                ))}
-              </>
-            )}
-
-            {!loading && error && (
-              <div className="w-full rounded-lg border border-[#fecaca] bg-[#fef2f2] px-6 py-8 text-center">
-                <p className="text-sm font-medium text-[#b91c1c]">{error}</p>
-              </div>
-            )}
-
-            {!loading && !error && deals.length === 0 && (
-              <div className="w-full rounded-lg border border-[var(--dni-border)] bg-white px-6 py-8 text-center">
-                <p className="text-sm font-medium text-[#4b5563]">
-                  No flash deals available right now.
-                </p>
-              </div>
-            )}
-
-            {!loading &&
-              !error &&
-              deals.map((deal) => (
-                <div
-                  key={deal.id}
-                  className="shrink-0"
-                  style={{ width: `${CARD_WIDTH_PX}px` }}
-                >
-                  <FlashDealCard deal={deal} />
-                </div>
-              ))}
+                ))
+              : deals.length === 0 ? (
+                  <div
+                    className="shrink-0"
+                    style={{ width: `${CARD_WIDTH_PX}px` }}
+                  >
+                    <div className="flex h-full min-h-[220px] flex-col items-center justify-center gap-2 border border-[var(--dni-cart-border)] bg-white px-4 text-center">
+                      <Flame className="h-8 w-8 fill-[var(--dni-primary-50)] text-[var(--dni-primary)]" />
+                      <p className="text-sm font-medium text-slate-500">
+                        No flash deals right now
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  deals.map((deal) => (
+                    <div
+                      key={deal.id}
+                      className="shrink-0"
+                      style={{ width: `${CARD_WIDTH_PX}px` }}
+                    >
+                      <FlashDealCard deal={deal} />
+                    </div>
+                  ))
+                )}
           </div>
         </div>
-
         {canScrollRight && (
           <button
             type="button"
