@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef, useEffect } from 'react'
 import {
   Menu,
   Search,
@@ -12,67 +12,27 @@ import {
   X,
   ArrowRight,
   Layers,
-} from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
-import { useAppDispatch, useAppSelector } from "@/app/hooks";
-import { logout } from "@/features/auth/store/authThunks";
-import { useDashboardMenu } from "../../hooks/useDashboardMenu";
+} from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAppDispatch, useAppSelector } from '@/app/hooks'
+import { logout } from '@/features/auth/store/authThunks'
+import {
+  fetchNotifications,
+  fetchUnreadCount,
+  markNotificationRead,
+} from '@/features/notifications/store/notificationSlice'
+import { useDashboardMenu } from '../../hooks/useDashboardMenu'
 import {
   searchGlobalData,
   type GlobalSearchSection,
-} from "../../api/globalSearchApi";
-import type { DashboardArea } from "../../types/dashboardTypes";
-import { getTopbarRouteConfig } from "../../config/topbarRouteConfig";
+} from '../../api/globalSearchApi'
+import type { DashboardArea } from '../../types/dashboardTypes'
+import { getTopbarRouteConfig } from '../../config/topbarRouteConfig'
 
 type DashboardTopbarProps = {
   area: DashboardArea;
   onMenuClick: () => void;
 };
-
-type TopbarNotification = {
-  id: string;
-  title: string;
-  message: string;
-  timeAgo: string;
-  type: "order" | "payment" | "signup";
-  read: boolean;
-};
-
-const INITIAL_NOTIFICATIONS: TopbarNotification[] = [
-  {
-    id: "n1",
-    title: "New order received",
-    message: "Emma Wilson placed order ORD-7891 for $299.00",
-    timeAgo: "2 min ago",
-    type: "order",
-    read: false,
-  },
-  {
-    id: "n2",
-    title: "Payment processed",
-    message: "Payment of $1,499.00 from Sofia Garcia confirmed.",
-    timeAgo: "15 min ago",
-    type: "payment",
-    read: false,
-  },
-  {
-    id: "n3",
-    title: "New customer signup",
-    message: "James Chen created an account.",
-    timeAgo: "1 hour ago",
-    type: "signup",
-    read: false,
-  },
-  {
-    id: "n4",
-    title: "Order shipped",
-    message: "ORD-7889 has been shipped to Sofia Garcia.",
-    timeAgo: "2 hours ago",
-    type: "order",
-    read: true,
-  },
-];
-
 type SearchResult = {
   key: string;
   label: string;
@@ -89,9 +49,14 @@ const DashboardTopbar = ({ area, onMenuClick }: DashboardTopbarProps) => {
   const navigate = useNavigate();
   const authUser = useAppSelector((state) => state.auth.user);
   const menuSections = useDashboardMenu(area);
-  const [notifications, setNotifications] = useState<TopbarNotification[]>(
-    INITIAL_NOTIFICATIONS,
+
+  const notifications = useAppSelector(
+    (state) => state.notifications.items.slice(0, 5),
   );
+  const unreadCount = useAppSelector(
+    (state) => state.notifications.unreadCount,
+  );
+
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -316,21 +281,35 @@ const DashboardTopbar = ({ area, onMenuClick }: DashboardTopbarProps) => {
     navigate("/login");
   };
 
-  const markNotificationRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, read: true } : item)),
-    );
-  };
+  const formatTimeAgo = (value: string): string => {
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return 'Recently'
+    const diffMinutes = Math.max(1, Math.round((Date.now() - date.getTime()) / 60000))
+    if (diffMinutes < 60) return `${diffMinutes} min ago`
+    const diffHours = Math.round(diffMinutes / 60)
+    if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`
+    const diffDays = Math.round(diffHours / 24)
+    return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`
+  }
+
+  const markNotificationAsRead = (notification: { id: string; status: 'UNREAD' | 'READ' }) => {
+    if (notification.status !== 'UNREAD') return
+    void dispatch(markNotificationRead(notification.id))
+  }
 
   const markAllRead = () => {
-    setNotifications((prev) => prev.map((item) => ({ ...item, read: true })));
-  };
+    notifications.forEach((notification) => {
+      if (notification.status === 'UNREAD') {
+        void dispatch(markNotificationRead(notification.id))
+      }
+    })
+  }
 
-  const getNotificationIcon = (type: TopbarNotification["type"]) => {
-    if (type === "payment") return CreditCard;
-    if (type === "signup") return UserPlus;
-    return ShoppingCart;
-  };
+  const getNotificationIcon = (type: string) => {
+    if (type === 'PAYMENT') return CreditCard
+    if (type === 'ACCOUNT' || type === 'MARKETING') return UserPlus
+    return ShoppingCart
+  }
 
   const renderSearchRow = (
     key: string,
@@ -521,6 +500,37 @@ const DashboardTopbar = ({ area, onMenuClick }: DashboardTopbarProps) => {
                   })}
                 </div>
 
+              <div className="max-h-[420px] overflow-y-auto">
+                {notifications.map((item) => {
+                  const Icon = getNotificationIcon(item.type)
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        markNotificationAsRead(item)
+                        navigate(topbarRoutes.notificationsPath)
+                        setNotificationOpen(false)
+                      }}
+                      className={`flex w-full cursor-pointer items-start gap-3 border-b border-slate-100 px-4 py-3 text-left transition-colors ${
+                        item.status === 'READ' ? 'bg-white' : 'bg-emerald-50/30 hover:bg-emerald-50/50'
+                      }`}
+                    >
+                      <div className="rounded-full bg-emerald-100 p-2 text-emerald-600">
+                        <Icon size={16} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold leading-tight text-slate-900">
+                          {item.title}
+                        </p>
+                        <p className="mt-0.5 truncate text-xs text-slate-600">{item.message}</p>
+                        <p className="mt-1 text-xs text-slate-400">{formatTimeAgo(item.createdAt)}</p>
+                      </div>
+                      {item.status === 'UNREAD' && <span className="mt-2 h-2.5 w-2.5 rounded-full bg-emerald-600" />}
+                    </button>
+                  )
+                })}
+                   </div>
                 <div className="border-t border-slate-100 bg-slate-50 px-4 py-3 text-center">
                   <Link
                     to={topbarRoutes.notificationsPath}
@@ -644,6 +654,43 @@ const DashboardTopbar = ({ area, onMenuClick }: DashboardTopbarProps) => {
               </button>
             </div>
 
+          {profileOpen && (
+            <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-lg border border-slate-200 bg-white py-2 shadow-lg">
+              <div className="border-b border-slate-100 px-4 py-3">
+                <p className="text-sm font-semibold text-slate-900">{displayName}</p>
+                <p className="mt-0.5 truncate text-xs text-slate-500">{displayEmail}</p>
+              </div>
+              <div className="py-1">
+                <Link
+                  to={topbarRoutes.settingsPath}
+                  onClick={() => setProfileOpen(false)}
+                  className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                >
+                  <Settings size={16} className="text-slate-500" />
+                  Settings
+                </Link>
+                <Link
+                  to={topbarRoutes.notificationsPath}
+                  onClick={() => setProfileOpen(false)}
+                  className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                >
+                  <Bell size={16} className="text-slate-500" />
+                  Notifications
+                  {unreadCount > 0 && (
+                    <span className="ml-auto rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-medium text-white">
+                      {unreadCount}
+                    </span>
+                  )}
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 cursor-pointer"
+                >
+                  <LogOut size={16} className="text-slate-500" />
+                  Log out
+                </button>
+                </div>
             {/* Results Area (Only shown when a query is typed) */}
             {searchQuery.trim().length > 0 && (
               <div className="overflow-y-auto p-2 space-y-1 flex-1 bg-white">

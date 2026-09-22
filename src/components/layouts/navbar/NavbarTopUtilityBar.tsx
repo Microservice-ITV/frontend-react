@@ -28,14 +28,6 @@ const NavbarTopUtilityBar = () => {
         <div className="bg-gray-50 text-xs text-gray-600 overflow-visible">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 flex justify-between h-8 items-center gap-2">
                 <div className="flex space-x-4 items-center">
-                    <button
-                        type="button"
-                        onClick={() => dispatch(openAiAssistant())}
-                        className="inline-flex items-center gap-1 hover:text-black cursor-pointer"
-                    >
-                        <Sparkles className="h-3 w-3 text-emerald-600" />
-                        AI Shopping
-                    </button>
                     {/* <Link to={startSellingTo} className="hover:text-black">
                         Start Selling
                     </Link>

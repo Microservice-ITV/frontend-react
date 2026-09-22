@@ -28,6 +28,7 @@ import announcementTypeReducer from "@/features/announcements/store/announcement
 import announcementReducer from "@/features/announcements/store/announcementSlice";
 import aiAssistantReducer from "@/features/ai/store/aiAssistantSlice";
 import wishlistReducer from "@/features/wishlist/store/wishlistSlice";
+import notificationReducer from "@/features/notifications/store/notificationSlice";
 
 // Single source of truth for all state
 const rootReducer = combineReducers({
@@ -61,6 +62,7 @@ const rootReducer = combineReducers({
   announcements: announcementReducer,
   aiAssistant: aiAssistantReducer,
   wishlist: wishlistReducer,
+  notifications: notificationReducer,
 });
 
 export default rootReducer;
