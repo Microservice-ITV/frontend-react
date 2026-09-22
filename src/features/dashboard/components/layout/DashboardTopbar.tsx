@@ -84,19 +84,19 @@ const DashboardTopbar = ({ area, onMenuClick }: DashboardTopbarProps) => {
         const items = section.items.flatMap((item) =>
           item.children && item.children.length > 0
             ? item.children.map((child) => ({
-                key: child.key,
-                label: child.label,
-                to: child.to,
-                section: section.title,
-              }))
+              key: child.key,
+              label: child.label,
+              to: child.to,
+              section: section.title,
+            }))
             : [
-                {
-                  key: item.key,
-                  label: item.label,
-                  to: item.to,
-                  section: section.title,
-                },
-              ],
+              {
+                key: item.key,
+                label: item.label,
+                to: item.to,
+                section: section.title,
+              },
+            ],
         );
         return items;
       }),
@@ -107,8 +107,8 @@ const DashboardTopbar = ({ area, onMenuClick }: DashboardTopbarProps) => {
     const query = searchQuery.trim().toLowerCase();
     return query
       ? searchResults.filter((result) =>
-          result.label.toLowerCase().includes(query),
-        )
+        result.label.toLowerCase().includes(query),
+      )
       : searchResults;
   }, [searchResults, searchQuery]);
 
@@ -176,7 +176,6 @@ const DashboardTopbar = ({ area, onMenuClick }: DashboardTopbarProps) => {
 
   const displayName = authUser?.name ?? "User";
   const displayEmail = authUser?.email ?? "";
-  const unreadCount = notifications.filter((n) => !n.read).length;
   const topbarRoutes = getTopbarRouteConfig(area);
 
   // Mount/unmount + enter/exit animation state machine for the search modal.
@@ -329,11 +328,10 @@ const DashboardTopbar = ({ area, onMenuClick }: DashboardTopbarProps) => {
           if (index != null) setActiveIndex(index);
         }}
         onClick={() => goToSearchResult(to)}
-        className={`group flex w-full cursor-pointer items-center justify-between gap-3 px-4 py-3 text-left transition-all rounded-xl ${
-          isActive
+        className={`group flex w-full cursor-pointer items-center justify-between gap-3 px-4 py-3 text-left transition-all rounded-xl ${isActive
             ? "bg-emerald-50 text-emerald-900 font-medium"
             : "hover:bg-slate-50 text-slate-700"
-        }`}
+          }`}
       >
         <div className="flex items-center gap-3 min-w-0">
           <div
@@ -353,11 +351,10 @@ const DashboardTopbar = ({ area, onMenuClick }: DashboardTopbarProps) => {
         <div className="flex items-center gap-2 shrink-0">
           {rightText && (
             <span
-              className={`rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${
-                isActive
+              className={`rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${isActive
                   ? "bg-emerald-100 text-emerald-700"
                   : "bg-slate-100 text-slate-500"
-              }`}
+                }`}
             >
               {rightText}
             </span>
@@ -450,6 +447,7 @@ const DashboardTopbar = ({ area, onMenuClick }: DashboardTopbarProps) => {
                       </span>
                     )}
                   </div>
+
                   <button
                     type="button"
                     onClick={markAllRead}
@@ -463,6 +461,7 @@ const DashboardTopbar = ({ area, onMenuClick }: DashboardTopbarProps) => {
                 <div className="max-h-[420px] overflow-y-auto divide-y divide-slate-100">
                   {notifications.map((item) => {
                     const Icon = getNotificationIcon(item.type);
+
                     return (
                       <button
                         key={item.id}
@@ -472,15 +471,15 @@ const DashboardTopbar = ({ area, onMenuClick }: DashboardTopbarProps) => {
                           navigate(topbarRoutes.notificationsPath);
                           setNotificationOpen(false);
                         }}
-                        className={`flex w-full cursor-pointer items-start gap-3 px-4 py-3 text-left transition-colors ${
-                          item.read
+                        className={`flex w-full cursor-pointer items-start gap-3 px-4 py-3 text-left transition-colors ${item.read
                             ? "bg-white hover:bg-slate-50"
                             : "bg-emerald-50/30 hover:bg-emerald-50/60"
-                        }`}
+                          }`}
                       >
                         <div className="rounded-full bg-emerald-100 p-2 text-emerald-600 shrink-0">
                           <Icon size={16} />
                         </div>
+
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-semibold leading-tight text-slate-900">
                             {item.title}
@@ -492,6 +491,7 @@ const DashboardTopbar = ({ area, onMenuClick }: DashboardTopbarProps) => {
                             {item.timeAgo}
                           </p>
                         </div>
+
                         {!item.read && (
                           <span className="mt-2 h-2 w-2 rounded-full bg-emerald-600 shrink-0" />
                         )}
@@ -500,37 +500,6 @@ const DashboardTopbar = ({ area, onMenuClick }: DashboardTopbarProps) => {
                   })}
                 </div>
 
-              <div className="max-h-[420px] overflow-y-auto">
-                {notifications.map((item) => {
-                  const Icon = getNotificationIcon(item.type)
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => {
-                        markNotificationAsRead(item)
-                        navigate(topbarRoutes.notificationsPath)
-                        setNotificationOpen(false)
-                      }}
-                      className={`flex w-full cursor-pointer items-start gap-3 border-b border-slate-100 px-4 py-3 text-left transition-colors ${
-                        item.status === 'READ' ? 'bg-white' : 'bg-emerald-50/30 hover:bg-emerald-50/50'
-                      }`}
-                    >
-                      <div className="rounded-full bg-emerald-100 p-2 text-emerald-600">
-                        <Icon size={16} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold leading-tight text-slate-900">
-                          {item.title}
-                        </p>
-                        <p className="mt-0.5 truncate text-xs text-slate-600">{item.message}</p>
-                        <p className="mt-1 text-xs text-slate-400">{formatTimeAgo(item.createdAt)}</p>
-                      </div>
-                      {item.status === 'UNREAD' && <span className="mt-2 h-2.5 w-2.5 rounded-full bg-emerald-600" />}
-                    </button>
-                  )
-                })}
-                   </div>
                 <div className="border-t border-slate-100 bg-slate-50 px-4 py-3 text-center">
                   <Link
                     to={topbarRoutes.notificationsPath}
@@ -565,6 +534,7 @@ const DashboardTopbar = ({ area, onMenuClick }: DashboardTopbarProps) => {
                     {displayEmail}
                   </p>
                 </div>
+
                 <div className="py-1">
                   <Link
                     to={topbarRoutes.settingsPath}
@@ -574,6 +544,7 @@ const DashboardTopbar = ({ area, onMenuClick }: DashboardTopbarProps) => {
                     <Settings size={16} className="text-slate-400" />
                     Settings
                   </Link>
+
                   <Link
                     to={topbarRoutes.notificationsPath}
                     onClick={() => setProfileOpen(false)}
@@ -581,11 +552,15 @@ const DashboardTopbar = ({ area, onMenuClick }: DashboardTopbarProps) => {
                   >
                     <Bell size={16} className="text-slate-400" />
                     Notifications
-                    <span className="ml-auto rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-medium text-white">
-                      4
-                    </span>
+                    {unreadCount > 0 && (
+                      <span className="ml-auto rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-medium text-white">
+                        {unreadCount}
+                      </span>
+                    )}
                   </Link>
+
                   <div className="my-1 border-t border-slate-100" />
+
                   <button
                     type="button"
                     onClick={handleLogout}
@@ -606,9 +581,8 @@ const DashboardTopbar = ({ area, onMenuClick }: DashboardTopbarProps) => {
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4">
           {/* Backdrop fades in/out */}
           <div
-            className={`fixed inset-0 bg-slate-900/10 backdrop-blur-[2px] transition-opacity duration-200 ease-out ${
-              modalVisible ? "opacity-100" : "opacity-0"
-            }`}
+            className={`fixed inset-0 bg-slate-900/10 backdrop-blur-[2px] transition-opacity duration-200 ease-out ${modalVisible ? "opacity-100" : "opacity-0"
+              }`}
             onClick={() => {
               setSearchOpen(false);
               setSearchQuery("");
@@ -618,11 +592,10 @@ const DashboardTopbar = ({ area, onMenuClick }: DashboardTopbarProps) => {
           {/* Centered Search Box: fades + scales + slides in/out */}
           <div
             ref={modalRef}
-            className={`relative w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl ring-1 ring-slate-900/5 z-10 flex flex-col max-h-[80vh] transition-all duration-200 ease-out ${
-              modalVisible
+            className={`relative w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl ring-1 ring-slate-900/5 z-10 flex flex-col max-h-[80vh] transition-all duration-200 ease-out ${modalVisible
                 ? "opacity-100 scale-100 translate-y-0"
                 : "opacity-0 scale-95 -translate-y-2"
-            }`}
+              }`}
           >
             {/* Input Header Area */}
             <div className="relative flex items-center px-4 py-3.5 border-b border-slate-100 bg-white">
@@ -630,6 +603,7 @@ const DashboardTopbar = ({ area, onMenuClick }: DashboardTopbarProps) => {
                 size={20}
                 className="text-emerald-600 shrink-0 mr-3 pointer-events-none"
               />
+
               <input
                 ref={searchInputRef}
                 type="text"
@@ -642,6 +616,7 @@ const DashboardTopbar = ({ area, onMenuClick }: DashboardTopbarProps) => {
                 onKeyDown={handleSearchKeyDown}
                 className="w-full bg-transparent text-sm sm:text-base outline-none placeholder:text-slate-400 text-slate-800 font-medium"
               />
+
               <button
                 type="button"
                 onClick={() => {
@@ -654,49 +629,13 @@ const DashboardTopbar = ({ area, onMenuClick }: DashboardTopbarProps) => {
               </button>
             </div>
 
-          {profileOpen && (
-            <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-lg border border-slate-200 bg-white py-2 shadow-lg">
-              <div className="border-b border-slate-100 px-4 py-3">
-                <p className="text-sm font-semibold text-slate-900">{displayName}</p>
-                <p className="mt-0.5 truncate text-xs text-slate-500">{displayEmail}</p>
-              </div>
-              <div className="py-1">
-                <Link
-                  to={topbarRoutes.settingsPath}
-                  onClick={() => setProfileOpen(false)}
-                  className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
-                >
-                  <Settings size={16} className="text-slate-500" />
-                  Settings
-                </Link>
-                <Link
-                  to={topbarRoutes.notificationsPath}
-                  onClick={() => setProfileOpen(false)}
-                  className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
-                >
-                  <Bell size={16} className="text-slate-500" />
-                  Notifications
-                  {unreadCount > 0 && (
-                    <span className="ml-auto rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-medium text-white">
-                      {unreadCount}
-                    </span>
-                  )}
-                </Link>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 cursor-pointer"
-                >
-                  <LogOut size={16} className="text-slate-500" />
-                  Log out
-                </button>
-                </div>
             {/* Results Area (Only shown when a query is typed) */}
             {searchQuery.trim().length > 0 && (
               <div className="overflow-y-auto p-2 space-y-1 flex-1 bg-white">
                 {filteredResults.length > 0 && (
                   <div>
                     {renderSectionHeading("Platform Pages")}
+
                     <div className="space-y-0.5">
                       {filteredResults.map((result) =>
                         renderSearchRow(
@@ -713,6 +652,7 @@ const DashboardTopbar = ({ area, onMenuClick }: DashboardTopbarProps) => {
                 {dataGroups.map((section) => (
                   <div key={section.id} className="pt-2">
                     {renderSectionHeading(section.label)}
+
                     <div className="space-y-0.5">
                       {section.items.map((item) =>
                         renderSearchRow(
@@ -755,5 +695,4 @@ const DashboardTopbar = ({ area, onMenuClick }: DashboardTopbarProps) => {
     </>
   );
 };
-
 export default DashboardTopbar;
