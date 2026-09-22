@@ -123,6 +123,7 @@ import SellerExpenseFormPage from "@/features/accounting/pages/SellerExpenseForm
 import SellerExpensesPage from "@/features/accounting/pages/SellerExpensesPage";
 import SellerPendingApprovalsPage from "@/features/accounting/pages/SellerPendingApprovalsPage";
 import SellerExpenseDetailPage from "@/features/accounting/pages/SellerExpenseDetailPage";
+import SellerIncomePage from "@/features/accounting/pages/SellerIncomePage";
 import SellerJournalEntriesPage from "@/features/accounting/pages/SellerJournalEntriesPage";
 import SellerApprovalPoliciesPage from "@/features/accounting/pages/SellerApprovalPoliciesPage";
 import SellerApprovalPolicyFormPage from "@/features/accounting/pages/SellerApprovalPolicyFormPage";
@@ -521,6 +522,16 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.sellerAccounting}
                 >
                   <SellerAccountingOverviewPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/income"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerAccounting}
+                >
+                  <SellerIncomePage />
                 </ProtectedRoute>
               }
             />

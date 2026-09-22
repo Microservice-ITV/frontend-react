@@ -167,6 +167,14 @@ withSearch({
         icon: Calculator,
       },
       {
+        key: "seller-accounting-income",
+        label: "Income",
+        to: "/seller/accounting/income",
+        area: "seller",
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: DollarSign,
+      },
+      {
         key: "seller-accounting-expenses",
         label: "Expenses",
         to: "/seller/accounting/expenses",
