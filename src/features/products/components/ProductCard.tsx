@@ -144,7 +144,7 @@ function ProductName({ name }: { name: string }) {
         role="tooltip"
         className="
           pointer-events-none absolute left-0 top-full z-20 mt-1 block w-max max-w-[240px]
-          rounded bg-slate-900 px-2 py-1 text-xs font-medium leading-snug text-white
+          rounded bg-gray-500 px-2 py-1 text-xs font-medium leading-snug text-white
           opacity-0 shadow-lg transition-opacity duration-150 group-hover/name:opacity-100
         "
       >
