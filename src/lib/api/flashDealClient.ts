@@ -1,4 +1,5 @@
 import { ecommerceReadRestClient } from './ecommerceReadRestClient'
+import { productServiceAssetUrl } from './apiConfig'
 
 export interface FlashDealTimeSlot {
   time: string
@@ -48,4 +49,13 @@ export const getFlashDealsByTimeSlot = (params?: {
   ecommerceReadRestClient.get<FlashDealsTimeSlotResponse>(
     '/catalog/flash-deals/time-slots',
     { params },
-  )
+  ).then((res) => ({
+    ...res,
+    data: {
+      ...res.data,
+      items: (res.data.items ?? []).map((item) => ({
+        ...item,
+        image: item.image ? productServiceAssetUrl(item.image) : item.image,
+      })),
+    },
+  }))
