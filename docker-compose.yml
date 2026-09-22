@@ -13,6 +13,7 @@ services:
     container_name: frontendreact-${NODE_CONTAINER_NAME}
     working_dir: ${NODE_WORKING_DIR}
     restart: always
+    stop_grace_period: 10s
     environment:
       APP_ENV: ${APP_ENV}
       VITE_APP_ENV: ${APP_ENV}
@@ -54,6 +55,7 @@ services:
   nginx:
     image: nginx:stable-alpine
     container_name: frontendreact-${NGINX_CONTAINER_NAME}
+    stop_grace_period: 10s
     ports:
       - "${APP_PORT:-3000}:80"
     volumes:

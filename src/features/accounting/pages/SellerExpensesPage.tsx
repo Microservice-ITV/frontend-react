@@ -229,7 +229,7 @@ const SellerExpensesPage = () => {
                     </td>
                     <td className="px-4 py-3">
                       <Link
-                        to={`/seller/accounting/expenses/${encodeURIComponent(expense.expenseNo)}`}
+                        to={`/seller/accounting/expenses/${encodeURIComponent(expense.id)}`}
                         className="text-xs font-medium text-emerald-700 hover:text-emerald-800"
                       >
                         View

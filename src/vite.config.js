@@ -7,6 +7,10 @@ import { fileURLToPath, URL } from 'node:url'
 export default defineConfig({
   envDir: '..',
   plugins: [react(), tailwindcss()],
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./vitest.setup.ts'],
+  },
   server: {
     // later needs to remove
     proxy: {

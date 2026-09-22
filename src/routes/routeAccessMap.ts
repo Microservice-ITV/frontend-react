@@ -45,6 +45,7 @@ export const ROUTE_ACCESS = {
   sellerFinanceOverview: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
   sellerFinanceTransactions: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
   sellerAccounting: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+  sellerPendingApprovals: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
   superAdminFinanceOverview: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   superAdminFinanceTransactions: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
 } as const

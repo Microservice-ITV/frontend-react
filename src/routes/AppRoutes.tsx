@@ -121,8 +121,11 @@ import SellerFinanceTransactionsPage from "@/features/finance/pages/SellerFinanc
 import SellerAccountingOverviewPage from "@/features/accounting/pages/SellerAccountingOverviewPage";
 import SellerExpenseFormPage from "@/features/accounting/pages/SellerExpenseFormPage";
 import SellerExpensesPage from "@/features/accounting/pages/SellerExpensesPage";
+import SellerPendingApprovalsPage from "@/features/accounting/pages/SellerPendingApprovalsPage";
 import SellerExpenseDetailPage from "@/features/accounting/pages/SellerExpenseDetailPage";
 import SellerJournalEntriesPage from "@/features/accounting/pages/SellerJournalEntriesPage";
+import SellerApprovalPoliciesPage from "@/features/accounting/pages/SellerApprovalPoliciesPage";
+import SellerApprovalPolicyFormPage from "@/features/accounting/pages/SellerApprovalPolicyFormPage";
 import AdminFinanceOverviewPage from "@/features/finance/pages/AdminFinanceOverviewPage";
 import AdminFinanceTransactionsPage from "@/features/finance/pages/AdminFinanceTransactionsPage";
 import AdminAccountingOverviewPage from "@/features/accounting/pages/AdminAccountingOverviewPage";
@@ -532,6 +535,16 @@ const AppRoutes = () => {
               }
             />
             <Route
+              path="accounting/pending-approvals"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerPendingApprovals}
+                >
+                  <SellerPendingApprovalsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="accounting/expenses/new"
               element={
                 <ProtectedRoute
@@ -558,6 +571,38 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.sellerAccounting}
                 >
                   <SellerJournalEntriesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/approval-policies"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerAccounting}>
+                  <SellerApprovalPoliciesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/approval-policies/new"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerAccounting}>
+                  <SellerApprovalPolicyFormPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/approval-policies/:policyId"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerAccounting}>
+                  <SellerApprovalPolicyFormPage readOnly />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/approval-policies/:policyId/edit"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerAccounting}>
+                  <SellerApprovalPolicyFormPage />
                 </ProtectedRoute>
               }
             />
