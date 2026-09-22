@@ -22,10 +22,6 @@ const CategoryDropdown = ({
   onSelect,
   menuRef,
 }: CategoryDropdownProps) => {
-  const categoriesWithProducts = categories.filter(
-    (c) => (c._count?.products ?? 0) > 0,
-  );
-
   return (
     <div className="relative flex-shrink-0" ref={menuRef}>
       <button
@@ -62,7 +58,7 @@ const CategoryDropdown = ({
           >
             All Categories
           </button>
-          {categoriesWithProducts.map((c) => (
+          {categories.map((c) => (
             <button
               key={c.id}
               type="button"

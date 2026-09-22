@@ -46,6 +46,7 @@ import SellerMentorsPage from "@/features/seller-mentors/pages/SellerMentorsPage
 import FlashDealsPage from "@/features/flash-deals/pages/FlashDealsPage";
 import MediaContactPage from "@/features/media/pages/MediaContactPage";
 import AmbassadorProgrammePage from "@/features/ambassador/pages/AmbassadorProgrammePage";
+import NotFoundPage from "@/features/common/pages/NotFoundPage";
 import AccountLayout from "@/features/account/pages/AccountLayout";
 import ProfilePage from "@/features/account/pages/ProfilePage";
 import BanksCardsPage from "@/features/account/pages/BanksCardsPage";
@@ -55,6 +56,7 @@ import NotificationsPage from "@/features/account/pages/NotificationsPage";
 import NotificationsCenterPage from "@/features/account/pages/NotificationsCenterPage";
 import OrdersPage from "@/features/account/pages/OrdersPage";
 import OrderTrackingPage from "@/features/account/pages/OrderTrackingPage";
+import CustomerInvoicesPage from "@/features/account/pages/CustomerInvoicesPage";
 import VouchersPage from "@/features/account/pages/VouchersPage";
 import CoinsPage from "@/features/account/pages/CoinsPage";
 import { ROUTE_ACCESS } from "./routeAccessMap";
@@ -85,7 +87,19 @@ import AdminOverviewPage from "@/features/admin/pages/AdminOverviewPage";
 import AdminShopDetailPage from "@/features/admin/pages/AdminShopDetailPage";
 import AdminShopEditPage from "@/features/admin/pages/AdminShopEditPage";
 import AdminShopsPage from "@/features/admin/pages/AdminShopsPage";
+import AdminPricingRulesPage from "@/features/admin/pages/AdminPricingRulesPage";
+import AdminPricingRuleFormPage from "@/features/admin/pages/AdminPricingRuleFormPage";
+import AdminPricingRuleDetailPage from "@/features/admin/pages/AdminPricingRuleDetailPage";
+import AdminWeightRatesPage from "@/features/admin/pages/AdminWeightRatesPage";
+import AdminWeightRateFormPage from "@/features/admin/pages/AdminWeightRateFormPage";
+import AdminWeightRateDetailPage from "@/features/admin/pages/AdminWeightRateDetailPage";
+import AdminDistanceRangesPage from "@/features/admin/pages/AdminDistanceRangesPage";
+import AdminDistanceRangeFormPage from "@/features/admin/pages/AdminDistanceRangeFormPage";
+import AdminDistanceRangeDetailPage from "@/features/admin/pages/AdminDistanceRangeDetailPage";
+import AdminDeliveryQuotesPage from "@/features/admin/pages/AdminDeliveryQuotesPage";
+import AdminDeliveryQuoteDetailPage from "@/features/admin/pages/AdminDeliveryQuoteDetailPage";
 import AdminUsersPage from "@/features/admin/pages/AdminUsersPage";
+import AdminInvoicesPage from "@/features/admin/pages/AdminInvoicesPage";
 import AdminIncomePage from "@/features/admin/pages/AdminIncomePage";
 import AdminExpensePage from "@/features/admin/pages/AdminExpensePage";
 import AdminExpenseCategoriesPage from "@/features/admin/pages/AdminExpenseCategoriesPage";
@@ -99,6 +113,9 @@ import AnnouncementDetailPage from "@/features/announcements/pages/AnnouncementD
 import { PhoneAuthPage } from "@/features/auth/pages/PhoneAuthPage";
 import { PhoneOtpPage } from "@/features/auth/pages/PhoneOtpPage";
 import PromotionEnginePage from "@/features/promotions/pages/PromotionEnginePage";
+import AdminFlashDealsPage from "@/features/flash-deals/pages/AdminFlashDealsPage";
+import NewFlashDealPage from "@/features/flash-deals/pages/NewFlashDealPage";
+import EditFlashDealPage from "@/features/flash-deals/pages/EditFlashDealPage";
 import SellerFinanceOverviewPage from "@/features/finance/pages/SellerFinanceOverviewPage";
 import SellerFinanceTransactionsPage from "@/features/finance/pages/SellerFinanceTransactionsPage";
 import SellerAccountingOverviewPage from "@/features/accounting/pages/SellerAccountingOverviewPage";
@@ -177,6 +194,7 @@ const AppRoutes = () => {
                 </ProtectedRoute>
               }
             />
+            <Route path="invoices" element={<CustomerInvoicesPage />} />
             <Route path="my-vouchers" element={<VouchersPage />} />
             <Route path="my-coins" element={<CoinsPage />} />
           </Route>
@@ -881,6 +899,146 @@ const AppRoutes = () => {
               }
             />
             <Route
+              path="shipping/pricing-rules/new"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminPricingRuleFormPage mode="create" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/pricing-rules/:id/edit"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminPricingRuleFormPage mode="edit" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/pricing-rules"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminPricingRulesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/pricing-rules/:id"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminPricingRuleDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/weight-rates/new"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminWeightRateFormPage mode="create" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/weight-rates/:id/edit"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminWeightRateFormPage mode="edit" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/weight-rates"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminWeightRatesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/weight-rates/:id"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminWeightRateDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/distance-ranges/new"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminDistanceRangeFormPage mode="create" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/distance-ranges/:id/edit"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminDistanceRangeFormPage mode="edit" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/distance-ranges"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminDistanceRangesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/distance-ranges/:id"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminDistanceRangeDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/quotes/:id"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminDeliveryQuoteDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/quotes"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminDeliveryQuotesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="categories/new"
               element={
                 <ProtectedRoute
@@ -935,6 +1093,16 @@ const AppRoutes = () => {
                     title="User Administration"
                     description="Global user operations, moderation, and support workflows are planned for this page."
                   /> */}
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="invoices"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminInvoices}
+                >
+                  <AdminInvoicesPage />
                 </ProtectedRoute>
               }
             />
@@ -1034,6 +1202,36 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.promotionsView}
                 >
                   <PromotionEnginePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="promotion-engine/flash-deals"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.promotionsView}
+                >
+                  <AdminFlashDealsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="promotion-engine/flash-deals/new"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.promotionsView}
+                >
+                  <NewFlashDealPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="promotion-engine/flash-deals/:id/edit"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.promotionsView}
+                >
+                  <EditFlashDealPage />
                 </ProtectedRoute>
               }
             />
@@ -1188,7 +1386,14 @@ const AppRoutes = () => {
       <Route path="/help-centre/contact-us" element={<HelpArticlePage />} />
       <Route path="/cart" element={<CartPage />} />
       <Route path="/cart/see-more" element={<CartSeeMorePage />} />
-      <Route path="/wishlist" element={<WishlistPage />} />
+      <Route
+        path="/wishlist"
+        element={
+          <ProtectedRoute>
+            <WishlistPage />
+          </ProtectedRoute>
+        }
+      />
       <Route path="/recently-added" element={<RecentlyAddedPage />} />
       <Route path="/about" element={<AboutUsPage />} />
       <Route path="/careers" element={<CareersPage />} />
@@ -1203,7 +1408,7 @@ const AppRoutes = () => {
       <Route path="/ambassador" element={<AmbassadorProgrammePage />} />
 
       {/* fallback */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 };

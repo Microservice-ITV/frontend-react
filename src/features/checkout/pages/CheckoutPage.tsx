@@ -250,9 +250,18 @@ const CheckoutPage = () => {
                 address: selectedDeliveryAddress,
                 items,
                 cacheKey: shippingCalculateCacheKey,
+                customer: { id: authUser?.id, name: authUser?.name },
             }),
         )
-    }, [dispatch, hasDeliveryAddress, selectedDeliveryAddress, items, shippingCalculateCacheKey])
+    }, [
+        dispatch,
+        hasDeliveryAddress,
+        selectedDeliveryAddress,
+        items,
+        shippingCalculateCacheKey,
+        authUser?.id,
+        authUser?.name,
+    ])
 
     // Drop any stale checkout session from Redux/storage when the user has no saved addresses yet.
     useEffect(() => {
@@ -400,11 +409,11 @@ const CheckoutPage = () => {
             return
         }
 
-        const effectiveMethod = sessionPaymentMethod ?? paymentMethod
-        const isCod = effectiveMethod === 'cod'
-        // Card: poll until Stripe client_secret is ready, then again after place order.
-        // COD: keep polling until intent metadata is ready, and after place order
-        // until authorize → payment.completed marks the session PAID.
+        const effectivePaymentMethod = sessionPaymentMethod ?? paymentMethod
+        const isCod = effectivePaymentMethod === 'cod'
+        // Prepaid: poll until Stripe client_secret is ready, then again after place order.
+        // COD: keep polling until intent metadata (client_secret) is ready, then after
+        // place order until authorize → payment.completed marks the session PAID.
         const shouldPollForClientSecret = !clientSecret
         const shouldPollForFinalStatus = isAwaitingFinalStatus
         const shouldPollForCodReady =

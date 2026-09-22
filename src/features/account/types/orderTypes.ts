@@ -1,4 +1,5 @@
 export interface PurchasedOrderItem {
+  orderItemId?: string
   productId: string
   sku: string
   slug: string
@@ -9,6 +10,7 @@ export interface PurchasedOrderItem {
   unitPrice: number
   lineTotal: number
   currency: string
+  shopId?: string
 }
 
 export interface PurchasedOrderTotals {

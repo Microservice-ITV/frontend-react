@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ecommerceReadClient } from '@/lib/api/ecommerceReadClient'
 import { deliveryApi } from '@/lib/api/deliveryClient'
+import { createPartialInvoice } from '@/lib/api/invoiceClient'
 import type { PurchasedOrder, PurchasedOrderItem, PurchasedOrderTotals } from '../types/orderTypes'
 
 const ORDER_BY_ID_QUERY = `
@@ -12,6 +13,7 @@ const ORDER_BY_ID_QUERY = `
       createdAt
       placedAt
       items {
+        orderItemId
         productId
         sku
         name
@@ -20,6 +22,7 @@ const ORDER_BY_ID_QUERY = `
         unitPrice
         lineTotal
         currency
+        shopId
       }
       totals {
         subtotal
@@ -148,6 +151,12 @@ const OrderTrackingPage = () => {
   const [error, setError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
   const [confirmError, setConfirmError] = useState<string | null>(null)
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([])
+  const [invoiceQuantities, setInvoiceQuantities] = useState<Record<string, number>>({})
+  const [partialInvoiceIdempotencyKey, setPartialInvoiceIdempotencyKey] = useState<string | null>(null)
+  const [partialInvoiceSubmitting, setPartialInvoiceSubmitting] = useState(false)
+  const [partialInvoiceError, setPartialInvoiceError] = useState<string | null>(null)
+  const [partialInvoiceSuccess, setPartialInvoiceSuccess] = useState<string | null>(null)
 
   const orderRef = useRef<PurchasedOrder | null>(null)
   orderRef.current = order
@@ -213,6 +222,22 @@ const OrderTrackingPage = () => {
     ? ['CANCELLED', 'FAILED', 'FAILED_PAYMENT', 'EXPIRED', 'RETURNED', 'REFUNDED'].includes(order.status?.toUpperCase())
     : false
 
+  const selectedItems = useMemo(
+    () => order?.items.filter((item) => item.orderItemId && selectedItemIds.includes(item.orderItemId)) ?? [],
+    [order, selectedItemIds],
+  )
+
+  const selectedShopIds = useMemo(
+    () => [...new Set(selectedItems.map((item) => item.shopId).filter(Boolean))],
+    [selectedItems],
+  )
+
+  const hasValidInvoiceQuantities = selectedItems.every((item) => {
+    const quantity = invoiceQuantities[item.orderItemId as string]
+    return Number.isInteger(quantity) && quantity >= 1 && quantity <= item.quantity
+  })
+  const canSubmitPartialInvoice = selectedItems.length > 0 && selectedShopIds.length === 1 && hasValidInvoiceQuantities
+
   const orderTotals = useMemo(
     () => normalizeOrderTotals(order?.totals),
     [order?.totals],
@@ -258,6 +283,102 @@ const OrderTrackingPage = () => {
       setConfirmError(message)
     } finally {
       setConfirming(false)
+    }
+  }
+
+  const togglePartialInvoiceItem = (item: PurchasedOrderItem) => {
+    if (!item.orderItemId) return
+
+    const itemKey = item.orderItemId
+    setSelectedItemIds((current) =>
+      current.includes(itemKey)
+        ? current.filter((id) => id !== itemKey)
+        : [...current, itemKey],
+    )
+    setInvoiceQuantities((current) => ({
+      ...current,
+      [itemKey]: current[itemKey] ?? item.quantity,
+    }))
+    setPartialInvoiceIdempotencyKey(null)
+    setPartialInvoiceError(null)
+    setPartialInvoiceSuccess(null)
+  }
+
+  const updateInvoiceQuantity = (item: PurchasedOrderItem, value: string) => {
+    if (!item.orderItemId) return
+
+    setInvoiceQuantities((current) => ({
+      ...current,
+      [item.orderItemId as string]: Number(value),
+    }))
+    setPartialInvoiceIdempotencyKey(null)
+    setPartialInvoiceError(null)
+    setPartialInvoiceSuccess(null)
+  }
+
+  const handleCreatePartialInvoice = async () => {
+    if (!order || !orderId) {
+      return
+    }
+
+    if (selectedItems.length === 0) {
+      setPartialInvoiceError('Please select at least one item.')
+      setPartialInvoiceSuccess(null)
+      return
+    }
+
+    if (selectedShopIds.length !== 1) {
+      setPartialInvoiceError('Items from different shops must be invoiced separately.')
+      setPartialInvoiceSuccess(null)
+      return
+    }
+
+    if (!hasValidInvoiceQuantities) {
+      setPartialInvoiceError('Invoice quantity must be between 1 and the ordered quantity.')
+      setPartialInvoiceSuccess(null)
+      return
+    }
+
+    const selectedOrderItems = selectedItems.map((item) => ({
+      orderItemId: item.orderItemId as string,
+      quantity: invoiceQuantities[item.orderItemId as string],
+    }))
+
+    const idempotencyKey = partialInvoiceIdempotencyKey ?? (
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `partial-invoice-${Date.now()}-${Math.random().toString(16).slice(2)}`
+    )
+    if (!partialInvoiceIdempotencyKey) {
+      setPartialInvoiceIdempotencyKey(idempotencyKey)
+    }
+
+    setPartialInvoiceSubmitting(true)
+    setPartialInvoiceError(null)
+    setPartialInvoiceSuccess(null)
+
+    try {
+      await createPartialInvoice({
+        orderId,
+        items: selectedOrderItems,
+        customerName: order.deliveryAddress?.recipientName || undefined,
+        customerEmail: order.deliveryAddress?.email || undefined,
+        paymentMethod: order.payment?.status ? 'CARD' : 'CASH',
+      }, idempotencyKey)
+
+      setSelectedItemIds([])
+      setInvoiceQuantities({})
+      setPartialInvoiceIdempotencyKey(null)
+      setPartialInvoiceSuccess('Partial invoice created successfully.')
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        'Unable to create the partial invoice right now.'
+      setPartialInvoiceError(message)
+    } finally {
+      setPartialInvoiceSubmitting(false)
     }
   }
 
@@ -438,9 +559,73 @@ const OrderTrackingPage = () => {
             </div>
 
             <div className="divide-y divide-gray-100">
-              {order.items.map((item) => (
-                <OrderItemRow key={`${item.productId}-${item.sku}`} item={item} />
-              ))}
+              {order.items.map((item, index) => {
+                const itemKey = item.orderItemId ?? `unavailable-${index}`
+                const isChecked = Boolean(item.orderItemId && selectedItemIds.includes(item.orderItemId))
+                return (
+                  <div key={itemKey} className="px-5 py-4">
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => togglePartialInvoiceItem(item)}
+                        disabled={!item.orderItemId}
+                        className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                      />
+                      <div className="flex-1">
+                        <OrderItemRow item={item} />
+                        {!item.orderItemId && (
+                          <p className="mt-2 text-xs text-amber-700">
+                            This item cannot be invoiced because its order item ID is unavailable.
+                          </p>
+                        )}
+                        {item.orderItemId && isChecked && (
+                          <label className="mt-3 flex items-center gap-2 text-xs text-gray-600">
+                            <span>Invoice quantity:</span>
+                            <input
+                              type="number"
+                              min={1}
+                              max={item.quantity}
+                              step={1}
+                              value={invoiceQuantities[item.orderItemId] ?? item.quantity}
+                              onChange={(event) => updateInvoiceQuantity(item, event.target.value)}
+                              className="w-20 rounded-sm border border-gray-300 px-2 py-1 text-sm text-gray-900"
+                            />
+                            <span>of {item.quantity}</span>
+                          </label>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="border-t border-gray-100 bg-gray-50 px-5 py-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Partial invoice</p>
+                  <p className="text-xs text-gray-500">Select the items to invoice together. Mixed-shop selections are blocked.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void handleCreatePartialInvoice()}
+                  disabled={partialInvoiceSubmitting || !canSubmitPartialInvoice}
+                  className="inline-flex items-center justify-center rounded-sm bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+                >
+                  {partialInvoiceSubmitting ? 'Creating...' : 'Create partial invoice'}
+                </button>
+              </div>
+              {selectedItems.length === 0 && (
+                <p className="mt-3 text-xs text-gray-500">Please select at least one item.</p>
+              )}
+              {selectedItems.length > 0 && !hasValidInvoiceQuantities && (
+                <p className="mt-3 text-xs text-red-600">
+                  Invoice quantity must be between 1 and the ordered quantity.
+                </p>
+              )}
+              {partialInvoiceError && <p className="mt-3 text-xs text-red-600">{partialInvoiceError}</p>}
+              {partialInvoiceSuccess && <p className="mt-3 text-xs text-emerald-600">{partialInvoiceSuccess}</p>}
             </div>
 
             <OrderPaymentSummary totals={orderTotals} />

@@ -1,50 +1,33 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Bell, ShoppingCart, UserPlus, AlertTriangle, CreditCard, Star } from 'lucide-react'
+import { Bell, ShoppingCart, UserPlus, AlertTriangle, CreditCard, Star, RefreshCw } from 'lucide-react'
 import type { DashboardArea } from '@/features/dashboard/types/dashboardTypes'
+import { useAppDispatch, useAppSelector } from '@/app/hooks'
+import { fetchNotifications, fetchUnreadCount, markNotificationRead, type NotificationFilter } from '@/features/notifications/store/notificationSlice'
+import type { NotificationRow } from '@/features/notifications/api/notificationApi'
 
-type NotificationType = 'order' | 'payment' | 'signup' | 'system' | 'review'
-type NotificationStatus = 'all' | 'unread' | 'read'
-
-type NotificationItem = {
-  id: string
-  title: string
-  message: string
-  timeAgo: string
-  type: NotificationType
-  read: boolean
-}
-
-const MOCK_NOTIFICATIONS: NotificationItem[] = [
-  { id: 'n1', title: 'New order received', message: 'Emma Wilson placed order #ORD-7811 for $299.00', timeAgo: '1 min ago', type: 'order', read: false },
-  { id: 'n2', title: 'Payment processed', message: 'Payment of $1,499.00 from Sofia Garcia confirmed.', timeAgo: '3 mins ago', type: 'payment', read: false },
-  { id: 'n3', title: 'New customer signup', message: 'James Chen created an account.', timeAgo: '8 mins ago', type: 'signup', read: false },
-  { id: 'n4', title: 'Order shipped', message: 'ORD-7889 has been shipped to Sofia Garcia.', timeAgo: '12 mins ago', type: 'order', read: true },
-  { id: 'n5', title: 'System update', message: 'Dashboard v2.1 has been deployed successfully.', timeAgo: '25 mins ago', type: 'system', read: true },
-  { id: 'n6', title: 'Payment failed', message: 'Payment attempt for ORD-7888 from Alex Thompson failed.', timeAgo: '31 mins ago', type: 'payment', read: true },
-  { id: 'n7', title: 'New review', message: 'Maria Santos left a 5-star review: "Excellent product!"', timeAgo: '41 mins ago', type: 'review', read: true },
-  { id: 'n8', title: 'Subscription renewed', message: 'Team Plan for James Chen renewed for another month.', timeAgo: '1 hour ago', type: 'system', read: true },
-  { id: 'n9', title: 'Server maintenance', message: 'Scheduled maintenance window: Jan 20, 03:00 AM - 04:00 AM UTC', timeAgo: '2 hours ago', type: 'system', read: true },
-  { id: 'n10', title: 'Bulk export complete', message: 'Your customer data export is ready to download.', timeAgo: '3 hours ago', type: 'system', read: true },
-]
+type NotificationType = NotificationRow['type']
+type NotificationListFilter = NotificationFilter
 
 const iconMap: Record<NotificationType, typeof ShoppingCart> = {
-  order: ShoppingCart,
-  payment: CreditCard,
-  signup: UserPlus,
-  system: AlertTriangle,
-  review: Star,
+  ORDER: ShoppingCart,
+  PAYMENT: CreditCard,
+  DELIVERY: ShoppingCart,
+  WALLET: CreditCard,
+  MARKETING: UserPlus,
+  ACCOUNT: AlertTriangle,
 }
 
 const iconBgMap: Record<NotificationType, string> = {
-  order: 'bg-emerald-100 text-emerald-700',
-  payment: 'bg-cyan-100 text-cyan-700',
-  signup: 'bg-blue-100 text-blue-700',
-  system: 'bg-amber-100 text-amber-700',
-  review: 'bg-purple-100 text-purple-700',
+  ORDER: 'bg-emerald-100 text-emerald-700',
+  PAYMENT: 'bg-cyan-100 text-cyan-700',
+  DELIVERY: 'bg-indigo-100 text-indigo-700',
+  WALLET: 'bg-violet-100 text-violet-700',
+  MARKETING: 'bg-blue-100 text-blue-700',
+  ACCOUNT: 'bg-amber-100 text-amber-700',
 }
 
-const FILTERS: { key: NotificationStatus; label: string }[] = [
+const FILTERS: { key: NotificationListFilter; label: string }[] = [
   { key: 'all', label: 'All Notifications' },
   { key: 'unread', label: 'Unread' },
   { key: 'read', label: 'Read' },
@@ -52,30 +35,59 @@ const FILTERS: { key: NotificationStatus; label: string }[] = [
 
 type CommonNotificationsPageProps = {
   area: DashboardArea
+  /**
+   * Where "View all notifications" points. Defaults to the dashboard area's own list; the account
+   * (customer) area must pass its own route, otherwise customers are sent to the seller-only page and
+   * hit the capability guard.
+   */
+  viewAllPath?: string
 }
 
-const CommonNotificationsPage = ({ area }: CommonNotificationsPageProps) => {
-  const [filter, setFilter] = useState<NotificationStatus>('all')
-  const [notifications, setNotifications] = useState<NotificationItem[]>(MOCK_NOTIFICATIONS)
+const formatTimeAgo = (value: string): string => {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'Recently'
 
-  const filtered = notifications.filter((item) => {
-    if (filter === 'unread') return !item.read
-    if (filter === 'read') return item.read
+  const diffMs = Date.now() - date.getTime()
+  const diffMinutes = Math.max(1, Math.round(diffMs / 60000))
+  if (diffMinutes < 60) return `${diffMinutes} min ago`
+  const diffHours = Math.round(diffMinutes / 60)
+  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`
+  const diffDays = Math.round(diffHours / 24)
+  return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`
+}
+
+const CommonNotificationsPage = ({ area, viewAllPath }: CommonNotificationsPageProps) => {
+  const dispatch = useAppDispatch()
+  const [filter, setFilter] = useState<NotificationListFilter>('all')
+  const notifications = useAppSelector((state) => state.notifications.items)
+  const loading = useAppSelector((state) => state.notifications.loading)
+  const unreadCount = useAppSelector((state) => state.notifications.unreadCount)
+  const error = useAppSelector((state) => state.notifications.error)
+
+  useEffect(() => {
+    void dispatch(fetchNotifications())
+    // Server-side unread total (the store count is otherwise only refreshed by the Socket.IO
+    // `connected` handler, and the list response is capped at 50 rows).
+    void dispatch(fetchUnreadCount())
+  }, [dispatch])
+
+  const filtered = useMemo(() => notifications.filter((item) => {
+    if (filter === 'unread') return item.status === 'UNREAD'
+    if (filter === 'read') return item.status === 'READ'
     return true
-  })
+  }), [filter, notifications])
 
-  const unreadCount = notifications.filter((n) => !n.read).length
   const title = area === 'super_admin' ? 'Admin Notifications' : 'Notifications'
   const subtitle =
     area === 'super_admin'
       ? 'Stay up to date with platform-wide alerts and system messages.'
       : 'Stay up to date with your latest alerts and messages.'
-  const viewAllPath = area === 'super_admin' ? '/super-admin/notifications' : '/seller/notifications'
+  const resolvedViewAllPath =
+    viewAllPath ?? (area === 'super_admin' ? '/super-admin/notifications' : '/seller/notifications')
 
-  const markAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, read: true } : item)),
-    )
+  const markAsRead = (item: { id: string; status: NotificationRow['status'] }) => {
+    if (item.status !== 'UNREAD') return
+    void dispatch(markNotificationRead(item.id))
   }
 
   return (
@@ -113,31 +125,40 @@ const CommonNotificationsPage = ({ area }: CommonNotificationsPageProps) => {
           </div>
         </div>
 
-        {filtered.length > 0 ? (
+        {loading && notifications.length === 0 ? (
+          <div className="flex min-h-52 items-center justify-center rounded-lg border border-slate-100 bg-white text-sm text-slate-500">
+            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+            Loading notifications...
+          </div>
+        ) : error ? (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-4 text-sm text-red-700">
+            {error}
+          </div>
+        ) : filtered.length > 0 ? (
           <div className="space-y-2">
             {filtered.map((item) => {
-              const Icon = iconMap[item.type]
+              const Icon = iconMap[item.type] ?? ShoppingCart
               return (
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => markAsRead(item.id)}
+                  onClick={() => markAsRead(item)}
                   className={`flex w-full cursor-pointer items-start gap-3 rounded-lg border px-3 py-3 text-left transition-colors hover:bg-slate-50 ${
-                    item.read
+                    item.status === 'READ'
                       ? 'border-slate-100 bg-white'
                       : 'border-emerald-100 bg-emerald-50/40'
                   }`}
                 >
-                  <div className={`mt-0.5 rounded-md p-1.5 ${iconBgMap[item.type]}`}>
+                  <div className={`mt-0.5 rounded-md p-1.5 ${iconBgMap[item.type] ?? 'bg-slate-100 text-slate-700'}`}>
                     <Icon size={14} />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-semibold text-slate-900">
                       {item.title}
-                      {!item.read && <span className="ml-1 text-emerald-600">●</span>}
+                      {item.status === 'UNREAD' && <span className="ml-1 text-emerald-600">●</span>}
                     </p>
                     <p className="mt-0.5 truncate text-xs text-slate-500">{item.message}</p>
-                    <p className="mt-1 text-[10px] text-slate-400">{item.timeAgo}</p>
+                    <p className="mt-1 text-[10px] text-slate-400">{formatTimeAgo(item.createdAt)}</p>
                   </div>
                 </button>
               )
@@ -157,7 +178,7 @@ const CommonNotificationsPage = ({ area }: CommonNotificationsPageProps) => {
 
         {filtered.length > 0 && (
           <div className="mt-4 text-center">
-            <Link to={viewAllPath} className="text-xs font-medium text-emerald-700 hover:text-emerald-800">
+            <Link to={resolvedViewAllPath} className="text-xs font-medium text-emerald-700 hover:text-emerald-800">
               View all notifications
             </Link>
           </div>

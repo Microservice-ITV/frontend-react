@@ -3,6 +3,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
 import { DEFAULT_MAP_CENTER, MAP_PICKER_HEIGHT_PX, MAP_PICKER_HINT_TEXT } from './mapConstants'
+import { getMapTileConfig } from './mapTiles'
 import type { LatLng } from '@/types/geo'
 import type { MapLocationPickerProps } from './mapLocationPickerTypes'
 
@@ -22,8 +23,8 @@ function ensureLeafletDefaultIcons() {
 }
 
 /**
- * Free map: OpenStreetMap tiles + Leaflet. No API key.
- * Set `VITE_MAP_PROVIDER=osm` (default).
+ * Free Leaflet map with a draggable pin. Tile source from `getMapTileConfig()` (CARTO by default).
+ * Set `VITE_MAP_PROVIDER=osm` to force this Leaflet picker over Google.
  */
 export function OpenStreetMapLocationPicker({ latitude, longitude, onChange, className }: MapLocationPickerProps) {
     const containerRef = useRef<HTMLDivElement>(null)
@@ -50,11 +51,15 @@ export function OpenStreetMapLocationPicker({ latitude, longitude, onChange, cla
         ensureLeafletDefaultIcons()
 
         const center = initialCenterRef.current ?? DEFAULT_MAP_CENTER
-        const map = L.map(el).setView([center.lat, center.lng], hasPin ? 16 : 13)
+        const map = L.map(el).setView([center.lat, center.lng], hasPin ? 17 : 13)
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        const tiles = getMapTileConfig()
+        L.tileLayer(tiles.url, {
+            maxZoom: tiles.maxZoom,
+            // Never pass `undefined`: Leaflet overwrites its default `subdomains` with it and then
+            // throws in `getTileUrl()` (it calls `_getSubdomain()` even when the URL has no `{s}`).
+            subdomains: tiles.subdomains ?? 'abc',
+            attribution: tiles.attribution,
         }).addTo(map)
 
         map.on('click', (e: L.LeafletMouseEvent) => {
@@ -63,7 +68,18 @@ export function OpenStreetMapLocationPicker({ latitude, longitude, onChange, cla
 
         mapRef.current = map
 
+        /**
+         * Leaflet caches the container size at init. Inside a modal/scroll container the element may
+         * still be 0×0 (or resize later), which leaves a blank map — so re-measure after paint and
+         * whenever the container changes size.
+         */
+        const rafId = window.requestAnimationFrame(() => map.invalidateSize())
+        const resizeObserver = new ResizeObserver(() => map.invalidateSize())
+        resizeObserver.observe(el)
+
         return () => {
+            window.cancelAnimationFrame(rafId)
+            resizeObserver.disconnect()
             map.remove()
             mapRef.current = null
             markerRef.current = null
@@ -86,7 +102,7 @@ export function OpenStreetMapLocationPicker({ latitude, longitude, onChange, cla
             } else {
                 markerRef.current.setLatLng([latitude, longitude])
             }
-            map.setView([latitude, longitude], 16)
+            map.setView([latitude, longitude], 17)
         } else if (markerRef.current) {
             markerRef.current.remove()
             markerRef.current = null
@@ -101,7 +117,6 @@ export function OpenStreetMapLocationPicker({ latitude, longitude, onChange, cla
                 style={{ height: MAP_PICKER_HEIGHT_PX }}
             />
             <p className="mt-1.5 text-[11px] leading-snug text-gray-500">{MAP_PICKER_HINT_TEXT}</p>
-            <p className="mt-1 text-[10px] text-gray-400">Map data © OpenStreetMap contributors</p>
         </div>
     )
 }

@@ -53,8 +53,13 @@ const resourcePath: Record<PromotionAssetKind, string> = {
 
 export const promotionApi = {
   async listPromotions(): Promise<PromotionRecord[]> {
-    const response = await promotionClient.get<PromotionRecord[]>('/promotions')
-    return response.data
+    const response = await promotionClient.get<
+      PromotionRecord[] | { data?: PromotionRecord[] } | null
+    >('/promotions')
+    const payload = response.data
+    if (Array.isArray(payload)) return payload
+    if (payload && Array.isArray(payload.data)) return payload.data
+    return []
   },
   async createPromotion(payload: unknown): Promise<PromotionRecord> {
     const response = await promotionClient.post<PromotionRecord>('/promotions', payload)
@@ -65,8 +70,11 @@ export const promotionApi = {
     return response.data
   },
   async list<T>(kind: PromotionAssetKind): Promise<T[]> {
-    const response = await promotionClient.get<T[]>(resourcePath[kind])
-    return response.data
+    const response = await promotionClient.get<T[] | { data?: T[] } | null>(resourcePath[kind])
+    const payload = response.data
+    if (Array.isArray(payload)) return payload
+    if (payload && Array.isArray(payload.data)) return payload.data
+    return []
   },
   async create<T>(kind: PromotionAssetKind, payload: unknown): Promise<T> {
     const response = await promotionClient.post<T>(resourcePath[kind], payload)

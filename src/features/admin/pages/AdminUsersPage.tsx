@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   XCircle,
   RefreshCw,
+  UserCog,
 } from 'lucide-react'
 import {
   selectAdminUsers,
@@ -23,6 +24,9 @@ import {
 } from '../store/adminUsersSelectors'
 import { fetchAdminUsers } from '../store/adminUsersThunks'
 import type { AdminUserRow } from '../types/userTypes'
+import ManageRolesModal from '../components/ManageRolesModal'
+import { CAPABILITIES } from '@/app/rbac/capabilities'
+import { useCan } from '@/app/rbac/hooks'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -49,6 +53,7 @@ const SCOPE_COLORS: Record<string, string> = {
 const AdminUsersPage = () => {
   const dispatch = useAppDispatch()
   const { openModal } = useGlobalModal()
+  const canManageRoles = useCan(CAPABILITIES.PLATFORM_ADMIN_VIEW)
 
   const users = useAppSelector(selectAdminUsers)
   const status = useAppSelector(selectAdminUsersStatus)
@@ -101,6 +106,23 @@ const AdminUsersPage = () => {
       content: <UserDetailModal user={user} />,
       primaryLabel: 'Close',
       hideSecondary: true,
+    })
+  }
+
+  // ── Manage roles modal (shop-role assignments) ─────────────────────────────
+  const handleManageRoles = (user: AdminUserRow) => {
+    openModal({
+      title: `Manage roles · ${user.name}`,
+      content: (
+        <ManageRolesModal
+          user={{ id: user.id, name: user.name, email: user.email }}
+          onAssigned={doFetch}
+        />
+      ),
+      size: 'xl',
+      // The modal body renders its own action footer (assign + inline feedback).
+      hidePrimary: true,
+      secondaryLabel: 'Close',
     })
   }
 
@@ -217,7 +239,7 @@ const AdminUsersPage = () => {
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Status</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Roles</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Joined</th>
-                <th className="w-28 px-4 py-3 text-left text-xs font-medium text-slate-600">
+                <th className="w-24 px-4 py-3 text-left text-xs font-medium text-slate-600">
                   Actions
                 </th>
               </tr>
@@ -288,14 +310,32 @@ const AdminUsersPage = () => {
 
                     {/* Actions */}
                     <td className="px-4 py-4">
-                      <button
-                        type="button"
-                        onClick={() => handleViewUser(user)}
-                        className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 cursor-pointer"
+                      <div
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1"
+                        role="group"
+                        aria-label={`Actions for ${user.name}`}
                       >
-                        <Eye size={14} />
-                        View
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => handleViewUser(user)}
+                          aria-label={`View details for ${user.name}`}
+                          title="View details"
+                          className="cursor-pointer rounded-md p-1.5 text-slate-600 transition-colors hover:bg-emerald-50 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1"
+                        >
+                          <Eye size={16} aria-hidden="true" />
+                        </button>
+                        {canManageRoles && (
+                          <button
+                            type="button"
+                            onClick={() => handleManageRoles(user)}
+                            aria-label={`Manage roles for ${user.name}`}
+                            title="Manage roles"
+                            className="cursor-pointer rounded-md p-1.5 text-slate-600 transition-colors hover:bg-emerald-50 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1"
+                          >
+                            <UserCog size={16} aria-hidden="true" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

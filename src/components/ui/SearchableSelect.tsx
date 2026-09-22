@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
-import { ChevronDown, Search } from 'lucide-react'
+import { ChevronDown, Loader2, Search } from 'lucide-react'
 
 export type SearchableSelectOption = {
   value: string
@@ -33,6 +33,18 @@ export type SearchableSelectProps = {
   'aria-invalid'?: boolean
   /** Screen reader label for the search field (when visible) */
   searchAriaLabel?: string
+  /**
+   * Called with the raw text every time the user types in the search field.
+   * Use it to fetch options from a paginated API (server-side search).
+   */
+  onQueryChange?: (query: string) => void
+  /** Renders a busy state while the parent is fetching async options. */
+  loading?: boolean
+  /**
+   * When `false` the options given by the parent are rendered as-is because the
+   * parent already searched them server-side. Defaults to `true` (in-memory).
+   */
+  filterLocally?: boolean
 }
 
 const defaultScrollClass = 'max-h-60 overflow-y-auto'
@@ -52,6 +64,9 @@ export const SearchableSelect = ({
   buttonClassName,
   'aria-invalid': ariaInvalid,
   searchAriaLabel = 'Filter options',
+  onQueryChange,
+  loading = false,
+  filterLocally = true,
 }: SearchableSelectProps) => {
   const reactId = useId()
   const listboxId = `${reactId}-listbox`
@@ -65,10 +80,10 @@ export const SearchableSelect = ({
   const rootRef = useRef<HTMLDivElement>(null)
 
   const filtered = useMemo(() => {
-    if (!showSearch || !query.trim()) return options
+    if (!showSearch || !filterLocally || !query.trim()) return options
     const q = query.trim().toLowerCase()
     return options.filter((o) => o.label.toLowerCase().includes(q))
-  }, [options, query, showSearch])
+  }, [options, query, showSearch, filterLocally])
 
   const selectedLabel = useMemo(() => {
     const found = options.find((o) => o.value === value)
@@ -114,6 +129,7 @@ export const SearchableSelect = ({
         aria-expanded={open}
         aria-controls={listboxId}
         aria-invalid={ariaInvalid}
+        aria-busy={loading}
         onClick={() => !disabled && setOpen((o) => !o)}
         className={clsx(
           'relative flex w-full items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 pr-10 text-left text-sm outline-none',
@@ -126,13 +142,21 @@ export const SearchableSelect = ({
         <span className={clsx('truncate', !selectedLabel && 'text-slate-400')}>
           {selectedLabel || emptyLabel}
         </span>
-        <ChevronDown
-          size={16}
-          className={clsx(
-            'pointer-events-none absolute right-3 top-1/2 shrink-0 -translate-y-1/2 text-slate-400 transition-transform',
-            open && 'rotate-180',
-          )}
-        />
+        {loading ? (
+          <Loader2
+            size={16}
+            aria-hidden="true"
+            className="pointer-events-none absolute right-3 top-1/2 shrink-0 -translate-y-1/2 animate-spin text-slate-400"
+          />
+        ) : (
+          <ChevronDown
+            size={16}
+            className={clsx(
+              'pointer-events-none absolute right-3 top-1/2 shrink-0 -translate-y-1/2 text-slate-400 transition-transform',
+              open && 'rotate-180',
+            )}
+          />
+        )}
       </button>
 
       {open && (
@@ -155,7 +179,10 @@ export const SearchableSelect = ({
                   type="search"
                   autoComplete="off"
                   value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  onChange={(e) => {
+                    setQuery(e.target.value)
+                    onQueryChange?.(e.target.value)
+                  }}
                   placeholder={placeholder}
                   className="w-full rounded-md border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm outline-none placeholder:text-slate-400 focus:border-emerald-500"
                 />
@@ -171,7 +198,13 @@ export const SearchableSelect = ({
               listScrollable ? scrollClassName : 'max-h-none overflow-visible',
             )}
           >
-            {filtered.length === 0 && (
+            {loading && (
+              <li className="flex items-center gap-2 px-3 py-2 text-xs text-slate-500">
+                <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+                Searching…
+              </li>
+            )}
+            {!loading && filtered.length === 0 && (
               <li className="px-3 py-2 text-center text-xs text-slate-500">
                 {options.length === 0 ? 'No options' : 'No matches'}
               </li>

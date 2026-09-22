@@ -171,9 +171,13 @@ const SellerOrderDetailPage = () => {
   const currentStep = order ? getStepIndex(order.status) : -1
   const isCancelled = ['CANCELLED', 'FAILED', 'FAILED_PAYMENT', 'EXPIRED'].includes(statusUpper)
   const canShip = statusUpper === 'READY_FOR_FULFILLMENT'
-  const shopItems = order?.items.filter(
-    (item) => !activeShopId || item.shopId === activeShopId,
-  ) ?? order?.items ?? []
+  const filteredItems = order?.items.filter(
+    (item) => !activeShopId || (item.shopId === activeShopId),
+  )
+
+  const shopItems = filteredItems?.length > 0
+    ? filteredItems
+    : order?.items ?? []
 
   return (
     <div className="space-y-6">
