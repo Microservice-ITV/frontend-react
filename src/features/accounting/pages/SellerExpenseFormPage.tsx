@@ -58,29 +58,37 @@ const SellerExpenseFormPage = () => {
         return
       }
 
-      try {
-        const [ownedShops, loadedCategories, loadedAccounts] = await Promise.all([
-          sellerRegistrationApi.listShopsForUser(authUser.id),
-          accountingExpensesAdapter.listCategories(),
-          accountingExpensesAdapter.listAccounts(),
-        ])
-        if (!active) return
-        const shopOptions = ownedShops
+      const [shopsResult, categoriesResult, accountsResult] = await Promise.allSettled([
+        sellerRegistrationApi.listShopsForUser(authUser.id),
+        accountingExpensesAdapter.listCategories(),
+        accountingExpensesAdapter.listAccounts(),
+      ])
+      if (!active) return
+
+      const shopOptions = shopsResult.status === 'fulfilled'
+        ? shopsResult.value
           .filter((shop) => Boolean(shop.id))
           .map((shop) => ({ id: shop.id, name: shop.name }))
-        setShops(shopOptions)
-        setCategories(loadedCategories.filter((category) => category.status === 'ACTIVE'))
-        setAccounts(loadedAccounts)
-        setValue((previous) => ({
-          ...previous,
-          shopId: previous.shopId || authUser.active_shop_id || shopOptions[0]?.id || '',
-        }))
-        setStatus('succeeded')
-      } catch (cause) {
-        if (!active) return
-        setStatus('failed')
-        setError(errorMessage(cause, 'Unable to load expense options.'))
+        : []
+      const loadedCategories = categoriesResult.status === 'fulfilled' ? categoriesResult.value : []
+      const loadedAccounts = accountsResult.status === 'fulfilled' ? accountsResult.value : []
+
+      setShops(shopOptions)
+      setCategories(loadedCategories.filter((category) => category.status === 'ACTIVE'))
+      setAccounts(loadedAccounts)
+      setValue((previous) => ({
+        ...previous,
+        shopId: previous.shopId || authUser.active_shop_id || shopOptions[0]?.id || '',
+      }))
+      const optionErrors = [
+        shopsResult.status === 'rejected' ? 'shops' : null,
+        categoriesResult.status === 'rejected' ? 'expense categories' : null,
+        accountsResult.status === 'rejected' ? 'accounting accounts' : null,
+      ].filter((item): item is string => item !== null)
+      if (optionErrors.length > 0) {
+        setError(`Unable to load ${optionErrors.join(' and ')}. Other options are still available.`)
       }
+      setStatus('succeeded')
     }
     void loadOptions()
     return () => { active = false }
