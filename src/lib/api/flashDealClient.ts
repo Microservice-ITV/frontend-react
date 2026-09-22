@@ -46,6 +46,6 @@ export const getFlashDealsByTimeSlot = (params?: {
   status?: string
 }) =>
   ecommerceReadRestClient.get<FlashDealsTimeSlotResponse>(
-    '/flash-deals/time-slots',
+    '/catalog/flash-deals/time-slots',
     { params },
   )
