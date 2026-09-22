@@ -27,3 +27,19 @@ export type AdminUsersState = {
   status: 'idle' | 'loading' | 'succeeded' | 'failed'
   error: string | null
 }
+
+// ─── Shop-role assignment view models (Manage Roles tool) ────────────────────
+
+/** Shared status for on-demand lookups that are not kept in Redux. */
+export type AdminLookupStatus = 'idle' | 'loading' | 'succeeded' | 'failed'
+
+/** One shop-role assignment held by the selected user. */
+export type AdminUserShopRoleRow = {
+  shopId: string
+  shopName: string
+  shopDomain: string | null
+  roleCode: string
+  roleName: string
+  status: string
+  joined: string
+}

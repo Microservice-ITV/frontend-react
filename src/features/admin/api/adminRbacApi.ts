@@ -32,6 +32,14 @@ type RbacPermissionsApiResponse = {
   }
 }
 
+/** Optional lookup filters for the shared role list endpoint. */
+export type RbacRoleListParams = {
+  /** Restrict to one role scope (e.g. `shop` when picking a shop membership role). */
+  scope?: 'platform' | 'shop' | 'self'
+  /** Partial match on role name or code. */
+  search?: string
+}
+
 const getApiErrorMessage = (error: unknown, fallback: string): string => {
   if (axios.isAxiosError(error)) {
     const msg = error.response?.data?.message
@@ -47,8 +55,12 @@ const getApiErrorMessage = (error: unknown, fallback: string): string => {
 }
 
 export const adminRbacApi = {
-  listRoles(): Promise<{ data: RbacRolesApiResponse }> {
-    return authClient.get('/rbac/roles')
+  listRoles(params: RbacRoleListParams = {}): Promise<{ data: RbacRolesApiResponse }> {
+    // Strip empty values so they don't clutter the query string.
+    const clean: Record<string, string> = {}
+    if (params.scope) clean.scope = params.scope
+    if (params.search?.trim()) clean.search = params.search.trim()
+    return authClient.get('/rbac/roles', { params: clean })
   },
 
   listPermissions(): Promise<{ data: RbacPermissionsApiResponse }> {

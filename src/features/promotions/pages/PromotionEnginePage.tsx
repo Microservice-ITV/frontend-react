@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAppSelector } from '@/app/hooks'
+import AdminFlashDealsPage from '@/features/flash-deals/pages/AdminFlashDealsPage'
 import { useAuthRole } from '@/app/rbac/hooks'
 import {
   promotionApi,
@@ -16,6 +18,7 @@ import {
   ChevronDown,
   CircleDollarSign,
   Clock3,
+  Flame,
   Layers3,
   MoreHorizontal,
   Percent,
@@ -251,14 +254,17 @@ const PromotionEnginePage = () => {
   const isShopOwner = authRole === 'SHOP_OWNER'
   const canManagePromotionAssets = isPlatformAdmin || isShopOwner
   const activeShopId = authUser?.active_shop_id
+  const navigate = useNavigate()
 
   const [promotions, setPromotions] = useState<PromotionListItem[]>([])
   const [promotionsLoading, setPromotionsLoading] = useState(true)
   const [promotionsError, setPromotionsError] = useState<string | null>(null)
   const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'all' | PromotionStatus>('all')
+  const [activeTab, setActiveTab] = useState<'all' | PromotionStatus | 'FLASH_DEALS'>('all')
   const [search, setSearch] = useState('')
   const [showFullCreate, setShowFullCreate] = useState(false)
+  const [showCreateMenu, setShowCreateMenu] = useState(false)
+  const createMenuRef = useRef<HTMLDivElement>(null)
   const [selectedId, setSelectedId] = useState('')
   const [managementTab, setManagementTab] = useState<ManagementTab>('rewards')
   const [assets, setAssets] = useState<Record<ManagementTab, PromotionAsset[]>>({
@@ -283,6 +289,17 @@ const PromotionEnginePage = () => {
     if (promotions[0]?.id) return promotions[0].id
     return ''
   }, [promotions, selectedId])
+
+  useEffect(() => {
+    if (!showCreateMenu) return
+    const handleClickOutside = (event: MouseEvent) => {
+      if (createMenuRef.current && !createMenuRef.current.contains(event.target as Node)) {
+        setShowCreateMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showCreateMenu])
 
   useEffect(() => {
     let cancelled = false
@@ -355,7 +372,8 @@ const PromotionEnginePage = () => {
   const filteredPromotions = useMemo(() => {
     const normalizedSearch = search.toLowerCase().trim()
     return promotions.filter((promotion) => {
-      const matchesTab = activeTab === 'all' || promotion.status === activeTab
+      const matchesTab = activeTab === 'all'
+        || (activeTab !== 'FLASH_DEALS' && promotion.status === activeTab)
       const matchesSearch = !normalizedSearch
         || `${promotion.name} ${promotion.scope} ${promotion.audience} ${promotion.reward}`.toLowerCase().includes(normalizedSearch)
       return matchesTab && matchesSearch
@@ -476,13 +494,44 @@ const PromotionEnginePage = () => {
             Build targeted offers, control stacking, and keep every promotion easy to understand.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowFullCreate(true)}
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
-        >
-          <Plus size={17} /> Create promotion
-        </button>
+        <div ref={createMenuRef} className="relative">
+          <button
+            type="button"
+            onClick={() => setShowCreateMenu((open) => !open)}
+            aria-haspopup="menu"
+            aria-expanded={showCreateMenu}
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+          >
+            <Plus size={17} /> Create promotion
+            <ChevronDown size={15} className={`transition-transform ${showCreateMenu ? 'rotate-180' : ''}`} />
+          </button>
+          {showCreateMenu && (
+            <div className="absolute right-0 z-30 mt-2 w-56 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCreateMenu(false)
+                  setShowFullCreate(true)
+                }}
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 no-underline transition hover:bg-slate-50 hover:no-underline"
+              >
+                <Sparkles size={15} className="text-emerald-600" />
+                Standard Promotion
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCreateMenu(false)
+                  navigate('/super-admin/promotion-engine/flash-deals')
+                }}
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 no-underline transition hover:bg-slate-50 hover:no-underline"
+              >
+                <Flame size={15} className="text-emerald-600" />
+                Flash Deal Campaign
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -497,6 +546,10 @@ const PromotionEnginePage = () => {
         </p>
       )}
 
+      {activeTab === 'FLASH_DEALS' ? (
+        <AdminFlashDealsPage />
+      ) : (
+        <>
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.6fr)]">
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 px-5 pt-5">
@@ -516,14 +569,18 @@ const PromotionEnginePage = () => {
               </div>
             </div>
             <div className="mt-5 flex gap-5 overflow-x-auto text-xs font-semibold">
-              {(['all', 'ACTIVE', 'DRAFT', 'PAUSED', 'EXPIRED'] as const).map((tab) => (
+              {(['all', 'ACTIVE', 'DRAFT', 'PAUSED', 'EXPIRED', 'FLASH_DEALS'] as const).map((tab) => (
                 <button
                   key={tab}
                   type="button"
                   onClick={() => setActiveTab(tab)}
                   className={`border-b-2 pb-3 whitespace-nowrap transition ${activeTab === tab ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
                 >
-                  {tab === 'all' ? 'All promotions' : tab.charAt(0) + tab.slice(1).toLowerCase()}
+                  {tab === 'all'
+                    ? 'All promotions'
+                    : tab === 'FLASH_DEALS'
+                      ? 'Flash Deals'
+                      : tab.charAt(0) + tab.slice(1).toLowerCase()}
                 </button>
               ))}
             </div>
@@ -649,6 +706,8 @@ const PromotionEnginePage = () => {
           onEdit={openEditAsset}
           onRemove={removeAsset}
         />
+      )}
+        </>
       )}
 
       <PromotionCreateModal

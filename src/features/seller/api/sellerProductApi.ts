@@ -131,14 +131,16 @@ export type ProductDetailReadItem = {
   images?: string[];
   tags?: string[];
   variants?: Array<{
-    id?: string;
-    variantId?: string;
-    colorId?: string;
-    sizeId?: string;
-    basePrice?: number | string;
-    profitThresholdPercent?: number | string;
-    discountPercent?: number | string;
-    effectiveSellingPrice?: number | string;
+    id?: string
+    variantId?: string
+    colorId?: string
+    sizeId?: string
+    basePrice?: number | string
+    listPrice?: number | string
+    sellingPrice?: number | string
+    profitThresholdPercent?: number | string
+    discountPercent?: number | string
+    effectiveSellingPrice?: number | string
     /** Customer-facing unit price (same as effectiveSellingPrice from API formatter). */
     price?: number | string;
     stock?: number | string;

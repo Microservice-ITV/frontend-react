@@ -1,5 +1,6 @@
-import { useMemo, type MouseEvent } from "react";
+import { useMemo, useState, type MouseEvent } from "react";
 import { Link } from "react-router-dom";
+import { ImageIcon } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { addToCart } from "@/features/cart/store/cartSlice";
 import { toggleWishlist } from "@/features/wishlist/store/wishlistSlice";
@@ -144,7 +145,7 @@ function ProductName({ name }: { name: string }) {
         role="tooltip"
         className="
           pointer-events-none absolute left-0 top-full z-20 mt-1 block w-max max-w-[240px]
-          rounded bg-slate-900 px-2 py-1 text-xs font-medium leading-snug text-white
+          rounded bg-gray-500 px-2 py-1 text-xs font-medium leading-snug text-white
           opacity-0 shadow-lg transition-opacity duration-150 group-hover/name:opacity-100
         "
       >
@@ -163,6 +164,8 @@ interface ProductCardProps {
 const ProductCard = ({ product }: ProductCardProps) => {
   const dispatch = useAppDispatch();
   const wishlisted = useAppSelector((s) => selectIsWishlisted(s, product.id));
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
 
   const meta = useMemo(() => cardMeta(product.id), [product.id])
   const badgeLabel = useMemo(
@@ -211,11 +214,25 @@ const ProductCard = ({ product }: ProductCardProps) => {
       >
         {/* IMAGE */}
         <div className="relative w-full shrink-0 bg-[#fafafa] pt-[100%]">
+          {!imageLoaded || imageFailed ? (
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <ImageIcon className="h-10 w-10 text-gray-300" aria-hidden />
+            </div>
+          ) : null}
           <img
             src={`${product.images?.[0] ?? "/placeholder.svg"}`}
             alt={product.name}
-            className="pointer-events-none absolute inset-0 h-full w-full object-fill p-2"
+            className={[
+              "pointer-events-none absolute inset-0 h-full w-full object-fill p-2",
+              "transition-opacity duration-200",
+              imageLoaded && !imageFailed ? "opacity-100" : "opacity-0",
+            ].join(" ")}
             loading="lazy"
+            onLoad={() => setImageLoaded(true)}
+            onError={() => {
+              setImageFailed(true);
+              setImageLoaded(false);
+            }}
           />
 
           {/* Status badge */}

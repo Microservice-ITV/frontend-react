@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import ProductActions from './ProductActions'
 import ProductVariantSelector, { pickDefaultVariant } from './ProductVariantSelector'
 import type { ProductDetail, ProductVariant } from '@/features/products/types/productTypes'
+import type { FlashDealPromoContext } from '@/features/flash-deals/types/flashDealTypes'
 import { getGalleryImagesForVariant } from '@/features/products/utils/variantGallery'
 import { formatProductPrice, STORE_CURRENCY } from '@/features/products/utils/formatProductPrice'
 import { stripYouTubeUrlsFromText } from '@/features/products/utils/videoEmbed'
@@ -11,6 +12,8 @@ interface Props {
   product: ProductDetail
   /** Fired when the active SKU changes (including initial default) — drives variant-specific gallery. */
   onSelectedVariantChange?: (variant: ProductVariant | null) => void
+  /** Active flash-deal promo context passed via router state from a deal card. */
+  flashDeal?: FlashDealPromoContext | null
 }
 
 function formatMoney(n: number, currency?: string) {
@@ -21,28 +24,23 @@ function pad2(n: number) {
   return String(Math.max(0, n)).padStart(2, '0')
 }
 
-/** Countdown to end of local day — keeps the Flash Deals banner lively. */
-function useEndOfDayCountdown() {
-  const [parts, setParts] = useState(() => {
-    const now = new Date()
-    const end = new Date(now)
-    end.setHours(23, 59, 59, 999)
-    const ms = Math.max(0, end.getTime() - now.getTime())
-    const totalSec = Math.floor(ms / 1000)
-    return {
-      h: pad2(Math.floor(totalSec / 3600)),
-      m: pad2(Math.floor((totalSec % 3600) / 60)),
-      s: pad2(totalSec % 60),
-    }
-  })
+/** Live HH:MM:SS countdown to the flash-deal end timestamp. */
+function useDealCountdown(endAt?: string | null) {
+  const target = useMemo(() => {
+    if (!endAt) return null
+    const ms = new Date(endAt).getTime()
+    return Number.isNaN(ms) ? null : ms
+  }, [endAt])
+
+  const [parts, setParts] = useState({ h: '00', m: '00', s: '00' })
 
   useEffect(() => {
     const tick = () => {
-      const now = new Date()
-      const end = new Date(now)
-      end.setHours(23, 59, 59, 999)
-      const ms = Math.max(0, end.getTime() - now.getTime())
-      const totalSec = Math.floor(ms / 1000)
+      if (target === null) {
+        setParts({ h: '00', m: '00', s: '00' })
+        return
+      }
+      const totalSec = Math.floor(Math.max(0, target - Date.now()) / 1000)
       setParts({
         h: pad2(Math.floor(totalSec / 3600)),
         m: pad2(Math.floor((totalSec % 3600) / 60)),
@@ -52,7 +50,7 @@ function useEndOfDayCountdown() {
     tick()
     const id = window.setInterval(tick, 1000)
     return () => window.clearInterval(id)
-  }, [])
+  }, [target])
 
   return parts
 }
@@ -68,9 +66,8 @@ function TrustIconCircle({ children }: { children: ReactNode }) {
   )
 }
 
-const ProductInfo = ({ product, onSelectedVariantChange }: Props) => {
+const ProductInfo = ({ product, onSelectedVariantChange, flashDeal }: Props) => {
   const [activeVariant, setActiveVariant] = useState<ProductVariant | null>(null)
-  const countdown = useEndOfDayCountdown()
 
   const handleVariantChange = useCallback(
     (v: ProductVariant | null) => {
@@ -91,21 +88,43 @@ const ProductInfo = ({ product, onSelectedVariantChange }: Props) => {
   }, [product.id, variantSig, onSelectedVariantChange])
 
   const displayPrice = activeVariant?.price ?? product.price
-  const listPrice = activeVariant?.listPrice ?? displayPrice
-  const compareAt = activeVariant?.compareAtPrice
 
-  /** Strikethrough “was” price: API `compareAtPrice` when set, else `listPrice` if above sale price */
+  /** Flash-deal promo only applies while the deal window is open. */
+  const activeFlashDeal = useMemo(() => {
+    if (!flashDeal) return null
+    const now = Date.now()
+    const start = flashDeal.startAt
+      ? new Date(flashDeal.startAt).getTime()
+      : Number.NEGATIVE_INFINITY
+    const end = flashDeal.endAt
+      ? new Date(flashDeal.endAt).getTime()
+      : Number.POSITIVE_INFINITY
+    if (Number.isNaN(start) || Number.isNaN(end)) return null
+    if (now < start || now > end) return null
+    const discount = Number(flashDeal.discount)
+    if (!Number.isFinite(discount) || discount <= 0) return null
+    return { ...flashDeal, discount }
+  }, [flashDeal])
+
+  const promoPrice = useMemo(() => {
+    if (!activeFlashDeal) return null
+    const discounted = displayPrice * ((100 - activeFlashDeal.discount) / 100)
+    return Math.max(0, Math.round(discounted))
+  }, [activeFlashDeal, displayPrice])
+
+  const isFlashDeal = activeFlashDeal != null
+  const effectivePrice = promoPrice ?? displayPrice
+  const countdown = useDealCountdown(isFlashDeal ? activeFlashDeal.endAt ?? null : null)
+
   const strikePrice = useMemo(() => {
-    if (compareAt != null && compareAt > displayPrice + 0.001) return compareAt
-    if (listPrice > displayPrice + 0.001 && listPrice > 0) return listPrice
-    return null
-  }, [compareAt, listPrice, displayPrice])
+    if (!isFlashDeal) return null
+    return displayPrice
+  }, [isFlashDeal, displayPrice])
 
-  const showStrike = strikePrice != null
-  const discountPct =
-    showStrike && strikePrice && strikePrice > 0
-      ? Math.round((1 - displayPrice / strikePrice) * 100)
-      : 0
+  const showStrike = isFlashDeal && strikePrice != null && strikePrice > effectivePrice + 0.001
+  const effectiveStrike = showStrike ? strikePrice : null
+  const promoDiscountPct = isFlashDeal ? activeFlashDeal.discount : 0
+  const discountPct = 0
 
   const stockLabel = useMemo(() => {
     const n = activeVariant?.shopStock ?? product.stock ?? 0
@@ -163,8 +182,9 @@ const ProductInfo = ({ product, onSelectedVariantChange }: Props) => {
         </div>
       </div>
 
-      {/* Flash Deals pricing card */}
-      <div className="overflow-hidden border border-[var(--dni-primary-100)] shadow-sm">
+      {isFlashDeal ? (
+        <>
+          <div className="overflow-hidden border border-[var(--dni-primary-100)] shadow-sm">
         <div
           className="flex items-center justify-between gap-3 px-4 py-2.5 text-white"
           style={{
@@ -195,17 +215,22 @@ const ProductInfo = ({ product, onSelectedVariantChange }: Props) => {
         <div className="bg-gradient-to-br from-[var(--dni-primary-50)] to-white px-4 py-4 sm:py-5">
           <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
             <span className="text-2xl sm:text-3xl font-bold text-[var(--dni-primary-700)] tracking-tight">
-              {formatMoney(displayPrice, STORE_CURRENCY)}
+              {formatMoney(effectivePrice, STORE_CURRENCY)}
             </span>
             {product.variants.length > 1 && product.minPrice !== product.maxPrice && (
               <span className="text-xs text-gray-500">Selected option</span>
             )}
-            {showStrike && strikePrice != null && (
+            {showStrike && effectiveStrike != null && (
               <span className="text-sm sm:text-base text-gray-400 line-through">
-                {formatMoney(strikePrice, STORE_CURRENCY)}
+                {formatMoney(effectiveStrike, STORE_CURRENCY)}
               </span>
             )}
-            {discountPct > 0 && (
+            {promoDiscountPct > 0 && (
+              <span className="inline-flex items-center rounded-full bg-red-500 px-2.5 py-0.5 text-xs font-semibold text-white shadow-sm">
+                Flash -{promoDiscountPct}%
+              </span>
+            )}
+            {promoDiscountPct <= 0 && discountPct > 0 && (
               <span className="inline-flex items-center rounded-full bg-red-500 px-2.5 py-0.5 text-xs font-semibold text-white shadow-sm">
                 Save {discountPct}%
               </span>
@@ -213,6 +238,14 @@ const ProductInfo = ({ product, onSelectedVariantChange }: Props) => {
           </div>
         </div>
       </div>
+        </>
+        ) : (
+          <div className="border-b border-gray-200 pb-4">
+            <span className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
+              {formatMoney(displayPrice, STORE_CURRENCY)}
+            </span>
+          </div>
+        )}
 
       {/* Trust badges — horizontal row */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-3">
@@ -293,7 +326,13 @@ const ProductInfo = ({ product, onSelectedVariantChange }: Props) => {
         {stockLabel}
       </p>
 
-      <ProductActions product={product} selectedVariant={activeVariant} />
+      <ProductActions
+        product={product}
+        selectedVariant={activeVariant}
+        promoPrice={promoPrice}
+        flashDealId={activeFlashDeal ? activeFlashDeal.flashDealId : null}
+        flashDealItemId={activeFlashDeal ? activeFlashDeal.flashDealItemId ?? null : null}
+      />
     </section>
   )
 }
