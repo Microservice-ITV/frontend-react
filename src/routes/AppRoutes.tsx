@@ -46,6 +46,7 @@ import SellerMentorsPage from "@/features/seller-mentors/pages/SellerMentorsPage
 import FlashDealsPage from "@/features/flash-deals/pages/FlashDealsPage";
 import MediaContactPage from "@/features/media/pages/MediaContactPage";
 import AmbassadorProgrammePage from "@/features/ambassador/pages/AmbassadorProgrammePage";
+import NotFoundPage from "@/features/common/pages/NotFoundPage";
 import AccountLayout from "@/features/account/pages/AccountLayout";
 import ProfilePage from "@/features/account/pages/ProfilePage";
 import BanksCardsPage from "@/features/account/pages/BanksCardsPage";
@@ -1340,7 +1341,14 @@ const AppRoutes = () => {
       <Route path="/help-centre/contact-us" element={<HelpArticlePage />} />
       <Route path="/cart" element={<CartPage />} />
       <Route path="/cart/see-more" element={<CartSeeMorePage />} />
-      <Route path="/wishlist" element={<WishlistPage />} />
+      <Route
+        path="/wishlist"
+        element={
+          <ProtectedRoute>
+            <WishlistPage />
+          </ProtectedRoute>
+        }
+      />
       <Route path="/recently-added" element={<RecentlyAddedPage />} />
       <Route path="/about" element={<AboutUsPage />} />
       <Route path="/careers" element={<CareersPage />} />
@@ -1355,7 +1363,7 @@ const AppRoutes = () => {
       <Route path="/ambassador" element={<AmbassadorProgrammePage />} />
 
       {/* fallback */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 };
