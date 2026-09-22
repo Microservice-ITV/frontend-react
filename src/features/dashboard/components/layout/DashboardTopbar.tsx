@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
-import { Menu, Search, Plus, Bell, Settings, LogOut, ShoppingCart, CreditCard, UserPlus, Check } from 'lucide-react'
+import { Menu, Search, Bell, Settings, LogOut, ShoppingCart, CreditCard, UserPlus, Check } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { logout } from '@/features/auth/store/authThunks'
+import { fetchNotifications, fetchUnreadCount, markNotificationRead } from '@/features/notifications/store/notificationSlice'
 import type { DashboardArea } from '../../types/dashboardTypes'
 import { getTopbarRouteConfig } from '../../config/topbarRouteConfig'
 
@@ -11,27 +12,12 @@ type DashboardTopbarProps = {
   onMenuClick: () => void
 }
 
-type TopbarNotification = {
-  id: string
-  title: string
-  message: string
-  timeAgo: string
-  type: 'order' | 'payment' | 'signup'
-  read: boolean
-}
-
-const INITIAL_NOTIFICATIONS: TopbarNotification[] = [
-  { id: 'n1', title: 'New order received', message: 'Emma Wilson placed order ORD-7891 for $299.00', timeAgo: '2 min ago', type: 'order', read: false },
-  { id: 'n2', title: 'Payment processed', message: 'Payment of $1,499.00 from Sofia Garcia confirmed.', timeAgo: '15 min ago', type: 'payment', read: false },
-  { id: 'n3', title: 'New customer signup', message: 'James Chen created an account.', timeAgo: '1 hour ago', type: 'signup', read: false },
-  { id: 'n4', title: 'Order shipped', message: 'ORD-7889 has been shipped to Sofia Garcia.', timeAgo: '2 hours ago', type: 'order', read: true },
-]
-
 const DashboardTopbar = ({ area, onMenuClick }: DashboardTopbarProps) => {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const authUser = useAppSelector((state) => state.auth.user)
-  const [notifications, setNotifications] = useState<TopbarNotification[]>(INITIAL_NOTIFICATIONS)
+  const notifications = useAppSelector((state) => state.notifications.items.slice(0, 5))
+  const unreadCount = useAppSelector((state) => state.notifications.unreadCount)
   const [notificationOpen, setNotificationOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const notificationRef = useRef<HTMLDivElement>(null)
@@ -46,8 +32,14 @@ const DashboardTopbar = ({ area, onMenuClick }: DashboardTopbarProps) => {
 
   const displayName = authUser?.name ?? 'User'
   const displayEmail = authUser?.email ?? ''
-  const unreadCount = notifications.filter((n) => !n.read).length
   const topbarRoutes = getTopbarRouteConfig(area)
+
+  useEffect(() => {
+    void dispatch(fetchNotifications())
+    // REST fallback for the bell badge: the store count was only refreshed from the Socket.IO
+    // `connected` handler, so the badge stayed 0 whenever realtime was unavailable.
+    void dispatch(fetchUnreadCount())
+  }, [dispatch])
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -70,19 +62,33 @@ const DashboardTopbar = ({ area, onMenuClick }: DashboardTopbarProps) => {
     navigate('/login')
   }
 
-  const markNotificationRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, read: true } : item)),
-    )
+  const formatTimeAgo = (value: string): string => {
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return 'Recently'
+    const diffMinutes = Math.max(1, Math.round((Date.now() - date.getTime()) / 60000))
+    if (diffMinutes < 60) return `${diffMinutes} min ago`
+    const diffHours = Math.round(diffMinutes / 60)
+    if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`
+    const diffDays = Math.round(diffHours / 24)
+    return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`
+  }
+
+  const markNotificationAsRead = (notification: { id: string; status: 'UNREAD' | 'READ' }) => {
+    if (notification.status !== 'UNREAD') return
+    void dispatch(markNotificationRead(notification.id))
   }
 
   const markAllRead = () => {
-    setNotifications((prev) => prev.map((item) => ({ ...item, read: true })))
+    notifications.forEach((notification) => {
+      if (notification.status === 'UNREAD') {
+        void dispatch(markNotificationRead(notification.id))
+      }
+    })
   }
 
-  const getNotificationIcon = (type: TopbarNotification['type']) => {
-    if (type === 'payment') return CreditCard
-    if (type === 'signup') return UserPlus
+  const getNotificationIcon = (type: string) => {
+    if (type === 'PAYMENT') return CreditCard
+    if (type === 'ACCOUNT' || type === 'MARKETING') return UserPlus
     return ShoppingCart
   }
 
@@ -168,12 +174,12 @@ const DashboardTopbar = ({ area, onMenuClick }: DashboardTopbarProps) => {
                       key={item.id}
                       type="button"
                       onClick={() => {
-                        markNotificationRead(item.id)
-                    navigate(topbarRoutes.notificationsPath)
+                        markNotificationAsRead(item)
+                        navigate(topbarRoutes.notificationsPath)
                         setNotificationOpen(false)
                       }}
                       className={`flex w-full cursor-pointer items-start gap-3 border-b border-slate-100 px-4 py-3 text-left transition-colors ${
-                        item.read ? 'bg-white' : 'bg-emerald-50/30 hover:bg-emerald-50/50'
+                        item.status === 'READ' ? 'bg-white' : 'bg-emerald-50/30 hover:bg-emerald-50/50'
                       }`}
                     >
                       <div className="rounded-full bg-emerald-100 p-2 text-emerald-600">
@@ -184,9 +190,9 @@ const DashboardTopbar = ({ area, onMenuClick }: DashboardTopbarProps) => {
                           {item.title}
                         </p>
                         <p className="mt-0.5 truncate text-xs text-slate-600">{item.message}</p>
-                        <p className="mt-1 text-xs text-slate-400">{item.timeAgo}</p>
+                        <p className="mt-1 text-xs text-slate-400">{formatTimeAgo(item.createdAt)}</p>
                       </div>
-                      {!item.read && <span className="mt-2 h-2.5 w-2.5 rounded-full bg-emerald-600" />}
+                      {item.status === 'UNREAD' && <span className="mt-2 h-2.5 w-2.5 rounded-full bg-emerald-600" />}
                     </button>
                   )
                 })}
@@ -238,9 +244,11 @@ const DashboardTopbar = ({ area, onMenuClick }: DashboardTopbarProps) => {
                 >
                   <Bell size={16} className="text-slate-500" />
                   Notifications
-                  <span className="ml-auto rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-medium text-white">
-                    4
-                  </span>
+                  {unreadCount > 0 && (
+                    <span className="ml-auto rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-medium text-white">
+                      {unreadCount}
+                    </span>
+                  )}
                 </Link>
                 <button
                   type="button"

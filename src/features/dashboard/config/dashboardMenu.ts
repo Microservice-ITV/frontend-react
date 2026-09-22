@@ -192,7 +192,6 @@ export const DASHBOARD_MENU_SELLER: DashboardMenuSection[] = [
         area: 'seller',
         requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
         icon: Bell,
-        badge: '3',
       },
       {
         key: 'seller-settings',
@@ -455,7 +454,6 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         area: 'super_admin',
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
         icon: Bell,
-        badge: '3',
       },
       {
         key: 'admin-settings',
