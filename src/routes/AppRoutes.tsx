@@ -116,6 +116,7 @@ import SellerAccountingOverviewPage from "@/features/accounting/pages/SellerAcco
 import SellerExpenseFormPage from "@/features/accounting/pages/SellerExpenseFormPage";
 import SellerExpensesPage from "@/features/accounting/pages/SellerExpensesPage";
 import SellerExpenseDetailPage from "@/features/accounting/pages/SellerExpenseDetailPage";
+import SellerIncomePage from "@/features/accounting/pages/SellerIncomePage";
 import SellerJournalEntriesPage from "@/features/accounting/pages/SellerJournalEntriesPage";
 import AdminFinanceOverviewPage from "@/features/finance/pages/AdminFinanceOverviewPage";
 import AdminFinanceTransactionsPage from "@/features/finance/pages/AdminFinanceTransactionsPage";
@@ -511,6 +512,16 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.sellerAccounting}
                 >
                   <SellerAccountingOverviewPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/income"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerAccounting}
+                >
+                  <SellerIncomePage />
                 </ProtectedRoute>
               }
             />
