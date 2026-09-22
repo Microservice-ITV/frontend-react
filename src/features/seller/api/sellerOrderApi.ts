@@ -121,8 +121,8 @@ export type SellerOrder = {
 }
 
 const SHOP_ORDERS_QUERY = `
-  query ShopOrders($shopId: ID!) {
-    shopOrders(shopId: $shopId) {
+  query ShopOrders($shopId: ID!, $userId: ID) {
+    shopOrders(shopId: $shopId, userId: $userId) {
       orderId
       customerId
       status
@@ -169,7 +169,17 @@ const SHOP_ORDERS_QUERY = `
       }
       deliveryAddress {
         recipientName
+        recipientPhone
         email
+        country
+        state
+        city
+        district
+        ward
+        addressLine1
+        addressLine2
+        postalCode
+        deliveryNote
       }
     }
   }
@@ -219,7 +229,7 @@ export async function fetchOrdersAcrossOwnedShops(
   }
 
   const results = await Promise.all(
-    shopIds.map((shopId) => sellerOrderApi.shopOrders(shopId).catch(() => [] as SellerOrder[])),
+    shopIds.map((shopId) => sellerOrderApi.shopOrders(shopId, userId ?? undefined).catch(() => [] as SellerOrder[])),
   )
 
   const merged = new Map<string, SellerOrder>()
@@ -246,10 +256,10 @@ export const sellerOrderApi = {
     return response.data.data ?? []
   },
 
-  async shopOrders(shopId: string): Promise<SellerOrder[]> {
+  async shopOrders(shopId: string, userId?: string): Promise<SellerOrder[]> {
     const response = await ecommerceReadClient.post<ShopOrdersResponse>('', {
       query: SHOP_ORDERS_QUERY,
-      variables: { shopId },
+      variables: { shopId, userId },
     })
 
     if (response.data.errors?.length) {

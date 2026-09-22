@@ -8,7 +8,7 @@ import {
   sellerOrderApi,
   type SellerOrder,
 } from '../api/sellerOrderApi'
-import { Truck, MapPin, Package, CreditCard } from 'lucide-react'
+import { Truck, MapPin, Package, CreditCard, Mail } from 'lucide-react'
 
 const STATUS_STEPS = [
   { key: 'READY_FOR_FULFILLMENT', label: 'Ready to Ship' },
@@ -405,14 +405,31 @@ const SellerOrderDetailPage = () => {
                     {order.deliveryAddress.recipientPhone && (
                       <p className="text-slate-500">{order.deliveryAddress.recipientPhone}</p>
                     )}
-                    {order.deliveryAddress.addressLine1 && <p>{order.deliveryAddress.addressLine1}</p>}
-                    {order.deliveryAddress.addressLine2 && <p>{order.deliveryAddress.addressLine2}</p>}
+                    {order.deliveryAddress.email && (
+                      <p className="text-slate-500 flex items-center gap-1.5">
+                        <Mail size={14} className="text-slate-400 shrink-0" />
+                        {order.deliveryAddress.email}
+                      </p>
+                    )}
+                    <p className="mt-1">
+                      {order.deliveryAddress.addressLine1 && (
+                        <span>{order.deliveryAddress.addressLine1}</span>
+                      )}
+                      {order.deliveryAddress.addressLine2 && (
+                        <span>, {order.deliveryAddress.addressLine2}</span>
+                      )}
+                    </p>
                     <p>
                       {[order.deliveryAddress.ward, order.deliveryAddress.district, order.deliveryAddress.city, order.deliveryAddress.state]
                         .filter(Boolean)
                         .join(', ')}
                     </p>
-                    {order.deliveryAddress.country && <p>{order.deliveryAddress.country}</p>}
+                    {order.deliveryAddress.postalCode && (
+                      <p>{order.deliveryAddress.postalCode}</p>
+                    )}
+                    {order.deliveryAddress.country && (
+                      <p>{order.deliveryAddress.country}</p>
+                    )}
                     {order.deliveryAddress.deliveryNote && (
                       <p className="text-xs text-slate-500 italic mt-2">Note: {order.deliveryAddress.deliveryNote}</p>
                     )}
