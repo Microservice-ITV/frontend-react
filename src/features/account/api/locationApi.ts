@@ -17,6 +17,10 @@ export const locationApi = {
     )
   },
 
+  getAllCities() {
+    return authClient.get<{ success: boolean; data: { cities: CityOption[] } }>('/locations/cities')
+  },
+
   getCities(stateId: number) {
     return authClient.get<{ success: boolean; data: { state_id: number; cities: CityOption[] } }>(
       `/locations/states/${stateId}/cities`,

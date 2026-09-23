@@ -4,6 +4,7 @@ import type { CartItem } from '../types/cartTypes'
 import { selectShopSelectionMap } from '../store/cartSelectors'
 import { removeFromCart, toggleItemSelection, toggleShopSelection } from '../store/cartSlice'
 import CartQuantityInput from './CartQuantityInput'
+import placeholderImage from '@/public/placeholder.svg'
 
 interface CartItemListProps {
   items: CartItem[]
@@ -78,8 +79,13 @@ const CartItemLists = ({ items }: CartItemListProps) => {
 
                 <div className="flex gap-3">
                   <img
-                    src={item.image || '/placeholder.png'}
+                    src={item.image || placeholderImage}
                     alt={item.name}
+                    onError={(e) => {
+                      const img = e.currentTarget
+                      img.onerror = null
+                      img.src = placeholderImage
+                    }}
                     className="w-16 h-16 md:w-20 md:h-20 object-cover border border-[var(--dni-cart-border)]"
                   />
                   <div className="min-w-0">

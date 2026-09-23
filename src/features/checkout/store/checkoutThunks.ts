@@ -1,7 +1,6 @@
 import { createAsyncThunk } from '@reduxjs/toolkit'
 import { orderClient } from '@/lib/api/orderClient'
-import type { AxiosResponse } from 'axios'
-import type { CheckoutResponse, CheckoutStatusResponse } from '../types/checkoutTypes'
+import type { CheckoutStatusResponse } from '../types/checkoutTypes'
 import type { SagaStatusResponse, SagaCheckoutResponse } from '../types/sagaTypes'
 
 const generateIdempotencyKey = (userId: string) => {
@@ -36,38 +35,24 @@ export const checkoutCart = createAsyncThunk<
             // Keep idempotency key short (<255) to satisfy backend validation.
             const idempotencyKey = generateIdempotencyKey(String(userId))
 
-            const response = await orderClient.post<SagaCheckoutResponse>('/saga/orders/checkout', {
-                idempotency_key: idempotencyKey,
-                user_id: String(userId),
-                payment_method: state.checkout.paymentMethod,
-                items: selectedItems.map(item => ({
-                    product_id: item.productId,
-                    qty: item.quantity,
-                    ...(item.variantId ? { variant_id: item.variantId } : {}),
-                })),
-                delivery_address: {
-                    full_name: '',
-                    phone_no: '',
-                    country_code: '+1',
-                    country: 'United States',
-                    state: '',
-                    city: '',
-                    district: '',
-                    ward: '',
-                    address_line_1: '',
-                    address_line_2: '',
-                    postal_code: '',
-                    latitude: null,
-                    longitude: null,
-                    delivery_note: '',
-                    shipping_total: 0,
-                    shop_shippings: []
-                }
-            }, {
-                headers: {
-                    'Idempotency-Key': idempotencyKey,
+            const response = await orderClient.post<SagaCheckoutResponse>(
+                '/saga/orders/checkout',
+                {
+                    idempotency_key: idempotencyKey,
+                    user_id: String(userId),
+                    payment_method: state.checkout.paymentMethod,
+                    items: selectedItems.map(item => ({
+                        product_id: item.productId,
+                        qty: item.quantity,
+                        ...(item.variantId ? { variant_id: item.variantId } : {}),
+                    })),
                 },
-            })
+                {
+                    headers: {
+                        'Idempotency-Key': idempotencyKey,
+                    },
+                },
+            )
 
             const raw = response.data as any
             const normalized: SagaCheckoutResponse = 'data' in raw ? raw.data : raw
@@ -98,6 +83,94 @@ export const checkoutCart = createAsyncThunk<
           return true
         },
       }
+)
+
+export const guestCheckoutCart = createAsyncThunk<
+    SagaCheckoutResponse,
+    {
+        guest_id: string
+        delivery_address: {
+            full_name: string
+            phone_no: string
+            email?: string | null
+            country_code: string
+            country: string
+            state: string
+            city: string
+            district: string
+            ward: string
+            address_line_1: string
+            address_line_2?: string | null
+            postal_code?: string | null
+            latitude?: number | null
+            longitude?: number | null
+            delivery_note?: string | null
+        }
+    },
+    { state: any; rejectValue: string }
+>(
+    'cart/guestCheckout',
+    async ({ guest_id, delivery_address }, { getState, rejectWithValue }) => {
+        const state = getState()
+
+        const { items } = state.cart
+        const selectedItems = items.filter((item: any) => item.selected)
+
+        if (!guest_id) {
+            return rejectWithValue('Guest session not found')
+        }
+
+        if (selectedItems.length === 0) {
+            return rejectWithValue('No items selected')
+        }
+
+        try {
+            const idempotencyKey = generateIdempotencyKey(String(guest_id))
+
+            const response = await orderClient.post<SagaCheckoutResponse>(
+                '/saga/orders/checkout',
+                {
+                    idempotency_key: idempotencyKey,
+                    user_id: String(guest_id),
+                    guest_id: String(guest_id),
+                    payment_method: state.checkout.paymentMethod,
+                    items: selectedItems.map((item: any) => ({
+                        product_id: item.productId,
+                        qty: item.quantity,
+                        ...(item.variantId ? { variant_id: item.variantId } : {}),
+                    })),
+                    delivery_address,
+                },
+                {
+                    headers: {
+                        'Idempotency-Key': idempotencyKey,
+                    },
+                },
+            )
+
+            const raw = response.data as any
+            const normalized: SagaCheckoutResponse = 'data' in raw ? raw.data : raw
+            const checkout = normalized?.checkout
+            const checkoutId =
+                normalized.checkout_id ??
+                checkout?.checkout_id ??
+                checkout?.id ??
+                null
+
+            return checkoutId
+                ? { ...normalized, checkout_id: checkoutId }
+                : normalized
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data?.error ?? 'Checkout failed')
+        }
+    },
+    {
+        condition: (_, { getState }) => {
+            const { loading } = getState().checkout
+            if (loading) return false
+            return true
+        },
+    },
 )
 
 export const completeCheckout = createAsyncThunk<
