@@ -265,6 +265,14 @@ withSearch({
         icon: Settings,
       },
       {
+        key: "seller-users",
+        label: "Users",
+        to: "/seller/users",
+        area: "seller",
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: UserCog,
+      },
+      {
         key: "seller-help-support",
         label: "Help & Support",
         to: "/seller/help-support",

@@ -69,6 +69,7 @@ import SellerOverviewPage from "@/features/seller/pages/SellerOverviewPage";
 import SellerOrdersPage from "@/features/seller/pages/SellerOrdersPage";
 import SellerOrderDetailPage from "@/features/seller/pages/SellerOrderDetailPage";
 import SellerProductsPage from "@/features/seller/pages/SellerProductsPage";
+import SellerUsersPage from "@/features/seller/pages/SellerUsersPage";
 import SellerCategoriesPage from "@/features/seller/pages/SellerCategoriesPage";
 import NewProductPage from "@/features/seller/pages/NewProductPage";
 import EditProductPage from "@/features/seller/pages/EditProductPage";
@@ -481,6 +482,17 @@ const AppRoutes = () => {
                   allowedRoles={["SHOP_OWNER", "SUPER_ADMIN"]}
                 >
                   <PromotionEnginePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="users"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerOverview}
+                  allowedRoles={["SHOP_OWNER", "SHOP_ADMIN"]}
+                >
+                  <SellerUsersPage />
                 </ProtectedRoute>
               }
             />
