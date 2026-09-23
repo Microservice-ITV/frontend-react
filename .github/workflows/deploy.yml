@@ -35,7 +35,7 @@ jobs:
           password: ${{ secrets.DOCKER_TOKEN }}
 
       #################################################
-      # Build & Push Image
+      # Build & Push Docker Image
       #################################################
       - name: 🏗️ Build & Push Docker Image
         uses: docker/build-push-action@v6
@@ -52,11 +52,9 @@ jobs:
             VITE_ECOMMERCE_READ_GRAPHQL_URL=https://api.dailyneeditems.com/graphql
             VITE_ORDER_SERVICE_URL=https://api.dailyneeditems.com/orders
             VITE_ECOMMERCE_READ_SERVICE_URL=https://api.dailyneeditems.com
-            VITE_ECOMMERCE_READ_GRAPHQL_URL=https://api.dailyneeditems.com/graphql
             VITE_SHIPPING_SERVICE_URL=https://api.dailyneeditems.com/shipping
             VITE_BFF_SERVICE_URL=https://api.dailyneeditems.com/bff
             VITE_ASSET_BASE_URL=https://dnistore.sgp1.cdn.digitaloceanspaces.com
-
             VITE_MAP_PROVIDER=osm
             VITE_USE_MOCK_API=false
             VITE_RECAPTCHA_SITE_KEY=6LcO46otAAAAAGmfgkNYvcVfI-sZ8iA52SmcaUC9
@@ -86,20 +84,24 @@ jobs:
             echo "🚀 Deploying Frontend React..."
 
             ##################################################
-            # 1. Clone or update repo (optional for tracking)
+            # 1. Prepare deployment directory
             ##################################################
-            if [ ! -d "/var/www/html/microservices/frontend-react" ]; then
-              git clone git@github.com:Microservice-ITV/frontend-react.git \
-              /var/www/html/microservices/frontend-react
-            fi
+            DEPLOY_DIR="/var/www/html/microservices/frontend-react"
 
-            cd /var/www/html/microservices/frontend-react
-
-            git fetch origin
-            git reset --hard origin/main
+            mkdir -p "$DEPLOY_DIR"
+            cd "$DEPLOY_DIR"
 
             ##################################################
-            # 🧪 CREATE .env ON SERVER (IMPORTANT PART)
+            # 2. Download only docker-compose.prod.yml
+            ##################################################
+            echo "📄 Downloading docker-compose.prod.yml..."
+
+            curl -sfL \
+              https://raw.githubusercontent.com/Microservice-ITV/frontend-react/main/docker-compose.prod.yml \
+              -o docker-compose.prod.yml
+
+            ##################################################
+            # 3. Create .env on server
             ##################################################
             echo "📄 Creating .env file..."
 
@@ -110,22 +112,22 @@ jobs:
             chmod 600 .env
 
             ##################################################
-            # 2. Docker Login (for pulling private images)
+            # 4. Docker Login
             ##################################################
             echo "${{ secrets.DOCKER_TOKEN }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
             ##################################################
-            # 3. Pull latest image
+            # 5. Pull latest image
             ##################################################
             docker compose -f docker-compose.prod.yml pull
 
             ##################################################
-            # 4. Restart container
+            # 6. Restart container
             ##################################################
-            docker compose -f docker-compose.prod.yml up -d
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
 
             ##################################################
-            # 5. Cleanup
+            # 7. Cleanup
             ##################################################
             docker image prune -f
             docker system prune -f
