@@ -59,9 +59,9 @@ jobs:
             VITE_USE_MOCK_API=false
             VITE_RECAPTCHA_SITE_KEY=6LcO46otAAAAAGmfgkNYvcVfI-sZ8iA52SmcaUC9
 
-#####################################################
-# 2. DEPLOY TO VPS
-#####################################################
+  #####################################################
+  # 2. DEPLOY TO VPS
+  #####################################################
   deploy:
     name: 🚀 Deploy to VPS
     runs-on: ubuntu-latest
@@ -83,17 +83,20 @@ jobs:
 
             echo "🚀 Deploying Frontend React..."
 
+            DEPLOY_DIR="/var/www/html/microservices/frontend-react"
+
             ##################################################
             # 1. Prepare deployment directory
             ##################################################
-            DEPLOY_DIR="/var/www/html/microservices/frontend-react"
 
+            rm -rf "$DEPLOY_DIR"
             mkdir -p "$DEPLOY_DIR"
             cd "$DEPLOY_DIR"
 
             ##################################################
-            # 2. Download only docker-compose.prod.yml
+            # 2. Download production compose file
             ##################################################
+
             echo "📄 Downloading docker-compose.prod.yml..."
 
             curl -sfL \
@@ -101,9 +104,10 @@ jobs:
               -o docker-compose.prod.yml
 
             ##################################################
-            # 3. Create .env on server
+            # 3. Create production environment
             ##################################################
-            echo "📄 Creating .env file..."
+
+            echo "📄 Creating .env..."
 
             cat > .env <<EOF
             ${{ secrets.FRONTEND_ENV }}
@@ -112,24 +116,59 @@ jobs:
             chmod 600 .env
 
             ##################################################
-            # 4. Docker Login
+            # 4. Docker Hub Login
             ##################################################
-            echo "${{ secrets.DOCKER_TOKEN }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+            echo "🔐 Logging into Docker Hub..."
+
+            echo "${{ secrets.DOCKER_TOKEN }}" \
+              | docker login \
+              -u "${{ secrets.DOCKER_USERNAME }}" \
+              --password-stdin
 
             ##################################################
-            # 5. Pull latest image
+            # 5. Pull latest Docker image
             ##################################################
-            docker compose -f docker-compose.prod.yml pull
+
+            echo "🐳 Pulling Frontend Docker image..."
+
+            docker compose \
+              -f docker-compose.prod.yml \
+              pull
 
             ##################################################
-            # 6. Restart container
+            # 6. Start / Update container
             ##################################################
-            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+
+            echo "🚀 Starting Frontend container..."
+
+            docker compose \
+              -f docker-compose.prod.yml \
+              up -d \
+              --remove-orphans
 
             ##################################################
-            # 7. Cleanup
+            # 7. Wait for container
             ##################################################
+
+            echo "⏳ Waiting for Frontend service..."
+
+            sleep 10
+
+            ##################################################
+            # 8. Container status
+            ##################################################
+
+            docker compose \
+              -f docker-compose.prod.yml \
+              ps
+
+            ##################################################
+            # 9. Cleanup unused images
+            ##################################################
+
+            echo "🧹 Cleaning unused Docker images..."
+
             docker image prune -f
-            docker system prune -f
 
-            echo "✅ Frontend Deployment Successful!"
+            echo "✅ Frontend React Deployment Successful!"
