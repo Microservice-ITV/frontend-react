@@ -33,6 +33,9 @@ import CartSeeMorePage from "@/features/cart/pages/CartSeeMorePage";
 import WishlistPage from "@/features/wishlist/pages/WishlistPage";
 import CheckoutPage from "@/features/checkout/pages/CheckoutPage";
 import CheckoutSuccessPage from "@/features/checkout/pages/CheckoutSuccessPage";
+import CheckoutGatePage from "@/features/checkout/pages/CheckoutGatePage";
+import GuestCheckoutPage from "@/features/checkout/pages/GuestCheckoutPage.tsx";
+import GuestCheckoutSuccessPage from "@/features/checkout/pages/GuestCheckoutSuccessPage";
 import CategoriesPage from "@/features/categories/pages/CategoriesPage";
 import AboutUsPage from "@/features/about/pages/AboutUsPage";
 import CareersPage from "@/features/careers/pages/CareersPage";
@@ -141,7 +144,14 @@ const AppRoutes = () => {
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/phone-auth" element={<PhoneAuthPage />} />
         <Route path="/phone-verify" element={<PhoneOtpPage />} />
+        <Route path="/checkout/guest" element={<GuestCheckoutPage />} />
+        {/* Backward-compatibility: old guest payment url */}
+        <Route path="/checkout/guest/checkout" element={<Navigate to="/checkout" replace />} />
+        <Route path="/checkout/guest/success" element={<GuestCheckoutSuccessPage />} />
       </Route>
+
+      {/* Unified checkout (guest + logged-in) */}
+      <Route path="/checkout" element={<CheckoutGatePage />} />
 
       {/* Protected routes */}
       <Route element={<ProtectedRoute />}>
@@ -204,14 +214,7 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/checkout"
-          element={
-            <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.checkout}>
-              <CheckoutPage />
-            </ProtectedRoute>
-          }
-        />
+        {/* /checkout is now handled by CheckoutGatePage above */}
         <Route
           path="/become-a-seller"
           element={

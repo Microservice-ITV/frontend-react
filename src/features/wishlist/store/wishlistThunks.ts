@@ -2,17 +2,12 @@ import { createAsyncThunk } from "@reduxjs/toolkit";
 import type { RootState } from "@/app/store";
 import type { WishlistItem } from "../types/wishlistTypes";
 import { syncWishlist } from "./wishlistSlice";
-import { loadAnonWishlist } from "../utils/wishlistStorage";
+import { loadAnonWishlist, saveAnonWishlist } from "../utils/wishlistStorage";
 import { wishlistServerApi } from "../api/wishlistServerApi";
 
 const toItems = (productIds: string[]): WishlistItem[] =>
   [...new Set(productIds.filter(Boolean))].map((productId) => ({ productId }));
 
-/**
- * Runs when a user becomes authenticated:
- *  - page-load restore (default): source of truth is the table, reconcile with UI state
- *  - in-SPA login (`mergeGuest: true`): also carry over the guest (anon) wishlist
- */
 export const syncWishlistWithServer = createAsyncThunk<
   WishlistItem[],
   { mergeGuest?: boolean } | undefined,
@@ -40,13 +35,15 @@ export const syncWishlistWithServer = createAsyncThunk<
 
       dispatch(syncWishlist(merged));
 
-      // Push the merged list only when the reconcile added/removed items vs
-      // the table — never blindly on load (avoids wiping the table).
       const mergedIds = merged.map((i) => i.productId);
       const mergedSignature = mergedIds.slice().sort().join(",");
       const serverSignature = serverIds.slice().sort().join(",");
       if (mergedSignature !== serverSignature) {
         await wishlistServerApi.writeAll(mergedIds);
+      }
+
+      if (mergeGuest) {
+        saveAnonWishlist([]);
       }
 
       return merged;
@@ -58,10 +55,6 @@ export const syncWishlistWithServer = createAsyncThunk<
   },
 );
 
-/**
- * Runs on logout: restore the anonymous/guest wishlist so the browser does not
- * keep the previous user's items.
- */
 export const restoreGuestWishlist = createAsyncThunk<
   WishlistItem[],
   void,

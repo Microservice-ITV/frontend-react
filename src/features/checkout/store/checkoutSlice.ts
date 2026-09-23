@@ -1,5 +1,5 @@
 import { createSlice, createSelector } from '@reduxjs/toolkit'
-import { checkoutCart, completeCheckout, fetchSagaStatus, fetchSagaStatusByCheckout, fetchSagaStatistics, fetchCheckoutStatus } from './checkoutThunks'
+import { checkoutCart, guestCheckoutCart, completeCheckout, fetchSagaStatus, fetchSagaStatusByCheckout, fetchSagaStatistics, fetchCheckoutStatus } from './checkoutThunks'
 import type {
     CheckoutPaymentStatus,
     CheckoutResponse,
@@ -114,6 +114,35 @@ const checkoutSlice = createSlice({
                 state.sessionPaymentMethod = state.paymentMethod
             })
             .addCase(checkoutCart.rejected, (state, action) => {
+                state.loading = false
+                state.error = action.payload ?? 'Checkout failed'
+            })
+            .addCase(guestCheckoutCart.pending, state => {
+                state.loading = true
+                state.error = null
+            })
+            .addCase(guestCheckoutCart.fulfilled, (state, action) => {
+                state.loading = false
+                state.currentCheckout = action.payload
+                const checkout = action.payload?.checkout
+                const checkoutId =
+                    action.payload.checkout_id ??
+                    checkout?.checkout_id ??
+                    checkout?.id ??
+                    null
+                if (checkoutId) {
+                    state.currentCheckout = {
+                        ...action.payload,
+                        checkout_id: checkoutId,
+                    }
+                }
+                state.sagaId = action.payload.saga_id || null
+                state.paymentStatus = null
+                state.clientSecret = null
+                state.isAwaitingFinalStatus = false
+                state.sessionPaymentMethod = state.paymentMethod
+            })
+            .addCase(guestCheckoutCart.rejected, (state, action) => {
                 state.loading = false
                 state.error = action.payload ?? 'Checkout failed'
             })

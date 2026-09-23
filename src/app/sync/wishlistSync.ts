@@ -15,11 +15,13 @@ let initialized = false;
 let serverSyncInitialized = false;
 
 const loadLocalWishlist = () => {
-  const sessionExists = hasSessionCookie();
-  const user = sessionExists ? [] : loadUserWishlist();
-  const anon = loadAnonWishlist();
+  const state = store.getState() as { auth: { user?: { id?: string } | null } };
+  const userId = state.auth.user?.id;
 
-  return user.length > 0 ? user : anon;
+  if (userId) return loadUserWishlist();
+
+  const sessionExists = hasSessionCookie();
+  return sessionExists ? [] : loadAnonWishlist();
 };
 
 export const initWishlistSync = (dispatch: AppDispatch) => {
