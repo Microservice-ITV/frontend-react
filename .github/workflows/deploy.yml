@@ -8,35 +8,26 @@ on:
 #####################################################
 # 1. BUILD + PUSH DOCKER IMAGE
 #####################################################
+
 jobs:
   build-and-push:
     name: 🐳 Build & Push Frontend Image
     runs-on: ubuntu-latest
 
     steps:
-
       - name: 📥 Checkout Code
         uses: actions/checkout@v4
 
-      #################################################
-      # Inject .env file from GitHub Secrets
-      #################################################
       - name: 🧪 Create .env file
         run: |
           echo "${{ secrets.FRONTEND_ENV }}" > .env
 
-      #################################################
-      # Docker Hub Login
-      #################################################
       - name: 🐳 Docker Hub Login
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN }}
 
-      #################################################
-      # Build & Push Docker Image
-      #################################################
       - name: 🏗️ Build & Push Docker Image
         uses: docker/build-push-action@v6
         with:
@@ -59,16 +50,12 @@ jobs:
             VITE_USE_MOCK_API=false
             VITE_RECAPTCHA_SITE_KEY=6LcO46otAAAAAGmfgkNYvcVfI-sZ8iA52SmcaUC9
 
-  #####################################################
-  # 2. DEPLOY TO VPS
-  #####################################################
   deploy:
     name: 🚀 Deploy to VPS
     runs-on: ubuntu-latest
     needs: build-and-push
 
     steps:
-
       - name: 🚀 SSH Deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -78,34 +65,51 @@ jobs:
           port: ${{ secrets.SERVER_PORT }}
 
           script: |
+            set -Eeuo pipefail
 
-            set -e
+            trap 'echo "❌ Deployment failed at line $LINENO: $BASH_COMMAND"' ERR
 
             echo "🚀 Deploying Frontend React..."
 
             DEPLOY_DIR="/var/www/html/microservices/frontend-react"
+            COMPOSE_URL="https://raw.githubusercontent.com/Microservice-ITV/frontend-react/main/docker-compose.prod.yml"
 
-            ##################################################
-            # 1. Prepare deployment directory
-            ##################################################
+            echo "📁 Preparing deployment directory..."
 
             rm -rf "$DEPLOY_DIR"
             mkdir -p "$DEPLOY_DIR"
             cd "$DEPLOY_DIR"
 
-            ##################################################
-            # 2. Download production compose file
-            ##################################################
+            echo "📍 Current directory:"
+            pwd
 
             echo "📄 Downloading docker-compose.prod.yml..."
+            echo "🔗 URL: $COMPOSE_URL"
 
-            curl -sfL \
-              https://raw.githubusercontent.com/Microservice-ITV/frontend-react/main/docker-compose.prod.yml \
+            echo "🌐 Testing GitHub response..."
+
+            curl -IL \
+              --connect-timeout 10 \
+              --max-time 30 \
+              "$COMPOSE_URL"
+
+            echo "📥 Downloading compose file..."
+
+            curl -fL \
+              --connect-timeout 10 \
+              --max-time 30 \
+              --retry 3 \
+              --retry-delay 2 \
+              "$COMPOSE_URL" \
               -o docker-compose.prod.yml
 
-            ##################################################
-            # 3. Create production environment
-            ##################################################
+            echo "✅ Compose file downloaded."
+
+            echo "📄 File information:"
+            ls -lah docker-compose.prod.yml
+
+            echo "📄 First 30 lines:"
+            sed -n '1,30p' docker-compose.prod.yml
 
             echo "📄 Creating .env..."
 
@@ -115,9 +119,7 @@ jobs:
 
             chmod 600 .env
 
-            ##################################################
-            # 4. Docker Hub Login
-            ##################################################
+            echo "✅ .env created."
 
             echo "🔐 Logging into Docker Hub..."
 
@@ -126,46 +128,56 @@ jobs:
               -u "${{ secrets.DOCKER_USERNAME }}" \
               --password-stdin
 
-            ##################################################
-            # 5. Pull latest Docker image
-            ##################################################
+            echo "✅ Docker Hub login successful."
+
+            echo "🐳 Docker Compose version:"
+            docker compose version
+
+            echo "🔍 Validating Docker Compose configuration..."
+
+            docker compose \
+              --env-file .env \
+              -f docker-compose.prod.yml \
+              config
+
+            echo "✅ Docker Compose configuration is valid."
 
             echo "🐳 Pulling Frontend Docker image..."
 
             docker compose \
+              --env-file .env \
               -f docker-compose.prod.yml \
               pull
 
-            ##################################################
-            # 6. Start / Update container
-            ##################################################
+            echo "✅ Frontend image pulled."
 
             echo "🚀 Starting Frontend container..."
 
             docker compose \
+              --env-file .env \
               -f docker-compose.prod.yml \
               up -d \
               --remove-orphans
 
-            ##################################################
-            # 7. Wait for container
-            ##################################################
+            echo "✅ Frontend container started."
 
             echo "⏳ Waiting for Frontend service..."
 
             sleep 10
 
-            ##################################################
-            # 8. Container status
-            ##################################################
+            echo "📊 Container status:"
 
             docker compose \
+              --env-file .env \
               -f docker-compose.prod.yml \
               ps
 
-            ##################################################
-            # 9. Cleanup unused images
-            ##################################################
+            echo "📋 Frontend container logs:"
+
+            docker compose \
+              --env-file .env \
+              -f docker-compose.prod.yml \
+              logs --tail=100
 
             echo "🧹 Cleaning unused Docker images..."
 
