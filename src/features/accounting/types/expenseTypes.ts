@@ -57,6 +57,7 @@ export type AccountingExpense = {
   amount: string
   currency: string
   description: string | null
+  receiptImage?: string | null
   expenseDate: string
   status: ExpenseStatus
   createdAt: string
@@ -75,11 +76,12 @@ export type CreateExpensePayload = {
   eventId?: string
   expenseCategoryId: string
   description?: string
+  receiptImage?: string
 }
 
 export type CreateExpenseResponse = {
   expense: AccountingExpense
-  journalEntry: ExpenseJournalEntry
+  journalEntry: ExpenseJournalEntry | null
 }
 
 export type ExpenseApprovalSummary = {

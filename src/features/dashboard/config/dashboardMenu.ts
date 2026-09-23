@@ -206,6 +206,14 @@ withSearch({
         requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
         icon: BookOpen,
       },
+      {
+        key: "seller-accounting-chart-of-accounts",
+        label: "Chart of Accounts",
+        to: "/seller/accounting/chart-of-accounts",
+        area: "seller",
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: Calculator,
+      },
     ],
   },
   {

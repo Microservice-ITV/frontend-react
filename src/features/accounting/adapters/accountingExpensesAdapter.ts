@@ -32,6 +32,14 @@ export const accountingExpensesAdapter = {
     return response.data
   },
 
+  async updateReturned(expenseId: string, payload: CreateExpensePayload): Promise<AccountingExpense> {
+    const response = await accountingClient.patch<AccountingExpense>(
+      `/expenses/${encodeURIComponent(expenseId)}`,
+      payload,
+    )
+    return response.data
+  },
+
   async submit(expenseId: string, actorUserId?: string): Promise<SubmitExpenseResponse> {
     const response = await accountingClient.post<SubmitExpenseResponse>(
       `/expenses/${encodeURIComponent(expenseId)}/submit`,

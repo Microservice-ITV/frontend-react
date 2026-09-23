@@ -370,6 +370,7 @@ export const searchConfigs: Record<string, SearchConfig> = {
   'seller-analytics': makeStaticSearch('/seller/analytics'),
   'seller-finance-overview': makeStaticSearch('/seller/finance'),
   'seller-finance-transactions': makeStaticSearch('/seller/finance/transactions'),
+  'seller-accounting-chart-of-accounts': makeStaticSearch('/seller/accounting/chart-of-accounts'),
   'seller-mail': makeStaticSearch('/seller/mail'),
   'seller-chat': makeStaticSearch('/seller/chat'),
   'seller-files': makeStaticSearch('/seller/files'),
