@@ -103,7 +103,23 @@ describe('SellerExpenseDetailPage', () => {
       expenseStatus: 'PENDING_APPROVAL',
       currentApproval: mockApprovalStatus.approvals[0],
     } as any)
-    vi.spyOn(authClient, 'get').mockResolvedValue({ data: { data: { access_context: { shops: [] } } } } as any)
+    vi.spyOn(authClient, 'get').mockImplementation(async (url) => {
+      if (url === '/me/access-context') {
+        return { data: { data: { access_context: { shops: [] } } } } as any
+      }
+
+      return {
+        data: {
+          data: {
+            users: [
+              { user: { id: 'approver-1', name: 'Alice Manager' } },
+              { user: { id: 'approver-2', name: 'Bob Manager' } },
+              { user: { id: 'approver-3', name: 'Carol Manager' } },
+            ],
+          },
+        },
+      } as any
+    })
     store.dispatch(fetchMe.fulfilled(currentUser, '', undefined))
   })
 
@@ -114,8 +130,8 @@ describe('SellerExpenseDetailPage', () => {
     await waitFor(() => expect(screen.getByText('PENDING')).toBeInTheDocument())
     expect(screen.getAllByText('WAITING')).toHaveLength(2)
     expect(screen.getAllByText('Manager')).toHaveLength(3)
-    expect(screen.getByText('approver-2')).toBeInTheDocument()
-    expect(screen.getByText('approver-3')).toBeInTheDocument()
+    expect(screen.getByText('Bob Manager')).toBeInTheDocument()
+    expect(screen.getByText('Carol Manager')).toBeInTheDocument()
 
     const approveButton = screen.getByRole('button', { name: /approve/i })
     const rejectButton = screen.getByRole('button', { name: /reject/i })
@@ -163,6 +179,21 @@ describe('SellerExpenseDetailPage', () => {
 
     await waitFor(() => expect(screen.getAllByText('RETURNED').length).toBeGreaterThanOrEqual(2))
     expect(screen.queryByText('REJECTED')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /edit and resubmit/i })).not.toBeInTheDocument()
+  })
+
+  it('shows edit and resubmit only to the expense creator', async () => {
+    const getByReference = vi.spyOn(accountingExpensesAdapter, 'getByReference')
+    getByReference.mockReset().mockResolvedValue({ ...mockExpense, status: 'RETURNED' } as any)
+    vi.spyOn(accountingExpensesAdapter, 'getApprovalStatus').mockResolvedValue({
+      ...mockApprovalStatus,
+      status: 'RETURNED',
+      approvals: [{ ...mockApprovalStatus.approvals[0], status: 'REJECTED', action: 'RETURNED' }],
+    } as any)
+
+    renderPage('seller-1')
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /edit and resubmit/i })).toBeInTheDocument())
   })
 
   it('displays normal rejection as REJECTED', async () => {

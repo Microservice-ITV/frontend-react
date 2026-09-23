@@ -589,6 +589,16 @@ const AppRoutes = () => {
               }
             />
             <Route
+              path="accounting/chart-of-accounts"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerAccounting}
+                >
+                  <AdminChartOfAccountsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="accounting/approval-policies"
               element={
                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerAccounting}>

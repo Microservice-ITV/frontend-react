@@ -1,9 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, ReceiptText, RefreshCw } from "lucide-react";
+import { Plus, ReceiptText, RefreshCw, Search } from "lucide-react";
 import { useAppSelector } from "@/app/hooks";
+import DataTablePagination from "@/components/ui/DataTablePagination";
 import { authClient } from "@/lib/api/authClient";
-import AccountingStatusBadge from "../components/AccountingStatusBadge";
+import AccountingStatusBadge, {
+  accountingStatusLabel,
+} from "../components/AccountingStatusBadge";
 import { accountingExpensesAdapter } from "../adapters/accountingExpensesAdapter";
 import type { AccountingExpense, ExpenseCategory } from "../types/expenseTypes";
 
@@ -51,6 +54,22 @@ const SellerExpensesPage = () => {
     "loading",
   );
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  const statusOptions = [
+    "DRAFT",
+    "SUBMITTED",
+    "PENDING_APPROVAL",
+    "RETURNED",
+    "APPROVED",
+    "REJECTED",
+    "CANCELLED",
+  ];
 
   const load = async () => {
     setStatus("loading");
@@ -93,6 +112,54 @@ const SellerExpensesPage = () => {
   useEffect(() => {
     void load();
   }, [authUser?.id]);
+
+  const filteredExpenses = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return expenses.filter((expense) => {
+      const categoryName = categoryNames[expense.expenseTypeId] ?? "";
+      const shopName = expense.shopId
+        ? (shopNames[normalizeShopId(expense.shopId)] ?? expense.shopId)
+        : "";
+      const matchesDate =
+        (!fromDate || expense.expenseDate.slice(0, 10) >= fromDate) &&
+        (!toDate || expense.expenseDate.slice(0, 10) <= toDate);
+      const matchesStatus =
+        statusFilter === "ALL" || expense.status === statusFilter;
+      const matchesSearch =
+        !query ||
+        [
+          expense.expenseNo,
+          shopName,
+          categoryName,
+          expense.description ?? "",
+          expense.currency,
+          expense.status,
+        ].some((value) => value.toLowerCase().includes(query));
+
+      return matchesDate && matchesStatus && matchesSearch;
+    });
+  }, [
+    categoryNames,
+    expenses,
+    fromDate,
+    search,
+    shopNames,
+    statusFilter,
+    toDate,
+  ]);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredExpenses.length / rowsPerPage),
+  );
+  const visibleExpenses = filteredExpenses.slice(
+    (page - 1) * rowsPerPage,
+    page * rowsPerPage,
+  );
+  const totalExpenses = filteredExpenses.reduce(
+    (sum, expense) => sum + Number(expense.amount),
+    0,
+  );
 
   return (
     <section className="space-y-6">
@@ -143,9 +210,101 @@ const SellerExpensesPage = () => {
           {error}
         </p>
       )}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="rounded-xl border border-orange-100 bg-orange-50 px-4 py-3">
+          <p className="text-xs text-orange-700">Total expenses</p>
+          <p className="mt-1 text-lg font-bold text-orange-900">
+            MMK {totalExpenses.toLocaleString()}
+          </p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+          <p className="text-xs text-slate-500">Expense entries</p>
+          <p className="mt-1 text-lg font-bold text-slate-900">
+            {filteredExpenses.length.toLocaleString()}
+          </p>
+        </div>
+      </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:max-w-xs">
+          <Search
+            size={16}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+          />
+          <input
+            type="search"
+            placeholder="Search expense, shop, category, or status..."
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPage(1);
+            }}
+            className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-4 text-sm outline-none placeholder:text-slate-400 focus:border-emerald-500"
+          />
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <label className="flex items-center gap-2 text-xs text-slate-600">
+            Status
+            <select
+              value={statusFilter}
+              onChange={(event) => {
+                setStatusFilter(event.target.value);
+                setPage(1);
+              }}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-emerald-500"
+            >
+              <option value="ALL">All statuses</option>
+              {statusOptions.map((option) => (
+                <option key={option} value={option}>
+                  {accountingStatusLabel(option)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-xs text-slate-600">
+            From
+            <input
+              type="date"
+              value={fromDate}
+              max={toDate || undefined}
+              onChange={(event) => {
+                setFromDate(event.target.value);
+                setPage(1);
+              }}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-emerald-500"
+            />
+          </label>
+          <label className="flex items-center gap-2 text-xs text-slate-600">
+            To
+            <input
+              type="date"
+              value={toDate}
+              min={fromDate || undefined}
+              onChange={(event) => {
+                setToDate(event.target.value);
+                setPage(1);
+              }}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-emerald-500"
+            />
+          </label>
+          {(fromDate || toDate || statusFilter !== "ALL") && (
+            <button
+              type="button"
+              onClick={() => {
+                setFromDate("");
+                setToDate("");
+                setStatusFilter("ALL");
+                setPage(1);
+              }}
+              className="text-xs font-medium text-emerald-700 hover:text-emerald-800"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      </div>
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[880px]">
+          <table className="w-full min-w-220">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
@@ -185,7 +344,7 @@ const SellerExpensesPage = () => {
                   </td>
                 </tr>
               )}
-              {status === "succeeded" && expenses.length === 0 && (
+              {status === "succeeded" && filteredExpenses.length === 0 && (
                 <tr>
                   <td colSpan={8} className="px-4 py-12 text-center">
                     <p className="text-sm font-medium text-slate-700">
@@ -199,7 +358,7 @@ const SellerExpensesPage = () => {
                 </tr>
               )}
               {status === "succeeded" &&
-                expenses.map((expense) => (
+                visibleExpenses.map((expense) => (
                   <tr
                     key={expense.id}
                     className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
@@ -229,7 +388,7 @@ const SellerExpensesPage = () => {
                     </td>
                     <td className="px-4 py-3">
                       <Link
-                        to={`/seller/accounting/expenses/${encodeURIComponent(expense.id)}`}
+                        to={`/seller/accounting/expenses/${encodeURIComponent(expense.expenseNo)}`}
                         className="text-xs font-medium text-emerald-700 hover:text-emerald-800"
                       >
                         View
@@ -240,6 +399,18 @@ const SellerExpensesPage = () => {
             </tbody>
           </table>
         </div>
+        <DataTablePagination
+          page={page}
+          totalPages={totalPages}
+          rowsPerPage={rowsPerPage}
+          totalItems={filteredExpenses.length}
+          itemLabel="expense entries"
+          onPageChange={setPage}
+          onRowsPerPageChange={(value) => {
+            setRowsPerPage(value);
+            setPage(1);
+          }}
+        />
       </div>
     </section>
   );

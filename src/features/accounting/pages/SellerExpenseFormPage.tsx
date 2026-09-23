@@ -7,6 +7,7 @@ import SearchableSelect, { type SearchableSelectOption } from '@/components/ui/S
 import { sellerRegistrationApi } from '@/features/seller/api/sellerRegistrationApi'
 import { accountingExpensesAdapter } from '../adapters/accountingExpensesAdapter'
 import type { CreateExpenseResponse, ExpenseAccount, ExpenseCategory } from '../types/expenseTypes'
+import { compressReceiptFile } from '../utils/receiptImage'
 
 const inputClassName = 'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500'
 const today = () => new Date().toISOString().slice(0, 10)
@@ -28,6 +29,7 @@ type FormValue = {
   amount: string
   expenseDate: string
   description: string
+  receiptImage: string
 }
 
 const SellerExpenseFormPage = () => {
@@ -44,6 +46,7 @@ const SellerExpenseFormPage = () => {
     amount: '',
     expenseDate: today(),
     description: '',
+    receiptImage: '',
   })
   const [status, setStatus] = useState<'idle' | 'loading' | 'failed' | 'succeeded'>('loading')
   const [error, setError] = useState<string | null>(null)
@@ -132,6 +135,7 @@ const SellerExpenseFormPage = () => {
         fundingAccountCode: value.fundingAccountCode,
         expenseCategoryId: value.categoryId,
         description: value.description.trim() || undefined,
+        receiptImage: value.receiptImage || undefined,
       })
       setCreated(response)
       setStatus('succeeded')
@@ -147,7 +151,7 @@ const SellerExpenseFormPage = () => {
         <Link to="/seller/accounting/expenses" className="inline-flex items-center gap-2 text-xs font-medium text-slate-600 hover:text-slate-900"><ArrowLeft size={15} />Back to expenses</Link>
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-6">
           <div className="flex items-start gap-3"><CheckCircle2 className="mt-0.5 text-emerald-600" size={22} /><div><h1 className="text-lg font-bold text-emerald-950">Expense created</h1><p className="mt-1 text-sm text-emerald-800">{created.expense.expenseNo} was created with status {created.expense.status}.</p></div></div>
-          <div className="mt-5 grid gap-3 text-sm sm:grid-cols-3"><div><p className="text-xs text-emerald-700">Amount</p><p className="font-semibold text-emerald-950">{created.expense.currency} {Number(created.expense.amount).toLocaleString()}</p></div><div><p className="text-xs text-emerald-700">Journal entry</p><p className="font-semibold text-emerald-950">{created.journalEntry.referenceId}</p></div><div><p className="text-xs text-emerald-700">Journal status</p><p className="font-semibold text-emerald-950">{created.journalEntry.status}</p></div></div>
+          <div className="mt-5 grid gap-3 text-sm sm:grid-cols-3"><div><p className="text-xs text-emerald-700">Amount</p><p className="font-semibold text-emerald-950">{created.expense.currency} {Number(created.expense.amount).toLocaleString()}</p></div><div><p className="text-xs text-emerald-700">Journal entry</p><p className="font-semibold text-emerald-950">Created after final approval</p></div><div><p className="text-xs text-emerald-700">Journal status</p><p className="font-semibold text-emerald-950">Awaiting approval</p></div></div>
         </div>
         <div className="flex flex-wrap gap-2"><Button type="button" onClick={() => navigate('/seller/accounting/expenses/new')} className="w-auto px-4">Create another expense</Button><Link to="/seller/accounting/expenses" className="inline-flex items-center rounded px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100">View expenses</Link></div>
       </section>
@@ -157,7 +161,7 @@ const SellerExpenseFormPage = () => {
   return (
     <section className="space-y-6">
       <nav className="text-xs text-slate-500"><Link to="/seller/overview" className="hover:text-slate-700">Dashboard</Link><span className="mx-1">/</span><Link to="/seller/accounting/overview" className="hover:text-slate-700">Accounting</Link><span className="mx-1">/</span><span className="text-slate-900">New Expense</span></nav>
-      <div><h1 className="flex items-center gap-2 text-xl font-bold text-slate-900"><ReceiptText size={22} className="text-orange-600" />Add Expense</h1><p className="mt-0.5 text-sm text-slate-600">Record a shop expense and its balanced journal entry.</p></div>
+      <div><h1 className="flex items-center gap-2 text-xl font-bold text-slate-900"><ReceiptText size={22} className="text-orange-600" />Add Expense</h1><p className="mt-0.5 text-sm text-slate-600">Record a shop expense for approval.</p></div>
       {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
       {status === 'loading' && <p className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">Loading expense options...</p>}
       <form onSubmit={submit} className="rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
@@ -170,6 +174,22 @@ const SellerExpenseFormPage = () => {
           <Field label="Currency" required><input value="MMK" readOnly className={`${inputClassName} cursor-not-allowed bg-slate-50 text-slate-500`} /></Field>
           <Field label="Expense Date" required><input type="date" value={value.expenseDate} onChange={(event) => update('expenseDate', event.target.value)} className={inputClassName} /></Field>
           <Field label="Description"><textarea rows={3} value={value.description} onChange={(event) => update('description', event.target.value)} className={`${inputClassName} resize-y`} placeholder="Optional description" /></Field>
+          <Field label="Receipt image"><input type="file" accept="image/jpeg,image/png,image/webp" onChange={async (event) => {
+            const file = event.target.files?.[0]
+            if (!file) return
+            setError(null)
+            try {
+              const compressed = await compressReceiptFile(file)
+              update('receiptImage', compressed)
+            } catch (cause) {
+              setError(errorMessage(cause, 'Unable to process receipt image.'))
+            }
+          }} className={inputClassName} />
+            {value.receiptImage && <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-2">
+              <img src={value.receiptImage} alt="Selected receipt preview" className="max-h-48 w-full rounded object-contain" />
+              <button type="button" onClick={() => update('receiptImage', '')} className="mt-2 text-xs font-medium text-red-600 hover:text-red-700">Remove receipt</button>
+            </div>}
+          </Field>
         </div>
         <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-5"><Link to="/seller/accounting/expenses" className="inline-flex items-center rounded px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Cancel</Link><Button type="submit" disabled={status === 'loading' || status === 'failed' && !authUser?.id} loading={status === 'loading'} className="w-auto px-5">Create Expense</Button></div>
       </form>
