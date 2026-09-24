@@ -12,7 +12,7 @@ export interface CheckoutTotals {
 export const calculateCheckout = (
     items: CartItem[],
     opts?: {
-        feesByShop?: Record<string, Pick<ShopCalculatedShipping, 'amount'>>
+        feesByShop?: Record<string, Pick<ShopCalculatedShipping, 'amount' | 'deliveryStatus'>>
         /** Prefer API aggregate when provided (matches payment summary). */
         totalShippingFee?: number | null
     },
@@ -42,11 +42,17 @@ export const calculateCheckout = (
 
     if (useApiFees && opts?.feesByShop) {
         const fees = opts.feesByShop
-        if (apiTotal != null && apiTotal >= 0) {
+        const hasUndeliverable = shopIds.some(
+            (id) => fees[id]?.deliveryStatus === 'NOT_DELIVERABLE',
+        )
+
+        if (!hasUndeliverable && apiTotal != null && apiTotal >= 0) {
             shippingSubtotal = apiTotal
         } else {
             shippingSubtotal = shopIds.reduce((sum, id) => {
-                const amount = fees[id]?.amount
+                const row = fees[id]
+                if (row?.deliveryStatus === 'NOT_DELIVERABLE') return sum
+                const amount = row?.amount
                 return sum + (amount != null && amount >= 0 ? amount : 0)
             }, 0)
         }

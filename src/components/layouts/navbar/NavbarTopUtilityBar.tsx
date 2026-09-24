@@ -36,9 +36,10 @@ const NavbarTopUtilityBar = () => {
                         <Sparkles className="h-3 w-3 text-emerald-600" />
                         AI Shopping
                     </button>
-                    {/* <Link to={startSellingTo} className="hover:text-black">
+                    <Link to={startSellingTo} className="hover:text-black">
                         Start Selling
                     </Link>
+                    {/* 
                     <Link to="/help-centre" className="hover:text-black">
                         Help
                     </Link>

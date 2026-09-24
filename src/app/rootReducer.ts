@@ -1,15 +1,15 @@
 import { combineReducers } from "@reduxjs/toolkit";
 
-import authReducer from '@/features/auth/store/authSlice'
-import accountReducer from '@/features/account/store/accountSlice'
-import productsReducer from '@/features/products/store/productSlice'
-import recommendationsReducer from '@/features/products/store/recommendationsSlice'
-import categoryReducer from '@/features/categories/store/categorySlice'
-import cartReducer from '@/features/cart/store/cartSlice'
-import checkoutReducer from '@/features/checkout/store/checkoutSlice'
-import sellerProductsReducer from '@/features/seller/store/sellerProductsSlice'
-import sellerCategoriesReducer from '@/features/seller/store/sellerCategoriesSlice'
-import sellerOrdersReducer from '@/features/seller/store/sellerOrdersSlice'
+import authReducer from "@/features/auth/store/authSlice";
+import accountReducer from "@/features/account/store/accountSlice";
+import productsReducer from "@/features/products/store/productSlice";
+import recommendationsReducer from "@/features/products/store/recommendationsSlice";
+import categoryReducer from "@/features/categories/store/categorySlice";
+import cartReducer from "@/features/cart/store/cartSlice";
+import checkoutReducer from "@/features/checkout/store/checkoutSlice";
+import sellerProductsReducer from "@/features/seller/store/sellerProductsSlice";
+import sellerCategoriesReducer from "@/features/seller/store/sellerCategoriesSlice";
+import sellerOrdersReducer from "@/features/seller/store/sellerOrdersSlice";
 import adminShopsReducer from "@/features/admin/store/adminShopsSlice";
 import adminDashboardReducer from "@/features/admin/store/adminDashboardSlice";
 import adminRbacReducer from "@/features/admin/store/adminRbacSlice";
@@ -18,6 +18,7 @@ import adminPricingRulesReducer from "@/features/admin/store/adminPricingRulesSl
 import adminWeightRatesReducer from "@/features/admin/store/adminWeightRatesSlice";
 import adminDistanceRangesReducer from "@/features/admin/store/adminDistanceRangesSlice";
 import adminDeliveryQuotesReducer from "@/features/admin/store/adminDeliveryQuotesSlice";
+import adminDeliveryCityRatesReducer from "@/features/admin/store/adminDeliveryCityRatesSlice";
 import shippingReducer from "@/features/shipping/store/shippingSlice";
 import homeFeatureReducer from "@/features/homeFeatures/store/homeFeatureSlice";
 import homeQuickActionsReducer from "@/features/home/store/homeSlice";
@@ -49,6 +50,8 @@ const rootReducer = combineReducers({
   adminWeightRates: adminWeightRatesReducer,
   adminDistanceRanges: adminDistanceRangesReducer,
   adminDeliveryQuotes: adminDeliveryQuotesReducer,
+  adminDeliveryCityRates: adminDeliveryCityRatesReducer,
+
   // adminFlashDeals: adminFlashDealsReducer,
   // flashDeals: flashDealsReducer,
   homeFeatures: homeFeatureReducer,

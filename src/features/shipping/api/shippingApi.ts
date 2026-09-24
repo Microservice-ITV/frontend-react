@@ -3,6 +3,7 @@ import { forwardGeocodeAddress } from '@/lib/geocoding/geocode'
 import type { CartItem } from '@/features/cart/types/cartTypes'
 import type { UserAddress } from '@/features/account/types/addressTypes'
 
+
 export type BatchShopProfilesRequest = {
     shopIds: string[]
 }
@@ -34,6 +35,7 @@ export type CalculateShippingCustomer = {
 export type CalculateShippingRequest = {
     deliveryAddress: {
         city: string
+        cityId?: string
         district: string
         lat: number
         lng: number
@@ -126,9 +128,15 @@ export function buildCalculatePayload(
         })
     }
 
+    const cityId =
+        address.city_id != null && Number.isFinite(Number(address.city_id))
+            ? String(address.city_id)
+            : undefined
+
     return {
         deliveryAddress: {
             city: address.city ?? '',
+            ...(cityId ? { cityId } : {}),
             district: address.district ?? '',
             lat: coords.lat,
             lng: coords.lng,

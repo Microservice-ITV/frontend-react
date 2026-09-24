@@ -31,6 +31,7 @@ import {
   Truck,
   Scale,
   Route,
+  MapPin,
 } from "lucide-react";
 import { CAPABILITIES } from "@/app/rbac/capabilities";
 import type { DashboardMenuSection } from "../types/dashboardTypes";
@@ -295,6 +296,14 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         icon: Scale,
       },
       {
+        key: 'admin-route-rates',
+        label: 'Route Rates',
+        to: '/super-admin/shipping/city-rates',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: MapPin,
+      },
+      {
         key: 'admin-distance-ranges',
         label: 'Distance Ranges',
         to: '/super-admin/shipping/distance-ranges',
@@ -320,10 +329,6 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         label: 'Home Features',
         to: '/super-admin/home-features',
         area: 'super_admin',
-        key: "admin-home-features",
-        label: "Home Features",
-        to: "/super-admin/home-features",
-        area: "super_admin",
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
         icon: Home,
       },
@@ -352,12 +357,6 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         icon: RectangleHorizontal,
       },
       {
-        key: 'admin-promotions',
-        label: 'Promotions',
-        to: '/super-admin/promotion-engine',
-        area: 'super_admin',
-        requiredCapabilities: [CAPABILITIES.PROMOTIONS_VIEW],
-        icon: Percent,
         key: "admin-announcement-types",
         label: "Announcement Types",
         to: "/super-admin/announcement-types",
@@ -372,18 +371,6 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         area: "super_admin",
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
         icon: Megaphone,
-      },
-      {
-        key: 'admin-announcement-types',
-        label: 'Announcement Types',
-        to: '/super-admin/announcement-types',
-        area: 'super_admin',
-        key: "admin-users",
-        label: "Users",
-        to: "/super-admin/users",
-        area: "super_admin",
-        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
-        icon: UserCog,
       },
       {
         key: "admin-system",

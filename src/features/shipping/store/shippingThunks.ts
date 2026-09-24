@@ -14,6 +14,57 @@ function cartShopIdsKey(items: { shopId: string }[]): string {
     return [...new Set(items.map((i) => i.shopId).filter(Boolean))].sort().join(',')
 }
 
+function extractApiErrorMessage(error: unknown, fallback: string): string {
+    if (error && typeof error === 'object' && 'response' in error) {
+        const data = (error as {
+            response?: {
+                data?: {
+                    message?: unknown
+                    error?: unknown
+                }
+            }
+        }).response?.data
+
+        const nested = data?.error
+        if (typeof nested === 'string' && nested.trim()) return nested.trim()
+        if (nested && typeof nested === 'object' && 'message' in nested) {
+            const msg = (nested as { message?: unknown }).message
+            if (typeof msg === 'string' && msg.trim()) return msg.trim()
+        }
+        if (typeof data?.message === 'string' && data.message.trim()) {
+            return data.message.trim()
+        }
+    }
+
+    if (error instanceof Error && error.message.trim()) {
+        return error.message.trim()
+    }
+
+    return fallback
+}
+
+function humanizeShippingCalculateError(message: string): string {
+    const missingProfiles = message.match(
+        /Shop shipping profiles not found:\s*(.+)$/i,
+    )
+    if (missingProfiles?.[1]) {
+        return (
+            `Delivery fee is unavailable because this shop has no shipping profile yet ` +
+            `(${missingProfiles[1].trim()}). Clear the cart and add products from a shop ` +
+            `that is registered for shipping, or ask an admin to sync the shop profile.`
+        )
+    }
+
+    if (/Request failed with status code 404/i.test(message)) {
+        return (
+            'Delivery fee is unavailable (shop shipping profile not found). ' +
+            'Clear the cart and try products from another shop.'
+        )
+    }
+
+    return message
+}
+
 /**
  * Loads shop shipping profiles for all shops currently in the cart.
  * Deduped when cart shop-id set unchanged and last batch succeeded (see `condition`).
@@ -41,11 +92,9 @@ export const fetchShopProfilesForCurrentCart = createAsyncThunk(
             const profilesByShopId = normalizeBatchShopProfiles(inner)
             return { profilesByShopId, shopIdsKey: cartShopIdsKey(items) }
         } catch (e: unknown) {
-            const msg =
-                e && typeof e === 'object' && 'response' in e
-                    ? String((e as { response?: { data?: { message?: string } } }).response?.data?.message ?? '')
-                    : ''
-            return rejectWithValue(msg || (e instanceof Error ? e.message : 'Failed to load shipping profiles'))
+            return rejectWithValue(
+                extractApiErrorMessage(e, 'Failed to load shipping profiles'),
+            )
         }
     },
     {
@@ -98,11 +147,8 @@ export const fetchCheckoutShippingCalculation = createAsyncThunk(
             const { byShopId, totalShippingFee, raw } = normalizeCalculateResponse(inner)
             return { byShopId, totalShippingFee, cacheKey, raw }
         } catch (e: unknown) {
-            const msg =
-                e && typeof e === 'object' && 'response' in e
-                    ? String((e as { response?: { data?: { message?: string } } }).response?.data?.message ?? '')
-                    : ''
-            return rejectWithValue(msg || (e instanceof Error ? e.message : 'Failed to calculate shipping'))
+            const rawMessage = extractApiErrorMessage(e, 'Failed to calculate shipping')
+            return rejectWithValue(humanizeShippingCalculateError(rawMessage))
         }
     },
     {
