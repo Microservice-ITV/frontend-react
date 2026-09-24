@@ -1,3 +1,4 @@
+import { promotionClient } from "@/lib/api/promotionClient";
 import { productClient } from "@/lib/api/productClient";
 import type { AxiosResponse } from "axios";
 
@@ -25,6 +26,7 @@ interface SingleApiResponse {
 
 interface MessageApiResponse {
   success?: boolean;
+  data?: { id?: string; deleted?: boolean };
   message?: string;
 }
 
@@ -60,6 +62,13 @@ const toProductOption = (
   image: row.images?.[0] ?? null,
 });
 
+const lifeCyclePath: Record<FlashDealLifecycleAction, string> = {
+  publish: "publish",
+  activate: "activate",
+  pause: "pause",
+  cancel: "cancel",
+};
+
 export const flashDealAdminApi = {
   getAll: async (
     params: FlashDealListParams = {},
@@ -68,8 +77,8 @@ export const flashDealAdminApi = {
     data: FlashDeal[];
     pagination: FlashDealPagination;
   }> => {
-    const response: AxiosResponse<ListApiResponse> = await productClient.get(
-      "/flash-deals",
+    const response: AxiosResponse<ListApiResponse> = await promotionClient.get(
+      "/promotions/flash-deals",
       {
         params: {
           page: params.page ?? 1,
@@ -96,9 +105,8 @@ export const flashDealAdminApi = {
   getById: async (
     id: string,
   ): Promise<{ success: boolean; data: FlashDeal }> => {
-    const response: AxiosResponse<SingleApiResponse> = await productClient.get(
-      `/flash-deals/${id}`,
-    );
+    const response: AxiosResponse<SingleApiResponse> =
+      await promotionClient.get(`/promotions/flash-deals/${id}`);
     return {
       success: response.data.success ?? true,
       data: response.data.data as FlashDeal,
@@ -108,8 +116,8 @@ export const flashDealAdminApi = {
   create: async (
     payload: CreateFlashDealPayload,
   ): Promise<{ success: boolean; data: FlashDeal }> => {
-    const response: AxiosResponse<SingleApiResponse> = await productClient.post(
-      "/flash-deals",
+    const response: AxiosResponse<SingleApiResponse> = await promotionClient.post(
+      "/promotions/flash-deals",
       payload,
     );
     return {
@@ -123,7 +131,7 @@ export const flashDealAdminApi = {
     payload: UpdateFlashDealPayload,
   ): Promise<{ success: boolean; data: FlashDeal }> => {
     const response: AxiosResponse<SingleApiResponse> =
-      await productClient.patch(`/flash-deals/${id}`, payload);
+      await promotionClient.patch(`/promotions/flash-deals/${id}`, payload);
     return {
       success: response.data.success ?? true,
       data: response.data.data as FlashDeal,
@@ -134,7 +142,7 @@ export const flashDealAdminApi = {
     id: string,
   ): Promise<{ success: boolean; message?: string }> => {
     const response: AxiosResponse<MessageApiResponse> =
-      await productClient.delete(`/flash-deals/${id}`);
+      await promotionClient.delete(`/promotions/flash-deals/${id}`);
     return {
       success: response.data.success ?? true,
       message: response.data.message,
@@ -145,8 +153,8 @@ export const flashDealAdminApi = {
     id: string,
     action: FlashDealLifecycleAction,
   ): Promise<{ success: boolean; data: FlashDeal }> => {
-    const response: AxiosResponse<SingleApiResponse> = await productClient.post(
-      `/admin/flash-deals/${id}/${action}`,
+    const response: AxiosResponse<SingleApiResponse> = await promotionClient.post(
+      `/promotions/flash-deals/${id}/${lifeCyclePath[action]}`,
     );
     return {
       success: response.data.success ?? true,
@@ -159,7 +167,7 @@ export const flashDealAdminApi = {
     payload: UpdateFlashDealStockPayload,
   ): Promise<{ success: boolean; data: FlashDeal }> => {
     const response: AxiosResponse<SingleApiResponse> =
-      await productClient.patch(`/admin/flash-deals/${id}/stock`, payload);
+      await promotionClient.patch(`/promotions/flash-deals/${id}/stock`, payload);
     return {
       success: response.data.success ?? true,
       data: response.data.data as FlashDeal,
