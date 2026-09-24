@@ -21,16 +21,58 @@ export type AdminUserDto = {
 
 // ─── Response envelopes ─────────────────────────────────────────────────────
 
+export type AdminPaginationMeta = {
+  total: number
+  per_page: number
+  current_page: number
+  last_page: number
+}
+
 export type AdminUsersApiResponse = {
   success: boolean
   data: {
     users: AdminUserDto[]
-    pagination: {
-      total: number
-      per_page: number
-      current_page: number
-      last_page: number
-    }
+    pagination: AdminPaginationMeta
+  }
+}
+
+// ─── Shop-role assignment DTOs (Manage Roles) ───────────────────────────────
+
+export type AdminShopLookupDto = {
+  id: string
+  name: string
+  domain: string | null
+  status: string
+}
+
+export type AdminRoleRefDto = {
+  id: string
+  code: string
+  name: string
+  scope: string
+}
+
+export type AdminUserShopRoleDto = {
+  shop_id: string
+  shop: AdminShopLookupDto | null
+  role: AdminRoleRefDto | null
+  status: string
+  joined_at: string | null
+}
+
+export type AdminShopLookupApiResponse = {
+  success: boolean
+  data: {
+    shops: AdminShopLookupDto[]
+    pagination: AdminPaginationMeta
+  }
+}
+
+export type AdminUserShopRolesApiResponse = {
+  success: boolean
+  data: {
+    user_id: string
+    assignments: AdminUserShopRoleDto[]
   }
 }
 
@@ -42,6 +84,13 @@ export type AdminUsersParams = {
   search?: string
   role?: string
   verified?: '1' | '0' | ''
+}
+
+/** Lookup params for the paginated shop picker. */
+export type AdminLookupParams = {
+  page?: number
+  per_page?: number
+  search?: string
 }
 
 // ─── Error helper ────────────────────────────────────────────────────────────
@@ -58,6 +107,15 @@ const getApiErrorMessage = (error: unknown, fallback: string): string => {
   }
   if (error instanceof Error && error.message) return error.message
   return fallback
+}
+
+/** Drops empty lookup values so they don't clutter the query string. */
+const buildLookupParams = (params: AdminLookupParams): Record<string, string | number> => {
+  const clean: Record<string, string | number> = {}
+  if (params.page) clean.page = params.page
+  if (params.per_page) clean.per_page = params.per_page
+  if (params.search?.trim()) clean.search = params.search.trim()
+  return clean
 }
 
 // ─── API surface ─────────────────────────────────────────────────────────────
@@ -79,6 +137,30 @@ export const adminUsersApi = {
     roleCode: string,
   ): Promise<{ data: { success: boolean } }> {
     return authClient.post('/rbac/platform-roles/assign', {
+      user_id: userId,
+      role_code: roleCode,
+    })
+  },
+
+  // ─ Shop-role assignments (Manage Roles) ───────────────────────────────────
+
+  /** Paginated shop lookup (auth-service shops) for the role assignment picker. */
+  listShopLookups(params: AdminLookupParams = {}): Promise<{ data: AdminShopLookupApiResponse }> {
+    return authClient.get('/shops', { params: buildLookupParams(params) })
+  },
+
+  /** Every shop-role assignment currently held by a user. */
+  listUserShopRoles(userId: string): Promise<{ data: AdminUserShopRolesApiResponse }> {
+    return authClient.get(`/admin/users/${userId}/shop-roles`)
+  },
+
+  /** Assign (or switch) a shop-scoped role for a user inside a shop. */
+  assignShopRole(
+    shopId: string,
+    userId: string,
+    roleCode: string,
+  ): Promise<{ data: { success: boolean } }> {
+    return authClient.post(`/shops/${shopId}/users`, {
       user_id: userId,
       role_code: roleCode,
     })

@@ -24,10 +24,12 @@ import homeFeatureReducer from "@/features/homeFeatures/store/homeFeatureSlice";
 import homeQuickActionsReducer from "@/features/home/store/homeSlice";
 import heroBannerReducer from "@/features/heroBanners/store/heroBannerSlice";
 import promoCardReducer from "@/features/promoCards/store/promoCardSlice";
+import flashDealsReducer from "@/features/flash-deals/store/flashDealSlice";
 import announcementTypeReducer from "@/features/announcements/store/announcementTypeSlice";
 import announcementReducer from "@/features/announcements/store/announcementSlice";
 import aiAssistantReducer from "@/features/ai/store/aiAssistantSlice";
 import wishlistReducer from "@/features/wishlist/store/wishlistSlice";
+import notificationReducer from "@/features/notifications/store/notificationSlice";
 
 // Single source of truth for all state
 const rootReducer = combineReducers({
@@ -58,10 +60,12 @@ const rootReducer = combineReducers({
   homeQuickActions: homeQuickActionsReducer,
   heroBanners: heroBannerReducer,
   promoCards: promoCardReducer,
+  flashDeals: flashDealsReducer,
   announcementTypes: announcementTypeReducer,
   announcements: announcementReducer,
   aiAssistant: aiAssistantReducer,
   wishlist: wishlistReducer,
+  notifications: notificationReducer,
 });
 
 export default rootReducer;

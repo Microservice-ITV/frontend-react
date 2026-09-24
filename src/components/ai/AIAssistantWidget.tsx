@@ -29,7 +29,7 @@ const formatWhen = (value: string | null) => {
 /**
  * Global website assistant: a floating launcher at the bottom-right plus a compact chat panel that
  * reuses the storefront design tokens. It never opens on its own; the visitor or the navbar
- * "AI Shopping" entry opens it.
+ * " Shopping" entry opens it.
  *
  * The launcher and panel are offset above the bottom-right corner (bottom-24 = 96px) and stay far
  * below the reCAPTCHA badge z-index, so Google's bottom-right reCAPTCHA badge is never covered or
@@ -115,7 +115,7 @@ export const AIAssistantWidget = () => {
         aria-label={panel.isMinimized ? 'Resume the shopping assistant chat' : 'Open the shopping assistant'}
       >
         <Sparkles size={16} />
-        <span>{panel.isMinimized ? 'Resume chat' : 'Ask AI'}</span>
+        <span>{panel.isMinimized ? 'Resume chat' : 'Ask DNI'}</span>
         {panel.isMinimized && hasConversation && (
           <span className="inline-flex h-2 w-2 rounded-full bg-white/90" aria-hidden="true" />
         )}

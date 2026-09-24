@@ -2,75 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Flame } from "lucide-react";
 import FlashDealCard from "./FlashDealCard";
-
-const FLASH_DEALS = [
-  {
-    id: 1,
-    name: "Wireless Earbuds Pro",
-    image:
-      "https://images.unsplash.com/photo-1546435770-a3e426bf472b?auto=format&fit=crop&w=900&q=80",
-    price: 19.98,
-    originalPrice: 59.9,
-    discount: 67,
-    stockText: "ONLY 8 LEFT",
-    soldPercent: 85,
-  },
-  {
-    id: 2,
-    name: "Premium Ceramic Cookware Set",
-    image:
-      "https://images.unsplash.com/photo-1582515073490-39981397c445?auto=format&fit=crop&w=900&q=80",
-    price: 20.7,
-    originalPrice: 129,
-    discount: 65,
-    stockText: "SELLING FAST",
-    soldPercent: 70,
-  },
-  {
-    id: 3,
-    name: "Hydrating Lip Tint Trio",
-    image:
-      "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=900&q=80",
-    price: 42.5,
-    originalPrice: 89.9,
-    discount: 17,
-    stockText: "SELLING FAST",
-    soldPercent: 60,
-  },
-  {
-    id: 4,
-    name: "Mini Robot Vacuum",
-    image:
-      "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=900&q=80",
-    price: 114.5,
-    originalPrice: 199,
-    discount: 25,
-    stockText: "SELLING FAST",
-    soldPercent: 75,
-  },
-  {
-    id: 5,
-    name: "Organic Baby Skincare Kit",
-    image:
-      "https://images.unsplash.com/photo-1556228578-8c89e6adf883?auto=format&fit=crop&w=900&q=80",
-    price: 17.7,
-    originalPrice: 54.9,
-    discount: 43,
-    stockText: "ONLY 8 LEFT",
-    soldPercent: 90,
-  },
-  {
-    id: 6,
-    name: "Athletic Running Shoes",
-    image:
-      "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=80",
-    price: 26.6,
-    originalPrice: 79.9,
-    discount: 43,
-    stockText: "ONLY 4 LEFT",
-    soldPercent: 95,
-  },
-];
+import {
+  getFlashDealsByTimeSlot,
+  type FlashDealApiItem,
+} from "@/lib/api/flashDealClient";
 
 const CARD_WIDTH_PX = 220;
 const GAP_PX = 16;
@@ -90,24 +25,53 @@ const FlashDealsSection = () => {
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
-  const [timeLeft, setTimeLeft] = useState(() => {
-    const end = getNextSessionEnd();
-    return Math.max(0, Math.floor((end.getTime() - Date.now()) / 1000));
-  });
+  const [deals, setDeals] = useState<FlashDealApiItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [endTime, setEndTime] = useState<number>(() =>
+    getNextSessionEnd().getTime(),
+  );
+
+  const [timeLeft, setTimeLeft] = useState(() =>
+    Math.max(0, Math.floor((endTime - Date.now()) / 1000)),
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    getFlashDealsByTimeSlot({ limit: 12, status: "ongoing" })
+      .then((res) => {
+        if (cancelled) return;
+        const items = res.data.items ?? [];
+        const slots = res.data.timeSlots ?? [];
+        setDeals(items);
+        const activeSlot = slots.find((slot) => slot.isActive);
+        if (activeSlot) {
+          const ends = items
+            .filter((item) => item.slot === activeSlot.time)
+            .map((item) => {
+              const t = item.endAt ? new Date(item.endAt).getTime() : 0;
+              return Number.isFinite(t) && t > 0 ? t : 0;
+            })
+            .filter((t) => t > 0);
+          if (ends.length > 0) setEndTime(Math.max(...ends));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setDeals([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1)
-          return Math.max(
-            0,
-            Math.floor((getNextSessionEnd().getTime() - Date.now()) / 1000),
-          );
-        return prev - 1;
-      });
+      setTimeLeft(Math.max(0, Math.floor((endTime - Date.now()) / 1000)));
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [endTime]);
 
   const hours = Math.floor(timeLeft / 3600);
   const minutes = Math.floor((timeLeft % 3600) / 60);
@@ -136,7 +100,6 @@ const FlashDealsSection = () => {
     ro.observe(el);
 
     const t = window.setTimeout(updateScrollAffordance, 100);
-
     return () => {
       el.removeEventListener("scroll", updateScrollAffordance);
       el.removeEventListener("scrollend", updateScrollAffordance);
@@ -216,20 +179,50 @@ const FlashDealsSection = () => {
         >
           <div
             className="flex min-w-max gap-4"
-            style={{ width: `max-content` }}
+            style={{ width: "max-content" }}
           >
-            {FLASH_DEALS.map((deal) => (
-              <div
-                key={deal.id}
-                className="shrink-0"
-                style={{ width: `${CARD_WIDTH_PX}px` }}
-              >
-                <FlashDealCard deal={deal} />
-              </div>
-            ))}
+            {loading
+              ? Array.from({ length: 6 }).map((_, idx) => (
+                  <div
+                    key={`skeleton-${idx}`}
+                    className="shrink-0"
+                    style={{ width: `${CARD_WIDTH_PX}px` }}
+                  >
+                    <div className="flex flex-col overflow-hidden border border-[var(--dni-cart-border)] bg-white">
+                      <div className="aspect-square animate-pulse bg-[#f0f0f0]" />
+                      <div className="space-y-2 p-4">
+                        <div className="h-4 w-1/2 animate-pulse bg-[#f0f0f0]" />
+                        <div className="h-3 w-3/4 animate-pulse bg-[#f0f0f0]" />
+                        <div className="h-5 w-full animate-pulse bg-[#f0f0f0]" />
+                      </div>
+                    </div>
+                  </div>
+                ))
+              : deals.length === 0 ? (
+                  <div
+                    className="shrink-0"
+                    style={{ width: `${CARD_WIDTH_PX}px` }}
+                  >
+                    <div className="flex h-full min-h-[220px] flex-col items-center justify-center gap-2 border border-[var(--dni-cart-border)] bg-white px-4 text-center">
+                      <Flame className="h-8 w-8 fill-[var(--dni-primary-50)] text-[var(--dni-primary)]" />
+                      <p className="text-sm font-medium text-slate-500">
+                        No flash deals right now
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  deals.map((deal) => (
+                    <div
+                      key={deal.id}
+                      className="shrink-0"
+                      style={{ width: `${CARD_WIDTH_PX}px` }}
+                    >
+                      <FlashDealCard deal={deal} />
+                    </div>
+                  ))
+                )}
           </div>
         </div>
-
         {canScrollRight && (
           <button
             type="button"

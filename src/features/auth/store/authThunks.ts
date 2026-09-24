@@ -162,6 +162,15 @@ export const logout = createAsyncThunk(
             )
         } catch {
         }
+
+        // Always return user to homepage after logout.
+        if (typeof window !== 'undefined') {
+            try {
+                window.location.replace('/')
+            } catch {
+                // ignore
+            }
+        }
     }
 )
 

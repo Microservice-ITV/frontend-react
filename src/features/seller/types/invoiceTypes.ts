@@ -1,4 +1,4 @@
-export type InvoiceStatus = 'paid' | 'pending' | 'overdue'
+export type InvoiceStatus = 'paid' | 'pending' | 'overdue' | 'rejected' | 'void' | 'refunded'
 
 export type Invoice = {
   id: string
@@ -6,6 +6,7 @@ export type Invoice = {
   orderId: string
   status: InvoiceStatus
   issued: string
-  due: string
   amount: string
+  currency: string
+  pdfUrl: string | null
 }

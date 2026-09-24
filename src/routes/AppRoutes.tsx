@@ -33,6 +33,9 @@ import CartSeeMorePage from "@/features/cart/pages/CartSeeMorePage";
 import WishlistPage from "@/features/wishlist/pages/WishlistPage";
 import CheckoutPage from "@/features/checkout/pages/CheckoutPage";
 import CheckoutSuccessPage from "@/features/checkout/pages/CheckoutSuccessPage";
+import CheckoutGatePage from "@/features/checkout/pages/CheckoutGatePage";
+import GuestCheckoutPage from "@/features/checkout/pages/GuestCheckoutPage.tsx";
+import GuestCheckoutSuccessPage from "@/features/checkout/pages/GuestCheckoutSuccessPage";
 import CategoriesPage from "@/features/categories/pages/CategoriesPage";
 import AboutUsPage from "@/features/about/pages/AboutUsPage";
 import CareersPage from "@/features/careers/pages/CareersPage";
@@ -46,6 +49,7 @@ import SellerMentorsPage from "@/features/seller-mentors/pages/SellerMentorsPage
 import FlashDealsPage from "@/features/flash-deals/pages/FlashDealsPage";
 import MediaContactPage from "@/features/media/pages/MediaContactPage";
 import AmbassadorProgrammePage from "@/features/ambassador/pages/AmbassadorProgrammePage";
+import NotFoundPage from "@/features/common/pages/NotFoundPage";
 import AccountLayout from "@/features/account/pages/AccountLayout";
 import ProfilePage from "@/features/account/pages/ProfilePage";
 import BanksCardsPage from "@/features/account/pages/BanksCardsPage";
@@ -55,6 +59,7 @@ import NotificationsPage from "@/features/account/pages/NotificationsPage";
 import NotificationsCenterPage from "@/features/account/pages/NotificationsCenterPage";
 import OrdersPage from "@/features/account/pages/OrdersPage";
 import OrderTrackingPage from "@/features/account/pages/OrderTrackingPage";
+import CustomerInvoicesPage from "@/features/account/pages/CustomerInvoicesPage";
 import VouchersPage from "@/features/account/pages/VouchersPage";
 import CoinsPage from "@/features/account/pages/CoinsPage";
 import { ROUTE_ACCESS } from "./routeAccessMap";
@@ -64,6 +69,7 @@ import SellerOverviewPage from "@/features/seller/pages/SellerOverviewPage";
 import SellerOrdersPage from "@/features/seller/pages/SellerOrdersPage";
 import SellerOrderDetailPage from "@/features/seller/pages/SellerOrderDetailPage";
 import SellerProductsPage from "@/features/seller/pages/SellerProductsPage";
+import SellerUsersPage from "@/features/seller/pages/SellerUsersPage";
 import SellerCategoriesPage from "@/features/seller/pages/SellerCategoriesPage";
 import NewProductPage from "@/features/seller/pages/NewProductPage";
 import EditProductPage from "@/features/seller/pages/EditProductPage";
@@ -99,6 +105,7 @@ import AdminDistanceRangeDetailPage from "@/features/admin/pages/AdminDistanceRa
 import AdminDeliveryQuotesPage from "@/features/admin/pages/AdminDeliveryQuotesPage";
 import AdminDeliveryQuoteDetailPage from "@/features/admin/pages/AdminDeliveryQuoteDetailPage";
 import AdminUsersPage from "@/features/admin/pages/AdminUsersPage";
+import AdminInvoicesPage from "@/features/admin/pages/AdminInvoicesPage";
 import AdminIncomePage from "@/features/admin/pages/AdminIncomePage";
 import AdminExpensePage from "@/features/admin/pages/AdminExpensePage";
 import AdminExpenseCategoriesPage from "@/features/admin/pages/AdminExpenseCategoriesPage";
@@ -112,8 +119,20 @@ import AnnouncementDetailPage from "@/features/announcements/pages/AnnouncementD
 import { PhoneAuthPage } from "@/features/auth/pages/PhoneAuthPage";
 import { PhoneOtpPage } from "@/features/auth/pages/PhoneOtpPage";
 import PromotionEnginePage from "@/features/promotions/pages/PromotionEnginePage";
+import AdminFlashDealsPage from "@/features/flash-deals/pages/AdminFlashDealsPage";
+import NewFlashDealPage from "@/features/flash-deals/pages/NewFlashDealPage";
+import EditFlashDealPage from "@/features/flash-deals/pages/EditFlashDealPage";
 import SellerFinanceOverviewPage from "@/features/finance/pages/SellerFinanceOverviewPage";
 import SellerFinanceTransactionsPage from "@/features/finance/pages/SellerFinanceTransactionsPage";
+import SellerAccountingOverviewPage from "@/features/accounting/pages/SellerAccountingOverviewPage";
+import SellerExpenseFormPage from "@/features/accounting/pages/SellerExpenseFormPage";
+import SellerExpensesPage from "@/features/accounting/pages/SellerExpensesPage";
+import SellerPendingApprovalsPage from "@/features/accounting/pages/SellerPendingApprovalsPage";
+import SellerExpenseDetailPage from "@/features/accounting/pages/SellerExpenseDetailPage";
+import SellerIncomePage from "@/features/accounting/pages/SellerIncomePage";
+import SellerJournalEntriesPage from "@/features/accounting/pages/SellerJournalEntriesPage";
+import SellerApprovalPoliciesPage from "@/features/accounting/pages/SellerApprovalPoliciesPage";
+import SellerApprovalPolicyFormPage from "@/features/accounting/pages/SellerApprovalPolicyFormPage";
 import AdminFinanceOverviewPage from "@/features/finance/pages/AdminFinanceOverviewPage";
 import AdminFinanceTransactionsPage from "@/features/finance/pages/AdminFinanceTransactionsPage";
 import AdminAccountingOverviewPage from "@/features/accounting/pages/AdminAccountingOverviewPage";
@@ -132,7 +151,14 @@ const AppRoutes = () => {
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/phone-auth" element={<PhoneAuthPage />} />
         <Route path="/phone-verify" element={<PhoneOtpPage />} />
+        <Route path="/checkout/guest" element={<GuestCheckoutPage />} />
+        {/* Backward-compatibility: old guest payment url */}
+        <Route path="/checkout/guest/checkout" element={<Navigate to="/checkout" replace />} />
+        <Route path="/checkout/guest/success" element={<GuestCheckoutSuccessPage />} />
       </Route>
+
+      {/* Unified checkout (guest + logged-in) */}
+      <Route path="/checkout" element={<CheckoutGatePage />} />
 
       {/* Protected routes */}
       <Route element={<ProtectedRoute />}>
@@ -182,6 +208,7 @@ const AppRoutes = () => {
                 </ProtectedRoute>
               }
             />
+            <Route path="invoices" element={<CustomerInvoicesPage />} />
             <Route path="my-vouchers" element={<VouchersPage />} />
             <Route path="my-coins" element={<CoinsPage />} />
           </Route>
@@ -194,14 +221,7 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/checkout"
-          element={
-            <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.checkout}>
-              <CheckoutPage />
-            </ProtectedRoute>
-          }
-        />
+        {/* /checkout is now handled by CheckoutGatePage above */}
         <Route
           path="/become-a-seller"
           element={
@@ -468,6 +488,17 @@ const AppRoutes = () => {
               }
             />
             <Route
+              path="users"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerOverview}
+                  allowedRoles={["SHOP_OWNER", "SHOP_ADMIN"]}
+                >
+                  <SellerUsersPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="invoices"
               element={
                 <ProtectedRoute
@@ -494,6 +525,122 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.sellerFinanceTransactions}
                 >
                   <SellerFinanceTransactionsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting"
+              element={<Navigate to="overview" replace />}
+            />
+            <Route
+              path="accounting/overview"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerAccounting}
+                >
+                  <SellerAccountingOverviewPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/income"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerAccounting}
+                >
+                  <SellerIncomePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/expenses"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerAccounting}
+                >
+                  <SellerExpensesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/pending-approvals"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerPendingApprovals}
+                >
+                  <SellerPendingApprovalsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/expenses/new"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerAccounting}
+                >
+                  <SellerExpenseFormPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/expenses/:expenseId"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerAccounting}
+                >
+                  <SellerExpenseDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/journal-entries"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerAccounting}
+                >
+                  <SellerJournalEntriesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/chart-of-accounts"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerAccounting}
+                >
+                  <AdminChartOfAccountsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/approval-policies"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerAccounting}>
+                  <SellerApprovalPoliciesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/approval-policies/new"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerAccounting}>
+                  <SellerApprovalPolicyFormPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/approval-policies/:policyId"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerAccounting}>
+                  <SellerApprovalPolicyFormPage readOnly />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/approval-policies/:policyId/edit"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerAccounting}>
+                  <SellerApprovalPolicyFormPage />
                 </ProtectedRoute>
               }
             />
@@ -1018,6 +1165,16 @@ const AppRoutes = () => {
               }
             />
             <Route
+              path="invoices"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminInvoices}
+                >
+                  <AdminInvoicesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="system"
               element={
                 <ProtectedRoute
@@ -1113,6 +1270,36 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.promotionsView}
                 >
                   <PromotionEnginePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="promotion-engine/flash-deals"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.promotionsView}
+                >
+                  <AdminFlashDealsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="promotion-engine/flash-deals/new"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.promotionsView}
+                >
+                  <NewFlashDealPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="promotion-engine/flash-deals/:id/edit"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.promotionsView}
+                >
+                  <EditFlashDealPage />
                 </ProtectedRoute>
               }
             />
@@ -1267,7 +1454,14 @@ const AppRoutes = () => {
       <Route path="/help-centre/contact-us" element={<HelpArticlePage />} />
       <Route path="/cart" element={<CartPage />} />
       <Route path="/cart/see-more" element={<CartSeeMorePage />} />
-      <Route path="/wishlist" element={<WishlistPage />} />
+      <Route
+        path="/wishlist"
+        element={
+          <ProtectedRoute>
+            <WishlistPage />
+          </ProtectedRoute>
+        }
+      />
       <Route path="/recently-added" element={<RecentlyAddedPage />} />
       <Route path="/about" element={<AboutUsPage />} />
       <Route path="/careers" element={<CareersPage />} />
@@ -1282,7 +1476,7 @@ const AppRoutes = () => {
       <Route path="/ambassador" element={<AmbassadorProgrammePage />} />
 
       {/* fallback */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 };

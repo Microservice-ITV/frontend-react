@@ -16,9 +16,18 @@ import { fetchShopProfilesForCurrentCart } from "@/features/shipping/store/shipp
 type ProductActionsProps = {
   product: ProductDetail;
   selectedVariant: ProductVariant | null;
+  promoPrice?: number | null;
+  flashDealId?: string | null;
+  flashDealItemId?: string | null;
 };
 
-const ProductActions = ({ product, selectedVariant }: ProductActionsProps) => {
+const ProductActions = ({
+  product,
+  selectedVariant,
+  promoPrice,
+  flashDealId,
+  flashDealItemId,
+}: ProductActionsProps) => {
   const dispatch = useAppDispatch();
   const [quantity, setQuantity] = useState(1);
 
@@ -29,7 +38,8 @@ const ProductActions = ({ product, selectedVariant }: ProductActionsProps) => {
     [product.variants, selectedVariant],
   );
 
-  const unitPrice = effective?.price ?? product.price;
+  const unitPrice = promoPrice != null ? Math.max(0, promoPrice) : effective?.price ?? product.price;
+  const originalUnitPrice = effective?.price ?? product.price;
   const maxStock = effective ? effective.shopStock : (product.stock ?? 0);
   const maxQty = Math.min(99, Math.max(0, maxStock));
   const outOfStock = maxStock <= 0;
@@ -48,6 +58,13 @@ const ProductActions = ({ product, selectedVariant }: ProductActionsProps) => {
     variantLabel: effective ? variantDisplayLabel(effective) : undefined,
     name: product.name,
     price: unitPrice,
+    ...(promoPrice != null && flashDealId
+      ? {
+          flashDealId,
+          ...(flashDealItemId ? { flashDealItemId } : {}),
+          originalPrice: originalUnitPrice,
+        }
+      : {}),
     image: product.images?.[0],
     quantity,
     weightKg: effective?.weight ?? null,

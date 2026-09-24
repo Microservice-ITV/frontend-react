@@ -3,6 +3,9 @@ import { voucherIcon } from '@/assets/icons'
 import { selectIsAllSelected, selectSelectedItems } from '../store/cartSelectors'
 import { removeSelectedItems, toggleAllSelection } from '../store/cartSlice'
 import { useNavigate } from 'react-router-dom'
+import { selectIsAuthenticated } from '@/features/auth/store/authSelectors'
+import { useState } from 'react'
+import { X } from 'lucide-react'
 
 interface CartSummaryProps {
   total: number
@@ -14,11 +17,22 @@ const CartSummary = ({ total }: CartSummaryProps) => {
   const isAllSelected = useAppSelector(selectIsAllSelected)
   const selectedCount = useAppSelector(selectSelectedItems).length
   const itemLabel = selectedCount <= 1 ? 'item' : 'items'
+  const isAuthenticated = useAppSelector(selectIsAuthenticated)
 
   // Disable "Check Out" button when no items are selected
   const isCheckoutDisabled = selectedCount === 0
 
   const navigate = useNavigate()
+  const [showGuestModal, setShowGuestModal] = useState(false)
+
+  const onCheckoutClick = () => {
+    if (isCheckoutDisabled) return
+    if (isAuthenticated) {
+      navigate('/checkout')
+      return
+    }
+    setShowGuestModal(true)
+  }
 
   return (
     <section
@@ -26,6 +40,59 @@ const CartSummary = ({ total }: CartSummaryProps) => {
         bg-white border border-[var(--dni-cart-border)] rounded-sm
         sticky bottom-0 z-20" role="contentinfo"
     >
+      {showGuestModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" role="dialog" aria-modal="true">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setShowGuestModal(false)}
+            aria-label="Close dialog"
+          />
+          <div className="relative w-full max-w-md rounded-sm bg-white p-5 shadow-xl">
+            <button
+              type="button"
+              className="absolute right-3 top-3 rounded p-1 text-gray-400 hover:text-gray-600"
+              onClick={() => setShowGuestModal(false)}
+              aria-label="Close dialog"
+            >
+              <X className="h-5 w-5" aria-hidden />
+            </button>
+            <div className="text-lg font-semibold text-gray-900">Checkout as guest?</div>
+            <div className="mt-2 text-sm text-gray-600">
+              You’re not logged in. You can continue as a guest or login for discounts and member-only benefits.
+            </div>
+
+            <div className="mt-5 grid gap-2">
+              <button
+                type="button"
+                className="w-full rounded-sm bg-[var(--dni-primary)] px-4 py-2.5 text-sm font-medium text-white hover:opacity-90"
+                onClick={() => {
+                  setShowGuestModal(false)
+                  try {
+                    sessionStorage.setItem('dni.guest_checkout.entry_ok', '1')
+                  } catch {
+                    // ignore
+                  }
+                  navigate('/checkout/guest')
+                }}
+              >
+                Check out as guest
+              </button>
+              <button
+                type="button"
+                className="w-full rounded-sm border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:border-gray-400"
+                onClick={() => {
+                  setShowGuestModal(false)
+                  navigate('/login', { state: { from: { pathname: '/checkout' } } as any })
+                }}
+              >
+                Sign in to check out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ================= PLATFORM VOUCHER ================= */}
       <div className="flex items-center gap-3 px-4 md:px-6 py-3 border-b border-[var(--dni-cart-border)] text-sm">
         <img src={voucherIcon} alt="Voucher" className="w-5 h-5" />
@@ -71,7 +138,7 @@ const CartSummary = ({ total }: CartSummaryProps) => {
           <button
             type="button"
             disabled={isCheckoutDisabled}
-            onClick={() => navigate('/checkout')}
+            onClick={onCheckoutClick}
             className={`
               w-full py-3 rounded-sm text-sm font-medium
               ${isCheckoutDisabled
@@ -118,7 +185,7 @@ const CartSummary = ({ total }: CartSummaryProps) => {
             <button
               type="button"
               disabled={isCheckoutDisabled}
-              onClick={() => navigate('/checkout')}
+              onClick={onCheckoutClick}
               className={`
                 px-10 py-3 rounded-sm text-sm font-medium
                 ${isCheckoutDisabled

@@ -42,6 +42,11 @@ type GlobalModalOptions = {
    * Useful when the modal body renders its own footer actions.
    */
   hidePrimary?: boolean
+  /**
+   * Dialog width. `md` (default) keeps the historical max-w-2xl behaviour;
+   * `xl` suits data-heavy panels such as role assignment.
+   */
+  size?: 'md' | 'lg' | 'xl'
 }
 
 type GlobalModalState = GlobalModalOptions & {
@@ -86,6 +91,7 @@ export const GlobalModalProvider = ({ children }: GlobalModalProviderProps) => {
       secondaryLabel: 'Cancel',
       primaryVariant: 'default',
       hidePrimary: false,
+      size: 'md',
       ...options,
     })
   }, [])
@@ -125,6 +131,13 @@ export const GlobalModalProvider = ({ children }: GlobalModalProviderProps) => {
       ? 'inline-flex items-center justify-center px-5 py-2 text-sm font-medium text-white bg-red-600 rounded-sm hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed cursor-pointer'
       : 'inline-flex items-center justify-center px-5 py-2 text-sm font-medium text-white bg-emerald-600 rounded-sm hover:bg-emerald-700 disabled:bg-emerald-300 disabled:cursor-not-allowed cursor-pointer'
 
+  const dialogSizeClass =
+    modalState?.size === 'xl'
+      ? 'max-w-5xl'
+      : modalState?.size === 'lg'
+      ? 'max-w-3xl'
+      : 'max-w-2xl'
+
   return (
     <GlobalModalContext.Provider value={{ openModal, closeModal }}>
       {children}
@@ -139,7 +152,12 @@ export const GlobalModalProvider = ({ children }: GlobalModalProviderProps) => {
             onClick={handleSecondaryClick}
           />
 
-          <div className="relative z-10 w-full max-w-2xl px-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={modalState.title}
+            className={`relative z-10 w-full ${dialogSizeClass} px-4`}
+          >
             <div className="flex flex-col bg-white rounded-sm shadow-lg max-h-[90vh]">
               {/* Header */}
               <div className="flex-shrink-0 flex items-center justify-between px-8 pt-6 pb-4 border-b border-gray-200">

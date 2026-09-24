@@ -14,12 +14,16 @@ import { extractRoleFromUser } from '@/app/rbac/normalizers'
 import { getDefaultLandingPathByRole } from '@/app/rbac/navigation'
 import AuthBootstrapLoading from '@/components/ui/AuthBootstrapLoading'
 import { AIAssistantWidget } from '@/components/ai/AIAssistantWidget'
+import { useNotificationRealtime } from '@/features/notifications/socket/useNotificationRealtime'
 
 function App() {
   const dispatch = useAppDispatch() // Typed dispatch function to send actions
   const isAuthBootstrapping = useAppSelector(selectIsAuthBootstrapping)
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  const userId = useAppSelector((state) => state.auth.user?.id ?? null)
+  const accessToken = useAppSelector((state) => state.auth.accessToken)
+  useNotificationRealtime({ userId, accessToken })
   const hideGlobalChrome =
     matchPath({ path: '/seller', end: true }, pathname) ||
     matchPath({ path: '/seller/*' }, pathname) ||

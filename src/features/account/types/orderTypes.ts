@@ -1,5 +1,7 @@
 export interface PurchasedOrderItem {
+  orderItemId?: string
   productId: string
+  variantId?: string | null
   sku: string
   slug: string
   name: string
@@ -9,6 +11,7 @@ export interface PurchasedOrderItem {
   unitPrice: number
   lineTotal: number
   currency: string
+  shopId?: string
 }
 
 export interface PurchasedOrderTotals {
@@ -39,6 +42,15 @@ export interface PurchasedOrderDeliveryTimeline {
   failedAt?: string | null
 }
 
+export interface PurchasedOrderDeliveryItem {
+  productId?: string | null
+  variantId?: string | null
+  shopId?: string | null
+  sku?: string | null
+  quantity?: number | null
+  status?: string | null
+}
+
 export interface PurchasedOrderDelivery {
   deliveryId: string
   deliveryNumber?: string | null
@@ -48,11 +60,38 @@ export interface PurchasedOrderDelivery {
   trackingUrl?: string | null
   estimatedDeliveryDate?: string | null
   timeline?: PurchasedOrderDeliveryTimeline | null
+  items?: PurchasedOrderDeliveryItem[] | null
 }
 
 export interface PurchasedOrderFulfillment {
   status: string
   deliveries: PurchasedOrderDelivery[]
+}
+
+/** Per-shop financial/fulfillment slice of the order (multi-shop aware). */
+export interface PurchasedShopBreakdown {
+  shopOrderId: string
+  shopId: string
+  subtotal: number
+  discount: number
+  shipping: number
+  total: number
+  currency: string
+  status?: string
+  trackingNumber?: string | null
+  courierName?: string | null
+  shippedAt?: string | null
+}
+
+/** A promotion discount attributed to one shop. */
+export interface PurchasedOrderPromotion {
+  promotionId: string
+  rewardId: string
+  promotionName: string
+  shopId: string
+  discountType: string
+  fundedBy: string
+  amount: number
 }
 
 export interface PurchasedOrderAddress {
@@ -81,4 +120,6 @@ export interface PurchasedOrder {
   payment: PurchasedOrderPayment
   fulfillment?: PurchasedOrderFulfillment | null
   deliveryAddress?: PurchasedOrderAddress | null
+  shopBreakdown?: PurchasedShopBreakdown[] | null
+  promotions?: PurchasedOrderPromotion[] | null
 }

@@ -2,6 +2,7 @@ import { chatIcon, fastDeliveryIcon } from '@/assets/icons'
 import { CheckoutTotals } from '../utils/checkoutCalculator'
 import { useAppSelector } from '@/app/hooks'
 import { formatProductPrice } from '@/features/products/utils/formatProductPrice'
+import placeholderImage from '@/public/placeholder.svg'
 
 interface CheckoutItemsProps {
   checkout: CheckoutTotals
@@ -84,7 +85,16 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
                   className="grid md:grid-cols-[1fr_140px_100px_160px] gap-3 px-4 md:px-6 py-5 items-start"
                 >
                   <div className="flex gap-3">
-                    <img src={item.image} alt={item.name} className="w-10 h-10 object-cover" />
+                    <img
+                      src={item.image || placeholderImage}
+                      alt={item.name}
+                      onError={(e) => {
+                        const img = e.currentTarget
+                        img.onerror = null
+                        img.src = placeholderImage
+                      }}
+                      className="w-10 h-10 object-cover"
+                    />
                     <div className="text-sm text-gray-900">{item.name}</div>
                     <div className="text-xs text-gray-500 mt-1">
                       {item.variantLabel?.trim()

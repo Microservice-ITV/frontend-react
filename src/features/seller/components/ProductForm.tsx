@@ -22,20 +22,21 @@ import {
 } from "@/utils/decimalInput";
 import {
   computeEffectiveSellingPrice,
-  computeListPrice,
+  computeProfitThresholdPercent,
   parseOptionalPercent,
 } from "@/utils/variantPricing";
 import { productServiceAssetUrl } from "@/lib/api/apiConfig";
 
 /** Split a comma-separated tags string into a deduped, trimmed array (max 20). */
-export const parseTagsInput = (raw: string): string[] => [
-  ...new Set(
-    raw
-      .split(",")
-      .map((tag) => tag.trim())
-      .filter(Boolean),
-  ),
-].slice(0, 20);
+export const parseTagsInput = (raw: string): string[] =>
+  [
+    ...new Set(
+      raw
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean),
+    ),
+  ].slice(0, 20);
 
 const toSlug = (value: string) =>
   value
@@ -114,7 +115,7 @@ const variantRowSchema = z.object({
     .uuid("Color is required"),
   sizeId: z.string().trim().min(1, "Size is required").uuid("Size is required"),
   basePrice: basePriceField,
-  profitThresholdPercent: optionalPercentField("Markup %", 10000),
+  listPrice: basePriceField,
   discountPercent: optionalPercentField("Discount %", 100),
   stock: z
     .string()
@@ -224,7 +225,7 @@ export const defaultVariantRow = (): ProductFormValues["variants"][number] => ({
   colorId: "",
   sizeId: "",
   basePrice: "",
-  profitThresholdPercent: "0",
+  listPrice: "",
   discountPercent: "0",
   stock: "",
   length: "",
@@ -257,7 +258,10 @@ const ProductForm = ({
     useState(false);
   const [editableExistingImages, setEditableExistingImages] =
     useState<string[]>(existingImageUrls);
-  const isImageSubmitError = submitError.toLowerCase().includes("image");
+  const normalizedSubmitError = submitError.toLowerCase();
+  const isImageSubmitError =
+    normalizedSubmitError.includes("image") ||
+    normalizedSubmitError.includes("photo");
   const imageSubmitError = isImageSubmitError
     ? imageSubmitErrorDismissed
       ? ""
@@ -359,10 +363,21 @@ const ProductForm = ({
 
   const handleFormSubmit = async (values: ProductFormValues) => {
     setImageSubmitErrorDismissed(false);
+    if (
+      mode === "edit" &&
+      editableExistingImages.length === 0 &&
+      imageFiles.length === 0
+    ) {
+      setImageError("Please upload at least one photo.");
+      return;
+    }
+    setImageError("");
     await onSubmit({
       values,
       imageFiles,
-      existingImageUrls: imageFiles.length > 0 ? [] : editableExistingImages,
+      // Send the retained URLs even when new files are selected. This lets the
+      // API keep the current gallery and append the new uploads in one update.
+      existingImageUrls: editableExistingImages,
     });
   };
 
@@ -482,9 +497,6 @@ const ProductForm = ({
                       } else {
                         setImageError("");
                       }
-                      if (incomingFiles.length > 0) {
-                        setEditableExistingImages([]);
-                      }
                       setImageFiles(uniqueByKey.slice(0, 3));
                       e.currentTarget.value = "";
                     }}
@@ -501,7 +513,7 @@ const ProductForm = ({
                   {editableExistingImages.length > 0 && (
                     <div className="mt-3">
                       <p className="mb-2 text-xs font-medium text-slate-600">
-                        Current images
+                        Existing images
                       </p>
                       <div className="grid grid-cols-3 gap-2">
                         {editableExistingImages.map((imageUrl, index) => (
@@ -535,37 +547,45 @@ const ProductForm = ({
                     </div>
                   )}
                   {imagePreviews.length > 0 && (
-                    <div className="mt-3 grid grid-cols-3 gap-2">
-                      {imagePreviews.map((preview, index) => (
-                        <div
-                          key={`${imageFiles[index]?.name ?? "preview"}-${index}`}
-                          className="relative overflow-hidden rounded-lg border border-slate-200 bg-slate-50"
-                        >
-                          <img
-                            src={preview}
-                            alt={
-                              imageFiles[index]?.name ?? `Image ${index + 1}`
-                            }
-                            className="h-24 w-full object-cover"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setImageSubmitErrorDismissed(true);
-                              setImageFiles((prev) =>
-                                prev.filter(
-                                  (_, fileIndex) => fileIndex !== index,
-                                ),
-                              );
-                              setImageError("");
-                            }}
-                            className="absolute right-1 top-1 rounded-full bg-black/70 p-1 text-white hover:bg-black/80"
-                            aria-label="Remove image"
+                    <div className="mt-3">
+                      <p className="mb-2 text-xs font-medium text-slate-600">
+                        New images to add
+                      </p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {imagePreviews.map((preview, index) => (
+                          <div
+                            key={`${imageFiles[index]?.name ?? "preview"}-${index}`}
+                            className="relative overflow-hidden rounded-lg border border-emerald-200 bg-emerald-50"
                           >
-                            <X size={12} />
-                          </button>
-                        </div>
-                      ))}
+                            <span className="absolute left-1 top-1 rounded bg-emerald-600 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                              New
+                            </span>
+                            <img
+                              src={preview}
+                              alt={
+                                imageFiles[index]?.name ?? `Image ${index + 1}`
+                              }
+                              className="h-24 w-full object-cover"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setImageSubmitErrorDismissed(true);
+                                setImageFiles((prev) =>
+                                  prev.filter(
+                                    (_, fileIndex) => fileIndex !== index,
+                                  ),
+                                );
+                                setImageError("");
+                              }}
+                              className="absolute right-1 top-1 rounded-full bg-black/70 p-1 text-white hover:bg-black/80"
+                              aria-label="Remove new image"
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -602,24 +622,35 @@ const ProductForm = ({
                 <ul className="mt-2 list-disc space-y-1.5 pl-4 text-slate-600 marker:text-slate-400">
                   <li>
                     <span className="font-medium text-slate-700">
-                      List price
+                      Base price
                     </span>{" "}
-                    — your base price plus markup (shown before any sale).
+                    — your cost per unit.
                   </li>
                   <li>
                     <span className="font-medium text-slate-700">
-                      Customer price
+                      Selling price
                     </span>{" "}
-                    — list price minus discount; this is what the buyer pays per
-                    unit.
+                    — price before discount; markup % is calculated from this.
+                  </li>
+                  <li>
+                    <span className="font-medium text-slate-700">
+                      Discount %
+                    </span>{" "}
+                    — discount on selling price.
+                  </li>
+                  <li>
+                    <span className="font-medium text-slate-700">
+                      Customer pays
+                    </span>{" "}
+                    — selling price minus discount (auto-calculated).
                   </li>
                 </ul>
                 <p className="mt-2 border-t border-slate-200/80 pt-2 text-slate-500">
-                  You only enter base, markup, and discount here. The customer
-                  price is calculated when you save.
+                  You enter base price, selling price, and discount. Markup %
+                  and customer pays are calculated automatically.
                 </p>
                 <p className="mt-2 text-slate-500">
-                  Markup and discount accept decimals (e.g.{" "}
+                  Selling price and discount accept decimals (e.g.{" "}
                   <span className="font-mono text-slate-600">0.5</span> for half
                   a percent), matching the product API. Base price uses up to
                   two decimal places.
@@ -707,24 +738,32 @@ const ProductForm = ({
                   </div>
 
                   <div className="space-y-4">
-{fields.map((field, index) => {
-      const row = variantsWatched?.[index];
-      const base = row?.basePrice ? Number(row.basePrice) : NaN;
-      const markup = parseOptionalPercent(
-        row?.profitThresholdPercent ?? "",
-      );
-      const disc = parseOptionalPercent(
-        row?.discountPercent ?? "",
-      );
-      const listOk = !Number.isNaN(base) && base > 0;
-      const listPrice = listOk
-        ? computeListPrice(base, markup)
-        : null;
-      const effective = listOk
-        ? computeEffectiveSellingPrice(base, markup, disc)
-        : null;
-      const sellingPriceDisplay = listPrice != null ? `$${listPrice.toFixed(2)}` : "—";
-      const sellingPriceInputValue = listPrice != null ? listPrice.toFixed(2) : "";
+                    {fields.map((field, index) => {
+                      const row = variantsWatched?.[index];
+                      const base = row?.basePrice ? Number(row.basePrice) : NaN;
+                      const list = row?.listPrice ? Number(row.listPrice) : NaN;
+                      const disc = parseOptionalPercent(
+                        row?.discountPercent ?? "",
+                      );
+                      const listOk =
+                        !Number.isNaN(base) &&
+                        base > 0 &&
+                        !Number.isNaN(list) &&
+                        list > 0;
+                      const markup = listOk
+                        ? computeProfitThresholdPercent(base, list)
+                        : null;
+                      const effective = listOk
+                        ? computeEffectiveSellingPrice(list, disc)
+                        : null;
+                      const listPriceDisplay = list
+                        ? `$${list.toFixed(2)}`
+                        : "—";
+                      const listPriceInputValue = list ? list.toFixed(2) : "";
+                      const effectivePriceDisplay =
+                        effective != null ? `$${effective.toFixed(2)}` : "—";
+                      const markupDisplay =
+                        markup != null ? `${markup.toFixed(2)}%` : "—";
 
                       return (
                         <div
@@ -870,22 +909,39 @@ const ProductForm = ({
                             <div className="min-w-0">
                               <label
                                 className="mb-1 block text-xs font-medium text-slate-700"
-                                htmlFor={`sellingPrice-${index}`}
+                                htmlFor={`listPrice-${index}`}
                               >
                                 Selling price ($)
                               </label>
-                              <input
-                                id={`sellingPrice-${index}`}
-                                type="text"
-                                inputMode="decimal"
-                                autoComplete="off"
-                                spellCheck={false}
-                                readOnly
-                                placeholder="0.00"
-                                value={sellingPriceInputValue}
-                                title="Automatically calculated from base price and markup %"
-                                className="w-full min-w-0 cursor-not-allowed rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-emerald-500"
+                              <Controller
+                                name={`variants.${index}.listPrice`}
+                                control={control}
+                                render={({ field }) => (
+                                  <input
+                                    id={`listPrice-${index}`}
+                                    type="text"
+                                    inputMode="decimal"
+                                    autoComplete="off"
+                                    spellCheck={false}
+                                    placeholder="0.00"
+                                    className="w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                                    name={field.name}
+                                    ref={field.ref}
+                                    value={field.value}
+                                    onBlur={field.onBlur}
+                                    onChange={(e) =>
+                                      field.onChange(
+                                        sanitizeMoneyInput(e.target.value),
+                                      )
+                                    }
+                                  />
+                                )}
                               />
+                              {errors.variants?.[index]?.listPrice && (
+                                <p className="mt-1 text-xs text-red-600">
+                                  {errors.variants[index]?.listPrice?.message}
+                                </p>
+                              )}
                             </div>
                             <div className="min-w-0">
                               <label
@@ -894,39 +950,23 @@ const ProductForm = ({
                               >
                                 Markup %
                               </label>
-                              <Controller
-                                name={`variants.${index}.profitThresholdPercent`}
-                                control={control}
-                                render={({ field }) => (
-                                  <input
-                                    id={`markup-${index}`}
-                                    type="text"
-                                    inputMode="decimal"
-                                    autoComplete="off"
-                                    spellCheck={false}
-                                    placeholder="0"
-                                    className="w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                                    name={field.name}
-                                    ref={field.ref}
-                                    value={field.value}
-                                    onBlur={field.onBlur}
-                                    onChange={(e) =>
-                                      field.onChange(
-                                        sanitizePercentInput(e.target.value),
-                                      )
-                                    }
-                                  />
-                                )}
-                              />
-                              {errors.variants?.[index]
-                                ?.profitThresholdPercent && (
-                                <p className="mt-1 text-xs text-red-600">
-                                  {
-                                    errors.variants[index]
-                                      ?.profitThresholdPercent?.message
-                                  }
-                                </p>
-                              )}
+                              <div className="relative">
+                                <input
+                                  id={`markup-${index}`}
+                                  type="text"
+                                  inputMode="decimal"
+                                  autoComplete="off"
+                                  spellCheck={false}
+                                  readOnly
+                                  placeholder="0"
+                                  value={markupDisplay}
+                                  title="Automatically calculated from base price and selling price"
+                                  className="w-full min-w-0 cursor-not-allowed rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 pr-7 text-sm font-medium text-slate-700 outline-none"
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+                                  %
+                                </span>
+                              </div>
                             </div>
                             <div className="min-w-0">
                               <label
@@ -1004,6 +1044,36 @@ const ProductForm = ({
                                   {errors.variants[index]?.stock?.message}
                                 </p>
                               )}
+                            </div>
+                          </div>
+
+                          <div className="mt-3 rounded-lg bg-emerald-50 p-3 border border-emerald-100">
+                            <div className="flex flex-wrap items-center gap-4 text-sm">
+                              <div className="flex items-center gap-2">
+                                <span className="text-slate-500">
+                                  Selling price:
+                                </span>
+                                <strong className="text-slate-900">
+                                  ${list ? list.toFixed(2) : "—"}
+                                </strong>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-slate-500">
+                                  Customer pays:
+                                </span>
+                                <strong className="text-emerald-700">
+                                  $
+                                  {effective != null
+                                    ? effective.toFixed(2)
+                                    : "—"}
+                                </strong>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-slate-500">Markup:</span>
+                                <strong className="text-slate-700">
+                                  ${markup != null ? markup.toFixed(2) : "—"}%
+                                </strong>
+                              </div>
                             </div>
                           </div>
 
@@ -1207,23 +1277,6 @@ const ProductForm = ({
                                 )}
                               </div>
                             </div>
-                          </div>
-
-                          <div className="mt-3 flex flex-wrap gap-4 border-t border-slate-200 pt-3 text-xs text-slate-600">
-                            <span>
-                              Selling price (list):{" "}
-                              <strong className="text-slate-900">
-                                {sellingPriceDisplay}
-                              </strong>
-                            </span>
-                            <span>
-                              Customer price (effective):{" "}
-                              <strong className="text-emerald-700">
-                                {effective != null
-                                  ? `$${effective.toFixed(2)}`
-                                  : "—"}
-                              </strong>
-                            </span>
                           </div>
                         </div>
                       );

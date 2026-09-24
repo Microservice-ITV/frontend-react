@@ -1,6 +1,9 @@
 import type { ProductDetailReadItem, SellerProductVariantPayload } from '@/features/seller/api/sellerProductApi'
 import { defaultVariantRow, type ProductFormValues } from '@/features/seller/components/ProductForm'
-import { parseOptionalPercent } from '@/utils/variantPricing'
+import {
+  computeProfitThresholdPercent,
+  parseOptionalPercent,
+} from '@/utils/variantPricing'
 
 const parseOptionalDimension = (value: string) =>
   value.trim() === '' ? null : Number(value)
@@ -8,20 +11,31 @@ const parseOptionalDimension = (value: string) =>
 export function mapProductFormToVariantsPayload(
   values: ProductFormValues,
 ): SellerProductVariantPayload[] {
-  return values.variants.map((v, i) => ({
-    ...(v.serverVariantId ? { id: v.serverVariantId } : {}),
-    colorId: v.colorId,
-    sizeId: v.sizeId,
-    basePrice: Number(v.basePrice),
-    profitThresholdPercent: parseOptionalPercent(v.profitThresholdPercent),
-    discountPercent: parseOptionalPercent(v.discountPercent),
-    stock: Number(v.stock),
-    length: parseOptionalDimension(v.length),
-    width: parseOptionalDimension(v.width),
-    height: parseOptionalDimension(v.height),
-    weight: parseOptionalDimension(v.weight),
-    isPrimary: i === values.primaryVariantIndex,
-  }))
+  return values.variants.map((v, i) => {
+    const basePrice = Number(v.basePrice)
+    const listPrice = Number(v.listPrice)
+
+    return {
+      ...(v.serverVariantId ? { id: v.serverVariantId } : {}),
+      colorId: v.colorId,
+      sizeId: v.sizeId,
+      basePrice,
+      listPrice,
+      // The form collects selling/list price, not a markup input. Derive the
+      // percentage expected by Product Service from those two values.
+      profitThresholdPercent:
+        Number.isFinite(basePrice) && basePrice > 0 && Number.isFinite(listPrice)
+          ? computeProfitThresholdPercent(basePrice, listPrice)
+          : 0,
+      discountPercent: parseOptionalPercent(v.discountPercent),
+      stock: Number(v.stock),
+      length: parseOptionalDimension(v.length),
+      width: parseOptionalDimension(v.width),
+      height: parseOptionalDimension(v.height),
+      weight: parseOptionalDimension(v.weight),
+      isPrimary: i === values.primaryVariantIndex,
+    }
+  })
 }
 
 export function mapApiProductVariantsToFormShape(
@@ -33,6 +47,29 @@ export function mapApiProductVariantsToFormShape(
   }
   const variants: ProductFormValues['variants'] = raw.map((v) => {
     const id = v.id ?? v.variantId ?? ''
+    const toFiniteNumber = (value: unknown): number | undefined => {
+      if (value === null || value === undefined || String(value).trim() === '') {
+        return undefined
+      }
+      const parsed = Number(value)
+      return Number.isFinite(parsed) ? parsed : undefined
+    }
+    const basePrice = toFiniteNumber(v.basePrice)
+    const discountPercent = toFiniteNumber(v.discountPercent) ?? 0
+    const directListPrice =
+      toFiniteNumber(v.listPrice) ?? toFiniteNumber(v.sellingPrice)
+    const effectivePrice =
+      toFiniteNumber(v.effectiveSellingPrice) ?? toFiniteNumber(v.price)
+    const markupPercent = toFiniteNumber(v.profitThresholdPercent)
+    const resolvedListPrice =
+      directListPrice ??
+      (basePrice !== undefined && markupPercent !== undefined
+        ? basePrice * (1 + markupPercent / 100)
+        : undefined) ??
+      (effectivePrice !== undefined && discountPercent < 100
+        ? effectivePrice / (1 - discountPercent / 100)
+        : undefined) ??
+      basePrice
 
     // Clean up stock assignment to avoid parser confusion
     let resolvedStock = ''
@@ -46,17 +83,11 @@ export function mapApiProductVariantsToFormShape(
       serverVariantId: typeof id === 'string' && id.length > 0 ? id : undefined,
       colorId: v.colorId ?? '',
       sizeId: v.sizeId ?? '',
-      basePrice:
-        v.basePrice != null && String(v.basePrice).trim() !== ''
-          ? String(v.basePrice)
-          : '',
-      profitThresholdPercent:
-        v.profitThresholdPercent != null && String(v.profitThresholdPercent).trim() !== ''
-          ? String(v.profitThresholdPercent)
-          : '0',
+      basePrice: basePrice !== undefined ? String(basePrice) : '',
+      listPrice: resolvedListPrice !== undefined ? String(resolvedListPrice) : '',
       discountPercent:
-        v.discountPercent != null && String(v.discountPercent).trim() !== ''
-          ? String(v.discountPercent)
+        toFiniteNumber(v.discountPercent) !== undefined
+          ? String(discountPercent)
           : '0',
       stock:
         v.stock != null && String(v.stock).trim() !== ''

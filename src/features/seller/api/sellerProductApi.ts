@@ -1,166 +1,170 @@
-import { ecommerceReadRestClient } from '@/lib/api/ecommerceReadRestClient'
-import { productClient } from '@/lib/api/productClient'
-import { AxiosError } from 'axios'
+import { ecommerceReadRestClient } from "@/lib/api/ecommerceReadRestClient";
+import { productClient } from "@/lib/api/productClient";
+import { AxiosError } from "axios";
 
 export type CatalogProductReadItem = {
-  productId: string
-  slug: string
-  title: string
-  description: string
-  price: number
-  stock?: number
-  shopAvailableStock?: number
-  currency: string
-  categoryId?: string
-  categoryName?: string
+  productId: string;
+  slug: string;
+  title: string;
+  description: string;
+  price: number;
+  stock?: number;
+  shopAvailableStock?: number;
+  currency: string;
+  categoryId?: string;
+  categoryName?: string;
   category?: {
-    id?: string
-    name?: string
-    title?: string
-  }
-  shopId?: string
-  shop_id?: string
+    id?: string;
+    name?: string;
+    title?: string;
+  };
+  shopId?: string;
+  shop_id?: string;
   shop?: {
-    id?: string
-  }
-  isActive: boolean
-  createdAt?: string | { $date?: string }
-  updatedAt?: string | { $date?: string }
-}
+    id?: string;
+  };
+  isActive: boolean;
+  createdAt?: string | { $date?: string };
+  updatedAt?: string | { $date?: string };
+};
 
 type CatalogProductsApiResponse = {
-  items: CatalogProductReadItem[]
-  page: number
-  limit: number
-  total: number
-}
+  items: CatalogProductReadItem[];
+  page: number;
+  limit: number;
+  total: number;
+};
 
 /** Row from product-service `GET /products` (Prisma; `createdAt` desc). */
 export type ProductServiceProductListItem = {
-  id: string
-  name: string
-  description?: string | null
-  slug: string
-  price: number | string
-  stock?: number
-  categoryId: string
-  category?: { id?: string; name?: string; title?: string }
-  isActive: boolean
-  createdAt?: string
-}
+  id: string;
+  name: string;
+  description?: string | null;
+  slug: string;
+  price: number | string;
+  stock?: number;
+  categoryId: string;
+  category?: { id?: string; name?: string; title?: string };
+  isActive: boolean;
+  createdAt?: string;
+};
 
 type ProductServicePaginatedResponse = {
-  success?: boolean
-  data?: ProductServiceProductListItem[]
+  success?: boolean;
+  data?: ProductServiceProductListItem[];
   pagination?: {
-    page: number
-    limit: number
-    total: number
-    totalPages: number
-  }
-}
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+};
 
 type CatalogRefItem = {
-  id: string
-  name: string
-  code?: string
-}
+  id: string;
+  name: string;
+  code?: string;
+};
 
 /** Matches product-service `variantInputSchema` / Postman (basePrice + optional markup/discount). */
 export type SellerProductVariantPayload = {
-  id?: string
-  colorId: string
-  sizeId: string
-  basePrice: number
-  profitThresholdPercent?: number
-  discountPercent?: number
-  stock: number
-  length?: number
-  width?: number
-  height?: number
-  weight?: number
-  isPrimary?: boolean
-}
+  id?: string;
+  colorId: string;
+  sizeId: string;
+  basePrice: number;
+  /** Selling/list price before any discount. */
+  listPrice: number;
+  profitThresholdPercent?: number;
+  discountPercent?: number;
+  stock: number;
+  length?: number;
+  width?: number;
+  height?: number;
+  weight?: number;
+  isPrimary?: boolean;
+};
 
 type CreateSellerProductPayload = {
-  name: string
-  description?: string
-  tags?: string[]
-  slug: string
-  categoryId: string
-  shopId: string
-  brandId: string
-  variants: SellerProductVariantPayload[]
-  isActive: boolean
-  imageFiles?: File[]
-}
+  name: string;
+  description?: string;
+  tags?: string[];
+  slug: string;
+  categoryId: string;
+  shopId: string;
+  brandId: string;
+  variants: SellerProductVariantPayload[];
+  isActive: boolean;
+  imageFiles?: File[];
+};
 
 type UpdateSellerProductPayload = Partial<{
-  name: string
-  description: string
-  tags: string[]
-  slug: string
-  categoryId: string
-  shopId: string
-  brandId: string
-  variants: SellerProductVariantPayload[]
-  isActive: boolean
-  imageFiles: File[]
-  existingImageUrls: string[]
-}>
+  name: string;
+  description: string;
+  tags: string[];
+  slug: string;
+  categoryId: string;
+  shopId: string;
+  brandId: string;
+  variants: SellerProductVariantPayload[];
+  isActive: boolean;
+  imageFiles: File[];
+  existingImageUrls: string[];
+}>;
 
 export type ProductDetailReadItem = {
-  id?: string
-  productId?: string
-  name?: string
-  title?: string
-  slug?: string
-  description?: string
-  categoryId?: string
+  id?: string;
+  productId?: string;
+  name?: string;
+  title?: string;
+  slug?: string;
+  description?: string;
+  categoryId?: string;
   category?: {
-    id?: string
-    name?: string
-    title?: string
-  }
-  shopId?: string
-  brandId?: string
-  isActive?: boolean
-  imageUrl?: string
-  images?: string[]
-  tags?: string[]
+    id?: string;
+    name?: string;
+    title?: string;
+  };
+  shopId?: string;
+  brandId?: string;
+  isActive?: boolean;
+  imageUrl?: string;
+  images?: string[];
+  tags?: string[];
   variants?: Array<{
     id?: string
     variantId?: string
     colorId?: string
     sizeId?: string
     basePrice?: number | string
+    listPrice?: number | string
+    sellingPrice?: number | string
     profitThresholdPercent?: number | string
     discountPercent?: number | string
     effectiveSellingPrice?: number | string
     /** Customer-facing unit price (same as effectiveSellingPrice from API formatter). */
-    price?: number | string
-    stock?: number | string
-    shopStock?: number | string
-    length?: number | string | null
-    width?: number | string | null
-    height?: number | string | null
-    weight?: number | string | null
-    isPrimary?: boolean
-  }>
-}
+    price?: number | string;
+    stock?: number | string;
+    shopStock?: number | string;
+    length?: number | string | null;
+    width?: number | string | null;
+    height?: number | string | null;
+    weight?: number | string | null;
+    isPrimary?: boolean;
+  }>;
+};
 
 type GraphQLErrorItem = {
-  message?: string
-}
+  message?: string;
+};
 
 type CatalogProductsGraphQLData = {
-  catalogProducts?: CatalogProductsApiResponse
-}
+  catalogProducts?: CatalogProductsApiResponse;
+};
 
 type GraphQLEnvelope<TData> = {
-  data?: TData
-  errors?: GraphQLErrorItem[]
-}
+  data?: TData;
+  errors?: GraphQLErrorItem[];
+};
 
 const CATALOG_PRODUCTS_QUERY = `
   query CatalogProducts($page: Int!, $limit: Int!) {
@@ -185,28 +189,29 @@ const CATALOG_PRODUCTS_QUERY = `
       total
     }
   }
-`
+`;
 
 export const sellerProductApi = {
   listCatalogProducts(
     params: { page?: number; limit?: number } = {},
   ): Promise<{ data: CatalogProductsApiResponse }> {
-    const page = params.page ?? 1
-    const limit = params.limit ?? 20
+    const page = params.page ?? 1;
+    const limit = params.limit ?? 20;
 
     return ecommerceReadRestClient
-      .post<GraphQLEnvelope<CatalogProductsGraphQLData>>('/graphql', {
+      .post<GraphQLEnvelope<CatalogProductsGraphQLData>>("/graphql", {
         query: CATALOG_PRODUCTS_QUERY,
         variables: { page, limit },
       })
       .then((response) => {
-        const graphQLErrors = response.data?.errors ?? []
+        const graphQLErrors = response.data?.errors ?? [];
         if (graphQLErrors.length > 0) {
-          const firstMessage = graphQLErrors[0]?.message || 'GraphQL request failed.'
-          throw new Error(firstMessage)
+          const firstMessage =
+            graphQLErrors[0]?.message || "GraphQL request failed.";
+          throw new Error(firstMessage);
         }
 
-        const payload = response.data?.data?.catalogProducts
+        const payload = response.data?.data?.catalogProducts;
         return {
           data: payload ?? {
             items: [],
@@ -214,105 +219,131 @@ export const sellerProductApi = {
             limit,
             total: 0,
           },
-        }
+        };
       })
       .catch((error: unknown) => {
         // When GraphQL validation/runtime fails, many servers return HTTP 400
         // with details in `errors[]` instead of `message`.
-        const axiosError = error as AxiosError<GraphQLEnvelope<unknown>>
-        const firstGraphQlMessage = axiosError.response?.data?.errors?.[0]?.message
+        const axiosError = error as AxiosError<GraphQLEnvelope<unknown>>;
+        const firstGraphQlMessage =
+          axiosError.response?.data?.errors?.[0]?.message;
         if (firstGraphQlMessage) {
-          throw new Error(firstGraphQlMessage)
+          throw new Error(firstGraphQlMessage);
         }
-        throw error
-      })
+        throw error;
+      });
   },
 
   /**
    * Lists products for a shop from product-service (source of truth after create/update).
    * Prefer this over {@link listCatalogProducts} for the seller dashboard list so new products appear immediately.
    */
-  listProductsByShop(params: { shopId: string; page?: number; limit?: number }) {
-    const page = params.page ?? 1
-    const limit = Math.min(params.limit ?? 100, 100)
-    return productClient.get<ProductServicePaginatedResponse>('/products', {
+  listProductsByShop(params: {
+    shopId: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const page = params.page ?? 1;
+    const limit = Math.min(params.limit ?? 100, 100);
+    return productClient.get<ProductServicePaginatedResponse>("/products", {
       params: { shopId: params.shopId, page, limit },
-    })
+    });
   },
 
   listBrands() {
-    return productClient.get<{ success?: boolean; data?: CatalogRefItem[] }>('/brands')
+    return productClient.get<{ success?: boolean; data?: CatalogRefItem[] }>(
+      "/brands",
+    );
   },
 
   listColors() {
-    return productClient.get<{ success?: boolean; data?: CatalogRefItem[] }>('/colors')
+    return productClient.get<{ success?: boolean; data?: CatalogRefItem[] }>(
+      "/colors",
+    );
   },
 
   listSizes() {
-    return productClient.get<{ success?: boolean; data?: CatalogRefItem[] }>('/sizes')
+    return productClient.get<{ success?: boolean; data?: CatalogRefItem[] }>(
+      "/sizes",
+    );
   },
 
   createProduct(payload: CreateSellerProductPayload) {
-    const formData = new FormData()
-    formData.append('name', payload.name)
+    const formData = new FormData();
+    formData.append("name", payload.name);
     if (payload.description) {
-      formData.append('description', payload.description)
+      formData.append("description", payload.description);
     }
     if (payload.tags && payload.tags.length > 0) {
-      formData.append('tags', JSON.stringify(payload.tags))
+      formData.append("tags", JSON.stringify(payload.tags));
     }
-    formData.append('slug', payload.slug)
-    formData.append('categoryId', payload.categoryId)
-    formData.append('shopId', payload.shopId)
-    formData.append('brandId', payload.brandId)
-    formData.append('variants', JSON.stringify(payload.variants))
-    formData.append('isActive', String(payload.isActive))
+    formData.append("slug", payload.slug);
+    formData.append("categoryId", payload.categoryId);
+    formData.append("shopId", payload.shopId);
+    formData.append("brandId", payload.brandId);
+    formData.append("variants", JSON.stringify(payload.variants));
+    formData.append("isActive", String(payload.isActive));
 
     payload.imageFiles?.forEach((file) => {
-      formData.append('images', file)
-    })
+      formData.append("images", file);
+    });
 
-    return productClient.post('/products', formData)
+    return productClient.post("/products", formData);
   },
 
-  getProductById(
-    id: string,
-  ) {
-    return productClient.get<{ success?: boolean; data?: ProductDetailReadItem }>(`/products/${id}`)
+  getProductById(id: string) {
+    return productClient.get<{
+      success?: boolean;
+      data?: ProductDetailReadItem;
+    }>(`/products/${id}`);
   },
 
-  updateProduct(
-    id: string,
-    payload: UpdateSellerProductPayload,
-  ) {
-    const formData = new FormData()
-    if (payload.name !== undefined) formData.append('name', payload.name)
-    if (payload.description !== undefined) formData.append('description', payload.description)
-    if (payload.tags !== undefined) formData.append('tags', JSON.stringify(payload.tags))
-    if (payload.slug !== undefined) formData.append('slug', payload.slug)
-    if (payload.categoryId !== undefined) formData.append('categoryId', payload.categoryId)
-    if (payload.shopId !== undefined) formData.append('shopId', payload.shopId)
-    if (payload.brandId !== undefined) formData.append('brandId', payload.brandId)
-    if (payload.variants !== undefined) formData.append('variants', JSON.stringify(payload.variants))
-    if (payload.isActive !== undefined) formData.append('isActive', String(payload.isActive))
+  updateProduct(id: string, payload: UpdateSellerProductPayload) {
+    const formData = new FormData();
+    if (payload.name !== undefined) formData.append("name", payload.name);
+    if (payload.description !== undefined)
+      formData.append("description", payload.description);
+    if (payload.tags !== undefined)
+      formData.append("tags", JSON.stringify(payload.tags));
+    if (payload.slug !== undefined) formData.append("slug", payload.slug);
+    if (payload.categoryId !== undefined)
+      formData.append("categoryId", payload.categoryId);
+    if (payload.shopId !== undefined) formData.append("shopId", payload.shopId);
+    if (payload.brandId !== undefined)
+      formData.append("brandId", payload.brandId);
+    if (payload.variants !== undefined)
+      formData.append("variants", JSON.stringify(payload.variants));
+    if (payload.isActive !== undefined)
+      formData.append("isActive", String(payload.isActive));
 
-    const nextImageFiles = payload.imageFiles ?? []
+    const nextImageFiles = payload.imageFiles ?? [];
+    if (payload.existingImageUrls !== undefined) {
+      // Send retained URLs separately so an empty list can explicitly delete
+      // every old image while new files are uploaded in the same request.
+      formData.append(
+        "existingImageUrls",
+        JSON.stringify(payload.existingImageUrls),
+      );
+    }
     if (nextImageFiles.length > 0) {
       nextImageFiles.forEach((file) => {
-        formData.append('images', file)
-      })
-    } else if (payload.existingImageUrls !== undefined) {
-      if (payload.existingImageUrls.length === 0) {
-        formData.append('images', '')
-      } else {
-        payload.existingImageUrls.forEach((url) => formData.append('images', url))
-      }
+        formData.append("images", file);
+      });
+    } else if (
+      payload.existingImageUrls !== undefined &&
+      payload.existingImageUrls.length > 0
+    ) {
+      payload.existingImageUrls.forEach((url) =>
+        formData.append("images", url),
+      );
     }
 
-    return productClient.patch(`/products/${id}`, formData)
+    return productClient.patch(`/products/${id}`, formData);
   },
 
   deleteProduct(id: string) {
-    return productClient.delete<{ success?: boolean; message?: string }>(`/products/${id}`)
+    return productClient.delete<{ success?: boolean; message?: string }>(
+      `/products/${id}`,
+    );
   },
-}
+};

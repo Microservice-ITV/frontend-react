@@ -1,5 +1,5 @@
 import { createSlice, createSelector } from '@reduxjs/toolkit'
-import { checkoutCart, completeCheckout, fetchSagaStatus, fetchSagaStatusByCheckout, fetchSagaStatistics, fetchCheckoutStatus } from './checkoutThunks'
+import { checkoutCart, guestCheckoutCart, completeCheckout, fetchSagaStatus, fetchSagaStatusByCheckout, fetchSagaStatistics, fetchCheckoutStatus } from './checkoutThunks'
 import type {
     CheckoutPaymentStatus,
     CheckoutResponse,
@@ -7,7 +7,7 @@ import type {
 } from '../types/checkoutTypes'
 import type { SagaStatusResponse } from '../types/sagaTypes'
 
-export type PaymentMethod = 'card' | 'cod'
+export type PaymentMethod = 'prepaid' | 'cod'
 
 interface CheckoutState {
     currentCheckout: CheckoutResponse | null
@@ -35,7 +35,7 @@ const initialState: CheckoutState = {
     clientSecret: null,
     isPlacingOrder: false,
     isAwaitingFinalStatus: false,
-    paymentMethod: 'card',
+    paymentMethod: 'prepaid',
     sessionPaymentMethod: null,
     loading: false,
     error: null,
@@ -117,6 +117,35 @@ const checkoutSlice = createSlice({
                 state.loading = false
                 state.error = action.payload ?? 'Checkout failed'
             })
+            .addCase(guestCheckoutCart.pending, state => {
+                state.loading = true
+                state.error = null
+            })
+            .addCase(guestCheckoutCart.fulfilled, (state, action) => {
+                state.loading = false
+                state.currentCheckout = action.payload
+                const checkout = action.payload?.checkout
+                const checkoutId =
+                    action.payload.checkout_id ??
+                    checkout?.checkout_id ??
+                    checkout?.id ??
+                    null
+                if (checkoutId) {
+                    state.currentCheckout = {
+                        ...action.payload,
+                        checkout_id: checkoutId,
+                    }
+                }
+                state.sagaId = action.payload.saga_id || null
+                state.paymentStatus = null
+                state.clientSecret = null
+                state.isAwaitingFinalStatus = false
+                state.sessionPaymentMethod = state.paymentMethod
+            })
+            .addCase(guestCheckoutCart.rejected, (state, action) => {
+                state.loading = false
+                state.error = action.payload ?? 'Checkout failed'
+            })
             .addCase(fetchCheckoutStatus.pending, state => {
                 state.loading = true
             })
@@ -130,7 +159,7 @@ const checkoutSlice = createSlice({
                 }
                 if (typeof action.payload.payment_method === 'string') {
                     const pm = action.payload.payment_method as PaymentMethod
-                    if (pm === 'card' || pm === 'cod') {
+                    if (pm === 'prepaid' || pm === 'cod') {
                         state.sessionPaymentMethod = pm
                         state.paymentMethod = pm
                     }
