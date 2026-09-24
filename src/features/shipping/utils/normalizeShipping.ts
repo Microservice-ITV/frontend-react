@@ -94,6 +94,16 @@ export function normalizeCalculateResponse(data: unknown): {
         const amount = num(
             r.shippingFee ?? r.fee ?? r.amount ?? r.totalShipping ?? r.calculatedFee ?? r.price,
         )
+        const deliveryStatusRaw =
+            typeof r.deliveryStatus === 'string' ? r.deliveryStatus.trim().toUpperCase() : ''
+        const deliveryStatus =
+            deliveryStatusRaw === 'NOT_DELIVERABLE'
+                ? ('NOT_DELIVERABLE' as const)
+                : deliveryStatusRaw === 'DELIVERABLE'
+                  ? ('DELIVERABLE' as const)
+                  : amount != null
+                    ? ('DELIVERABLE' as const)
+                    : undefined
         const currency =
             typeof r.currency === 'string' && r.currency.trim() ? r.currency.trim() : undefined
         const estimatedDays = num(r.estimatedDays)
@@ -118,7 +128,8 @@ export function normalizeCalculateResponse(data: unknown): {
 
         byShopId[shopId] = {
             shopId,
-            amount,
+            amount: deliveryStatus === 'NOT_DELIVERABLE' ? 0 : amount,
+            deliveryStatus,
             currency,
             methodLabel,
             etaHint,

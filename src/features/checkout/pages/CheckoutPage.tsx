@@ -14,7 +14,7 @@ import { stripePromise } from '@/lib/stripe'
 import { useNavigate } from 'react-router-dom'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
 import { selectAuthUser } from '@/features/auth/store/authSelectors'
-import { clearCheckout, setCurrentCheckout, setSagaId } from '@/features/checkout/store/checkoutSlice'
+import { clearCheckout, setCurrentCheckout, setSagaId, setCheckoutError } from '@/features/checkout/store/checkoutSlice'
 import {
     selectAccountAddresses,
     selectAccountAddressesLoading,
@@ -119,7 +119,7 @@ const CheckoutPage = () => {
         return `${selectedDeliveryAddress.address_id}|${selectedItemsFingerprint}`
     }, [selectedDeliveryAddress?.address_id, selectedItemsFingerprint])
 
-    const { currentCheckout, loading, paymentStatus, clientSecret, isAwaitingFinalStatus, paymentMethod, sessionPaymentMethod } = useAppSelector(
+    const { currentCheckout, loading, paymentStatus, clientSecret, isAwaitingFinalStatus, paymentMethod, sessionPaymentMethod, error: checkoutError } = useAppSelector(
         state => state.checkout
     )
     const sagaId = useAppSelector(state => state.checkout.sagaId)
@@ -355,6 +355,11 @@ const CheckoutPage = () => {
     }, [checkoutStorageKey, paymentStatus])
 
     useEffect(() => {
+        // Allow a fresh checkout attempt when the cart or address changes.
+        dispatch(setCheckoutError(null))
+    }, [dispatch, selectedItemsFingerprint, selectedDeliveryAddress?.address_id])
+
+    useEffect(() => {
         if (!hasDeliveryAddress) {
             // Important guard: do NOT create checkout intent/session until an address exists.
             // This prevents duplicate checkout intents when users cancel address modal,
@@ -368,10 +373,11 @@ const CheckoutPage = () => {
         // checkout POST from ever firing. The `!currentCheckout` and `!loading`
         // guards below are sufficient: while a session is being restored/created,
         // either `currentCheckout` is set or `loading` is true, so we skip.
-        if (!currentCheckout && !loading) {
+        // Also skip while a previous hard failure is latched (thunk condition).
+        if (!currentCheckout && !loading && !checkoutError) {
             dispatch(checkoutCart())
         }
-    }, [dispatch, currentCheckout, loading, hasDeliveryAddress])
+    }, [dispatch, currentCheckout, loading, hasDeliveryAddress, checkoutError])
 
     useEffect(() => {
         if (!hasDeliveryAddress) return

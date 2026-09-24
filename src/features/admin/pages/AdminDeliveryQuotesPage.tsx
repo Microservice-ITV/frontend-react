@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
 import DataTablePagination from '@/components/ui/DataTablePagination'
-import { Search, RefreshCw, FileText, Eye, Ban, MoreHorizontal } from 'lucide-react'
+import RowActionMenu from '@/components/ui/RowActionMenu'
+import { Search, RefreshCw, FileText, Eye, Ban, ArrowRight } from 'lucide-react'
 import type { DeliveryQuoteDto, DeliveryQuoteStatus } from '../api/adminShippingApi'
+import { loadAllCities, type CityOptionWithState } from '../api/locationOptions'
 import {
   cancelAdminDeliveryQuote,
   fetchAdminDeliveryQuotes,
@@ -71,25 +73,16 @@ const AdminDeliveryQuotesPage = () => {
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
   const [rowsPerPage, setRowsPerPage] = useState(10)
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
-  const menuRef = useRef<HTMLDivElement>(null)
+  const [cities, setCities] = useState<CityOptionWithState[]>([])
+
+  useEffect(() => {
+    void loadAllCities().then(setCities).catch(() => setCities([]))
+  }, [])
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300)
     return () => clearTimeout(timer)
   }, [search])
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setOpenMenuId(null)
-      }
-    }
-    if (openMenuId) {
-      document.addEventListener('mousedown', handleClickOutside)
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [openMenuId])
 
   useEffect(() => {
     dispatch(
@@ -103,6 +96,11 @@ const AdminDeliveryQuotesPage = () => {
   }, [dispatch, page, rowsPerPage, statusFilter, debouncedSearch])
 
   const totalPages = Math.max(1, Math.ceil(total / rowsPerPage))
+
+  const cityName = (cityId: string | null): string => {
+    if (!cityId) return '—'
+    return cities.find((city) => city.id === cityId)?.name ?? cityId
+  }
 
   const refresh = () => {
     dispatch(
@@ -260,9 +258,7 @@ const AdminDeliveryQuotesPage = () => {
               )}
               {quotesStatus !== 'loading' &&
                 quotesStatus !== 'failed' &&
-                quotes.map((quote, index) => {
-                  const openUpward = index >= quotes.length - 2
-                  return (
+                quotes.map((quote) => (
                   <tr
                     key={quote.id}
                     className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
@@ -303,9 +299,24 @@ const AdminDeliveryQuotesPage = () => {
                       )}
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-600">
-                      {quote.distanceKm.toFixed(1)} km
-                      <br />
-                      <span className="text-slate-400">{quote.durationMinutes} min</span>
+                      {quote.calculationMethod === 'CITY_ROUTE' ? (
+                        <>
+                          <span className="inline-flex items-center gap-1 font-medium text-slate-700">
+                            {cityName(quote.fromCityId)}
+                            <ArrowRight size={10} className="shrink-0 text-slate-400" />
+                            {cityName(quote.toCityId)}
+                          </span>
+                          <span className="mt-0.5 block text-[11px] text-slate-400">
+                            City route
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          {quote.distanceKm.toFixed(1)} km
+                          <br />
+                          <span className="text-slate-400">{quote.durationMinutes} min</span>
+                        </>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-xs font-medium text-slate-900">
                       {formatMoney(quote.totalFee, quote.currency)}
@@ -324,65 +335,33 @@ const AdminDeliveryQuotesPage = () => {
                     <td className="px-4 py-3 text-xs text-slate-600">
                       {formatDateTime(quote.expiresAt)}
                     </td>
-                    <td className="relative w-16 px-2 py-3">
-                      <div
-                        className="relative inline-block"
-                        ref={openMenuId === quote.id ? menuRef : undefined}
-                      >
-                        <button
-                          type="button"
-                          onMouseDown={(e) => e.stopPropagation()}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setOpenMenuId((id) => (id === quote.id ? null : quote.id))
-                          }}
-                          className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
-                          aria-label="Actions"
-                          aria-expanded={openMenuId === quote.id}
-                        >
-                          <MoreHorizontal size={18} />
-                        </button>
-                        {openMenuId === quote.id && (
-                          <div
-                            className={`absolute right-0 z-50 min-w-[150px] rounded-lg border border-slate-200 bg-white py-1 shadow-lg ${
-                              openUpward ? 'bottom-full mb-1' : 'top-full mt-1'
-                            }`}
-                          >
-                            <button
-                              type="button"
-                              onMouseDown={(e) => e.stopPropagation()}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setOpenMenuId(null)
-                                navigate(`/super-admin/shipping/quotes/${quote.id}`)
-                              }}
-                              className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
-                            >
-                              <Eye size={16} className="shrink-0 text-slate-500" />
-                              View
-                            </button>
-                            {quote.status === 'ACTIVE' && (
-                              <button
-                                type="button"
-                                onMouseDown={(e) => e.stopPropagation()}
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setOpenMenuId(null)
-                                  confirmCancel(quote)
-                                }}
-                                className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-red-600 hover:bg-slate-50 cursor-pointer"
-                              >
-                                <Ban size={16} className="shrink-0 text-slate-500" />
-                                Cancel quote
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
+                    <td className="w-16 px-2 py-3">
+                      <RowActionMenu
+                        ariaLabel="Quote actions"
+                        items={[
+                          {
+                            key: 'view',
+                            label: 'View',
+                            icon: <Eye size={16} className="shrink-0 text-slate-500" />,
+                            onClick: () => navigate(`/super-admin/shipping/quotes/${quote.id}`),
+                          },
+                          ...(quote.status === 'ACTIVE'
+                            ? [
+                                {
+                                  key: 'cancel',
+                                  label: 'Cancel quote',
+                                  icon: <Ban size={16} className="shrink-0 text-slate-500" />,
+                                  className:
+                                    'flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-red-600 hover:bg-slate-50 cursor-pointer',
+                                  onClick: () => confirmCancel(quote),
+                                },
+                              ]
+                            : []),
+                        ]}
+                      />
                     </td>
                   </tr>
-                  )
-                })}
+                ))}
             </tbody>
           </table>
         </div>

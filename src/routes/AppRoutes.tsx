@@ -97,6 +97,8 @@ import AdminPricingRuleDetailPage from "@/features/admin/pages/AdminPricingRuleD
 import AdminWeightRatesPage from "@/features/admin/pages/AdminWeightRatesPage";
 import AdminWeightRateFormPage from "@/features/admin/pages/AdminWeightRateFormPage";
 import AdminWeightRateDetailPage from "@/features/admin/pages/AdminWeightRateDetailPage";
+import AdminCityRatesPage from "@/features/admin/pages/AdminCityRatesPage";
+import AdminCityRateFormPage from "@/features/admin/pages/AdminCityRateFormPage";
 import AdminDistanceRangesPage from "@/features/admin/pages/AdminDistanceRangesPage";
 import AdminDistanceRangeFormPage from "@/features/admin/pages/AdminDistanceRangeFormPage";
 import AdminDistanceRangeDetailPage from "@/features/admin/pages/AdminDistanceRangeDetailPage";
@@ -1051,6 +1053,36 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
                 >
                   <AdminDistanceRangeDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/city-rates/new"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminCityRateFormPage mode="create" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/city-rates/:id/edit"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminCityRateFormPage mode="edit" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/city-rates"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminCityRatesPage />
                 </ProtectedRoute>
               }
             />

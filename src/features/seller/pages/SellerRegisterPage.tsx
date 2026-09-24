@@ -473,6 +473,8 @@ const SellerRegisterPage = () => {
                     }
                     const originLat = toFiniteNumberOrNull(pickupAddr?.latitude)
                     const originLng = toFiniteNumberOrNull(pickupAddr?.longitude)
+                    const cityId =
+                        pickupAddr?.city_id != null ? String(pickupAddr.city_id) : null
 
                     const taxBlock =
                         tax.notes.trim().length > 0
@@ -485,13 +487,14 @@ const SellerRegisterPage = () => {
                     let shop: Awaited<ReturnType<typeof sellerRegistrationApi.createShop>>
                     try {
                         shop = await createSellerShopWithResilientSlug(shopInfo.shopName.trim(), {
-                            userName: user.name?.trim() || user.email,
-                            originAddress: shopInfo.pickupAddress.trim() || null,
-                            originLat,
-                            originLng,
-                            sellerContactEmail: shopInfo.email.trim() || undefined,
-                            sellerContactPhone: shopInfo.phone.trim(),
-                        })
+                                    userName: user.name?.trim() || user.email,
+                                    cityId,
+                                    originAddress: shopInfo.pickupAddress.trim() || null,
+                                    originLat,
+                                    originLng,
+                                    sellerContactEmail: shopInfo.email.trim() || undefined,
+                                    sellerContactPhone: shopInfo.phone.trim(),
+                                })
                     } catch (createErr) {
                         if (
                             axios.isAxiosError(createErr) &&

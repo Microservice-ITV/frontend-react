@@ -12,9 +12,15 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
   const { groupedByShop } = checkout
   const feesByShopId = useAppSelector(state => state.shipping.feesByShopId)
   const calculateStatus = useAppSelector(state => state.shipping.calculateStatus)
+  const calculateError = useAppSelector(state => state.shipping.calculateError)
 
   return (
     <div className="mt-3">
+      {calculateStatus === 'failed' && calculateError ? (
+        <div className="mb-3 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          Delivery fee could not be calculated: {calculateError}
+        </div>
+      ) : null}
       <div className="bg-white rounded-sm">
         {/* Header */}
         <div className="grid grid-cols-[1fr_140px_100px_160px] px-6 py-5 text-sm text-gray-500 hidden md:grid">
@@ -35,13 +41,18 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
           0
         )
         const feeRow = feesByShopId[shopId]
+        const isNotDeliverable = feeRow?.deliveryStatus === 'NOT_DELIVERABLE'
         const hasFee =
-          calculateStatus === 'succeeded' && feeRow?.amount != null && feeRow.amount >= 0
+          calculateStatus === 'succeeded' &&
+          !isNotDeliverable &&
+          feeRow?.amount != null &&
+          feeRow.amount >= 0
         const shippingFee = hasFee ? (feeRow?.amount as number) : 0
         const shippingCurrency = feeRow?.currency ?? 'MMK'
         const rawMethod = feeRow?.methodLabel?.trim()
-        const methodTitle =
-          rawMethod === 'STANDARD'
+        const methodTitle = isNotDeliverable
+          ? 'Delivery unavailable'
+          : rawMethod === 'STANDARD'
             ? 'Standard shipping'
             : rawMethod || 'Standard shipping'
         const etaLine =
@@ -146,6 +157,8 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
                     <span className="text-sm font-medium whitespace-nowrap">
                       {calculateStatus === 'loading' ? (
                         <span className="text-gray-400">…</span>
+                      ) : isNotDeliverable ? (
+                        <span className="text-red-600">Unavailable</span>
                       ) : hasFee ? (
                         formatProductPrice(shippingFee, shippingCurrency)
                       ) : calculateStatus === 'failed' ? (
@@ -156,23 +169,29 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
                     </span>
                   </div>
 
-                  <div className="mt-2 flex items-center gap-1 text-sm text-emerald-600">
-                    <img src={fastDeliveryIcon} className="w-4 h-4" />
-                    {calculateStatus === 'succeeded' && etaLine ? (
-                      <span>{etaLine}</span>
-                    ) : calculateStatus === 'loading' ? (
-                      <span className="text-gray-400">Calculating delivery time…</span>
-                    ) : (
-                      <span className="text-gray-500">Delivery estimate unavailable</span>
-                    )}
-                  </div>
+                  {isNotDeliverable ? (
+                    <div className="mt-2 text-sm text-red-600">
+                      Delivery is not available for this shop/route yet.
+                    </div>
+                  ) : (
+                    <div className="mt-2 flex items-center gap-1 text-sm text-emerald-600">
+                      <img src={fastDeliveryIcon} className="w-4 h-4" />
+                      {calculateStatus === 'succeeded' && etaLine ? (
+                        <span>{etaLine}</span>
+                      ) : calculateStatus === 'loading' ? (
+                        <span className="text-gray-400">Calculating delivery time…</span>
+                      ) : (
+                        <span className="text-gray-500">Delivery estimate unavailable</span>
+                      )}
+                    </div>
+                  )}
 
                   {hasFee &&
                     (feeRow?.baseFee != null ||
                       feeRow?.distanceFee != null ||
                       feeRow?.weightFee != null) && (
                       <div className="mt-2 space-y-0.5 text-xs text-gray-600">
-                        {feeRow?.distanceKm != null && (
+                        {feeRow?.distanceKm != null && feeRow.distanceKm > 0 && (
                           <div>Distance: {feeRow.distanceKm.toFixed(1)} km</div>
                         )}
                         {feeRow?.chargeableWeightKg != null && (
@@ -206,13 +225,17 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
                       </div>
                     )}
 
-                  <div className="mt-1 text-sm text-gray-600">
-                    Get a $2.00 voucher if no delivery was attempted by 7 Feb 2026.
-                  </div>
+                  {!isNotDeliverable && (
+                    <>
+                      <div className="mt-1 text-sm text-gray-600">
+                        Get a $2.00 voucher if no delivery was attempted by 7 Feb 2026.
+                      </div>
 
-                  <div className="mt-1 text-sm text-gray-600">
-                    Orders paid after 2pm will be delivered the day after tomorrow, excl. Sun & PH
-                  </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        Orders paid after 2pm will be delivered the day after tomorrow, excl. Sun & PH
+                      </div>
+                    </>
+                  )}
                 </button>
               </div>
 
