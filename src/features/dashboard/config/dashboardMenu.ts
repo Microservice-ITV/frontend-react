@@ -131,6 +131,14 @@ withSearch({
       requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
       icon: CreditCard,
     }),
+    withSearch({
+      key: 'seller-invoices',
+      label: 'Invoices',
+      to: '/seller/invoices',
+      area: 'seller',
+      requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+      icon: FileText,
+    }),
     ],
   },
   {

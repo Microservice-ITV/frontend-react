@@ -47,18 +47,18 @@ const STATUS_LABELS: Record<InvoiceStatus, string> = {
 
 const STATUS_STYLES: Record<InvoiceStatus, string> = {
   UNPAID: 'bg-slate-100 text-slate-700',
-  PENDING_VERIFICATION: 'bg-amber-100 text-amber-800',
-  PAID: 'bg-emerald-100 text-emerald-700',
-  REJECTED: 'bg-red-100 text-red-700',
-  VOID: 'bg-zinc-200 text-zinc-700',
-  REFUNDED: 'bg-blue-100 text-blue-700',
+  PENDING_VERIFICATION: 'border border-amber-200 bg-amber-50 text-amber-800',
+  PAID: 'border border-emerald-200 bg-emerald-50 text-emerald-700',
+  REJECTED: 'border border-red-200 bg-red-50 text-red-700',
+  VOID: 'border border-zinc-300 bg-zinc-100 text-zinc-700',
+  REFUNDED: 'border border-blue-200 bg-blue-50 text-blue-700',
 }
 
 const formatMoney = (invoice: InvoiceDocument) =>
-  `${invoice.currency} ${Number(invoice.grandTotal).toLocaleString(undefined, {
+  Number(invoice.grandTotal).toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  })}`
+  })
 
 const formatDate = (date: string) =>
   new Date(date).toLocaleString(undefined, {
@@ -168,9 +168,17 @@ const AdminInvoicesPage = () => {
 
   const totalPages = Math.max(1, Math.ceil(filteredInvoices.length / rowsPerPage))
   const pageInvoices = filteredInvoices.slice((page - 1) * rowsPerPage, page * rowsPerPage)
-  const totalRevenue = invoices
-    .filter((invoice) => invoice.status === 'PAID' || invoice.status === 'REFUNDED')
-    .reduce((sum, invoice) => sum + Number(invoice.grandTotal), 0)
+  const totalRevenue = invoices.reduce((sum, invoice) => {
+    if (invoice.status === 'PAID') {
+      return sum + Number(invoice.grandTotal)
+    }
+
+    if (invoice.status === 'REFUNDED') {
+      return sum - Number(invoice.refundAmount ?? invoice.grandTotal)
+    }
+
+    return sum
+  }, 0)
   const refundedCount = invoices.filter(
     (invoice) => invoice.status === 'VOID' || invoice.status === 'REFUNDED',
   ).length
@@ -274,7 +282,7 @@ const AdminInvoicesPage = () => {
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <SummaryCard icon={<FileText size={18} />} label="Total platform invoices" value={invoices.length.toLocaleString()} tone="indigo" />
-        <SummaryCard icon={<DollarSign size={18} />} label="Total revenue" value={`${revenueCurrency} ${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} tone="emerald" />
+        <SummaryCard icon={<DollarSign size={18} />} label="Net revenue" value={`${revenueCurrency} ${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} tone="emerald" />
         <SummaryCard icon={<Clock3 size={18} />} label="Global pending verifications" value={pendingCount.toLocaleString()} tone="amber" />
         <SummaryCard icon={<AlertTriangle size={18} />} label="Voided / refunded count" value={refundedCount.toLocaleString()} tone="rose" />
       </div>
@@ -328,7 +336,7 @@ const AdminInvoicesPage = () => {
                 <td className="px-4 py-4"><div className="flex items-start gap-2"><Store size={15} className="mt-0.5 text-slate-400" /><div><p className="text-xs font-medium text-slate-800">{getDisplayValue(invoice.shopName, 'N/A')}</p><p className="mt-1 text-[11px] text-slate-400">{invoice.shopId}</p></div></div></td>
                 <td className="px-4 py-4"><div className="flex items-start gap-2"><ShieldCheck size={15} className="mt-0.5 text-slate-400" /><div><p className="text-xs font-medium text-slate-800">{getDisplayValue(invoice.customerName, 'N/A')}</p><p className="mt-1 text-[11px] text-slate-400">{getDisplayValue(invoice.customerEmail, 'N/A')}</p></div></div></td>
                 <td className="px-4 py-4 text-sm font-semibold text-slate-900">{formatMoney(invoice)}</td>
-                <td className="px-4 py-4"><span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${STATUS_STYLES[invoice.status]}`}>{STATUS_LABELS[invoice.status]}</span></td>
+                <td className="whitespace-nowrap px-4 py-4"><span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[11px] font-semibold leading-none ${STATUS_STYLES[invoice.status]}`}><span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />{STATUS_LABELS[invoice.status]}</span></td>
                 <td className="px-4 py-4 text-xs text-slate-600">{formatDate(invoice.createdAt)}</td>
                 <td className="px-4 py-4"><div className="relative" ref={openMenuId === invoice.id ? menuRef : undefined}><button type="button" aria-label={`Actions for ${invoice.invoiceNumber || invoice.id}`} onClick={() => setOpenMenuId(openMenuId === invoice.id ? null : invoice.id)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900"><MoreHorizontal size={18} /></button>{openMenuId === invoice.id && <div className="absolute right-0 z-20 mt-1 w-48 rounded-lg border border-slate-200 bg-white py-1 shadow-lg"><ActionButton icon={<Eye size={14} />} label="View audit details" onClick={() => openAction(invoice, 'audit')} />{invoice.pdfUrl && <ActionButton icon={<Download size={14} />} label="Download PDF" onClick={() => { window.open(invoice.pdfUrl as string, '_blank', 'noopener,noreferrer'); setOpenMenuId(null) }} />}<ActionButton icon={generatingPdfId === invoice.id ? <Loader2 size={14} className="animate-spin" /> : invoice.pdfUrl ? <RefreshCw size={14} /> : <FileText size={14} />} label={generatingPdfId === invoice.id ? 'Generating PDF...' : invoice.pdfUrl ? 'Re-generate PDF' : 'Generate PDF'} disabled={generatingPdfId !== null} onClick={() => void handleGeneratePdf(invoice)} /><ActionButton icon={<Ban size={14} />} label="Force void" disabled={invoice.status === 'VOID' || invoice.status === 'REFUNDED'} onClick={() => openAction(invoice, 'void')} /><ActionButton icon={<CreditCard size={14} />} label="Process refund" disabled={invoice.status !== 'PAID'} onClick={() => openAction(invoice, 'refund')} /></div>}</div></td>
               </tr>)}
