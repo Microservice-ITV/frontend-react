@@ -1,16 +1,16 @@
 import { useEffect, useState, type ChangeEvent, type DragEvent } from 'react'
-import { AlertCircle, Download, ExternalLink, Eye, FileText, Loader2, RefreshCw, UploadCloud, X, Image as ImageIcon } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Clock3, Download, Eye, FileText, Loader2, RefreshCw, UploadCloud, X, Image as ImageIcon } from 'lucide-react'
 import { getMyInvoices, type InvoiceDocument, type InvoiceStatus, uploadPaymentSlip } from '@/lib/api/invoiceClient'
 import { useAppSelector } from '@/app/hooks'
 import { selectIsAuthenticated } from '@/features/auth/store/authSelectors'
 
 const STATUS_STYLES: Record<InvoiceStatus, string> = {
-  UNPAID: 'bg-amber-100 text-amber-700 border border-amber-200',
-  PENDING_VERIFICATION: 'bg-sky-100 text-sky-700 border border-sky-200',
-  PAID: 'bg-emerald-100 text-emerald-700 border border-emerald-200',
-  REJECTED: 'bg-red-100 text-red-700 border border-red-200',
-  VOID: 'bg-slate-200 text-slate-700 border border-slate-300',
-  REFUNDED: 'bg-violet-100 text-violet-700 border border-violet-200',
+  UNPAID: 'border border-amber-200 bg-amber-50 text-amber-700',
+  PENDING_VERIFICATION: 'border border-sky-200 bg-sky-50 text-sky-700',
+  PAID: 'border border-emerald-200 bg-emerald-50 text-emerald-700',
+  REJECTED: 'border border-red-200 bg-red-50 text-red-700',
+  VOID: 'border border-slate-300 bg-slate-100 text-slate-700',
+  REFUNDED: 'border border-violet-200 bg-violet-50 text-violet-700',
 }
 
 const STATUS_LABELS: Record<InvoiceStatus, string> = {
@@ -47,12 +47,18 @@ const formatDate = (value: string | Date): string => {
   })
 }
 
+const formatAmount = (value: string | number): string => {
+  const amount = Number(value || 0)
+  return Number.isFinite(amount) ? amount.toFixed(2) : '0.00'
+}
+
 const CustomerInvoicesPage = () => {
   const isAuthenticated = useAppSelector(selectIsAuthenticated)
   const [invoices, setInvoices] = useState<InvoiceDocument[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceDocument | null>(null)
+  const [detailsInvoice, setDetailsInvoice] = useState<InvoiceDocument | null>(null)
   
   // File state & preview
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -85,11 +91,6 @@ const CustomerInvoicesPage = () => {
   useEffect(() => {
     void loadInvoices()
   }, [isAuthenticated])
-
-  const handleOpenPdf = (invoice: InvoiceDocument) => {
-    if (!invoice.pdfUrl) return
-    window.open(invoice.pdfUrl, '_blank', 'noopener,noreferrer')
-  }
 
   const handleDownloadPdf = async (invoice: InvoiceDocument) => {
     if (!invoice.pdfUrl || downloadingInvoiceId) return
@@ -183,24 +184,32 @@ const CustomerInvoicesPage = () => {
     }
   }
 
+  const paidInvoices = invoices.filter((invoice) => invoice.status === 'PAID')
+  const pendingInvoices = invoices.filter((invoice) => invoice.status === 'PENDING_VERIFICATION' || invoice.status === 'UNPAID')
+  const totalBilled = invoices.reduce((total, invoice) => total + Number(invoice.grandTotal || 0), 0)
+  const currency = invoices[0]?.currency || 'USD'
+
   return (
-    <section className="space-y-4 bg-[#f5f5f5] p-4 md:p-6">
-      <div className="flex flex-col gap-3 rounded-sm border border-gray-200 bg-white px-4 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-700">
-            Billing
+    <section className="space-y-5 bg-[#f6f8f7] p-4 md:p-6">
+      {!isLoading && isAuthenticated && !error && (
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center justify-between"><span className="text-xs font-medium text-gray-500">Total billed</span><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700"><FileText size={15} /></span></div>
+            <p className="mt-3 text-xl font-semibold text-gray-900">{formatMoney(totalBilled, currency)}</p>
+            <p className="mt-1 text-[11px] text-gray-400">Across {invoices.length} invoice{invoices.length === 1 ? '' : 's'}</p>
           </div>
-          <h1 className="mt-2 text-xl font-semibold text-gray-900">My Invoices</h1>
-          <p className="mt-1 text-xs text-gray-500">Track your invoices and upload payment slips when needed.</p>
+          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center justify-between"><span className="text-xs font-medium text-gray-500">Paid invoices</span><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-50 text-green-700"><CheckCircle2 size={15} /></span></div>
+            <p className="mt-3 text-xl font-semibold text-gray-900">{paidInvoices.length}</p>
+            <p className="mt-1 text-[11px] text-gray-400">Payment completed</p>
+          </div>
+          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center justify-between"><span className="text-xs font-medium text-gray-500">Needs attention</span><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-700"><Clock3 size={15} /></span></div>
+            <p className="mt-3 text-xl font-semibold text-gray-900">{pendingInvoices.length}</p>
+            <p className="mt-1 text-[11px] text-gray-400">Unpaid or under review</p>
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={() => void loadInvoices()}
-          className="inline-flex items-center justify-center gap-2 rounded-sm border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 transition hover:border-emerald-200 hover:text-emerald-700"
-        >
-          <RefreshCw size={13} /> Refresh
-        </button>
-      </div>
+      )}
 
       {selectedInvoice && (
         <div className="rounded-sm border border-amber-200 bg-amber-50 p-4 shadow-sm">
@@ -313,13 +322,20 @@ const CustomerInvoicesPage = () => {
       )}
 
       {!isLoading && !error && isAuthenticated && (
-        <div className="overflow-hidden rounded-sm border border-gray-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+          <div className="flex flex-col gap-1 border-b border-gray-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900">Invoice history</h2>
+              <p className="mt-1 text-xs text-gray-500">Your latest billing documents and payment status.</p>
+            </div>
+            <span className="text-xs font-medium text-gray-400">{invoices.length} total</span>
+          </div>
           <div className="overflow-x-auto">
             <table className="min-w-190 w-full text-left">
-              <thead className="bg-gray-50">
+              <thead className="border-b border-gray-100 bg-gray-50/80">
                 <tr>
                   {['Invoice #', 'Order ID', 'Date', 'Amount', 'Status', 'Actions'].map((header) => (
-                    <th key={header} className="px-4 py-3 text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">
+                    <th key={header} className="px-5 py-3 text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">
                       {header}
                     </th>
                   ))}
@@ -341,37 +357,37 @@ const CustomerInvoicesPage = () => {
                   </tr>
                 ) : (
                   invoices.map((invoice) => (
-                    <tr key={invoice.id} className="border-t border-gray-100 transition hover:bg-emerald-50/20">
-                      <td className="px-4 py-4 text-sm font-semibold text-gray-800">{invoice.invoiceNumber}</td>
-                      <td className="px-4 py-4 text-sm text-gray-600">{invoice.orderId}</td>
-                      <td className="px-4 py-4 text-sm text-gray-600">{formatDate(invoice.createdAt)}</td>
-                      <td className="px-4 py-4 text-sm font-semibold text-gray-900">{formatMoney(invoice.grandTotal, invoice.currency)}</td>
-                      <td className="px-4 py-4">
-                        <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] ${STATUS_STYLES[invoice.status]}`}>
+                    <tr key={invoice.id} className="border-t border-gray-100 transition hover:bg-emerald-50/30">
+                      <td className="whitespace-nowrap px-5 py-4"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700"><FileText size={15} /></span><div><p className="text-sm font-semibold text-gray-900">{invoice.invoiceNumber}</p><p className="mt-0.5 text-[10px] text-gray-400">Invoice document</p></div></div></td>
+                      <td className="max-w-45 truncate px-5 py-4 font-mono text-xs text-gray-600" title={invoice.orderId}>{invoice.orderId}</td>
+                      <td className="whitespace-nowrap px-5 py-4 text-sm text-gray-600">{formatDate(invoice.createdAt)}</td>
+                      <td className="whitespace-nowrap px-5 py-4 text-sm font-semibold text-gray-900">{formatAmount(invoice.grandTotal)}</td>
+                      <td className="whitespace-nowrap px-5 py-4">
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[10px] font-bold uppercase leading-none tracking-[0.08em] ${STATUS_STYLES[invoice.status]}`}>
+                          <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
                           {STATUS_LABELS[invoice.status]}
                         </span>
                       </td>
-                      <td className="px-4 py-4">
-                        <div className="flex flex-wrap items-center gap-2">
+                      <td className="w-20 whitespace-nowrap px-5 py-4">
+                        <div className="inline-flex flex-nowrap items-center gap-2 whitespace-nowrap">
                           <button
                             type="button"
-                            onClick={() => handleOpenPdf(invoice)}
-                            disabled={!invoice.pdfUrl}
-                            title={invoice.pdfUrl ? 'Open invoice PDF in a new tab' : 'PDF is still being generated'}
-                            className="inline-flex items-center gap-1.5 rounded-sm border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-gray-700 transition hover:border-emerald-200 hover:text-emerald-700 disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400"
+                            onClick={() => setDetailsInvoice(invoice)}
+                            title="View invoice details"
+                            aria-label={`View details for ${invoice.invoiceNumber}`}
+                            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
                           >
-                            <ExternalLink size={12} />
-                            View PDF
+                            <Eye size={12} />
                           </button>
                           <button
                             type="button"
                             onClick={() => void handleDownloadPdf(invoice)}
                             disabled={!invoice.pdfUrl || downloadingInvoiceId !== null}
                             title={invoice.pdfUrl ? 'Download invoice PDF' : 'PDF is still being generated'}
-                            className="inline-flex items-center gap-1.5 rounded-sm bg-emerald-600 px-2.5 py-1.5 text-[11px] font-medium text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-gray-300"
+                            aria-label={invoice.pdfUrl ? `Download ${invoice.invoiceNumber} PDF` : 'PDF is still being generated'}
+                            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-300"
                           >
                             {downloadingInvoiceId === invoice.id ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
-                            {downloadingInvoiceId === invoice.id ? 'Downloading...' : 'Download PDF'}
                           </button>
 
                           {(invoice.status === 'UNPAID' || invoice.status === 'REJECTED') && (
@@ -395,6 +411,60 @@ const CustomerInvoicesPage = () => {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {detailsInvoice && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-[2px]"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="invoice-details-title"
+          onClick={() => setDetailsInvoice(null)}
+        >
+          <div className="max-h-[min(680px,calc(100vh-2rem))] w-full max-w-lg overflow-y-auto rounded-2xl bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-start justify-between border-b border-gray-100 px-5 py-4">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-700">Invoice details</p>
+                <h2 id="invoice-details-title" className="mt-1 text-lg font-semibold text-gray-900">{detailsInvoice.invoiceNumber}</h2>
+              </div>
+              <button type="button" onClick={() => setDetailsInvoice(null)} className="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700" aria-label="Close invoice details">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="space-y-4 p-5">
+              <div className="flex items-center justify-between rounded-xl bg-gray-50 p-4">
+                <div>
+                  <p className="text-xs text-gray-500">Total amount</p>
+                  <p className="mt-1 text-xl font-semibold text-gray-900">{formatMoney(detailsInvoice.grandTotal, detailsInvoice.currency)}</p>
+                </div>
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.08em] ${STATUS_STYLES[detailsInvoice.status]}`}>
+                  <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                  {STATUS_LABELS[detailsInvoice.status]}
+                </span>
+              </div>
+              <dl className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-gray-100 p-3"><dt className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Order ID</dt><dd className="mt-1 break-all font-mono text-xs text-gray-700">{detailsInvoice.orderId}</dd></div>
+                <div className="rounded-xl border border-gray-100 p-3"><dt className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Issued</dt><dd className="mt-1 text-sm text-gray-700">{formatDate(detailsInvoice.createdAt)}</dd></div>
+                <div className="rounded-xl border border-gray-100 p-3"><dt className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Payment method</dt><dd className="mt-1 text-sm capitalize text-gray-700">{detailsInvoice.paymentMethod || 'Not provided'}</dd></div>
+                <div className="rounded-xl border border-gray-100 p-3"><dt className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Payment reference</dt><dd className="mt-1 break-all font-mono text-xs text-gray-700">{detailsInvoice.paymentGatewayRef || 'Not provided'}</dd></div>
+              </dl>
+              <div className="rounded-xl border border-gray-100">
+                <div className="border-b border-gray-100 px-4 py-3"><h3 className="text-xs font-semibold text-gray-800">Invoice items</h3></div>
+                <div className="divide-y divide-gray-100">
+                  {(detailsInvoice.lineItems ?? []).length > 0 ? detailsInvoice.lineItems?.map((item, index) => (
+                    <div key={`${item.name}-${index}`} className="flex items-center justify-between gap-4 px-4 py-3 text-xs">
+                      <div><p className="font-medium text-gray-800">{item.name}</p><p className="mt-1 text-gray-400">Qty {item.quantity}</p></div>
+                      <span className="font-semibold text-gray-800">{formatMoney(item.total, detailsInvoice.currency)}</span>
+                    </div>
+                  )) : <p className="px-4 py-4 text-xs text-gray-500">Item details are not available.</p>}
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <button type="button" onClick={() => setDetailsInvoice(null)} className="rounded-lg bg-gray-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-gray-700">Close</button>
+              </div>
+            </div>
           </div>
         </div>
       )}
