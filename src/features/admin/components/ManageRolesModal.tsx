@@ -19,7 +19,7 @@ import {
   type AdminUserShopRoleDto,
 } from '../api/adminUsersApi'
 import { useAsyncOptions } from '../hooks/useAsyncOptions'
-import type { AdminLookupStatus, AdminUserRow, AdminUserShopRoleRow } from '../types/userTypes'
+import type { AdminLookupStatus, AdminUserRow, AdminUserRoleChip, AdminUserShopRoleRow } from '../types/userTypes'
 
 // ─────────────────────────────────────────────────────────────────────────────
 const LOOKUP_PER_PAGE = 20
@@ -31,7 +31,7 @@ type SelectedShop = {
   label: string
 }
 
-type ManagedUser = Pick<AdminUserRow, 'id' | 'name' | 'email'>
+type ManagedUser = Pick<AdminUserRow, 'id' | 'name' | 'email' | 'roles'>
 
 // ─────────────────────────────────────────────────────────────────────────────
 const formatDate = (value?: string | null): string => {
@@ -84,6 +84,51 @@ type ManageRolesModalProps = {
 }
 
 const ManageRolesModal = ({ user, onAssigned }: ManageRolesModalProps) => {
+  const existingPlatformRole = user.roles.find((role: AdminUserRoleChip) => role.scope === 'platform') ?? null
+  const [platformRoles, setPlatformRoles] = useState<RbacRoleDto[]>([])
+  const [platformRolesStatus, setPlatformRolesStatus] = useState<AdminLookupStatus>('idle')
+  const [platformRolesError, setPlatformRolesError] = useState<string | null>(null)
+  const [platformRoleCode, setPlatformRoleCode] = useState(existingPlatformRole?.code ?? '')
+  const [platformAssigning, setPlatformAssigning] = useState(false)
+  const [platformAssignError, setPlatformAssignError] = useState<string | null>(null)
+  const [platformAssignSuccess, setPlatformAssignSuccess] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    setPlatformRolesStatus('loading')
+    adminRbacApi.listRoles({ scope: 'platform' }).then((response) => {
+      if (cancelled) return
+      setPlatformRoles(response.data?.data?.roles ?? [])
+      setPlatformRolesStatus('succeeded')
+    }).catch((error: unknown) => {
+      if (cancelled) return
+      setPlatformRoles([])
+      setPlatformRolesError(adminRbacApi.getApiErrorMessage(error, 'Unable to load platform roles right now.'))
+      setPlatformRolesStatus('failed')
+    })
+    return () => { cancelled = true }
+  }, [])
+
+  const selectedPlatformRole = platformRoles.find((role) => role.code === platformRoleCode)
+  const hasSamePlatformRole = existingPlatformRole?.code === platformRoleCode
+
+  const handlePlatformAssign = useCallback(async () => {
+    if (!selectedPlatformRole || hasSamePlatformRole) return
+    setPlatformAssigning(true)
+    setPlatformAssignError(null)
+    setPlatformAssignSuccess(null)
+    try {
+      const response = await adminUsersApi.assignPlatformRole(user.id, selectedPlatformRole.code)
+      if (!response.data?.success) throw new Error('Assignment failed without a clear error')
+      setPlatformAssignSuccess(`${selectedPlatformRole.name} assigned to ${user.name}`)
+      onAssigned?.()
+    } catch (error: unknown) {
+      setPlatformAssignError(adminUsersApi.getApiErrorMessage(error, 'Unable to assign platform role right now.'))
+    } finally {
+      setPlatformAssigning(false)
+    }
+  }, [hasSamePlatformRole, onAssigned, selectedPlatformRole, user.id, user.name])
+
   // Selection state
   const [selectedShop, setSelectedShop] = useState<SelectedShop | null>(null)
   const [roleCode, setRoleCode] = useState('')
@@ -287,6 +332,50 @@ const ManageRolesModal = ({ user, onAssigned }: ManageRolesModalProps) => {
         </div>
       </div>
 
+      {/* ── Assign a Platform Role Section ───────────────────────────────── */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="h-px flex-1 bg-slate-200" />
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Assign Platform Role</h4>
+          <div className="h-px flex-1 bg-slate-200" />
+        </div>
+        <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+          <div className="space-y-1.5">
+            <label htmlFor="manage-roles-platform-role" className="text-xs font-medium text-slate-700">Platform role</label>
+            <SearchableSelect
+              id="manage-roles-platform-role"
+              options={platformRoles.map((role) => toOption(role.code, role.name))}
+              value={platformRoleCode}
+              onChange={(value) => { setPlatformRoleCode(value); setPlatformAssignError(null); setPlatformAssignSuccess(null) }}
+              loading={platformRolesStatus === 'loading'}
+              disabled={platformRolesStatus === 'failed'}
+              placeholder="Select platform role…"
+              emptyLabel="Select platform role"
+              searchAriaLabel="Search platform roles"
+              className="w-full"
+            />
+            {platformRolesStatus === 'failed' && <p role="alert" className="mt-1 text-xs text-red-600">{platformRolesError}</p>}
+            {platformRolesStatus === 'succeeded' && platformRoles.length === 0 && <p className="mt-1 text-xs text-amber-700">No platform roles defined</p>}
+          </div>
+          <button
+            type="button"
+            onClick={() => void handlePlatformAssign()}
+            disabled={!selectedPlatformRole || hasSamePlatformRole || platformAssigning}
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-300"
+          >
+            {platformAssigning ? <RefreshCw size={14} className="animate-spin" /> : <Shield size={14} />}
+            {platformAssigning ? 'Assigning…' : hasSamePlatformRole ? 'Already Assigned' : 'Assign Role'}
+          </button>
+        </div>
+        {(existingPlatformRole || platformAssignError || platformAssignSuccess) && (
+          <div className={`rounded-lg p-3 text-xs ${platformAssignError ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>
+            {existingPlatformRole && !platformAssignSuccess && <span>{user.name} currently has <span className="font-medium">{existingPlatformRole.name}</span>.</span>}
+            {platformAssignError && <span>{platformAssignError}</span>}
+            {platformAssignSuccess && <span>{platformAssignSuccess}</span>}
+          </div>
+        )}
+      </div>
+
       {/* ── Assign a Shop Role Section ────────────────────────────────────── */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
@@ -323,7 +412,6 @@ const ManageRolesModal = ({ user, onAssigned }: ManageRolesModalProps) => {
               emptyLabel="Select shop"
               searchAriaLabel="Search shops"
               className="w-full"
-              menuClassName="fixed z-50"
             />
             {shopLookup.status === 'failed' && (
               <p role="alert" className="mt-1 text-xs text-red-600">
@@ -355,7 +443,6 @@ const ManageRolesModal = ({ user, onAssigned }: ManageRolesModalProps) => {
               emptyLabel="Select role"
               searchAriaLabel="Search shop roles"
               className="w-full"
-              menuClassName="fixed z-50"
             />
             {rolesStatus === 'failed' && (
               <p role="alert" className="mt-1 text-xs text-red-600">

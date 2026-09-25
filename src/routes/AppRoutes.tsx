@@ -105,6 +105,7 @@ import AdminDistanceRangeDetailPage from "@/features/admin/pages/AdminDistanceRa
 import AdminDeliveryQuotesPage from "@/features/admin/pages/AdminDeliveryQuotesPage";
 import AdminDeliveryQuoteDetailPage from "@/features/admin/pages/AdminDeliveryQuoteDetailPage";
 import AdminUsersPage from "@/features/admin/pages/AdminUsersPage";
+import PlatformUsersPage from "@/features/admin/pages/PlatformUsersPage";
 import AdminInvoicesPage from "@/features/admin/pages/AdminInvoicesPage";
 import AdminIncomePage from "@/features/admin/pages/AdminIncomePage";
 import AdminExpensePage from "@/features/admin/pages/AdminExpensePage";
@@ -138,6 +139,9 @@ import AdminFinanceTransactionsPage from "@/features/finance/pages/AdminFinanceT
 import AdminAccountingOverviewPage from "@/features/accounting/pages/AdminAccountingOverviewPage";
 import AdminChartOfAccountsPage from "@/features/accounting/pages/AdminChartOfAccountsPage";
 import AdminJournalEntriesPage from "@/features/accounting/pages/AdminJournalEntriesPage";
+import PlatformExpensesPage from "@/features/admin/pages/PlatformExpensesPage";
+import PlatformApprovalPoliciesPage from "@/features/admin/pages/PlatformApprovalPoliciesPage";
+import PlatformPendingApprovalsPage from "@/features/admin/pages/PlatformPendingApprovalsPage";
 
 const AppRoutes = () => {
   return (
@@ -1165,6 +1169,14 @@ const AppRoutes = () => {
               }
             />
             <Route
+              path="platform-users"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminUsers}>
+                  <PlatformUsersPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="invoices"
               element={
                 <ProtectedRoute
@@ -1334,6 +1346,70 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.superAdminAccounting}
                 >
                   <AdminExpensePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/platform-expenses"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminAccounting}>
+                  <PlatformExpensesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/platform-expenses/new"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminAccounting}>
+                  <SellerExpenseFormPage scope="PLATFORM" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/platform-expenses/:expenseId"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminAccounting}>
+                  <SellerExpenseDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/platform-pending-approvals"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminAccounting}>
+                  <PlatformPendingApprovalsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/platform-approval-policies"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminAccounting}>
+                  <PlatformApprovalPoliciesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/platform-approval-policies/new"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminAccounting}>
+                  <PlatformApprovalPoliciesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/platform-approval-policies/:policyId/edit"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminAccounting}>
+                  <PlatformApprovalPoliciesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/platform-approval-policies/:policyId/view"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminAccounting}>
+                  <PlatformApprovalPoliciesPage />
                 </ProtectedRoute>
               }
             />
