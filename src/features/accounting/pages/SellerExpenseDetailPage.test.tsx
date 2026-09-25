@@ -73,14 +73,15 @@ const mockApprovalStatus = {
   ],
 }
 
-const renderPage = (stateUserId = 'approver-1') => {
+const renderPage = (stateUserId = 'approver-1', route = '/seller/accounting/expenses/exp-123') => {
   store.dispatch(fetchMe.fulfilled({ ...currentUser, id: stateUserId }, '', undefined))
 
   return render(
     <Provider store={store}>
-      <MemoryRouter initialEntries={['/seller/accounting/expenses/exp-123']}>
+      <MemoryRouter initialEntries={[route]}>
         <Routes>
           <Route path="/seller/accounting/expenses/:expenseId" element={<SellerExpenseDetailPage />} />
+          <Route path="/super-admin/accounting/platform-expenses/:expenseId" element={<SellerExpenseDetailPage />} />
         </Routes>
       </MemoryRouter>
     </Provider>,
@@ -194,6 +195,27 @@ describe('SellerExpenseDetailPage', () => {
     renderPage('seller-1')
 
     await waitFor(() => expect(screen.getByRole('button', { name: /edit and resubmit/i })).toBeInTheDocument())
+  })
+
+  it('allows a platform creator to submit a draft expense using createdByUserId', async () => {
+    const getByReference = vi.spyOn(accountingExpensesAdapter, 'getByReference')
+    getByReference.mockReset().mockResolvedValue({
+      ...mockExpense,
+      shopId: null,
+      sellerUserId: null,
+      createdByUserId: 'platform-creator',
+      status: 'DRAFT',
+      expenseTypeId: 'type-1',
+    } as any)
+    vi.spyOn(accountingExpensesAdapter, 'getApprovalStatus').mockResolvedValue({
+      expenseId: 'exp-123',
+      status: 'DRAFT',
+      approvals: [],
+    } as any)
+
+    renderPage('platform-creator', '/super-admin/accounting/platform-expenses/exp-123')
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /submit for approval/i })).toBeInTheDocument())
   })
 
   it('displays normal rejection as REJECTED', async () => {

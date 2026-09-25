@@ -7,8 +7,7 @@ import AccountingStatusBadge from '../components/AccountingStatusBadge'
 import { accountingExpensesAdapter } from '../adapters/accountingExpensesAdapter'
 import type { ApprovalPolicy } from '../types/expenseTypes'
 
-type Shop = { shop_id?: string | null; shop_name?: string | null; role?: { code?: string | null } | null }
-type AccessContextResponse = { data?: { access_context?: { active_shop?: { shop_id?: string | null }; shops?: Shop[] } } }
+type AccessContextResponse = { data?: { access_context?: { active_shop?: { shop_id?: string | null }; shops?: Array<{ shop_id?: string | null }> } } }
 
 const errorMessage = (error: unknown) => {
   if (error && typeof error === 'object' && 'response' in error) {
@@ -20,7 +19,6 @@ const errorMessage = (error: unknown) => {
 
 const SellerApprovalPoliciesPage = () => {
   const authUser = useAppSelector((state) => state.auth.user)
-  const [shops, setShops] = useState<Shop[]>([])
   const [shopId, setShopId] = useState(authUser?.active_shop_id ?? '')
   const [policies, setPolicies] = useState<ApprovalPolicy[]>([])
   const [status, setStatus] = useState<'loading' | 'succeeded' | 'failed'>('loading')
@@ -44,9 +42,7 @@ const SellerApprovalPoliciesPage = () => {
     void authClient.get<AccessContextResponse>('/me/access-context').then((response) => {
       if (!active) return
       const context = response.data.data?.access_context
-      const availableShops = context?.shops ?? []
-      setShops(availableShops)
-      setShopId((current) => current || context?.active_shop?.shop_id || availableShops[0]?.shop_id || '')
+      setShopId((current) => current || context?.active_shop?.shop_id || context?.shops?.[0]?.shop_id || '')
     }).catch((cause) => {
       if (active) setError(errorMessage(cause))
     })
@@ -92,7 +88,6 @@ const SellerApprovalPoliciesPage = () => {
         </div>
       </div>
 
-      {shops.length > 1 && <label className="block max-w-md text-sm font-medium text-slate-700">Shop<select value={shopId} onChange={(event) => setShopId(event.target.value)} className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"><option value="">Select a shop</option>{shops.map((shop) => <option key={shop.shop_id} value={shop.shop_id ?? ''}>{shop.shop_name ?? shop.shop_id}</option>)}</select></label>}
       {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">

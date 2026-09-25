@@ -115,7 +115,7 @@ const AdminUsersPage = () => {
       title: `Manage roles · ${user.name}`,
       content: (
         <ManageRolesModal
-          user={{ id: user.id, name: user.name, email: user.email }}
+          user={{ id: user.id, name: user.name, email: user.email, roles: user.roles }}
           onAssigned={doFetch}
         />
       ),

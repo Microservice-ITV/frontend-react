@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { ArrowLeft, CheckCircle2, Clock3, ReceiptText, Undo2, XCircle } from 'lucide-react'
 import { useAppSelector } from '@/app/hooks'
 import { authClient } from '@/lib/api/authClient'
@@ -61,6 +61,9 @@ type ActionKind = 'approve' | 'reject' | 'return'
 
 const SellerExpenseDetailPage = () => {
   const { expenseId } = useParams<{ expenseId: string }>()
+  const location = useLocation()
+  const isPlatformExpense = location.pathname.includes('/super-admin/accounting/platform-expenses')
+  const expensesPath = isPlatformExpense ? '/super-admin/accounting/platform-expenses' : '/seller/accounting/expenses'
   const actorUserId = useAppSelector((state) => state.auth.user?.id)
   const [expense, setExpense] = useState<AccountingExpense | null>(null)
   const [shopNames, setShopNames] = useState<Record<string, string>>({})
@@ -90,7 +93,8 @@ const SellerExpenseDetailPage = () => {
   const isCurrentApprover = Boolean(
     currentApproval && actorUserId && currentApproval.approverUserId === actorUserId,
   )
-  const isExpenseCreator = Boolean(expense?.sellerUserId && actorUserId === expense.sellerUserId)
+  const creatorUserId = expense?.createdByUserId ?? expense?.sellerUserId ?? null
+  const isExpenseCreator = Boolean(creatorUserId && actorUserId && creatorUserId === actorUserId)
 
   const loadApprovalStatus = async (targetExpenseId: string) => {
     try {
@@ -256,7 +260,7 @@ const SellerExpenseDetailPage = () => {
   return (
     <section className="space-y-6">
       <Link
-        to="/seller/accounting/expenses"
+        to={expensesPath}
         className="inline-flex items-center gap-2 text-xs font-medium text-slate-600 hover:text-slate-900"
       >
         <ArrowLeft size={15} />
