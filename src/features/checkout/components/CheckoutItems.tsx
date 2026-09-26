@@ -1,274 +1,156 @@
-import { chatIcon, fastDeliveryIcon } from '@/assets/icons'
-import { CheckoutTotals } from '../utils/checkoutCalculator'
-import { useAppSelector } from '@/app/hooks'
-import { formatProductPrice } from '@/features/products/utils/formatProductPrice'
+import { useAppDispatch, useAppSelector } from '@/app/hooks'
+import CartQuantityInput from '@/features/cart/components/CartQuantityInput'
+import { selectShopSelectionMap } from '@/features/cart/store/cartSelectors'
+import { removeFromCart, toggleItemSelection, toggleShopSelection } from '@/features/cart/store/cartSlice'
+import { CartItem } from '@/features/cart/types/cartTypes'
+import { formatProfileShippingLine } from '@/features/shipping/utils/normalizeShipping'
 import placeholderImage from '@/public/placeholder.svg'
 
-interface CheckoutItemsProps {
-  checkout: CheckoutTotals
+interface CartItemListProps {
+  items: CartItem[]
 }
 
-const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
-  const { groupedByShop } = checkout
-  const feesByShopId = useAppSelector(state => state.shipping.feesByShopId)
-  const calculateStatus = useAppSelector(state => state.shipping.calculateStatus)
-  const calculateError = useAppSelector(state => state.shipping.calculateError)
+const CartItemLists = ({ items }: CartItemListProps) => {
+  const dispatch = useAppDispatch()
+  const shopSelectionMap = useAppSelector(selectShopSelectionMap)
+  const profilesByShopId = useAppSelector(state => state.shipping.profilesByShopId)
+  const batchStatus = useAppSelector(state => state.shipping.batchStatus)
+
+  // Group items by shop
+  const groupedByShop = items.reduce<Record<
+    string,
+    { shopId: string; shopName: string; items: CartItem[] }
+  >>((acc, item) => {
+    acc[item.shopId] ??= {
+      shopId: item.shopId,
+      shopName: item.shopName,
+      items: [],
+    }
+    acc[item.shopId].items.push(item)
+    return acc
+  }, {})
 
   return (
-    <div className="mt-3">
-      {calculateStatus === 'failed' && calculateError ? (
-        <div className="mb-3 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          Delivery fee could not be calculated: {calculateError}
-        </div>
-      ) : null}
-      <div className="bg-white rounded-sm">
-        {/* Header */}
-        <div className="grid grid-cols-[1fr_140px_100px_160px] px-6 py-5 text-sm text-gray-500 hidden md:grid">
-          <div className="font-medium text-gray-900">Products Ordered</div>
-          <div className="text-right">Unit Price</div>
-          <div className="text-center">Amount</div>
-          <div className="text-right">Item Subtotal</div>
-        </div>
-      </div>
-
-      {Object.entries(groupedByShop).map(([shopId, shopItems]) => {
-        const shopSubtotal = shopItems.reduce(
-          (sum, item) => sum + item.price * item.quantity,
-          0
-        )
-        const shopQuantity = shopItems.reduce(
-          (sum, item) => sum + item.quantity,
-          0
-        )
-        const feeRow = feesByShopId[shopId]
-        const isNotDeliverable = feeRow?.deliveryStatus === 'NOT_DELIVERABLE'
-        const hasFee =
-          calculateStatus === 'succeeded' &&
-          !isNotDeliverable &&
-          feeRow?.amount != null &&
-          feeRow.amount >= 0
-        const shippingFee = hasFee ? (feeRow?.amount as number) : 0
-        const shippingCurrency = feeRow?.currency ?? 'MMK'
-        const rawMethod = feeRow?.methodLabel?.trim()
-        const methodTitle = isNotDeliverable
-          ? 'Delivery unavailable'
-          : rawMethod === 'STANDARD'
-            ? 'Standard shipping'
-            : rawMethod || 'Standard shipping'
-        const etaLine =
-          feeRow?.estimatedDays != null && feeRow.estimatedDays > 0
-            ? `Estimated ${feeRow.estimatedDays} business day${feeRow.estimatedDays === 1 ? '' : 's'}`
-            : feeRow?.etaHint?.trim() || null
-        const shopTotal = shopSubtotal + shippingFee
-
-        return (
-          <div key={shopId} className="mb-3 bg-white rounded-sm">
-            {/* Shop row */}
-            <div className="flex items-center justify-between px-6 py-3">
-              <div className="flex items-center gap-3">
-                <span className="bg-emerald-600 text-white text-xs px-2 py-[1px] rounded">Shop</span>
-                <span className="font-medium text-gray-900">{shopItems[0].shopName}</span>
-                  <button className="flex items-center gap-1 text-sm text-emerald-600 cursor-pointer">
-                  <img src={chatIcon} className="w-4 h-4" />
-                  chat now
-                </button>
-              </div>
+    <div className="space-y-4">
+      {Object.values(groupedByShop).map(shop => (
+        <section key={shop.shopId} className="bg-white border border-[var(--dni-cart-border)] rounded-sm overflow-hidden">
+          {/* SHOP HEADER */}
+          <div
+            className="flex items-center px-4 py-3 border-b border-[var(--dni-cart-border)]"
+          >
+            <div className="w-[48px] flex justify-center">
+              <input
+                type="checkbox"
+                checked={shopSelectionMap[shop.shopId]?.checked ?? false}
+                ref={el => {
+                  if (el) {
+                    el.indeterminate = shopSelectionMap[shop.shopId]?.indeterminate ?? false
+                  }
+                }}
+                onChange={e =>
+                  dispatch(toggleShopSelection({ shopId: shop.shopId, selected: e.target.checked }))
+                }
+                className="h-4 w-4 accent-emerald-600"
+              />
             </div>
 
-            {/* Products Loop */}
-            {shopItems.map((item) => {
-              const subtotal = item.price * item.quantity
+            <span className="font-medium text-gray-800">
+              {shop.shopName}
+            </span>
+          </div>
 
-              return (
-                <div
-                  key={`${item.productId}-${item.variantId ?? ''}-${item.shopId}`}
-                  className="grid md:grid-cols-[1fr_140px_100px_160px] gap-3 px-4 md:px-6 py-5 items-start"
-                >
-                  <div className="flex gap-3">
-                    <img
-                      src={item.image || placeholderImage}
-                      alt={item.name}
-                      onError={(e) => {
-                        const img = e.currentTarget
-                        img.onerror = null
-                        img.src = placeholderImage
-                      }}
-                      className="w-10 h-10 object-cover"
-                    />
-                    <div className="text-sm text-gray-900">{item.name}</div>
-                    <div className="text-xs text-gray-500 mt-1">
+          {/* ITEMS (single shop section, multiple product rows) */}
+          <div>
+            {shop.items.map(item => (
+              <div
+                key={`${item.productId}::${item.variantId ?? ''}`}
+                className="grid grid-cols-[40px_1fr] md:grid-cols-[48px_1fr_140px_140px_140px_100px] px-3 md:px-4 py-4 border-b border-[var(--dni-cart-border)]"
+              >
+                <div className="flex justify-center pt-1 md:pt-0 md:items-center">
+                  <input
+                    type="checkbox"
+                    checked={item.selected}
+                    onChange={() =>
+                      dispatch(toggleItemSelection({ productId: item.productId, variantId: item.variantId }))
+                    }
+                    className="h-4 w-4 accent-emerald-600 border-gray-300"
+                  />
+                </div>
+
+                <div className="flex gap-3">
+                  <img
+                    src={item.image || placeholderImage}
+                    alt={item.name}
+                    onError={(e) => {
+                      const img = e.currentTarget
+                      img.onerror = null
+                      img.src = placeholderImage
+                    }}
+                    className="w-16 h-16 md:w-20 md:h-20 object-cover border border-[var(--dni-cart-border)]"
+                  />
+                  <div className="min-w-0">
+                    <div className="line-clamp-2 text-sm text-gray-800">{item.name}</div>
+                    <div className="mt-1 text-xs text-gray-500">
                       {item.variantLabel?.trim()
                         ? `Variation: ${item.variantLabel}`
                         : 'Variation: Standard'}
                     </div>
+                    <div className="mt-2 md:hidden flex items-center justify-between gap-3">
+                      <span className="text-sm font-medium text-emerald-700">
+                        ${(item.price * item.quantity).toFixed(2)}
+                      </span>
+                      <CartQuantityInput item={item} />
+                    </div>
                   </div>
-
-                  <div className="text-right">
-                    <div className="md:text-right text-sm">{formatProductPrice(item.price)}</div>
-                    <div className="text-xs line-through text-gray-400">$29.52</div>
-                  </div>
-
-                  <div className="md:text-center text-sm">{item.quantity}</div>
-
-                  <div className="md:text-right text-sm font-medium">{formatProductPrice(subtotal)}</div>
                 </div>
-              )
-            })}
 
-            {/* ================= VOUCHER ================= */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-dashed border-black/10">
-              <div className="flex items-center gap-2 text-sm">🎟️ Shop Voucher</div>
-              <button className="text-sm text-[#0055aa] cursor-pointer">Select Voucher</button>
-            </div>
-
-            {/* ================= MESSAGE + SHIPPING ================= */}
-            <div className="grid grid-cols-1 md:grid-cols-[40%_60%] bg-[#fafdff] border-b border-dashed border-black/10">
-
-              {/* LEFT COLUMN */}
-              <div className="px-6 py-5 md:py-6 md:border-r border-dashed border-black/10">
-                <div className="flex flex-col gap-2">
-                  <span className="text-sm font-medium text-gray-900">Message for Seller</span>
-
-                  <textarea
-                    rows={5}
-                    className="w-full border px-3 py-2 text-sm text-gray-700 rounded border-(--dni-cart-border) outline-none"
-                    placeholder="Please leave a message"
-                  ></textarea>
+                <div className="hidden md:flex items-center justify-center text-sm text-gray-700">
+                  ${item.price.toFixed(2)}
                 </div>
-              </div>
 
-              {/* RIGHT COLUMN */}
-              <div className="px-6 py-5 border-t md:border-t-0 border-dashed border-black/10">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-sm font-medium text-gray-900">Shipping Option</div>
+                <div className="hidden md:flex items-center justify-center">
+                  <CartQuantityInput item={item} />
+                </div>
 
-                  <button className="text-sm text-[#0055aa] flex items-center gap-1 cursor-pointer">
-                    View All <span>›</span>
+                <div className="hidden md:flex items-center justify-center text-sm font-medium text-emerald-700">
+                  ${(item.price * item.quantity).toFixed(2)}
+                </div>
+
+                <div className="hidden md:flex flex-col items-center justify-center text-sm">
+                  <button
+                    className="text-gray-600 hover:text-red-500 cursor-pointer"
+                    onClick={() =>
+                      dispatch(removeFromCart({ productId: item.productId, variantId: item.variantId }))
+                    }
+                  >
+                    Delete
+                  </button>
+                  <button className="text-gray-500 hover:text-emerald-600 mt-1 cursor-pointer">
+                    Save for Later
                   </button>
                 </div>
-
-                <button className="
-                  w-full text-left bg-[#f0faf7] border border-[#b7e3d5] rounded-md p-3
-                  hover:border-emerald-600 transition focus:outline-none cursor-pointer"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="text-sm font-medium text-gray-900">{methodTitle}</div>
-
-                    <span className="text-sm font-medium whitespace-nowrap">
-                      {calculateStatus === 'loading' ? (
-                        <span className="text-gray-400">…</span>
-                      ) : isNotDeliverable ? (
-                        <span className="text-red-600">Unavailable</span>
-                      ) : hasFee ? (
-                        formatProductPrice(shippingFee, shippingCurrency)
-                      ) : calculateStatus === 'failed' ? (
-                        <span className="text-red-500">Unavailable</span>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
-                    </span>
-                  </div>
-
-                  {isNotDeliverable ? (
-                    <div className="mt-2 text-sm text-red-600">
-                      Delivery is not available for this shop/route yet.
-                    </div>
-                  ) : (
-                    <div className="mt-2 flex items-center gap-1 text-sm text-emerald-600">
-                      <img src={fastDeliveryIcon} className="w-4 h-4" />
-                      {calculateStatus === 'succeeded' && etaLine ? (
-                        <span>{etaLine}</span>
-                      ) : calculateStatus === 'loading' ? (
-                        <span className="text-gray-400">Calculating delivery time…</span>
-                      ) : (
-                        <span className="text-gray-500">Delivery estimate unavailable</span>
-                      )}
-                    </div>
-                  )}
-
-                  {hasFee &&
-                    (feeRow?.baseFee != null ||
-                      feeRow?.distanceFee != null ||
-                      feeRow?.weightFee != null) && (
-                      <div className="mt-2 space-y-0.5 text-xs text-gray-600">
-                        {feeRow?.distanceKm != null && feeRow.distanceKm > 0 && (
-                          <div>Distance: {feeRow.distanceKm.toFixed(1)} km</div>
-                        )}
-                        {feeRow?.chargeableWeightKg != null && (
-                          <div>
-                            Chargeable weight: {feeRow.chargeableWeightKg.toFixed(2)} kg
-                            {feeRow.actualWeightKg != null &&
-                              feeRow.volumetricWeightKg != null && (
-                                <span className="text-gray-400">
-                                  {' '}
-                                  (actual {feeRow.actualWeightKg.toFixed(2)} · volumetric{' '}
-                                  {feeRow.volumetricWeightKg.toFixed(2)})
-                                </span>
-                              )}
-                          </div>
-                        )}
-                        {feeRow?.baseFee != null && (
-                          <div>
-                            Base fee: {formatProductPrice(feeRow.baseFee, shippingCurrency)}
-                          </div>
-                        )}
-                        {feeRow?.distanceFee != null && (
-                          <div>
-                            Distance fee: {formatProductPrice(feeRow.distanceFee, shippingCurrency)}
-                          </div>
-                        )}
-                        {feeRow?.weightFee != null && (
-                          <div>
-                            Weight fee: {formatProductPrice(feeRow.weightFee, shippingCurrency)}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                  {!isNotDeliverable && (
-                    <>
-                      <div className="mt-1 text-sm text-gray-600">
-                        Get a $2.00 voucher if no delivery was attempted by 7 Feb 2026.
-                      </div>
-
-                      <div className="mt-1 text-sm text-gray-600">
-                        Orders paid after 2pm will be delivered the day after tomorrow, excl. Sun & PH
-                      </div>
-                    </>
-                  )}
-                </button>
               </div>
+            ))}
+          </div>
 
-              {/* ROW 2 */}
-              <div className="px-6 py-4 border-t border-dashed border-black/10 text-sm">
-                <span className="text-gray-900 font-medium">Guaranteed to get by 9 Feb</span>
-                <span className="text-gray-500 ml-1">with Collection Points</span>
-                <span className="ml-1 text-gray-400">›</span>
-              </div>
-
-              {/* ROW 3 */}
-              <div className="px-6 py-4 border-t border-dashed border-black/10 flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-700">Allow to leave at doorstep</span>
-                  <span className="text-xs bg-emerald-600 text-white px-2 py-[1px] rounded">New</span>
-                </div>
-
-                <div className="w-10 h-5 bg-green-500 rounded-full relative cursor-pointer">
-                  <div className="absolute right-0.5 top-0.5 w-4 h-4 bg-white rounded-full" />
-                </div>
-              </div>
-            </div>
-
-            {/* ================= ORDER TOTAL ================= */}
-            <div className="flex justify-end items-center px-6 py-5 bg-[#fafdff]">
-              <span className="text-sm text-gray-600 mr-3">Order Total ({shopQuantity} Items):</span>
-              <span className="text-xl font-semibold text-emerald-600">{formatProductPrice(shopTotal)}</span>
+          {/* SHOP VOUCHER + SHIPPING (once per shop) */}
+          <div className="px-4 py-3 text-sm border-b border-[var(--dni-cart-border)] bg-[#fffaf8]">
+            <div className="flex items-center justify-between">
+              <span className="text-gray-700">Shop Voucher</span>
+              <button className="text-blue-600 hover:text-emerald-600 cursor-pointer">Select Voucher</button>
             </div>
           </div>
-        )
-      })}
+          <div className="px-4 py-3 text-sm text-gray-600 bg-[#fafcff]">
+            {batchStatus === 'loading' ? (
+              <span className="text-gray-400">Loading shipping info…</span>
+            ) : (
+              formatProfileShippingLine(profilesByShopId[shop.shopId])
+            )}
+          </div>
+        </section>
+      ))}
     </div>
   )
 }
 
-export default CheckoutItems
+export default CartItemLists

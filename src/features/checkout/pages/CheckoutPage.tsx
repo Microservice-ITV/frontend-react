@@ -484,7 +484,7 @@ const CheckoutPage = () => {
                     loading={addressesLoading}
                     onChangeAddress={openAddressSelectionModal}
                 />
-                <CheckoutItems checkout={checkout} />
+                <CheckoutItems items={items} />
                 
                 <div className="grid lg:grid-cols-[1fr_400px] gap-6 lg:gap-8 mt-4">
                     {/* LEFT COLUMN - Payment Method Sections */}

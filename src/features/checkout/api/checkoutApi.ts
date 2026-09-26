@@ -81,23 +81,23 @@ export const checkoutApi = {
     idempotency_key: string
     delivery_address?: any
   }): Promise<AxiosResponse<CheckoutResponse>> {
-    return orderClient.post<CheckoutResponse>('/orders/checkout', data, {
+    return orderClient.post<CheckoutResponse>('/saga/orders/checkout', data, {
       headers: {
         'Idempotency-Key': data.idempotency_key,
       },
     })
   },
 
-  completeCheckoutSession(checkoutId: string, _paymentData?: any): Promise<AxiosResponse<any>> {
-    return orderClient.get(`/orders/checkout-sessions/${checkoutId}`)
+  completeCheckoutSession(checkoutId: string, paymentData?: any): Promise<AxiosResponse<any>> {
+    return orderClient.post(`/saga/orders/${checkoutId}/complete`, { payment_data: paymentData })
   },
 
   getSagaStatus(sagaId: string): Promise<AxiosResponse<any>> {
-    return orderClient.get(`/orders/checkout-sessions/${sagaId}`)
+    return orderClient.get(`/saga/sagas/${sagaId}`)
   },
 
   getSagaStatistics(): Promise<AxiosResponse<any>> {
-    return Promise.reject(new Error('Saga statistics are unavailable'))
+    return orderClient.get('/saga/sagas/statistics')
   },
 
   updateCheckoutAddress(

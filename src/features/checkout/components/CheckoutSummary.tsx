@@ -52,7 +52,7 @@ const buildShopShippings = (
   checkout: CheckoutTotals,
   cartItems: CartItem[],
   checkoutSessionItems: CheckoutStatusResponse['items'] | undefined,
-  feesByShopId: Record<string, { amount?: number | null; deliveryStatus?: string }>,
+  feesByShopId: Record<string, { amount?: number | null }>,
   shippingCalculateStatus: string,
 ): CheckoutShopShippingPayload[] => {
   const shopCountFromCart = Object.keys(checkout.groupedByShop).length
@@ -93,10 +93,7 @@ const buildShopShippings = (
 
     const row = cartShopId ? feesByShopId[cartShopId] : undefined
     const fromApi =
-      shippingCalculateStatus === 'succeeded' &&
-      row?.deliveryStatus !== 'NOT_DELIVERABLE' &&
-      row?.amount != null &&
-      row.amount >= 0
+      shippingCalculateStatus === 'succeeded' && row?.amount != null && row.amount >= 0
         ? row.amount
         : null
 
@@ -283,18 +280,6 @@ const CheckoutSummary = ({
         setCheckoutError(
           shippingCalculateError?.trim() ||
             'Delivery fee is not ready yet. Please wait for it to calculate, or check your delivery address.',
-        ),
-      )
-      return
-    }
-
-    const undeliverableShop = Object.values(feesByShopId).find(
-      (row) => row.deliveryStatus === 'NOT_DELIVERABLE',
-    )
-    if (undeliverableShop) {
-      dispatch(
-        setCheckoutError(
-          'Delivery is not available for this shop/route yet. Choose Real Route, or pick another address.',
         ),
       )
       return
