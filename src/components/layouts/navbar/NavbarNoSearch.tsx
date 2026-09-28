@@ -5,7 +5,11 @@ import { Announcements } from "@/components/layouts/announment";
 
 const getPageName = (pathname: string): string | null => {
   if (matchPath({ path: "/cart", end: true }, pathname)) return "Shopping Cart";
-  if (matchPath({ path: "/checkout", end: true }, pathname)) return "Checkout";
+  if (
+    matchPath({ path: "/checkout", end: true }, pathname) ||
+    matchPath({ path: "/checkout/guest", end: true }, pathname)
+  )
+    return "Checkout";
   if (matchPath({ path: "/become-a-seller", end: true }, pathname))
     return "Become a Seller";
   return null;
@@ -14,9 +18,13 @@ const getPageName = (pathname: string): string | null => {
 const NavbarNoSearch = () => {
   const { pathname } = useLocation();
   const pageName = getPageName(pathname);
+  const scrollsAway =
+    matchPath({ path: "/cart", end: true }, pathname) ||
+    matchPath({ path: "/checkout", end: true }, pathname) ||
+    matchPath({ path: "/checkout/guest", end: true }, pathname);
 
   return (
-    <header className="sticky top-0 z-50 bg-emerald-50">
+    <header className={`${scrollsAway ? "relative" : "sticky top-0"} z-50 bg-emerald-50`}>
       <Announcements />
       <NavbarTopUtilityBar />
 
