@@ -11,4 +11,5 @@ export type UserRow = {
   department: string
   status: UserStatus
   lastActive: string
+  reportingTo?: string | null
 }

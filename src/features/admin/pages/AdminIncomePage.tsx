@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CircleDollarSign, RefreshCw, Search } from 'lucide-react'
+import { CircleDollarSign, Download, RefreshCw, Search } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import DataTablePagination from '@/components/ui/DataTablePagination'
 import { adminAccountingApi, type AccountingIncomeLine } from '../api/adminAccountingApi'
 
@@ -81,6 +82,26 @@ const AdminIncomePage = () => {
   const visibleRows = filteredRows.slice((page - 1) * rowsPerPage, page * rowsPerPage)
   const totalIncome = filteredRows.reduce((sum, row) => sum + row.amount, 0)
 
+  const exportIncome = () => {
+    const rows = [
+      ['Date', 'Reference', 'Account', 'Narration', 'Memo', 'Status', 'Amount'],
+      ...filteredRows.map((row) => [
+        row.dateValue,
+        row.reference,
+        row.account,
+        row.narration,
+        row.memo,
+        row.status,
+        row.amount,
+      ]),
+    ]
+
+    const worksheet = XLSX.utils.aoa_to_sheet(rows)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Income')
+    XLSX.writeFile(workbook, `income-${new Date().toISOString().slice(0, 10)}.xlsx`)
+  }
+
   return (
     <div className="space-y-6">
       <nav className="text-xs text-slate-500">
@@ -99,15 +120,26 @@ const AdminIncomePage = () => {
           </h1>
           <p className="mt-0.5 text-sm text-slate-600">Income journal lines recorded by accounting-service.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => void loadIncome()}
-          disabled={status === 'loading'}
-          className="flex items-center gap-1.5 self-start rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-        >
-          <RefreshCw size={14} className={status === 'loading' ? 'animate-spin' : ''} />
-          Refresh
-        </button>
+        <div className="flex items-center gap-2 self-start">
+          <button
+            type="button"
+            onClick={exportIncome}
+            disabled={filteredRows.length === 0}
+            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+          >
+            <Download size={14} />
+            Export
+          </button>
+          <button
+            type="button"
+            onClick={() => void loadIncome()}
+            disabled={status === 'loading'}
+            className="flex items-center gap-1.5 self-start rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          >
+            <RefreshCw size={14} className={status === 'loading' ? 'animate-spin' : ''} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {error && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>}

@@ -8,6 +8,7 @@ import {
   type DeliveryQuoteDto,
   type DeliveryQuoteStatus,
 } from '../api/adminShippingApi'
+import { loadAllCities, type CityOptionWithState } from '../api/locationOptions'
 import { cancelAdminDeliveryQuote } from '../store/adminDeliveryQuotesThunks'
 
 const statusBadgeClass = (status: DeliveryQuoteStatus): string => {
@@ -59,6 +60,16 @@ const AdminDeliveryQuoteDetailPage = () => {
   const [loadError, setLoadError] = useState('')
   const [quote, setQuote] = useState<DeliveryQuoteDto | null>(null)
   const [actionError, setActionError] = useState('')
+  const [cities, setCities] = useState<CityOptionWithState[]>([])
+
+  useEffect(() => {
+    void loadAllCities().then(setCities).catch(() => setCities([]))
+  }, [])
+
+  const cityName = (cityId: string | null): string => {
+    if (!cityId) return '—'
+    return cities.find((city) => city.id === cityId)?.name ?? cityId
+  }
 
   const load = async () => {
     if (!id) {
@@ -209,7 +220,7 @@ const AdminDeliveryQuoteDetailPage = () => {
                 />
                 <DetailRow label="Base fee" value={formatMoney(quote.baseFee, quote.currency)} />
                 <DetailRow
-                  label="Distance fee"
+                  label={quote.calculationMethod === 'CITY_ROUTE' ? 'Route fee' : 'Distance fee'}
                   value={formatMoney(quote.distanceFee, quote.currency)}
                 />
                 <DetailRow label="Weight fee" value={formatMoney(quote.weightFee, quote.currency)} />
@@ -224,8 +235,19 @@ const AdminDeliveryQuoteDetailPage = () => {
             <section className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6">
               <h2 className="text-sm font-semibold text-slate-900">Route & weight</h2>
               <dl className="mt-2">
-                <DetailRow label="Distance" value={`${quote.distanceKm.toFixed(2)} km`} />
-                <DetailRow label="Duration" value={`${quote.durationMinutes} min`} />
+                {quote.calculationMethod === 'CITY_ROUTE' ? (
+                  <>
+                    <DetailRow label="Method" value="City route" />
+                    <DetailRow label="From city" value={cityName(quote.fromCityId)} />
+                    <DetailRow label="To city" value={cityName(quote.toCityId)} />
+                  </>
+                ) : (
+                  <>
+                    <DetailRow label="Method" value="Real route" />
+                    <DetailRow label="Distance" value={`${quote.distanceKm.toFixed(2)} km`} />
+                    <DetailRow label="Duration" value={`${quote.durationMinutes} min`} />
+                  </>
+                )}
                 <DetailRow
                   label="Pickup"
                   value={

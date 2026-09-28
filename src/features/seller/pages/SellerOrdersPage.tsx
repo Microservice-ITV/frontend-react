@@ -4,7 +4,7 @@ import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
 import DataTablePagination from '@/components/ui/DataTablePagination'
 import { fetchSellerOrdersByShop } from '../store'
-import { sellerOrderApi, type SellerOrder } from '../api/sellerOrderApi'
+import { sellerOrderApi, canSellerShip, type SellerOrder } from '../api/sellerOrderApi'
 import {
   Search,
   MoreHorizontal,
@@ -25,7 +25,9 @@ const TABS: { key: SellerOrderTab; label: string }[] = [
 
 const STATUS_STYLES: Record<string, string> = {
   READY_FOR_FULFILLMENT: 'bg-amber-100 text-amber-700',
+  PARTIALLY_FULFILLED: 'bg-orange-100 text-orange-700',
   SHIPPED: 'bg-cyan-100 text-cyan-700',
+  FULFILLED: 'bg-cyan-100 text-cyan-700',
   IN_TRANSIT: 'bg-blue-100 text-blue-700',
   OUT_FOR_DELIVERY: 'bg-indigo-100 text-indigo-700',
   DELIVERED: 'bg-emerald-100 text-emerald-700',
@@ -37,7 +39,9 @@ const STATUS_STYLES: Record<string, string> = {
 
 const STATUS_LABELS: Record<string, string> = {
   READY_FOR_FULFILLMENT: 'To Ship',
+  PARTIALLY_FULFILLED: 'Partially Shipped',
   SHIPPED: 'Shipped',
+  FULFILLED: 'Shipped',
   IN_TRANSIT: 'In Transit',
   OUT_FOR_DELIVERY: 'Out for Delivery',
   DELIVERED: 'Delivered',
@@ -50,8 +54,8 @@ const STATUS_LABELS: Record<string, string> = {
 const isOrderInTab = (order: SellerOrder, tab: SellerOrderTab): boolean => {
   const status = (order.status || '').toUpperCase()
   if (tab === 'all') return true
-  if (tab === 'to-ship') return status === 'READY_FOR_FULFILLMENT'
-  if (tab === 'shipped') return ['SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'].includes(status)
+  if (tab === 'to-ship') return ['READY_FOR_FULFILLMENT', 'PARTIALLY_FULFILLED'].includes(status)
+  if (tab === 'shipped') return ['SHIPPED', 'FULFILLED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'].includes(status)
   if (tab === 'completed') return ['DELIVERED', 'COMPLETED'].includes(status)
   if (tab === 'cancelled') return ['CANCELLED', 'FAILED', 'FAILED_PAYMENT', 'EXPIRED'].includes(status)
   return false
@@ -148,6 +152,14 @@ const SellerOrdersPage = () => {
   )
 
   const handleShipOrder = (order: SellerOrder) => {
+    // Multi-shop orders: ship each of this seller's own ready shops
+    // separately (per-shop fulfillment). Legacy single-shipment fallback
+    // when per-shop rows are unavailable.
+    const readyShopIds = (order.shopBreakdown ?? [])
+      .filter((row) => (row.status || '').toUpperCase() === 'READY_FOR_FULFILLMENT')
+      .map((row) => row.shopId)
+      .filter(Boolean)
+
     openModal({
       title: 'Ship Order',
       content: (
@@ -156,7 +168,9 @@ const SellerOrdersPage = () => {
             Create a shipment for order <strong className="text-slate-900">{order.orderId}</strong>?
           </p>
           <p className="text-xs text-slate-500">
-            A tracking number will be automatically generated.
+            {readyShopIds.length > 1
+              ? `${readyShopIds.length} of your shops are ready — each gets its own tracking number.`
+              : 'A tracking number will be automatically generated.'}
           </p>
         </div>
       ),
@@ -165,11 +179,26 @@ const SellerOrdersPage = () => {
       secondaryLabel: 'Cancel',
       onPrimary: async () => {
         try {
-          await sellerOrderApi.createShipment(order.orderId, {
-            courier_code: 'STANDARD',
-            courier_name: 'Standard Shipping',
-            courier_phone: 'N/A',
-          })
+          const targets = readyShopIds.length > 0 ? readyShopIds : [undefined]
+          const results = await Promise.allSettled(
+            targets.map((shopId) =>
+              sellerOrderApi.createShipment(order.orderId, {
+                courier_code: 'STANDARD',
+                courier_name: 'Standard Shipping',
+                courier_phone: 'N/A',
+                ...(shopId ? { shop_id: shopId } : {}),
+              }),
+            ),
+          )
+          const hardFailures = results.filter(
+            (r) =>
+              r.status === 'rejected' &&
+              ![409, 404].includes(r.reason?.response?.status ?? 0),
+          )
+          if (hardFailures.length === results.length) {
+            const first = hardFailures[0] as PromiseRejectedResult
+            throw first.reason
+          }
           if (activeShopId || authUserId) {
             await dispatch(fetchSellerOrdersByShop({ userId: authUserId, activeShopId })).unwrap()
           }
@@ -263,11 +292,12 @@ const SellerOrdersPage = () => {
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
                   Status
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
-                  Date
-                </th>
+               
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
                   Total
+                </th>
+                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
+                  Date
                 </th>
                 <th className="w-16 px-2 py-3 text-left text-xs font-medium text-slate-600">
                   Actions
@@ -299,6 +329,14 @@ const SellerOrdersPage = () => {
                   const statusUpper = (order.status || '').toUpperCase()
                   const customerName = order.deliveryAddress?.recipientName || order.customerId
                   const itemNames = order.items.map((i) => i.name).join(', ')
+                  // Seller's share of the order total (co-mingled orders from
+                  // other owners' shops show their portion, matching detail).
+                  const shareTotal = order.sellerTotals?.total ?? order.totals.total
+                  const isSharedOrder = Boolean(
+                    (order.scopedToSeller ?? false) &&
+                      order.sellerTotals &&
+                      Math.abs(order.sellerTotals.total - order.totals.total) > 0.005,
+                  )
 
                   return (
                     <tr
@@ -335,11 +373,19 @@ const SellerOrdersPage = () => {
                           {STATUS_LABELS[statusUpper] || statusUpper}
                         </span>
                       </td>
+                      
+                      <td className="px-4 py-3 text-xs font-medium text-slate-900">
+                        <p title={isSharedOrder ? `Full order: ${formatMoney(order.totals.total, order.totals.currency)} (other shops' shares excluded)` : undefined}>
+                          {formatMoney(shareTotal, order.totals.currency)}
+                        </p>
+                        {isSharedOrder && (
+                          <p className="mt-0.5 text-[10px] font-normal text-slate-400">
+                            your share · full {formatMoney(order.totals.total, order.totals.currency)}
+                          </p>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-xs text-slate-600">
                         {formatDate(order.placedAt || order.createdAt)}
-                      </td>
-                      <td className="px-4 py-3 text-xs font-medium text-slate-900">
-                        {formatMoney(order.totals.total, order.totals.currency)}
                       </td>
                       <td className="relative w-16 px-2 py-3">
                         <div
@@ -376,7 +422,7 @@ const SellerOrdersPage = () => {
                                 <Eye size={16} className="text-slate-500 shrink-0" />
                                 View
                               </button>
-                              {statusUpper === 'READY_FOR_FULFILLMENT' && (
+                              {canSellerShip(order) && (
                                 <button
                                   type="button"
                                   onClick={() => {

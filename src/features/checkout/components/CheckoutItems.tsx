@@ -2,16 +2,37 @@ import { chatIcon, fastDeliveryIcon, voucherIcon } from '@/assets/icons'
 import { CheckoutTotals } from '../utils/checkoutCalculator'
 import { useAppSelector } from '@/app/hooks'
 import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
+import { useAppDispatch, useAppSelector } from '@/app/hooks'
+import CartQuantityInput from '@/features/cart/components/CartQuantityInput'
+import { selectShopSelectionMap } from '@/features/cart/store/cartSelectors'
+import { removeFromCart, toggleItemSelection, toggleShopSelection } from '@/features/cart/store/cartSlice'
+import { CartItem } from '@/features/cart/types/cartTypes'
+import { formatProfileShippingLine } from '@/features/shipping/utils/normalizeShipping'
 import placeholderImage from '@/public/placeholder.svg'
 
-interface CheckoutItemsProps {
-  checkout: CheckoutTotals
+interface CartItemListProps {
+  items: CartItem[]
 }
 
-const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
-  const { groupedByShop } = checkout
-  const feesByShopId = useAppSelector(state => state.shipping.feesByShopId)
-  const calculateStatus = useAppSelector(state => state.shipping.calculateStatus)
+const CartItemLists = ({ items }: CartItemListProps) => {
+  const dispatch = useAppDispatch()
+  const shopSelectionMap = useAppSelector(selectShopSelectionMap)
+  const profilesByShopId = useAppSelector(state => state.shipping.profilesByShopId)
+  const batchStatus = useAppSelector(state => state.shipping.batchStatus)
+
+  // Group items by shop
+  const groupedByShop = items.reduce<Record<
+    string,
+    { shopId: string; shopName: string; items: CartItem[] }
+  >>((acc, item) => {
+    acc[item.shopId] ??= {
+      shopId: item.shopId,
+      shopName: item.shopName,
+      items: [],
+    }
+    acc[item.shopId].items.push(item)
+    return acc
+  }, {})
 
   return (
     <div className="space-y-3">
@@ -93,6 +114,12 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
                         {formatKsPrice(item.price)}
                       </p>
                     </div>
+                    <div className="mt-2 md:hidden flex items-center justify-between gap-3">
+                      <span className="text-sm font-medium text-emerald-700">
+                        ${(item.price * item.quantity).toFixed(2)}
+                      </span>
+                      <CartQuantityInput item={item} />
+                    </div>
                   </div>
 
                   <p className="hidden whitespace-nowrap text-right text-[15px] tabular-nums text-gray-700 md:block">
@@ -134,7 +161,6 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
                     placeholder="Please leave a message"
                   />
                 </div>
-              </div>
 
               {/* RIGHT COLUMN */}
               <div className="border-t border-dashed border-black/10 px-3 py-3 sm:px-4 sm:py-4 lg:border-t-0">
@@ -240,11 +266,22 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
                   <span className="text-xs bg-emerald-600 text-white px-2 py-[1px] rounded">New</span>
                 </div>
 
-                <div className="w-10 h-5 bg-green-500 rounded-full relative cursor-pointer">
-                  <div className="absolute right-0.5 top-0.5 w-4 h-4 bg-white rounded-full" />
+                <div className="hidden md:flex flex-col items-center justify-center text-sm">
+                  <button
+                    className="text-gray-600 hover:text-red-500 cursor-pointer"
+                    onClick={() =>
+                      dispatch(removeFromCart({ productId: item.productId, variantId: item.variantId }))
+                    }
+                  >
+                    Delete
+                  </button>
+                  <button className="text-gray-500 hover:text-emerald-600 mt-1 cursor-pointer">
+                    Save for Later
+                  </button>
                 </div>
               </div>
-            </div>
+            ))}
+          </div>
 
             {/* ================= ORDER TOTAL ================= */}
             <div className="flex flex-wrap items-center justify-end gap-2 bg-[#fafdff] px-3 py-2.5 sm:px-4">
@@ -262,4 +299,4 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
   )
 }
 
-export default CheckoutItems
+export default CartItemLists

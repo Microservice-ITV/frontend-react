@@ -15,8 +15,37 @@ export type SellerOrderItem = {
   shopId: string
 }
 
+/** Per-shop financial breakdown from order-service shop_orders attribution. */
+export type SellerShopBreakdown = {
+  shopOrderId: string
+  shopId: string
+  subtotal: number
+  discount: number
+  shipping: number
+  total: number
+  currency: string
+  /** Per-shop fulfillment progress: READY_FOR_FULFILLMENT, SHIPPED... */
+  status?: string | null
+  trackingNumber?: string | null
+  courierName?: string | null
+  shippedAt?: string | null
+}
+
+/** A promotion discount attributed to one shop (quote-time allocation). */
+export type SellerOrderPromotion = {
+  promotionId: string
+  rewardId: string
+  promotionName: string
+  shopId: string
+  discountType: 'ITEM' | 'SHIPPING' | string
+  fundedBy: 'SELLER' | 'PLATFORM' | string
+  amount: number
+}
+
 export type SellerOrderTotals = {
   subtotal: number
+  discount: number
+  shipping: number
   total: number
   currency: string
 }
@@ -41,6 +70,22 @@ export type PaymentRecord = {
   updatedAt: string
   deliveryStatus?: string | null
   deliveryStatusId?: number | null
+  /** Fulfillment status aggregated over THIS seller's shops in the order. */
+  sellerDeliveryStatus?: string | null
+  /** Seller-scoped money split from payment_allocations; null when unknown. */
+  seller?: PaymentSellerShare | null
+}
+
+/** Owned amounts (seller's shops only) for one payment record. */
+export type PaymentSellerShare = {
+  /** Σ shop grand totals for the seller's shops. */
+  orderShare: number
+  /** Σ net payout after platform fees. */
+  payout: number
+  platformFee: number
+  discountShare: number
+  shippingShare: number
+  shopCount: number
 }
 
 export type PaymentDetailEvent = {
@@ -87,11 +132,25 @@ export type SellerDelivery = {
   trackingUrl?: string | null
   estimatedDeliveryDate?: string | null
   courier?: { code?: string; name?: string; phone?: string } | null
+  items?: Array<{ productId?: string; shopId?: string | null }> | null
 }
 
 export type SellerOrderFulfillment = {
   status: string
   deliveries: SellerDelivery[]
+}
+
+/** Per-shop payout split recorded by payment-service for this order's payment. */
+export type PaymentAllocation = {
+  id: string
+  paymentId: string
+  shopOrderId: string | null
+  shopId: string
+  orderAmount: number
+  discountShare: number
+  shippingShare: number
+  platformFee: number
+  sellerAmount: number
 }
 
 export type SellerOrder = {
@@ -102,6 +161,13 @@ export type SellerOrder = {
   placedAt?: string | null
   items: SellerOrderItem[]
   totals: SellerOrderTotals
+  /** Empty for orders projected before per-shop attribution existed. */
+  shopBreakdown?: SellerShopBreakdown[]
+  promotions?: SellerOrderPromotion[]
+  /** Totals summed over the seller's own shops (shopOrders views only). */
+  sellerTotals?: SellerOrderTotals | null
+  /** True when this order was fetched through the seller-scoped resolver. */
+  scopedToSeller?: boolean
   payment: SellerOrderPayment
   fulfillment?: SellerOrderFulfillment | null
   deliveryAddress?: {
@@ -120,9 +186,43 @@ export type SellerOrder = {
   } | null
 }
 
+/**
+ * Seller-visible fulfillment status for an order: derived from the seller's
+ * own shops' shop_order statuses when the read model provides them, falling
+ * back to the order-level status.
+ *
+ * Multi-owner orders: the order-level status can lag (PARTIALLY_FULFILLED /
+ * CONFIRMED) while this seller's shop is ready to ship — the per-shop rows
+ * are the source of truth for the seller's actions.
+ */
+export const sellerOrderStatus = (order: SellerOrder): string => {
+  const rows = (order.shopBreakdown ?? []).filter((row) => row.status)
+  if (rows.length > 0) {
+    const statuses = rows.map((row) => (row.status || '').toUpperCase())
+    const shippedLike = ['SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETED', 'FULFILLED']
+    if (statuses.every((s) => shippedLike.includes(s))) {
+      return 'SHIPPED'
+    }
+    if (statuses.some((s) => shippedLike.includes(s))) {
+      return 'PARTIALLY_FULFILLED'
+    }
+    return statuses[0]
+  }
+  return (order.status || '').toUpperCase()
+}
+
+/** True when this seller's shops still have unshipped portions of the order. */
+export const canSellerShip = (order: SellerOrder): boolean => {
+  const rows = order.shopBreakdown ?? []
+  if (rows.length > 0) {
+    return rows.some((row) => (row.status || '').toUpperCase() === 'READY_FOR_FULFILLMENT')
+  }
+  return (order.status || '').toUpperCase() === 'READY_FOR_FULFILLMENT'
+}
+
 const SHOP_ORDERS_QUERY = `
-  query ShopOrders($shopId: ID!) {
-    shopOrders(shopId: $shopId) {
+  query ShopOrders($shopId: ID!, $userId: ID) {
+    shopOrders(shopId: $shopId, userId: $userId) {
       orderId
       customerId
       status
@@ -142,8 +242,40 @@ const SHOP_ORDERS_QUERY = `
       }
       totals {
         subtotal
+        discount
+        shipping
         total
         currency
+      }
+      scopedToSeller
+      sellerTotals {
+        subtotal
+        discount
+        shipping
+        total
+        currency
+      }
+      shopBreakdown {
+        shopOrderId
+        shopId
+        subtotal
+        discount
+        shipping
+        total
+        currency
+        status
+        trackingNumber
+        courierName
+        shippedAt
+      }
+      promotions {
+        promotionId
+        rewardId
+        promotionName
+        shopId
+        discountType
+        fundedBy
+        amount
       }
       payment {
         status
@@ -165,11 +297,25 @@ const SHOP_ORDERS_QUERY = `
             name
             phone
           }
+          items {
+            productId
+            shopId
+          }
         }
       }
       deliveryAddress {
         recipientName
+        recipientPhone
         email
+        country
+        state
+        city
+        district
+        ward
+        addressLine1
+        addressLine2
+        postalCode
+        deliveryNote
       }
     }
   }
@@ -219,7 +365,7 @@ export async function fetchOrdersAcrossOwnedShops(
   }
 
   const results = await Promise.all(
-    shopIds.map((shopId) => sellerOrderApi.shopOrders(shopId).catch(() => [] as SellerOrder[])),
+    shopIds.map((shopId) => sellerOrderApi.shopOrders(shopId, userId ?? undefined).catch(() => [] as SellerOrder[])),
   )
 
   const merged = new Map<string, SellerOrder>()
@@ -246,10 +392,10 @@ export const sellerOrderApi = {
     return response.data.data ?? []
   },
 
-  async shopOrders(shopId: string): Promise<SellerOrder[]> {
+  async shopOrders(shopId: string, userId?: string): Promise<SellerOrder[]> {
     const response = await ecommerceReadClient.post<ShopOrdersResponse>('', {
       query: SHOP_ORDERS_QUERY,
-      variables: { shopId },
+      variables: { shopId, userId },
     })
 
     if (response.data.errors?.length) {
@@ -257,6 +403,19 @@ export const sellerOrderApi = {
     }
 
     return response.data.data?.shopOrders ?? []
+  },
+
+  /**
+   * Per-shop payment allocations for an order, restricted to the given shops
+   * (pass only the seller's own shop ids). Returns [] while unpaid/COD before
+   * collection or when the endpoint is unavailable.
+   */
+  async paymentAllocations(orderId: string, shopIds: string[]): Promise<PaymentAllocation[]> {
+    const response = await orderClient.get<{ data?: PaymentAllocation[] }>(
+      `/orders/${orderId}/payment-allocations`,
+      { params: shopIds.length > 0 ? { shop_ids: shopIds.join(',') } : undefined },
+    )
+    return response.data.data ?? []
   },
 
   async createShipment(
@@ -267,10 +426,13 @@ export const sellerOrderApi = {
       courier_phone: string
       tracking_number?: string
       tracking_url?: string
+      /** Ship only this shop's portion (multi-owner order, per-shop fulfillment). */
+      shop_id?: string
     },
   ): Promise<{
     order_id: string
-    status: string
+    order_status?: string
+    status?: string
     tracking_number?: string
     tracking_url?: string
     courier: { code: string; name: string; phone: string }

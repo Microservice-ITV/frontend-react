@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
 import DataTablePagination from '@/components/ui/DataTablePagination'
+import RowActionMenu from '@/components/ui/RowActionMenu'
 import {
   Search,
   Plus,
@@ -12,7 +13,6 @@ import {
   Truck,
   ArrowRight,
   RefreshCw,
-  MoreHorizontal,
   Eye,
 } from 'lucide-react'
 import type { DeliveryPricingRuleDto, PricingRuleStatus } from '../api/adminShippingApi'
@@ -28,7 +28,6 @@ import {
   selectAdminPricingRulesStatus,
   selectAdminPricingRulesTotal,
 } from '../store/adminPricingRulesSelectors'
-
 type StatusFilter = 'ALL' | PricingRuleStatus
 
 const FILTER_TABS: { key: StatusFilter; label: string }[] = [
@@ -61,25 +60,11 @@ const AdminPricingRulesPage = () => {
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
   const [rowsPerPage, setRowsPerPage] = useState(10)
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
-  const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300)
     return () => clearTimeout(timer)
   }, [search])
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setOpenMenuId(null)
-      }
-    }
-    if (openMenuId) {
-      document.addEventListener('mousedown', handleClickOutside)
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [openMenuId])
 
   useEffect(() => {
     dispatch(
@@ -282,10 +267,8 @@ const AdminPricingRulesPage = () => {
               )}
               {rulesStatus !== 'loading' &&
                 rulesStatus !== 'failed' &&
-                rules.map((rule, index) => {
-                  const openUpward = index >= rules.length - 2
-                  return (
-                  <tr
+rules.map((rule) => (
+                 <tr
                     key={rule.id}
                     className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
                   >
@@ -349,91 +332,46 @@ const AdminPricingRulesPage = () => {
                         {rule.status === 'ACTIVE' ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td className="relative w-16 px-2 py-3">
-                      <div
-                        className="relative inline-block"
-                        ref={openMenuId === rule.id ? menuRef : undefined}
-                      >
-                        <button
-                          type="button"
-                          onMouseDown={(e) => e.stopPropagation()}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setOpenMenuId((id) => (id === rule.id ? null : rule.id))
-                          }}
-                          className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
-                          aria-label="Actions"
-                          aria-expanded={openMenuId === rule.id}
-                        >
-                          <MoreHorizontal size={18} />
-                        </button>
-                        {openMenuId === rule.id && (
-                          <div
-                            className={`absolute right-0 z-50 min-w-[150px] rounded-lg border border-slate-200 bg-white py-1 shadow-lg ${
-                              openUpward ? 'bottom-full mb-1' : 'top-full mt-1'
-                            }`}
-                          >
-                            <button
-                              type="button"
-                              onMouseDown={(e) => e.stopPropagation()}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setOpenMenuId(null)
-                                void toggleStatus(rule)
-                              }}
-                              className={`flex w-full items-center gap-3 px-4 py-2 text-left text-xs font-medium hover:bg-slate-50 cursor-pointer ${
+                    <td className="w-16 px-2 py-3">
+                      <RowActionMenu
+                        ariaLabel="Pricing rule actions"
+                        items={[
+                          {
+                            key: 'toggle-status',
+                            label: rule.status === 'ACTIVE' ? 'Deactivate' : 'Activate',
+                            icon: <Power size={16} className="shrink-0 text-slate-500" />,
+                            className: `flex w-full items-center gap-3 px-4 py-2 text-left text-xs font-medium hover:bg-slate-50 cursor-pointer ${
                                 rule.status === 'ACTIVE' ? 'text-slate-700' : 'text-emerald-700'
-                              }`}
-                            >
-                              <Power size={16} className="shrink-0 text-slate-500" />
-                              {rule.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
-                            </button>
-                            <button
-                              type="button"
-                              onMouseDown={(e) => e.stopPropagation()}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setOpenMenuId(null)
-                                navigate(`/super-admin/shipping/pricing-rules/${rule.id}`)
-                              }}
-                              className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
-                            >
-                              <Eye size={16} className="shrink-0 text-slate-500" />
-                              View
-                            </button>
-                            <button
-                              type="button"
-                              onMouseDown={(e) => e.stopPropagation()}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setOpenMenuId(null)
-                                navigate(`/super-admin/shipping/pricing-rules/${rule.id}/edit`)
-                              }}
-                              className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
-                            >
-                              <Pencil size={16} className="shrink-0 text-slate-500" />
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              onMouseDown={(e) => e.stopPropagation()}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setOpenMenuId(null)
-                                confirmDelete(rule)
-                              }}
-                              className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-red-600 hover:bg-slate-50 cursor-pointer"
-                            >
-                              <Trash2 size={16} className="shrink-0 text-slate-500" />
-                              Delete
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                              }`,
+                            onClick: () => void toggleStatus(rule),
+                          },
+                          {
+                            key: 'view',
+                            label: 'View',
+                            icon: <Eye size={16} className="shrink-0 text-slate-500" />,
+                            onClick: () =>
+                              navigate(`/super-admin/shipping/pricing-rules/${rule.id}`),
+                          },
+                          {
+                            key: 'edit',
+                            label: 'Edit',
+                            icon: <Pencil size={16} className="shrink-0 text-slate-500" />,
+                            onClick: () =>
+                              navigate(`/super-admin/shipping/pricing-rules/${rule.id}/edit`),
+                          },
+                          {
+                            key: 'delete',
+                            label: 'Delete',
+                            icon: <Trash2 size={16} className="shrink-0 text-slate-500" />,
+                            className:
+                              'flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-red-600 hover:bg-slate-50 cursor-pointer',
+                            onClick: () => confirmDelete(rule),
+                          },
+                        ]}
+                      />
                     </td>
                   </tr>
-                  )
-                })}
+                ))}
             </tbody>
           </table>
         </div>

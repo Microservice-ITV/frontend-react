@@ -21,7 +21,12 @@ const SellerOverviewPage = () => {
     }
   }, [activeShopId, authUser?.id, dispatch])
 
-  const revenue = orders.reduce((sum, order) => sum + Number(order.totals.total || 0), 0)
+  // Seller's share of each order; co-mingled orders with other owners' shops
+  // contribute only their own portion (keeps revenue consistent with /orders).
+  const orderShareTotal = (order: (typeof orders)[number]) =>
+    Number(order.sellerTotals?.total ?? order.totals.total ?? 0)
+
+  const revenue = orders.reduce((sum, order) => sum + orderShareTotal(order), 0)
   const customers = new Set(orders.map((order) => order.customerId)).size
   const activeProducts = products.filter((product) => product.status === 'active').length
   const lowStockProducts = products.filter((product) => product.stock <= 5).length
@@ -34,7 +39,7 @@ const SellerOverviewPage = () => {
     })
     return {
       month: date.toLocaleDateString('en-US', { month: 'short' }),
-      users: monthOrders.reduce((sum, order) => sum + Number(order.totals.total || 0), 0),
+      users: monthOrders.reduce((sum, order) => sum + orderShareTotal(order), 0),
       shops: monthOrders.length,
       pending: monthOrders.filter((order) => order.status.toLowerCase() === 'pending').length,
     }

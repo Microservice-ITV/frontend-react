@@ -32,7 +32,12 @@ type FormValue = {
   receiptImage: string
 }
 
-const SellerExpenseFormPage = () => {
+type ExpenseFormPageProps = {
+  scope?: 'SHOP' | 'PLATFORM'
+}
+
+const SellerExpenseFormPage = ({ scope = 'SHOP' }: ExpenseFormPageProps) => {
+  const isPlatformExpense = scope === 'PLATFORM'
   const navigate = useNavigate()
   const authUser = useAppSelector((state) => state.auth.user)
   const [shops, setShops] = useState<ShopOption[]>([])
@@ -61,11 +66,11 @@ const SellerExpenseFormPage = () => {
         return
       }
 
-      const [shopsResult, categoriesResult, accountsResult] = await Promise.allSettled([
-        sellerRegistrationApi.listShopsForUser(authUser.id),
-        accountingExpensesAdapter.listCategories(),
-        accountingExpensesAdapter.listAccounts(),
-      ])
+        const [shopsResult, categoriesResult, accountsResult] = await Promise.allSettled([
+          isPlatformExpense ? Promise.resolve([]) : sellerRegistrationApi.listShopsForUser(authUser.id),
+          accountingExpensesAdapter.listCategories(),
+          accountingExpensesAdapter.listAccounts(),
+        ])
       if (!active) return
 
       const shopOptions = shopsResult.status === 'fulfilled'
@@ -118,7 +123,7 @@ const SellerExpenseFormPage = () => {
     event.preventDefault()
     setError(null)
     const amount = Number(value.amount)
-    if (!value.shopId) return setError('Select a shop before creating the expense.')
+    if (!isPlatformExpense && !value.shopId) return setError('Select a shop before creating the expense.')
     if (!value.categoryId) return setError('Select an expense category.')
     if (!value.expenseAccountCode) return setError('Select an expense account.')
     if (!value.fundingAccountCode) return setError('Select a funding account.')
@@ -128,7 +133,8 @@ const SellerExpenseFormPage = () => {
     setStatus('loading')
     try {
       const response = await accountingExpensesAdapter.create({
-        shopId: value.shopId,
+        scope,
+        shopId: isPlatformExpense ? null : value.shopId,
         amount,
         expenseDate: value.expenseDate || undefined,
         expenseAccountCode: value.expenseAccountCode,
@@ -148,25 +154,25 @@ const SellerExpenseFormPage = () => {
   if (created) {
     return (
       <section className="space-y-6">
-        <Link to="/seller/accounting/expenses" className="inline-flex items-center gap-2 text-xs font-medium text-slate-600 hover:text-slate-900"><ArrowLeft size={15} />Back to expenses</Link>
+        <Link to={isPlatformExpense ? '/super-admin/accounting/platform-expenses' : '/seller/accounting/expenses'} className="inline-flex items-center gap-2 text-xs font-medium text-slate-600 hover:text-slate-900"><ArrowLeft size={15} />Back to expenses</Link>
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-6">
           <div className="flex items-start gap-3"><CheckCircle2 className="mt-0.5 text-emerald-600" size={22} /><div><h1 className="text-lg font-bold text-emerald-950">Expense created</h1><p className="mt-1 text-sm text-emerald-800">{created.expense.expenseNo} was created with status {created.expense.status}.</p></div></div>
-          <div className="mt-5 grid gap-3 text-sm sm:grid-cols-3"><div><p className="text-xs text-emerald-700">Amount</p><p className="font-semibold text-emerald-950">{created.expense.currency} {Number(created.expense.amount).toLocaleString()}</p></div><div><p className="text-xs text-emerald-700">Journal entry</p><p className="font-semibold text-emerald-950">Created after final approval</p></div><div><p className="text-xs text-emerald-700">Journal status</p><p className="font-semibold text-emerald-950">Awaiting approval</p></div></div>
+          <div className="mt-5 grid gap-3 text-sm sm:grid-cols-3"><div><p className="text-xs text-emerald-700">Amount</p><p className="font-semibold text-emerald-950">{created.expense.currency} {Number(created.expense.amount).toLocaleString()}</p></div><div><p className="text-xs text-emerald-700">Next step</p><p className="font-semibold text-emerald-950">Open the expense detail</p></div><div><p className="text-xs text-emerald-700">Approval status</p><p className="font-semibold text-emerald-950">Draft · Not submitted</p></div></div>
         </div>
-        <div className="flex flex-wrap gap-2"><Button type="button" onClick={() => navigate('/seller/accounting/expenses/new')} className="w-auto px-4">Create another expense</Button><Link to="/seller/accounting/expenses" className="inline-flex items-center rounded px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100">View expenses</Link></div>
+        <div className="flex flex-wrap gap-2"><Link to={`${isPlatformExpense ? '/super-admin/accounting/platform-expenses' : '/seller/accounting/expenses'}/${encodeURIComponent(created.expense.expenseNo)}`} className="inline-flex items-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">Open expense detail</Link><Button type="button" onClick={() => navigate(isPlatformExpense ? '/super-admin/accounting/platform-expenses/new' : '/seller/accounting/expenses/new')} className="w-auto px-4">Create another expense</Button><Link to={isPlatformExpense ? '/super-admin/accounting/platform-expenses' : '/seller/accounting/expenses'} className="inline-flex items-center rounded px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100">View expenses</Link></div>
       </section>
     )
   }
 
   return (
     <section className="space-y-6">
-      <nav className="text-xs text-slate-500"><Link to="/seller/overview" className="hover:text-slate-700">Dashboard</Link><span className="mx-1">/</span><Link to="/seller/accounting/overview" className="hover:text-slate-700">Accounting</Link><span className="mx-1">/</span><span className="text-slate-900">New Expense</span></nav>
-      <div><h1 className="flex items-center gap-2 text-xl font-bold text-slate-900"><ReceiptText size={22} className="text-orange-600" />Add Expense</h1><p className="mt-0.5 text-sm text-slate-600">Record a shop expense for approval.</p></div>
+      <nav className="text-xs text-slate-500"><Link to={isPlatformExpense ? '/super-admin/overview' : '/seller/overview'} className="hover:text-slate-700">Dashboard</Link><span className="mx-1">/</span><Link to={isPlatformExpense ? '/super-admin/accounting/overview' : '/seller/accounting/overview'} className="hover:text-slate-700">Accounting</Link><span className="mx-1">/</span><span className="text-slate-900">New Expense</span></nav>
+      <div><h1 className="flex items-center gap-2 text-xl font-bold text-slate-900"><ReceiptText size={22} className="text-orange-600" />Add {isPlatformExpense ? 'Platform ' : ''}Expense</h1><p className="mt-0.5 text-sm text-slate-600">Record an expense for approval.</p></div>
       {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
       {status === 'loading' && <p className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">Loading expense options...</p>}
       <form onSubmit={submit} className="rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
         <div className="grid gap-5 sm:grid-cols-2">
-          <Field label="Shop" required><SearchableSelect options={shopOptions} value={value.shopId} onChange={(next) => update('shopId', next)} emptyLabel="Select a shop" disabled={status === 'loading' || shops.length === 0} /></Field>
+          {!isPlatformExpense && <Field label="Shop" required><SearchableSelect options={shopOptions} value={value.shopId} onChange={(next) => update('shopId', next)} emptyLabel="Select a shop" disabled={status === 'loading' || shops.length === 0} /></Field>}
           <Field label="Expense Category" required><SearchableSelect options={categoryOptions} value={value.categoryId} onChange={(next) => update('categoryId', next)} emptyLabel="Select a category" disabled={status === 'loading'} /></Field>
           <Field label="Expense Account" required><SearchableSelect options={expenseAccountOptions} value={value.expenseAccountCode} onChange={(next) => update('expenseAccountCode', next)} emptyLabel="Select an expense account" disabled={status === 'loading'} /></Field>
           <Field label="Funding Account" required><SearchableSelect options={fundingAccountOptions} value={value.fundingAccountCode} onChange={(next) => update('fundingAccountCode', next)} emptyLabel="Select a funding account" disabled={status === 'loading'} /></Field>
@@ -191,7 +197,7 @@ const SellerExpenseFormPage = () => {
             </div>}
           </Field>
         </div>
-        <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-5"><Link to="/seller/accounting/expenses" className="inline-flex items-center rounded px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Cancel</Link><Button type="submit" disabled={status === 'loading' || status === 'failed' && !authUser?.id} loading={status === 'loading'} className="w-auto px-5">Create Expense</Button></div>
+        <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-5"><Link to={isPlatformExpense ? '/super-admin/accounting/platform-expenses' : '/seller/accounting/expenses'} className="inline-flex items-center rounded px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Cancel</Link><Button type="submit" disabled={status === 'loading' || status === 'failed' && !authUser?.id} loading={status === 'loading'} className="w-auto px-5">Create Expense</Button></div>
       </form>
     </section>
   )

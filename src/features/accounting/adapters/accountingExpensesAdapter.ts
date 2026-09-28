@@ -60,13 +60,15 @@ export const accountingExpensesAdapter = {
     return response.data.approvals ?? []
   },
 
-  async listApprovalPolicies(shopId: string): Promise<ApprovalPolicy[]> {
-    const response = await accountingClient.get<{ policies: ApprovalPolicy[] }>('/approval-policies', { params: { shopId } })
+  async listApprovalPolicies(shopId?: string, scope: 'SHOP' | 'PLATFORM' = 'SHOP'): Promise<ApprovalPolicy[]> {
+    const params = scope === 'PLATFORM' ? { scope } : { shopId }
+    const response = await accountingClient.get<{ policies: ApprovalPolicy[] }>('/approval-policies', { params })
     return response.data.policies ?? []
   },
 
-  async getApprovalPolicy(id: string, shopId: string): Promise<ApprovalPolicy> {
-    const response = await accountingClient.get<ApprovalPolicy>(`/approval-policies/${encodeURIComponent(id)}`, { params: { shopId } })
+  async getApprovalPolicy(id: string, shopId?: string, scope: 'SHOP' | 'PLATFORM' = 'SHOP'): Promise<ApprovalPolicy> {
+    const params = scope === 'PLATFORM' ? { scope } : { shopId }
+    const response = await accountingClient.get<ApprovalPolicy>(`/approval-policies/${encodeURIComponent(id)}`, { params })
     return response.data
   },
 
@@ -80,13 +82,15 @@ export const accountingExpensesAdapter = {
     return response.data
   },
 
-  async setApprovalPolicyActive(id: string, shopId: string, isActive: boolean): Promise<ApprovalPolicy> {
-    const response = await accountingClient.patch<ApprovalPolicy>(`/approval-policies/${encodeURIComponent(id)}/status`, { isActive }, { params: { shopId } })
+  async setApprovalPolicyActive(id: string, shopId: string | undefined, isActive: boolean, scope: 'SHOP' | 'PLATFORM' = 'SHOP'): Promise<ApprovalPolicy> {
+    const params = scope === 'PLATFORM' ? { scope } : { shopId }
+    const response = await accountingClient.patch<ApprovalPolicy>(`/approval-policies/${encodeURIComponent(id)}/status`, { isActive }, { params })
     return response.data
   },
 
-  async deleteApprovalPolicy(id: string, shopId: string): Promise<void> {
-    await accountingClient.delete(`/approval-policies/${encodeURIComponent(id)}`, { params: { shopId } })
+  async deleteApprovalPolicy(id: string, shopId?: string, scope: 'SHOP' | 'PLATFORM' = 'SHOP'): Promise<void> {
+    const params = scope === 'PLATFORM' ? { scope } : { shopId }
+    await accountingClient.delete(`/approval-policies/${encodeURIComponent(id)}`, { params })
   },
 
   async approveExpense(expenseId: string, approvalId: string, comment?: string): Promise<ExpenseActionResponse> {

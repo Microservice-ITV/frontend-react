@@ -70,6 +70,7 @@ import SellerOverviewPage from "@/features/seller/pages/SellerOverviewPage";
 import SellerOrdersPage from "@/features/seller/pages/SellerOrdersPage";
 import SellerOrderDetailPage from "@/features/seller/pages/SellerOrderDetailPage";
 import SellerProductsPage from "@/features/seller/pages/SellerProductsPage";
+import SellerUsersPage from "@/features/seller/pages/SellerUsersPage";
 import SellerCategoriesPage from "@/features/seller/pages/SellerCategoriesPage";
 import NewProductPage from "@/features/seller/pages/NewProductPage";
 import EditProductPage from "@/features/seller/pages/EditProductPage";
@@ -97,12 +98,15 @@ import AdminPricingRuleDetailPage from "@/features/admin/pages/AdminPricingRuleD
 import AdminWeightRatesPage from "@/features/admin/pages/AdminWeightRatesPage";
 import AdminWeightRateFormPage from "@/features/admin/pages/AdminWeightRateFormPage";
 import AdminWeightRateDetailPage from "@/features/admin/pages/AdminWeightRateDetailPage";
+import AdminCityRatesPage from "@/features/admin/pages/AdminCityRatesPage";
+import AdminCityRateFormPage from "@/features/admin/pages/AdminCityRateFormPage";
 import AdminDistanceRangesPage from "@/features/admin/pages/AdminDistanceRangesPage";
 import AdminDistanceRangeFormPage from "@/features/admin/pages/AdminDistanceRangeFormPage";
 import AdminDistanceRangeDetailPage from "@/features/admin/pages/AdminDistanceRangeDetailPage";
 import AdminDeliveryQuotesPage from "@/features/admin/pages/AdminDeliveryQuotesPage";
 import AdminDeliveryQuoteDetailPage from "@/features/admin/pages/AdminDeliveryQuoteDetailPage";
 import AdminUsersPage from "@/features/admin/pages/AdminUsersPage";
+import PlatformUsersPage from "@/features/admin/pages/PlatformUsersPage";
 import AdminInvoicesPage from "@/features/admin/pages/AdminInvoicesPage";
 import AdminIncomePage from "@/features/admin/pages/AdminIncomePage";
 import AdminExpensePage from "@/features/admin/pages/AdminExpensePage";
@@ -136,6 +140,9 @@ import AdminFinanceTransactionsPage from "@/features/finance/pages/AdminFinanceT
 import AdminAccountingOverviewPage from "@/features/accounting/pages/AdminAccountingOverviewPage";
 import AdminChartOfAccountsPage from "@/features/accounting/pages/AdminChartOfAccountsPage";
 import AdminJournalEntriesPage from "@/features/accounting/pages/AdminJournalEntriesPage";
+import PlatformExpensesPage from "@/features/admin/pages/PlatformExpensesPage";
+import PlatformApprovalPoliciesPage from "@/features/admin/pages/PlatformApprovalPoliciesPage";
+import PlatformPendingApprovalsPage from "@/features/admin/pages/PlatformPendingApprovalsPage";
 
 const AppRoutes = () => {
   return (
@@ -482,6 +489,17 @@ const AppRoutes = () => {
                   allowedRoles={["SHOP_OWNER", "SUPER_ADMIN"]}
                 >
                   <PromotionEnginePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="users"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerOverview}
+                  allowedRoles={["SHOP_OWNER", "SHOP_ADMIN"]}
+                >
+                  <SellerUsersPage />
                 </ProtectedRoute>
               }
             />
@@ -1044,6 +1062,36 @@ const AppRoutes = () => {
               }
             />
             <Route
+              path="shipping/city-rates/new"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminCityRateFormPage mode="create" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/city-rates/:id/edit"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminCityRateFormPage mode="edit" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/city-rates"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminCityRatesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="shipping/quotes/:id"
               element={
                 <ProtectedRoute
@@ -1118,6 +1166,14 @@ const AppRoutes = () => {
                     title="User Administration"
                     description="Global user operations, moderation, and support workflows are planned for this page."
                   /> */}
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="platform-users"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminUsers}>
+                  <PlatformUsersPage />
                 </ProtectedRoute>
               }
             />
@@ -1291,6 +1347,70 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.superAdminAccounting}
                 >
                   <AdminExpensePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/platform-expenses"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminAccounting}>
+                  <PlatformExpensesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/platform-expenses/new"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminAccounting}>
+                  <SellerExpenseFormPage scope="PLATFORM" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/platform-expenses/:expenseId"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminAccounting}>
+                  <SellerExpenseDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/platform-pending-approvals"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminAccounting}>
+                  <PlatformPendingApprovalsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/platform-approval-policies"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminAccounting}>
+                  <PlatformApprovalPoliciesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/platform-approval-policies/new"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminAccounting}>
+                  <PlatformApprovalPoliciesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/platform-approval-policies/:policyId/edit"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminAccounting}>
+                  <PlatformApprovalPoliciesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/platform-approval-policies/:policyId/view"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminAccounting}>
+                  <PlatformApprovalPoliciesPage />
                 </ProtectedRoute>
               }
             />

@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
 import DataTablePagination from '@/components/ui/DataTablePagination'
-import { Search, Plus, Pencil, Trash2, Scale, RefreshCw, MoreHorizontal, Eye } from 'lucide-react'
+import RowActionMenu from '@/components/ui/RowActionMenu'
+import { Search, Plus, Pencil, Trash2, Scale, RefreshCw, Eye } from 'lucide-react'
 import {
   adminShippingApi,
   type AdminWeightRateDto,
@@ -43,25 +44,11 @@ const AdminWeightRatesPage = () => {
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
   const [rowsPerPage, setRowsPerPage] = useState(10)
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
-  const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300)
     return () => clearTimeout(timer)
   }, [search])
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setOpenMenuId(null)
-      }
-    }
-    if (openMenuId) {
-      document.addEventListener('mousedown', handleClickOutside)
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [openMenuId])
 
   useEffect(() => {
     void adminShippingApi
@@ -250,9 +237,7 @@ const AdminWeightRatesPage = () => {
               )}
               {status !== 'loading' &&
                 status !== 'failed' &&
-                rates.map((rate, index) => {
-                  const openUpward = index >= rates.length - 2
-                  return (
+                rates.map((rate) => (
                   <tr
                     key={rate.id}
                     className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
@@ -282,76 +267,36 @@ const AdminWeightRatesPage = () => {
                       {formatMoney(rate.additionalFee, rate.pricingRule?.currency ?? '')}
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-600">{formatDate(rate.updatedAt)}</td>
-                    <td className="relative w-16 px-2 py-3">
-                      <div
-                        className="relative inline-block"
-                        ref={openMenuId === rate.id ? menuRef : undefined}
-                      >
-                        <button
-                          type="button"
-                          onMouseDown={(e) => e.stopPropagation()}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setOpenMenuId((id) => (id === rate.id ? null : rate.id))
-                          }}
-                          className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
-                          aria-label="Actions"
-                          aria-expanded={openMenuId === rate.id}
-                        >
-                          <MoreHorizontal size={18} />
-                        </button>
-                        {openMenuId === rate.id && (
-                          <div
-                            className={`absolute right-0 z-50 min-w-[140px] rounded-lg border border-slate-200 bg-white py-1 shadow-lg ${
-                              openUpward ? 'bottom-full mb-1' : 'top-full mt-1'
-                            }`}
-                          >
-                            <button
-                              type="button"
-                              onMouseDown={(e) => e.stopPropagation()}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setOpenMenuId(null)
-                                navigate(`/super-admin/shipping/weight-rates/${rate.id}`)
-                              }}
-                              className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
-                            >
-                              <Eye size={16} className="shrink-0 text-slate-500" />
-                              View
-                            </button>
-                            <button
-                              type="button"
-                              onMouseDown={(e) => e.stopPropagation()}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setOpenMenuId(null)
-                                navigate(`/super-admin/shipping/weight-rates/${rate.id}/edit`)
-                              }}
-                              className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
-                            >
-                              <Pencil size={16} className="shrink-0 text-slate-500" />
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              onMouseDown={(e) => e.stopPropagation()}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setOpenMenuId(null)
-                                confirmDelete(rate)
-                              }}
-                              className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-red-600 hover:bg-slate-50 cursor-pointer"
-                            >
-                              <Trash2 size={16} className="shrink-0 text-slate-500" />
-                              Delete
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                    <td className="w-16 px-2 py-3">
+                      <RowActionMenu
+                        ariaLabel="Weight rate actions"
+                        items={[
+                          {
+                            key: 'view',
+                            label: 'View',
+                            icon: <Eye size={16} className="shrink-0 text-slate-500" />,
+                            onClick: () => navigate(`/super-admin/shipping/weight-rates/${rate.id}`),
+                          },
+                          {
+                            key: 'edit',
+                            label: 'Edit',
+                            icon: <Pencil size={16} className="shrink-0 text-slate-500" />,
+                            onClick: () =>
+                              navigate(`/super-admin/shipping/weight-rates/${rate.id}/edit`),
+                          },
+                          {
+                            key: 'delete',
+                            label: 'Delete',
+                            icon: <Trash2 size={16} className="shrink-0 text-slate-500" />,
+                            className:
+                              'flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-red-600 hover:bg-slate-50 cursor-pointer',
+                            onClick: () => confirmDelete(rate),
+                          },
+                        ]}
+                      />
                     </td>
                   </tr>
-                  )
-                })}
+                ))}
             </tbody>
           </table>
         </div>

@@ -31,6 +31,7 @@ const NavbarTopUtilityBar = () => {
                     {/* <Link to={startSellingTo} className="hover:text-black">
                         Start Selling
                     </Link>
+                    {/* 
                     <Link to="/help-centre" className="hover:text-black">
                         Help
                     </Link>

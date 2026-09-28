@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Download, FileArchive, FileSpreadsheet, Loader2, X } from 'lucide-react'
-import { batchGeneratePdfs, downloadBatchPdfs, type InvoiceDocument } from '@/lib/api/invoiceClient'
+import { Download, FileSpreadsheet, Loader2, X } from 'lucide-react'
+import { downloadBatchPdfs, type InvoiceDocument } from '@/lib/api/invoiceClient'
 
 type AdminInvoiceBatchBarProps = {
   selectedInvoiceIds: string[]
@@ -20,7 +20,6 @@ export const AdminInvoiceBatchBar = ({
   onClearSelection,
   onBatchComplete,
 }: AdminInvoiceBatchBarProps) => {
-  const [isGenerating, setIsGenerating] = useState(false)
   const [isDownloading, setIsDownloading] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -93,22 +92,6 @@ export const AdminInvoiceBatchBar = ({
     }
   }
 
-  const handleBulkGenerate = async () => {
-    if (selectedCount === 0) return
-
-    setIsGenerating(true)
-    setError(null)
-
-    try {
-      await batchGeneratePdfs(selectedInvoiceIds)
-      onBatchComplete()
-    } catch {
-      setError('Unable to generate PDFs for the selected invoices.')
-    } finally {
-      setIsGenerating(false)
-    }
-  }
-
   const handleBulkDownload = async () => {
     if (selectedCount === 0) return
 
@@ -133,7 +116,7 @@ export const AdminInvoiceBatchBar = ({
     }
   }
 
-  const isBusy = isGenerating || isDownloading || isExporting
+  const isBusy = isDownloading || isExporting
 
   if (selectedCount === 0) return null
 
@@ -156,16 +139,6 @@ export const AdminInvoiceBatchBar = ({
           >
             {isDownloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
             Bulk Download PDFs
-          </button>
-
-          <button
-            type="button"
-            onClick={() => void handleBulkGenerate()}
-            disabled={isBusy}
-            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isGenerating ? <Loader2 size={14} className="animate-spin" /> : <FileArchive size={14} />}
-            Bulk Generate PDFs
           </button>
 
           <button
