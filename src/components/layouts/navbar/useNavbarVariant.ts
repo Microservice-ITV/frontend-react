@@ -10,6 +10,7 @@ export const useNavbarVariant = (): NavbarVariant => {
      */
     if (
         matchPath({ path: '/checkout', end: true }, pathname) ||
+        matchPath({ path: '/checkout/guest', end: true }, pathname) ||
         matchPath({ path: '/cart', end: true }, pathname) ||
         matchPath({ path: '/become-a-seller', end: true }, pathname)
     ) {

@@ -8,6 +8,7 @@ import ProductSortBar from '../components/ProductSortBar'
 import ProductGrid from '../components/ProductGrid'
 import Pagination from '@/components/ui/Pagination'
 import { normalizeProductSort, type ProductSortKey } from '../utils/productSort'
+import { usePageTitle } from '@/components/routing/PageTitle'
 
 const PAGE_SIZE = 12
 
@@ -17,6 +18,8 @@ const ProductListPage = () => {
   const dispatch = useAppDispatch()
   const { items, status } = useAppSelector((s) => s.products)
   const { items: categories, status: categoriesStatus } = useAppSelector((s) => s.categories)
+  const categoryName = categories.find((category) => category.id === id)?.name
+  usePageTitle(categoryName)
   const [sort, setSort] = useState<ProductSortKey>(() => normalizeProductSort(searchParams.get('sort')))
   const [currentPage, setCurrentPage] = useState(1)
 

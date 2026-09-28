@@ -31,7 +31,10 @@ export const selectCartCount = createSelector(
 
 export const selectCartTotal = createSelector(
     selectCartItems,
-    items => items.filter(i => i.selected).reduce((sum, i) => sum + i.price * i.quantity, 0)
+    items => {
+        const raw = items.filter(i => i.selected).reduce((sum, i) => sum + i.price * i.quantity, 0)
+        return Math.round(raw * 100) / 100
+    }
 )
 
 export const selectIsCartEmpty = createSelector(

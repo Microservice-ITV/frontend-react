@@ -12,7 +12,7 @@ const CartQuantityInput = ({ item }: CartQuantiryInputProps) => {
     return (
         <div className="flex items-center">
             <button
-                className="h-9 px-3 border border-r-0 border-[var(--dni-cart-border)] rounded-l text-sm hover:bg-gray-50 cursor-pointer"
+                className="h-8 px-2.5 border border-r-0 border-[var(--dni-cart-border)] rounded-l text-sm hover:bg-gray-50 cursor-pointer sm:h-10 sm:px-3.5"
                 onClick={() =>
                     dispatch(
                         updateQuantity({
@@ -27,13 +27,13 @@ const CartQuantityInput = ({ item }: CartQuantiryInputProps) => {
             </button>
 
             <input
-                className="h-9 w-12 text-center outline-none border border-[var(--dni-cart-border)] rounded-none text-sm bg-white"
+                className="h-8 w-10 text-center outline-none border border-[var(--dni-cart-border)] rounded-none text-sm bg-white sm:h-10 sm:w-14"
                 value={item.quantity}
                 readOnly
             />
 
             <button
-                className="h-9 px-3 border border-l-0 border-[var(--dni-cart-border)] rounded-r text-sm hover:bg-gray-50 cursor-pointer"
+                className="h-8 px-2.5 border border-l-0 border-[var(--dni-cart-border)] rounded-r text-sm hover:bg-gray-50 cursor-pointer sm:h-10 sm:px-3.5"
                 onClick={() =>
                     dispatch(
                         updateQuantity({

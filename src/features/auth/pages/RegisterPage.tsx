@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Lock } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { register } from "@/features/auth/store/authThunks";
@@ -71,6 +71,25 @@ export const RegisterPage = () => {
         <p className="mt-2 text-sm text-gray-600 text-center">
           Join us and start shopping today
         </p>
+
+        <div className="mt-5 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-3">
+          <div className="flex items-center gap-2">
+            <Lock className="h-4 w-4 shrink-0 text-emerald-600" aria-hidden />
+            <p className="text-xs font-semibold text-emerald-700">Your Privacy Matters</p>
+          </div>
+          <p className="mt-1 text-xs leading-4 tracking-tight text-gray-600">
+            We use your information to create your account, process
+            
+            orders, provide customer support, and keep your account secure.
+          </p>
+          <Link
+            to="/privacy"
+            className="mt-1 inline-flex items-center text-xs font-medium text-emerald-700 hover:underline"
+          >
+            Privacy Policy
+            <span aria-hidden className="ml-1">›</span>
+          </Link>
+        </div>
 
         {/* Error message */}
         {error && (

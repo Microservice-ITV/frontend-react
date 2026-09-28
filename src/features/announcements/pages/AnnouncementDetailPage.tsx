@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import noMoreAnnouncementsIcon from "@/assets/announcement/no_more_announcements_icon.png";
 import { announcementApi } from "@/features/announcements/api/announcementApi";
 import type { Announcement } from "@/features/announcements/types/announcementTypes";
+import { usePageTitle } from "@/components/routing/PageTitle";
 
 const accentClasses: Record<string, string> = {
   FREE_SHIPPING: "from-emerald-600 via-emerald-500 to-green-400",
@@ -132,6 +133,7 @@ const AnnouncementDetailPage = () => {
 
     return announcement.title ?? announcement.name ?? "Announcement";
   }, [announcement]);
+  usePageTitle(title);
 
   const summary = useMemo(() => {
     if (!announcement) {

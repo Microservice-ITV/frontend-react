@@ -8,7 +8,7 @@ export { default as ninjavanIcon } from './logistics/ninjavan.jpeg'
 // PAYMENTS
 export { default as masterCardIcon } from './payments/mastercard.jpeg'
 export { default as shopPayIcon } from './payments/shopeepay.jpeg'
-export { default as visaIcon } from './payments/visa.jpeg'
+export { default as visaIcon } from './payments/visa.svg'
 
 
 // SOCIAL

@@ -27,3 +27,6 @@ export function formatProductPrice(
     })}`
   }
 }
+
+export const formatKsPrice = (amount: number, currency?: string) =>
+  formatProductPrice(amount, currency).replace('MMK', 'Ks')

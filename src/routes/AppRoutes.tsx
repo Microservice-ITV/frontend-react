@@ -27,7 +27,7 @@ import HomePage from "@/features/home/HomePage";
 import RecentlyAddedPage from "@/features/home/pages/RecentlyAddedPage";
 import ProductListPage from "@/features/products/pages/ProductListPage";
 import ProductDetailPage from "@/features/products/pages/ProductDetailPage";
-import SearchResultsPage from "@/features/products/pages/SearchResultsPage";
+import SearchPage from "@/features/search/pages/SearchPage";
 import CartPage from "@/features/cart/pages/CartPage";
 import CartSeeMorePage from "@/features/cart/pages/CartSeeMorePage";
 import WishlistPage from "@/features/wishlist/pages/WishlistPage";
@@ -44,6 +44,7 @@ import PoliciesPage from "@/features/policies/pages/PoliciesPage";
 import PrivacyPolicyPage from "@/features/privacy/pages/PrivacyPolicyPage";
 import BlogPage from "@/features/blog/pages/BlogPage";
 import MallPage from "@/features/mall/pages/MallPage";
+import ShopPage from "@/features/shops/pages/ShopPage";
 import SellerCentrePage from "@/features/seller-centre/pages/SellerCentrePage";
 import SellerMentorsPage from "@/features/seller-mentors/pages/SellerMentorsPage";
 import FlashDealsPage from "@/features/flash-deals/pages/FlashDealsPage";
@@ -1494,7 +1495,8 @@ const AppRoutes = () => {
           </BuyerHomeRoute>
         }
       />
-      <Route path="/search" element={<SearchResultsPage />} />
+      <Route path="/search" element={<SearchPage />} />
+      <Route path="/shops/:shopId" element={<ShopPage />} />
       <Route path="/ai-assistant" element={<Navigate to="/" replace />} />
       <Route path="/all_categories" element={<CategoriesPage />} />
       <Route path="/categories/:id" element={<ProductListPage />} />

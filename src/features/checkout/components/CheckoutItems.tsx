@@ -8,11 +8,15 @@ import { removeFromCart, toggleItemSelection, toggleShopSelection } from '@/feat
 import { CartItem } from '@/features/cart/types/cartTypes'
 import type { ShopCalculatedShipping } from '@/features/shipping/types/shippingTypes'
 import { formatProductPrice } from '@/features/products/utils/formatProductPrice'
+import { chatIcon, fastDeliveryIcon, voucherIcon } from '@/assets/icons'
+import { CheckoutTotals } from '../utils/checkoutCalculator'
+import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
+import { useAppSelector } from '@/app/hooks'
 import placeholderImage from '@/public/placeholder.svg'
 import { Truck } from 'lucide-react'
 
-interface CartItemListProps {
-  items: CartItem[]
+interface CheckoutItemsProps {
+  checkout: CheckoutTotals
 }
 
 function formatKm(value: number): string {
@@ -154,153 +158,193 @@ const CartItemLists = ({ items }: CartItemListProps) => {
     acc[item.shopId].items.push(item)
     return acc
   }, {})
+const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
+  const { groupedByShop } = checkout
+  const feesByShopId = useAppSelector(state => state.shipping.feesByShopId)
+  const calculateStatus = useAppSelector(state => state.shipping.calculateStatus)
+  const calculateError = useAppSelector(state => state.shipping.calculateError)
 
   return (
-    <div className="space-y-4">
-      {Object.values(groupedByShop).map(shop => (
-        <section key={shop.shopId} className="bg-white border border-[var(--dni-cart-border)] rounded-sm overflow-hidden">
-          {/* SHOP HEADER */}
-          <div
-            className="flex items-center px-4 py-3 border-b border-[var(--dni-cart-border)]"
+    <div className="space-y-3">
+      {calculateStatus === 'failed' && calculateError ? (
+        <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          Delivery fee could not be calculated: {calculateError}
+        </div>
+      ) : null}
+
+      <div className="hidden items-center gap-3.5 rounded-sm border border-[var(--dni-cart-border)] bg-white px-3 py-2.5 text-sm text-gray-500 sm:px-4 md:grid md:grid-cols-[minmax(0,1fr)_7.5rem_5rem_8.5rem]">
+        <span className="text-gray-900">Products Ordered</span>
+        <span className="whitespace-nowrap text-right">Unit Price</span>
+        <span className="text-center">Quantity</span>
+        <span className="whitespace-nowrap text-right">Item Subtotal</span>
+      </div>
+
+      {Object.entries(groupedByShop).map(([shopId, shopItems]) => {
+        const shopSubtotal = shopItems.reduce(
+          (sum, item) => sum + item.price * item.quantity,
+          0
+        )
+        const shopQuantity = shopItems.reduce(
+          (sum, item) => sum + item.quantity,
+          0
+        )
+        const feeRow = feesByShopId[shopId]
+        const isNotDeliverable = feeRow?.deliveryStatus === 'NOT_DELIVERABLE'
+        const hasFee =
+          calculateStatus === 'succeeded' &&
+          !isNotDeliverable &&
+          feeRow?.amount != null &&
+          feeRow.amount >= 0
+        const shippingFee = hasFee ? (feeRow?.amount as number) : 0
+        const shippingCurrency = feeRow?.currency ?? 'MMK'
+        const rawMethod = feeRow?.methodLabel?.trim()
+        const methodTitle = isNotDeliverable
+          ? 'Delivery unavailable'
+          : rawMethod === 'STANDARD'
+            ? 'Standard shipping'
+            : rawMethod || 'Standard shipping'
+        const etaLine =
+          feeRow?.estimatedDays != null && feeRow.estimatedDays > 0
+            ? `Estimated ${feeRow.estimatedDays} business day${feeRow.estimatedDays === 1 ? '' : 's'}`
+            : feeRow?.etaHint?.trim() || null
+        const shopTotal = shopSubtotal + shippingFee
+
+        return (
+          <section
+            key={shopId}
+            className="overflow-hidden rounded-sm border border-[var(--dni-cart-border)] bg-white"
           >
-            <div className="w-[48px] flex justify-center">
-              <input
-                type="checkbox"
-                checked={shopSelectionMap[shop.shopId]?.checked ?? false}
-                ref={el => {
-                  if (el) {
-                    el.indeterminate = shopSelectionMap[shop.shopId]?.indeterminate ?? false
-                  }
-                }}
-                onChange={e =>
-                  dispatch(toggleShopSelection({ shopId: shop.shopId, selected: e.target.checked }))
-                }
-                className="h-4 w-4 accent-emerald-600"
-              />
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--dni-cart-border)] px-3 py-2.5 sm:px-4">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className="shrink-0 rounded bg-emerald-600 px-2 py-px text-xs text-white">Shop</span>
+                <span className="min-w-0 truncate text-sm font-medium text-gray-900 sm:text-[15px]">
+                  {shopItems[0].shopName}
+                </span>
+                <button type="button" className="hidden shrink-0 items-center gap-1 text-sm text-emerald-600 sm:flex">
+                  <img src={chatIcon} alt="" className="h-4 w-4" />
+                  Chat
+                </button>
+              </div>
             </div>
 
-            <span className="font-medium text-gray-800">
-              {shop.shopName}
-            </span>
-          </div>
+            <ul>
+              {shopItems.map(item => {
+                const subtotal = item.price * item.quantity
+                const variation = item.variantLabel?.trim() || 'Standard'
 
-          {/* ITEMS (single shop section, multiple product rows) */}
-          <div>
-            {shop.items.map(item => (
-              <div
-                key={`${item.productId}::${item.variantId ?? ''}`}
-                className="grid grid-cols-[40px_1fr] md:grid-cols-[48px_1fr_140px_140px_140px_100px] px-3 md:px-4 py-4 border-b border-[var(--dni-cart-border)]"
-              >
-                <div className="flex justify-center pt-1 md:pt-0 md:items-center">
-                  <input
-                    type="checkbox"
-                    checked={item.selected}
-                    onChange={() =>
-                      dispatch(toggleItemSelection({ productId: item.productId, variantId: item.variantId }))
-                    }
-                    className="h-4 w-4 accent-emerald-600 border-gray-300"
-                  />
-                </div>
-
-                <div className="flex gap-3">
-                  <img
-                    src={item.image || placeholderImage}
-                    alt={item.name}
-                    onError={(e) => {
-                      const img = e.currentTarget
-                      img.onerror = null
-                      img.src = placeholderImage
-                    }}
-                    className="w-16 h-16 md:w-20 md:h-20 object-cover border border-[var(--dni-cart-border)]"
-                  />
-                  <div className="min-w-0">
-                    <div className="line-clamp-2 text-sm text-gray-800">{item.name}</div>
-                    <div className="mt-1 text-xs text-gray-500">
-                      {item.variantLabel?.trim()
-                        ? `Variation: ${item.variantLabel}`
-                        : 'Variation: Standard'}
-                    </div>
-                    <div className="mt-2 md:hidden flex items-center justify-between gap-3">
-                      <span className="text-sm font-medium text-emerald-700">
-                        ${(item.price * item.quantity).toFixed(2)}
-                      </span>
-                      <CartQuantityInput item={item} />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="hidden md:flex items-center justify-center text-sm text-gray-700">
-                  ${item.price.toFixed(2)}
-                </div>
-
-                <div className="hidden md:flex items-center justify-center">
-                  <CartQuantityInput item={item} />
-                </div>
-
-                <div className="hidden md:flex items-center justify-center text-sm font-medium text-emerald-700">
-                  ${(item.price * item.quantity).toFixed(2)}
-                </div>
-
-                <div className="hidden md:flex flex-col items-center justify-center text-sm">
-                  <button
-                    className="text-gray-600 hover:text-red-500 cursor-pointer"
-                    onClick={() =>
-                      dispatch(removeFromCart({ productId: item.productId, variantId: item.variantId }))
-                    }
+                return (
+                  <li
+                    key={`${item.productId}-${item.variantId ?? ''}-${item.shopId}`}
+                    className="flex flex-col gap-2 border-b border-[var(--dni-cart-border)] px-3 py-3 last:border-b-0 sm:px-4 md:grid md:grid-cols-[minmax(0,1fr)_7.5rem_5rem_8.5rem] md:items-center md:gap-3.5"
                   >
-                    Delete
-                  </button>
-                  <button className="text-gray-500 hover:text-emerald-600 mt-1 cursor-pointer">
-                    Save for Later
-                  </button>
+                    <div className="flex min-w-0 items-center gap-3">
+                      <img
+                        src={item.image || placeholderImage}
+                        alt={item.name}
+                        onError={e => {
+                          const img = e.currentTarget
+                          img.onerror = null
+                          img.src = placeholderImage
+                        }}
+                        className="h-16 w-16 shrink-0 object-cover md:h-14 md:w-14"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm text-gray-900 sm:text-[15px]">{item.name}</p>
+                        <p className="mt-0.5 truncate text-xs text-gray-500">Variation : {variation}</p>
+                        <p className="mt-1 whitespace-nowrap text-sm font-medium text-emerald-700 md:hidden">
+                          {formatKsPrice(item.price)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <p className="hidden whitespace-nowrap text-right text-[15px] tabular-nums text-gray-700 md:block">
+                      {formatKsPrice(item.price)}
+                    </p>
+                    <div className="flex items-center justify-between pl-[4.5rem] md:contents">
+                      <p className="text-sm text-gray-500 md:hidden">Qty {item.quantity}</p>
+                      <p className="hidden text-center text-sm text-gray-700 md:block">{item.quantity}</p>
+                      <p className="whitespace-nowrap text-sm font-semibold tabular-nums text-emerald-700 md:text-right md:text-[15px]">
+                        {formatKsPrice(subtotal)}
+                      </p>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+
+            <div className="flex items-center justify-between gap-3 border-t border-[var(--dni-cart-border)] px-3 py-2.5 text-sm sm:px-4">
+              <div className="flex min-w-0 items-center gap-2">
+                <img src={voucherIcon} alt="" className="h-5 w-5" />
+                <span className="text-gray-700">Shop Voucher</span>
+              </div>
+              <button type="button" className="shrink-0 text-[#0055aa] hover:underline">
+                Select Voucher
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 bg-[#fafdff] lg:grid-cols-2 lg:items-stretch">
+              <div className="px-3 py-3 sm:px-4 sm:py-4 lg:flex lg:border-r lg:border-dashed lg:border-black/10">
+                <div className="flex min-h-28 w-full flex-col gap-2 lg:h-full lg:min-h-0">
+                  <span className="text-sm font-medium text-gray-900">Message for Seller</span>
+                  <textarea
+                    rows={4}
+                    className="min-h-24 w-full flex-1 resize-none overflow-y-auto rounded-sm border border-[var(--dni-cart-border)] bg-white px-3 py-2 text-sm leading-5 text-gray-700 outline-none focus:border-emerald-500 lg:min-h-0"
+                    placeholder="Please leave a message"
+                  />
                 </div>
               </div>
-            ))}
-          </div>
 
-          <div className="flex items-center justify-between border-t border-[var(--dni-cart-border)] px-4 py-3 text-sm">
-            <span className="flex items-center gap-2 text-gray-800">
-              <img src={voucherIcon} alt="" className="h-4 w-4" />
-              Shop Voucher
-            </span>
-            <button type="button" className="cursor-pointer text-[#0055aa] hover:text-emerald-600">
-              Select Voucher
-            </button>
-          </div>
+              <div className="border-t border-dashed border-black/10 px-3 py-3 sm:px-4 sm:py-4 lg:border-t-0">
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="text-sm font-medium text-gray-900">Shipping Option</div>
+                  <button type="button" className="flex cursor-pointer items-center gap-1 text-sm text-[#0055aa]">
+                    View All <span>›</span>
+                  </button>
+                </div>
 
-          <div className="grid grid-cols-1 border-t border-[var(--dni-cart-border)] md:grid-cols-2">
-            <div className="px-4 py-4 md:border-r md:border-[var(--dni-cart-border)]">
-              <label htmlFor={`seller-message-${shop.shopId}`} className="mb-2 block text-sm text-gray-800">
-                Message for Seller
-              </label>
-              <textarea
-                id={`seller-message-${shop.shopId}`}
-                rows={4}
-                value={sellerMessages[shop.shopId] ?? ''}
-                onChange={(event) =>
-                  setSellerMessages((current) => ({
-                    ...current,
-                    [shop.shopId]: event.target.value,
-                  }))
-                }
-                placeholder="Please leave a message"
-                className="w-full resize-y rounded-sm border border-gray-200 px-3 py-2 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-emerald-500"
-              />
+                <button
+                  type="button"
+                  className="w-full cursor-pointer rounded-md border border-[#b7e3d5] bg-[#f0faf7] p-3 text-left transition hover:border-emerald-600 focus:outline-none"
+                >
+                   <ShippingOptionCard
+                    fee={feesByShopId[shop.shopId]}
+                    calculateStatus={calculateStatus}
+                    calculateError={calculateError}
+                    cityNames={cityNames}
+                  />
+                </button>
+              </div>
             </div>
-            <div className="px-4 py-4">
-              <p className="mb-3 text-sm text-gray-800">Shipping Option</p>
-              <ShippingOptionCard
-                fee={feesByShopId[shop.shopId]}
-                calculateStatus={calculateStatus}
-                calculateError={calculateError}
-                cityNames={cityNames}
-              />
+
+            <div className="border-t border-dashed border-black/10 bg-[#fafdff] px-3 py-3 text-sm sm:px-4">
+              <span className="font-medium text-gray-900">Guaranteed to get by 9 Feb</span>
+              <span className="ml-1 text-gray-500">with Collection Points</span>
+              <span className="ml-1 text-gray-400">›</span>
             </div>
-          </div>
-        </section>
-      ))}
+
+            <div className="flex items-center justify-between gap-2 border-t border-dashed border-black/10 bg-[#fafdff] px-3 py-3 sm:px-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-700">Allow to leave at doorstep</span>
+                <span className="rounded bg-emerald-600 px-2 py-[1px] text-xs text-white">New</span>
+              </div>
+              <div className="relative h-5 w-10 cursor-pointer rounded-full bg-green-500">
+                <div className="absolute top-0.5 right-0.5 h-4 w-4 rounded-full bg-white" />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-2 bg-[#fafdff] px-3 py-2.5 sm:px-4">
+              <span className="text-sm text-gray-600">
+                Order Total ({shopQuantity} {shopQuantity === 1 ? 'Item' : 'Items'}):
+              </span>
+              <span className="whitespace-nowrap text-lg font-semibold tabular-nums text-emerald-600 sm:text-xl">
+                {formatKsPrice(shopTotal)}
+              </span>
+            </div>
+          </section>
+        )
+      })}
     </div>
   )
 }
 
-export default CartItemLists
+export default CheckoutItems
