@@ -483,6 +483,19 @@ const CheckoutSummary = ({
     shippingDiscount,
     totalPayment,
   } = checkout
+  const deliveryFees = Object.values(feesByShopId)
+  const deliveryCurrency = deliveryFees.find((fee) => fee.currency)?.currency
+  const anyNotDeliverable = deliveryFees.some((fee) => fee.deliveryStatus === 'NOT_DELIVERABLE')
+  const deliveryPriceText = (() => {
+    if (!hasDeliveryAddress) return 'Add address'
+    if (shippingCalculateStatus === 'loading') return 'Calculating…'
+    if (shippingCalculateStatus === 'failed') return 'Unavailable'
+    if (shippingCalculateStatus === 'succeeded' && anyNotDeliverable) return 'Not available'
+    if (shippingCalculateStatus === 'succeeded') {
+      return formatProductPrice(shippingSubtotal, deliveryCurrency)
+    }
+    return '—'
+  })()
   const displayedTotal = authoritativeTotal ?? totalPayment
   const promoFeedback = promoStatusLabel(promoCodeStatus, promoCodeMessage)
   const promoIsValid = promoCodeStatus === 'VALID'
@@ -494,10 +507,12 @@ const CheckoutSummary = ({
           <span className="shrink-0 text-gray-600">Merchandise Subtotal</span>
           <span className="whitespace-nowrap tabular-nums text-gray-900">{formatKsPrice(merchandiseSubtotal)}</span>
         </div>
-
         <div className="mb-3 flex justify-between gap-3">
-          <span className="shrink-0 text-gray-600">Shipping Subtotal</span>
-          <span className="whitespace-nowrap tabular-nums text-gray-900">{formatKsPrice(shippingSubtotal)}</span>
+          <span className="shrink-0 text-gray-600">Delivery</span>
+          <span className="whitespace-nowrap tabular-nums text-gray-900">{deliveryPriceText}</span>
+          {shippingCalculateStatus === 'failed' && shippingCalculateError && (
+            <p className="mt-1 text-right text-[11px] text-amber-700">{shippingCalculateError}</p>
+          )}
         </div>
 
         <div className="mb-4 space-y-3 rounded-xl border border-emerald-100 bg-emerald-50/70 p-3">

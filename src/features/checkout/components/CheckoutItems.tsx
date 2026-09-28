@@ -1,13 +1,163 @@
+import { useEffect, useState } from 'react'
+import { useAppDispatch, useAppSelector } from '@/app/hooks'
+import { voucherIcon } from '@/assets/icons'
+import { locationApi } from '@/features/account/api/locationApi'
+import CartQuantityInput from '@/features/cart/components/CartQuantityInput'
+import { selectShopSelectionMap } from '@/features/cart/store/cartSelectors'
+import { removeFromCart, toggleItemSelection, toggleShopSelection } from '@/features/cart/store/cartSlice'
+import { CartItem } from '@/features/cart/types/cartTypes'
+import type { ShopCalculatedShipping } from '@/features/shipping/types/shippingTypes'
+import { formatProductPrice } from '@/features/products/utils/formatProductPrice'
 import { chatIcon, fastDeliveryIcon, voucherIcon } from '@/assets/icons'
 import { CheckoutTotals } from '../utils/checkoutCalculator'
 import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
 import { useAppSelector } from '@/app/hooks'
 import placeholderImage from '@/public/placeholder.svg'
+import { Truck } from 'lucide-react'
 
 interface CheckoutItemsProps {
   checkout: CheckoutTotals
 }
 
+function formatKm(value: number): string {
+  return `${value.toFixed(1)} km`
+}
+
+function formatKg(value: number): string {
+  return `${value.toFixed(2)} kg`
+}
+
+function formatKgAmount(value: number): string {
+  return value.toFixed(2)
+}
+
+const ShippingOptionCard = ({
+  fee,
+  calculateStatus,
+  calculateError,
+  cityNames,
+}: {
+  fee?: ShopCalculatedShipping
+  calculateStatus: string
+  calculateError: string | null
+  cityNames: Record<string, string>
+}) => {
+  if (calculateStatus === 'loading' || calculateStatus === 'idle') {
+    return (
+      <div className="rounded-sm border border-emerald-100 bg-[#f3faf6] px-3 py-3 text-sm text-gray-500">
+        {calculateStatus === 'loading' ? 'Calculating delivery price…' : 'Delivery price will appear after your address is confirmed.'}
+      </div>
+    )
+  }
+
+  if (calculateStatus === 'failed' || !fee || fee.amount == null) {
+    return (
+      <div className="rounded-sm border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-800">
+        {calculateError?.trim() || 'Delivery price is unavailable'}
+      </div>
+    )
+  }
+
+  const currency = fee.currency
+  const isCityRoute = fee.calculationMethod === 'CITY_ROUTE'
+  const fromCity = fee.fromCityId ? cityNames[fee.fromCityId] : undefined
+  const toCity = fee.toCityId ? cityNames[fee.toCityId] : undefined
+  const routeLabel = [fromCity, toCity].filter(Boolean).join(' → ')
+  const weightParts = [
+    fee.actualWeightKg != null ? `actual ${formatKgAmount(fee.actualWeightKg)}` : null,
+    fee.volumetricWeightKg != null ? `volumetric ${formatKgAmount(fee.volumetricWeightKg)}` : null,
+  ].filter(Boolean)
+
+  return (
+    <div className="rounded-sm border border-emerald-200 bg-[#f3faf6] px-3 py-3 text-[13px] leading-5 text-gray-700">
+      <div className="flex items-start justify-between gap-3 text-sm font-semibold text-gray-900">
+        <span>{fee.methodLabel?.trim() || 'Standard shipping'}</span>
+        <span>
+          {fee.deliveryStatus === 'NOT_DELIVERABLE'
+            ? 'Not available'
+            : formatProductPrice(fee.amount, currency)}
+        </span>
+      </div>
+
+      <div className="mt-2 space-y-0.5 text-xs text-gray-600">
+        <p className="flex items-center gap-1.5 text-emerald-700">
+          <Truck className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          <span>{fee.etaHint?.trim() || 'Delivery estimate unavailable'}</span>
+        </p>
+        {fee.deliveryStatus === 'NOT_DELIVERABLE' ? (
+          <p className="text-amber-800">Delivery is not available to this address.</p>
+        ) : (
+          <>
+            {isCityRoute ? (
+              <p>Route: {routeLabel || 'City route'}</p>
+            ) : (
+              fee.distanceKm != null && fee.distanceKm > 0 && <p>Distance: {formatKm(fee.distanceKm)}</p>
+            )}
+            {fee.chargeableWeightKg != null && (
+              <p>
+                Chargeable weight: {formatKg(fee.chargeableWeightKg)}
+                {weightParts.length > 0 ? ` (${weightParts.join(' · ')})` : ''}
+              </p>
+            )}
+            {fee.baseFee != null && <p>Base fee: {formatProductPrice(fee.baseFee, currency)}</p>}
+            {fee.distanceFee != null && (
+              <p>
+                {isCityRoute ? 'Route fee' : 'Distance fee'}: {formatProductPrice(fee.distanceFee, currency)}
+              </p>
+            )}
+            {fee.weightFee != null && <p>Weight fee: {formatProductPrice(fee.weightFee, currency)}</p>}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+const CartItemLists = ({ items }: CartItemListProps) => {
+  const dispatch = useAppDispatch()
+  const [sellerMessages, setSellerMessages] = useState<Record<string, string>>({})
+  const shopSelectionMap = useAppSelector(selectShopSelectionMap)
+  const feesByShopId = useAppSelector(state => state.shipping.feesByShopId)
+  const calculateStatus = useAppSelector(state => state.shipping.calculateStatus)
+  const calculateError = useAppSelector(state => state.shipping.calculateError)
+  const [cityNames, setCityNames] = useState<Record<string, string>>({})
+  const needsCityNames = Object.values(feesByShopId).some(
+    (fee) => fee.calculationMethod === 'CITY_ROUTE' && (fee.fromCityId || fee.toCityId),
+  )
+
+  useEffect(() => {
+    if (!needsCityNames) return
+    let cancelled = false
+    void locationApi.getAllCities()
+      .then((res) => {
+        if (cancelled) return
+        const next: Record<string, string> = {}
+        for (const city of res.data?.data?.cities ?? []) {
+          next[String(city.id)] = city.name
+        }
+        setCityNames(next)
+      })
+      .catch(() => {
+        if (!cancelled) setCityNames({})
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [needsCityNames])
+
+  // Group items by shop
+  const groupedByShop = items.reduce<Record<
+    string,
+    { shopId: string; shopName: string; items: CartItem[] }
+  >>((acc, item) => {
+    acc[item.shopId] ??= {
+      shopId: item.shopId,
+      shopName: item.shopName,
+      items: [],
+    }
+    acc[item.shopId].items.push(item)
+    return acc
+  }, {})
 const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
   const { groupedByShop } = checkout
   const feesByShopId = useAppSelector(state => state.shipping.feesByShopId)
@@ -156,83 +306,12 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
                   type="button"
                   className="w-full cursor-pointer rounded-md border border-[#b7e3d5] bg-[#f0faf7] p-3 text-left transition hover:border-emerald-600 focus:outline-none"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="text-sm font-medium text-gray-900">{methodTitle}</div>
-                    <span className="whitespace-nowrap text-sm font-medium">
-                      {calculateStatus === 'loading' ? (
-                        <span className="text-gray-400">…</span>
-                      ) : isNotDeliverable ? (
-                        <span className="text-red-600">Unavailable</span>
-                      ) : hasFee ? (
-                        formatKsPrice(shippingFee, shippingCurrency)
-                      ) : calculateStatus === 'failed' ? (
-                        <span className="text-red-500">Unavailable</span>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
-                    </span>
-                  </div>
-
-                  {isNotDeliverable ? (
-                    <div className="mt-2 text-sm text-red-600">
-                      Delivery is not available for this shop/route yet.
-                    </div>
-                  ) : (
-                    <div className="mt-2 flex items-center gap-1 text-sm text-emerald-600">
-                      <img src={fastDeliveryIcon} alt="" className="h-4 w-4" />
-                      {calculateStatus === 'succeeded' && etaLine ? (
-                        <span>{etaLine}</span>
-                      ) : calculateStatus === 'loading' ? (
-                        <span className="text-gray-400">Calculating delivery time…</span>
-                      ) : (
-                        <span className="text-gray-500">Delivery estimate unavailable</span>
-                      )}
-                    </div>
-                  )}
-
-                  {hasFee &&
-                    (feeRow?.baseFee != null ||
-                      feeRow?.distanceFee != null ||
-                      feeRow?.weightFee != null) && (
-                      <div className="mt-2 space-y-0.5 text-xs text-gray-600">
-                        {feeRow?.distanceKm != null && feeRow.distanceKm > 0 && (
-                          <div>Distance: {feeRow.distanceKm.toFixed(1)} km</div>
-                        )}
-                        {feeRow?.chargeableWeightKg != null && (
-                          <div>
-                            Chargeable weight: {feeRow.chargeableWeightKg.toFixed(2)} kg
-                            {feeRow.actualWeightKg != null &&
-                              feeRow.volumetricWeightKg != null && (
-                                <span className="text-gray-400">
-                                  {' '}
-                                  (actual {feeRow.actualWeightKg.toFixed(2)} · volumetric{' '}
-                                  {feeRow.volumetricWeightKg.toFixed(2)})
-                                </span>
-                              )}
-                          </div>
-                        )}
-                        {feeRow?.baseFee != null && (
-                          <div>Base fee: {formatKsPrice(feeRow.baseFee, shippingCurrency)}</div>
-                        )}
-                        {feeRow?.distanceFee != null && (
-                          <div>Distance fee: {formatKsPrice(feeRow.distanceFee, shippingCurrency)}</div>
-                        )}
-                        {feeRow?.weightFee != null && (
-                          <div>Weight fee: {formatKsPrice(feeRow.weightFee, shippingCurrency)}</div>
-                        )}
-                      </div>
-                    )}
-
-                  {!isNotDeliverable && (
-                    <>
-                      <div className="mt-1 text-sm text-gray-600">
-                        Get a $2.00 voucher if no delivery was attempted by 7 Feb 2026.
-                      </div>
-                      <div className="mt-1 text-sm text-gray-600">
-                        Orders paid after 2pm will be delivered the day after tomorrow, excl. Sun & PH
-                      </div>
-                    </>
-                  )}
+                   <ShippingOptionCard
+                    fee={feesByShopId[shop.shopId]}
+                    calculateStatus={calculateStatus}
+                    calculateError={calculateError}
+                    cityNames={cityNames}
+                  />
                 </button>
               </div>
             </div>
