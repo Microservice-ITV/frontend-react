@@ -3,6 +3,11 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { searchProducts } from "@/features/products/store/productThunks";
 import { searchShops } from "@/features/shops/store/shopThunks";
+import { fetchCategories } from "@/features/categories/store/categoryThunks";
+import {
+  selectCategories,
+  selectCategoriesStatus,
+} from "@/features/categories/store/categorySelectors";
 import ProductGrid from "../components/ProductGrid";
 import ProductSortBar from "../components/ProductSortBar";
 import {
@@ -25,6 +30,9 @@ const SearchResultsPage = () => {
   const shops = useAppSelector((s) => s.shops.searchResults || []);
   const shopStatus = useAppSelector((s) => s.shops.searchStatus || "idle");
   const shopError = useAppSelector((s) => s.shops.searchError || null);
+  const categories = useAppSelector(selectCategories);
+  const categoriesStatus = useAppSelector(selectCategoriesStatus);
+  const categorySlug = searchParams.get("category") ?? "";
 
   useEffect(() => {
     const nextSort = normalizeProductSort(searchParams.get("sort"));
@@ -32,12 +40,34 @@ const SearchResultsPage = () => {
   }, [searchParams]);
 
   useEffect(() => {
-    const trimmedQuery = query.trim();
-    if (trimmedQuery) {
-      dispatch(searchProducts({ query: trimmedQuery, sort }));
-      dispatch(searchShops({ query: trimmedQuery, perPage: 50 }));
+    if (categoriesStatus === "idle") {
+      void dispatch(fetchCategories());
     }
-  }, [dispatch, query, sort]);
+  }, [categoriesStatus, dispatch]);
+
+  useEffect(() => {
+    const trimmedQuery = query.trim();
+    const slug = categorySlug.trim();
+    if (!trimmedQuery && !slug) return;
+    if (slug && (categoriesStatus === "idle" || categoriesStatus === "loading")) {
+      return;
+    }
+
+    const categoryId = slug
+      ? categories.find((category) => category.slug === slug)?.id
+      : undefined;
+
+    void dispatch(
+      searchProducts({
+        query: trimmedQuery,
+        sort,
+        categoryId,
+      }),
+    );
+    if (trimmedQuery) {
+      void dispatch(searchShops({ query: trimmedQuery, perPage: 50 }));
+    }
+  }, [dispatch, query, sort, categorySlug, categories, categoriesStatus]);
 
   const handleSortChange = (nextSort: ProductSortKey) => {
     setSort(nextSort);
