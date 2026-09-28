@@ -1,41 +1,27 @@
 import { chatIcon, fastDeliveryIcon, voucherIcon } from '@/assets/icons'
 import { CheckoutTotals } from '../utils/checkoutCalculator'
-import { useAppSelector } from '@/app/hooks'
 import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
-import { useAppDispatch, useAppSelector } from '@/app/hooks'
-import CartQuantityInput from '@/features/cart/components/CartQuantityInput'
-import { selectShopSelectionMap } from '@/features/cart/store/cartSelectors'
-import { removeFromCart, toggleItemSelection, toggleShopSelection } from '@/features/cart/store/cartSlice'
-import { CartItem } from '@/features/cart/types/cartTypes'
-import { formatProfileShippingLine } from '@/features/shipping/utils/normalizeShipping'
+import { useAppSelector } from '@/app/hooks'
 import placeholderImage from '@/public/placeholder.svg'
 
-interface CartItemListProps {
-  items: CartItem[]
+interface CheckoutItemsProps {
+  checkout: CheckoutTotals
 }
 
-const CartItemLists = ({ items }: CartItemListProps) => {
-  const dispatch = useAppDispatch()
-  const shopSelectionMap = useAppSelector(selectShopSelectionMap)
-  const profilesByShopId = useAppSelector(state => state.shipping.profilesByShopId)
-  const batchStatus = useAppSelector(state => state.shipping.batchStatus)
-
-  // Group items by shop
-  const groupedByShop = items.reduce<Record<
-    string,
-    { shopId: string; shopName: string; items: CartItem[] }
-  >>((acc, item) => {
-    acc[item.shopId] ??= {
-      shopId: item.shopId,
-      shopName: item.shopName,
-      items: [],
-    }
-    acc[item.shopId].items.push(item)
-    return acc
-  }, {})
+const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
+  const { groupedByShop } = checkout
+  const feesByShopId = useAppSelector(state => state.shipping.feesByShopId)
+  const calculateStatus = useAppSelector(state => state.shipping.calculateStatus)
+  const calculateError = useAppSelector(state => state.shipping.calculateError)
 
   return (
     <div className="space-y-3">
+      {calculateStatus === 'failed' && calculateError ? (
+        <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          Delivery fee could not be calculated: {calculateError}
+        </div>
+      ) : null}
+
       <div className="hidden items-center gap-3.5 rounded-sm border border-[var(--dni-cart-border)] bg-white px-3 py-2.5 text-sm text-gray-500 sm:px-4 md:grid md:grid-cols-[minmax(0,1fr)_7.5rem_5rem_8.5rem]">
         <span className="text-gray-900">Products Ordered</span>
         <span className="whitespace-nowrap text-right">Unit Price</span>
@@ -53,13 +39,18 @@ const CartItemLists = ({ items }: CartItemListProps) => {
           0
         )
         const feeRow = feesByShopId[shopId]
+        const isNotDeliverable = feeRow?.deliveryStatus === 'NOT_DELIVERABLE'
         const hasFee =
-          calculateStatus === 'succeeded' && feeRow?.amount != null && feeRow.amount >= 0
+          calculateStatus === 'succeeded' &&
+          !isNotDeliverable &&
+          feeRow?.amount != null &&
+          feeRow.amount >= 0
         const shippingFee = hasFee ? (feeRow?.amount as number) : 0
         const shippingCurrency = feeRow?.currency ?? 'MMK'
         const rawMethod = feeRow?.methodLabel?.trim()
-        const methodTitle =
-          rawMethod === 'STANDARD'
+        const methodTitle = isNotDeliverable
+          ? 'Delivery unavailable'
+          : rawMethod === 'STANDARD'
             ? 'Standard shipping'
             : rawMethod || 'Standard shipping'
         const etaLine =
@@ -87,57 +78,50 @@ const CartItemLists = ({ items }: CartItemListProps) => {
             </div>
 
             <ul>
-            {shopItems.map((item) => {
-              const subtotal = item.price * item.quantity
-              const variation = item.variantLabel?.trim() || 'Standard'
+              {shopItems.map(item => {
+                const subtotal = item.price * item.quantity
+                const variation = item.variantLabel?.trim() || 'Standard'
 
-              return (
-                <li
-                  key={`${item.productId}-${item.variantId ?? ''}-${item.shopId}`}
-                  className="flex flex-col gap-2 border-b border-[var(--dni-cart-border)] px-3 py-3 last:border-b-0 sm:px-4 md:grid md:grid-cols-[minmax(0,1fr)_7.5rem_5rem_8.5rem] md:items-center md:gap-3.5"
-                >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <img
-                      src={item.image || placeholderImage}
-                      alt={item.name}
-                      onError={(e) => {
-                        const img = e.currentTarget
-                        img.onerror = null
-                        img.src = placeholderImage
-                      }}
-                      className="h-16 w-16 shrink-0 object-cover md:h-14 md:w-14"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm text-gray-900 sm:text-[15px]">{item.name}</p>
-                      <p className="mt-0.5 truncate text-xs text-gray-500">Variation : {variation}</p>
-                      <p className="mt-1 whitespace-nowrap text-sm font-medium text-emerald-700 md:hidden">
-                        {formatKsPrice(item.price)}
+                return (
+                  <li
+                    key={`${item.productId}-${item.variantId ?? ''}-${item.shopId}`}
+                    className="flex flex-col gap-2 border-b border-[var(--dni-cart-border)] px-3 py-3 last:border-b-0 sm:px-4 md:grid md:grid-cols-[minmax(0,1fr)_7.5rem_5rem_8.5rem] md:items-center md:gap-3.5"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <img
+                        src={item.image || placeholderImage}
+                        alt={item.name}
+                        onError={e => {
+                          const img = e.currentTarget
+                          img.onerror = null
+                          img.src = placeholderImage
+                        }}
+                        className="h-16 w-16 shrink-0 object-cover md:h-14 md:w-14"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm text-gray-900 sm:text-[15px]">{item.name}</p>
+                        <p className="mt-0.5 truncate text-xs text-gray-500">Variation : {variation}</p>
+                        <p className="mt-1 whitespace-nowrap text-sm font-medium text-emerald-700 md:hidden">
+                          {formatKsPrice(item.price)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <p className="hidden whitespace-nowrap text-right text-[15px] tabular-nums text-gray-700 md:block">
+                      {formatKsPrice(item.price)}
+                    </p>
+                    <div className="flex items-center justify-between pl-[4.5rem] md:contents">
+                      <p className="text-sm text-gray-500 md:hidden">Qty {item.quantity}</p>
+                      <p className="hidden text-center text-sm text-gray-700 md:block">{item.quantity}</p>
+                      <p className="whitespace-nowrap text-sm font-semibold tabular-nums text-emerald-700 md:text-right md:text-[15px]">
+                        {formatKsPrice(subtotal)}
                       </p>
                     </div>
-                    <div className="mt-2 md:hidden flex items-center justify-between gap-3">
-                      <span className="text-sm font-medium text-emerald-700">
-                        ${(item.price * item.quantity).toFixed(2)}
-                      </span>
-                      <CartQuantityInput item={item} />
-                    </div>
-                  </div>
-
-                  <p className="hidden whitespace-nowrap text-right text-[15px] tabular-nums text-gray-700 md:block">
-                    {formatKsPrice(item.price)}
-                  </p>
-                  <div className="flex items-center justify-between pl-[4.5rem] md:contents">
-                    <p className="text-sm text-gray-500 md:hidden">Qty {item.quantity}</p>
-                    <p className="hidden text-center text-sm text-gray-700 md:block">{item.quantity}</p>
-                    <p className="whitespace-nowrap text-sm font-semibold tabular-nums text-emerald-700 md:text-right md:text-[15px]">
-                      {formatKsPrice(subtotal)}
-                    </p>
-                  </div>
-                </li>
-              )
-            })}
+                  </li>
+                )
+              })}
             </ul>
 
-            {/* ================= VOUCHER ================= */}
             <div className="flex items-center justify-between gap-3 border-t border-[var(--dni-cart-border)] px-3 py-2.5 text-sm sm:px-4">
               <div className="flex min-w-0 items-center gap-2">
                 <img src={voucherIcon} alt="" className="h-5 w-5" />
@@ -148,10 +132,7 @@ const CartItemLists = ({ items }: CartItemListProps) => {
               </button>
             </div>
 
-            {/* ================= MESSAGE + SHIPPING ================= */}
             <div className="grid grid-cols-1 bg-[#fafdff] lg:grid-cols-2 lg:items-stretch">
-
-              {/* LEFT COLUMN */}
               <div className="px-3 py-3 sm:px-4 sm:py-4 lg:flex lg:border-r lg:border-dashed lg:border-black/10">
                 <div className="flex min-h-28 w-full flex-col gap-2 lg:h-full lg:min-h-0">
                   <span className="text-sm font-medium text-gray-900">Message for Seller</span>
@@ -161,27 +142,27 @@ const CartItemLists = ({ items }: CartItemListProps) => {
                     placeholder="Please leave a message"
                   />
                 </div>
+              </div>
 
-              {/* RIGHT COLUMN */}
               <div className="border-t border-dashed border-black/10 px-3 py-3 sm:px-4 sm:py-4 lg:border-t-0">
-                <div className="flex items-center justify-between mb-2">
+                <div className="mb-2 flex items-center justify-between">
                   <div className="text-sm font-medium text-gray-900">Shipping Option</div>
-
-                  <button className="text-sm text-[#0055aa] flex items-center gap-1 cursor-pointer">
+                  <button type="button" className="flex cursor-pointer items-center gap-1 text-sm text-[#0055aa]">
                     View All <span>›</span>
                   </button>
                 </div>
 
-                <button className="
-                  w-full text-left bg-[#f0faf7] border border-[#b7e3d5] rounded-md p-3
-                  hover:border-emerald-600 transition focus:outline-none cursor-pointer"
+                <button
+                  type="button"
+                  className="w-full cursor-pointer rounded-md border border-[#b7e3d5] bg-[#f0faf7] p-3 text-left transition hover:border-emerald-600 focus:outline-none"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="text-sm font-medium text-gray-900">{methodTitle}</div>
-
-                    <span className="text-sm font-medium whitespace-nowrap">
+                    <span className="whitespace-nowrap text-sm font-medium">
                       {calculateStatus === 'loading' ? (
                         <span className="text-gray-400">…</span>
+                      ) : isNotDeliverable ? (
+                        <span className="text-red-600">Unavailable</span>
                       ) : hasFee ? (
                         formatKsPrice(shippingFee, shippingCurrency)
                       ) : calculateStatus === 'failed' ? (
@@ -192,23 +173,29 @@ const CartItemLists = ({ items }: CartItemListProps) => {
                     </span>
                   </div>
 
-                  <div className="mt-2 flex items-center gap-1 text-sm text-emerald-600">
-                    <img src={fastDeliveryIcon} className="w-4 h-4" />
-                    {calculateStatus === 'succeeded' && etaLine ? (
-                      <span>{etaLine}</span>
-                    ) : calculateStatus === 'loading' ? (
-                      <span className="text-gray-400">Calculating delivery time…</span>
-                    ) : (
-                      <span className="text-gray-500">Delivery estimate unavailable</span>
-                    )}
-                  </div>
+                  {isNotDeliverable ? (
+                    <div className="mt-2 text-sm text-red-600">
+                      Delivery is not available for this shop/route yet.
+                    </div>
+                  ) : (
+                    <div className="mt-2 flex items-center gap-1 text-sm text-emerald-600">
+                      <img src={fastDeliveryIcon} alt="" className="h-4 w-4" />
+                      {calculateStatus === 'succeeded' && etaLine ? (
+                        <span>{etaLine}</span>
+                      ) : calculateStatus === 'loading' ? (
+                        <span className="text-gray-400">Calculating delivery time…</span>
+                      ) : (
+                        <span className="text-gray-500">Delivery estimate unavailable</span>
+                      )}
+                    </div>
+                  )}
 
                   {hasFee &&
                     (feeRow?.baseFee != null ||
                       feeRow?.distanceFee != null ||
                       feeRow?.weightFee != null) && (
                       <div className="mt-2 space-y-0.5 text-xs text-gray-600">
-                        {feeRow?.distanceKm != null && (
+                        {feeRow?.distanceKm != null && feeRow.distanceKm > 0 && (
                           <div>Distance: {feeRow.distanceKm.toFixed(1)} km</div>
                         )}
                         {feeRow?.chargeableWeightKg != null && (
@@ -225,65 +212,47 @@ const CartItemLists = ({ items }: CartItemListProps) => {
                           </div>
                         )}
                         {feeRow?.baseFee != null && (
-                          <div>
-                            Base fee: {formatKsPrice(feeRow.baseFee, shippingCurrency)}
-                          </div>
+                          <div>Base fee: {formatKsPrice(feeRow.baseFee, shippingCurrency)}</div>
                         )}
                         {feeRow?.distanceFee != null && (
-                          <div>
-                            Distance fee: {formatKsPrice(feeRow.distanceFee, shippingCurrency)}
-                          </div>
+                          <div>Distance fee: {formatKsPrice(feeRow.distanceFee, shippingCurrency)}</div>
                         )}
                         {feeRow?.weightFee != null && (
-                          <div>
-                            Weight fee: {formatKsPrice(feeRow.weightFee, shippingCurrency)}
-                          </div>
+                          <div>Weight fee: {formatKsPrice(feeRow.weightFee, shippingCurrency)}</div>
                         )}
                       </div>
                     )}
 
-                  <div className="mt-1 text-sm text-gray-600">
-                    Get a $2.00 voucher if no delivery was attempted by 7 Feb 2026.
-                  </div>
-
-                  <div className="mt-1 text-sm text-gray-600">
-                    Orders paid after 2pm will be delivered the day after tomorrow, excl. Sun & PH
-                  </div>
+                  {!isNotDeliverable && (
+                    <>
+                      <div className="mt-1 text-sm text-gray-600">
+                        Get a $2.00 voucher if no delivery was attempted by 7 Feb 2026.
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        Orders paid after 2pm will be delivered the day after tomorrow, excl. Sun & PH
+                      </div>
+                    </>
+                  )}
                 </button>
               </div>
+            </div>
 
-              {/* ROW 2 */}
-              <div className="border-t border-dashed border-black/10 px-3 py-3 text-sm sm:px-4">
-                <span className="font-medium text-gray-900">Guaranteed to get by 9 Feb</span>
-                <span className="ml-1 text-gray-500">with Collection Points</span>
-                <span className="ml-1 text-gray-400">›</span>
+            <div className="border-t border-dashed border-black/10 bg-[#fafdff] px-3 py-3 text-sm sm:px-4">
+              <span className="font-medium text-gray-900">Guaranteed to get by 9 Feb</span>
+              <span className="ml-1 text-gray-500">with Collection Points</span>
+              <span className="ml-1 text-gray-400">›</span>
+            </div>
+
+            <div className="flex items-center justify-between gap-2 border-t border-dashed border-black/10 bg-[#fafdff] px-3 py-3 sm:px-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-700">Allow to leave at doorstep</span>
+                <span className="rounded bg-emerald-600 px-2 py-[1px] text-xs text-white">New</span>
               </div>
-
-              {/* ROW 3 */}
-              <div className="flex items-center justify-between gap-2 border-t border-dashed border-black/10 px-3 py-3 sm:px-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-700">Allow to leave at doorstep</span>
-                  <span className="text-xs bg-emerald-600 text-white px-2 py-[1px] rounded">New</span>
-                </div>
-
-                <div className="hidden md:flex flex-col items-center justify-center text-sm">
-                  <button
-                    className="text-gray-600 hover:text-red-500 cursor-pointer"
-                    onClick={() =>
-                      dispatch(removeFromCart({ productId: item.productId, variantId: item.variantId }))
-                    }
-                  >
-                    Delete
-                  </button>
-                  <button className="text-gray-500 hover:text-emerald-600 mt-1 cursor-pointer">
-                    Save for Later
-                  </button>
-                </div>
+              <div className="relative h-5 w-10 cursor-pointer rounded-full bg-green-500">
+                <div className="absolute top-0.5 right-0.5 h-4 w-4 rounded-full bg-white" />
               </div>
-            ))}
-          </div>
+            </div>
 
-            {/* ================= ORDER TOTAL ================= */}
             <div className="flex flex-wrap items-center justify-end gap-2 bg-[#fafdff] px-3 py-2.5 sm:px-4">
               <span className="text-sm text-gray-600">
                 Order Total ({shopQuantity} {shopQuantity === 1 ? 'Item' : 'Items'}):
@@ -299,4 +268,4 @@ const CartItemLists = ({ items }: CartItemListProps) => {
   )
 }
 
-export default CartItemLists
+export default CheckoutItems

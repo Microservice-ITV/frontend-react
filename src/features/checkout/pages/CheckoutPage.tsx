@@ -489,7 +489,7 @@ const CheckoutPage = () => {
                                 loading={addressesLoading}
                                 onChangeAddress={openAddressSelectionModal}
                             />
-                            <CheckoutItems items={items} />
+                            <CheckoutItems checkout={checkout} />
                         </div>
 
                         <aside className="space-y-3 lg:sticky lg:top-4">
