@@ -80,6 +80,8 @@ type CatalogProductGraphItem = {
     /** Read model may set this while `images` is still empty (event ordering). */
     imageUrl?: string
     categoryId: string
+    categoryName?: string
+    parentCategoryName?: string
 }
 
 type CatalogProductsGraphQLData = {
@@ -158,6 +160,9 @@ const CATALOG_PRODUCTS_BY_CATEGORY_QUERY = `
         images
         imageUrl
         categoryId
+        categoryName
+        categorySlug
+        parentCategoryName
       }
       page
       limit
@@ -358,7 +363,7 @@ function mapGraphVariant(v: CatalogVariantGraph): ProductVariant {
 
 export const productApi = {
   /**
-   * Storefront search: keep products whose title or tags contain the query.
+   * Storefront search: keep products whose title or category name contain the query.
    * Backend also matches description (seed text includes "Shop slot"), which is too loose here.
    */
   search: async (
@@ -379,8 +384,13 @@ export const productApi = {
     const needle = normalized.toLowerCase();
     const visibleRows = rows.filter((row) => {
       const title = String(row.title ?? "").toLowerCase();
-      const tags = (row.tags ?? []).join(" ").toLowerCase();
-      return title.includes(needle) || tags.includes(needle);
+      const categoryName = String(row.categoryName ?? "").toLowerCase();
+      const parentCategoryName = String(row.parentCategoryName ?? "").toLowerCase();
+      return (
+        title.includes(needle) ||
+        categoryName.includes(needle) ||
+        parentCategoryName.includes(needle)
+      );
     });
     const data: ProductsApiResponse = {
       success: true,
