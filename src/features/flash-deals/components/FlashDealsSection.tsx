@@ -118,6 +118,8 @@ const FlashDealsSection = () => {
     });
   };
 
+  if (!loading && deals.length === 0) return null;
+
   return (
     <section className="relative w-full border border-[var(--dni-cart-border)] bg-white">
       <div className="flex items-center gap-4 px-4 py-4 border-b border-[var(--dni-cart-border)]">
@@ -198,29 +200,15 @@ const FlashDealsSection = () => {
                     </div>
                   </div>
                 ))
-              : deals.length === 0 ? (
+              : deals.map((deal) => (
                   <div
+                    key={deal.id}
                     className="shrink-0"
                     style={{ width: `${CARD_WIDTH_PX}px` }}
                   >
-                    <div className="flex h-full min-h-[220px] flex-col items-center justify-center gap-2 border border-[var(--dni-cart-border)] bg-white px-4 text-center">
-                      <Flame className="h-8 w-8 fill-[var(--dni-primary-50)] text-[var(--dni-primary)]" />
-                      <p className="text-sm font-medium text-slate-500">
-                        No flash deals right now
-                      </p>
-                    </div>
+                    <FlashDealCard deal={deal} />
                   </div>
-                ) : (
-                  deals.map((deal) => (
-                    <div
-                      key={deal.id}
-                      className="shrink-0"
-                      style={{ width: `${CARD_WIDTH_PX}px` }}
-                    >
-                      <FlashDealCard deal={deal} />
-                    </div>
-                  ))
-                )}
+                ))}
           </div>
         </div>
         {canScrollRight && (
