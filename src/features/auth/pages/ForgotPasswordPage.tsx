@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { AlertCircle, Mail } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAppDispatch } from '@/app/hooks'
 import { forgotPassword } from '@/features/auth/store/authThunks'
@@ -38,9 +38,7 @@ export const ForgotPasswordPage = () => {
   return (
     <div className="min-h-screen bg-gray-50 px-4 pt-8 pb-12 flex flex-col items-center">
       <Card className="w-full max-w-md p-8">
-        <Mail className="mx-auto h-10 w-10 text-gray-400" />
-
-        <h1 className="mt-4 text-2xl font-semibold text-gray-900 text-center">
+        <h1 className="text-2xl font-semibold text-gray-900 text-center">
           Forgot your password?
         </h1>
 
@@ -84,13 +82,13 @@ export const ForgotPasswordPage = () => {
             </Button>
           </form>
         )}
-      </Card>
 
-      <p className="mt-6 text-sm text-center text-gray-600">
-        <Link to="/login" className="font-medium text-black hover:underline">
-          Back to login
-        </Link>
-      </p>
+        <p className="mt-6 text-sm text-center text-gray-600">
+          <Link to="/login" className="font-medium text-black hover:underline">
+            Back to login
+          </Link>
+        </p>
+      </Card>
     </div>
   )
 }
