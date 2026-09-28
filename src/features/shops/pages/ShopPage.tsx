@@ -88,12 +88,14 @@ const ShopPage = () => {
 
         {status === "succeeded" && shop && (
           <>
-            <div className="mb-6 bg-white border border-gray-200 rounded shadow-sm p-5">
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <span className="rounded-[2px] bg-emerald-600 px-2 py-px text-xs text-white">Shop</span>
+              <h1 className="text-lg font-semibold text-gray-900 sm:text-xl">
                 {shop.name}
               </h1>
-              {shop.description ? (
-                <p className="mt-2 text-sm text-gray-600">{shop.description}</p>
+              {shop.description &&
+              shop.description.trim().toLowerCase() !== shop.name.trim().toLowerCase() ? (
+                <p className="w-full text-sm text-gray-500">{shop.description}</p>
               ) : null}
             </div>
 

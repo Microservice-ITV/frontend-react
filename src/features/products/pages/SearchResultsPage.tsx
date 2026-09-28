@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { searchProducts } from "@/features/products/store/productThunks";
 import { searchShops } from "@/features/shops/store/shopThunks";
@@ -14,12 +14,12 @@ import {
   normalizeProductSort,
   type ProductSortKey,
 } from "../utils/productSort";
+import ShopSearchList from "@/features/shops/components/ShopSearchList";
 
 const SearchResultsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get("q") ?? "";
   const dispatch = useAppDispatch();
-  const navigate = useNavigate();
   const [sort, setSort] = useState<ProductSortKey>(() =>
     normalizeProductSort(searchParams.get("sort")),
   );
@@ -103,35 +103,10 @@ const SearchResultsPage = () => {
 
         {shops.length > 0 && (
           <section className="mb-8">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-500 mb-3">
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">
               Shops
             </h2>
-            <div className="bg-white border border-gray-200 rounded shadow-sm divide-y divide-gray-100">
-              {shops.map((shop) => (
-                <button
-                  key={shop.id}
-                  type="button"
-                  onClick={() => navigate(`/shops/${shop.id}`)}
-                  className="w-full text-left px-4 py-4 hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm sm:text-base font-semibold text-gray-900 truncate">
-                        {shop.name}
-                      </p>
-                      {shop.domain ? (
-                        <p className="text-xs sm:text-sm text-gray-500 truncate mt-1">
-                          {shop.domain}
-                        </p>
-                      ) : null}
-                    </div>
-                    <span className="text-xs font-semibold text-gray-400">
-                      Shop
-                    </span>
-                  </div>
-                </button>
-              ))}
-            </div>
+            <ShopSearchList shops={shops} />
           </section>
         )}
 
