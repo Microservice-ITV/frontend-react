@@ -202,7 +202,7 @@ const GuestCheckoutPayment = () => {
       <div className="max-w-[1200px] mx-auto px-4 sm:px-4 py-3 mb-5 space-y-4">
         <GuestCheckoutAnnouncementBanner />
         <CheckoutAddress address={paymentDeliveryAddress} loading={false} onChangeAddress={goToGuestForm} />
-        <CheckoutItems checkout={checkoutTotals} />
+        <CheckoutItems items={items} />
 
         <div className="grid lg:grid-cols-[1fr_400px] gap-6 lg:gap-8 mt-4">
           <div className="space-y-4">
