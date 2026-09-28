@@ -13,7 +13,7 @@ import type { UserAddress } from '@/features/account/types/addressTypes'
 import type { CartItem } from '@/features/cart/types/cartTypes'
 import type { CheckoutShopShippingPayload } from '../api/checkoutApi'
 import type { CheckoutStatusResponse } from '../types/checkoutTypes'
-import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
+import { formatKsPrice, formatProductPrice } from '@/features/products/utils/formatProductPrice'
 
 interface CheckoutSummaryProps {
   checkout: CheckoutTotals
