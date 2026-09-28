@@ -1,17 +1,11 @@
 import { useEffect, useState } from 'react'
-import { useAppDispatch, useAppSelector } from '@/app/hooks'
-import { voucherIcon } from '@/assets/icons'
+import { useAppSelector } from '@/app/hooks'
 import { locationApi } from '@/features/account/api/locationApi'
-import CartQuantityInput from '@/features/cart/components/CartQuantityInput'
-import { selectShopSelectionMap } from '@/features/cart/store/cartSelectors'
-import { removeFromCart, toggleItemSelection, toggleShopSelection } from '@/features/cart/store/cartSlice'
-import { CartItem } from '@/features/cart/types/cartTypes'
 import type { ShopCalculatedShipping } from '@/features/shipping/types/shippingTypes'
 import { formatProductPrice } from '@/features/products/utils/formatProductPrice'
-import { chatIcon, fastDeliveryIcon, voucherIcon } from '@/assets/icons'
+import { chatIcon, voucherIcon } from '@/assets/icons'
 import { CheckoutTotals } from '../utils/checkoutCalculator'
 import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
-import { useAppSelector } from '@/app/hooks'
 import placeholderImage from '@/public/placeholder.svg'
 import { Truck } from 'lucide-react'
 
@@ -113,10 +107,8 @@ const ShippingOptionCard = ({
   )
 }
 
-const CartItemLists = ({ items }: CartItemListProps) => {
-  const dispatch = useAppDispatch()
-  const [sellerMessages, setSellerMessages] = useState<Record<string, string>>({})
-  const shopSelectionMap = useAppSelector(selectShopSelectionMap)
+const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
+  const { groupedByShop } = checkout
   const feesByShopId = useAppSelector(state => state.shipping.feesByShopId)
   const calculateStatus = useAppSelector(state => state.shipping.calculateStatus)
   const calculateError = useAppSelector(state => state.shipping.calculateError)
@@ -144,25 +136,6 @@ const CartItemLists = ({ items }: CartItemListProps) => {
       cancelled = true
     }
   }, [needsCityNames])
-
-  // Group items by shop
-  const groupedByShop = items.reduce<Record<
-    string,
-    { shopId: string; shopName: string; items: CartItem[] }
-  >>((acc, item) => {
-    acc[item.shopId] ??= {
-      shopId: item.shopId,
-      shopName: item.shopName,
-      items: [],
-    }
-    acc[item.shopId].items.push(item)
-    return acc
-  }, {})
-const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
-  const { groupedByShop } = checkout
-  const feesByShopId = useAppSelector(state => state.shipping.feesByShopId)
-  const calculateStatus = useAppSelector(state => state.shipping.calculateStatus)
-  const calculateError = useAppSelector(state => state.shipping.calculateError)
 
   return (
     <div className="space-y-3">
@@ -297,17 +270,17 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
               <div className="border-t border-dashed border-black/10 px-3 py-3 sm:px-4 sm:py-4 lg:border-t-0">
                 <div className="mb-2 flex items-center justify-between">
                   <div className="text-sm font-medium text-gray-900">Shipping Option</div>
-                  <button type="button" className="flex cursor-pointer items-center gap-1 text-sm text-[#0055aa]">
+                  {/* <button type="button" className="flex cursor-pointer items-center gap-1 text-sm text-[#0055aa]">
                     View All <span>›</span>
-                  </button>
+                  </button> */}
                 </div>
 
                 <button
                   type="button"
                   className="w-full cursor-pointer rounded-md border border-[#b7e3d5] bg-[#f0faf7] p-3 text-left transition hover:border-emerald-600 focus:outline-none"
                 >
-                   <ShippingOptionCard
-                    fee={feesByShopId[shop.shopId]}
+                  <ShippingOptionCard
+                    fee={feesByShopId[shopId]}
                     calculateStatus={calculateStatus}
                     calculateError={calculateError}
                     cityNames={cityNames}
