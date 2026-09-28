@@ -31,6 +31,8 @@ const MainNavbar = () => {
     categories,
     searchResults,
     searchStatus,
+    shopResults,
+    shopStatus,
     searchContainerRef,
     categoryMenuRef,
     mobileInputRef,
@@ -46,6 +48,7 @@ const MainNavbar = () => {
   } = useNavbarSearch();
 
   const goToProduct = (productId: string) => navigate(`/products/${productId}`);
+  const goToShop = (shopId: string) => navigate(`/shops/${shopId}`);
 
   return (
     <header className="sticky top-0 z-50 bg-emerald-50">
@@ -84,7 +87,7 @@ const MainNavbar = () => {
                   placeholder={
                     selectedCategory
                       ? `Search in ${selectedCategory.name}`
-                      : "Search products, brands and more"
+                      : "Search products, shops and more"
                   }
                   className="flex-1 min-w-0 px-4 py-2 text-sm outline-none bg-transparent"
                 />
@@ -114,8 +117,11 @@ const MainNavbar = () => {
                     searchQuery={searchQuery}
                     searchResults={searchResults}
                     searchStatus={searchStatus}
+                    shopResults={shopResults}
+                    shopStatus={shopStatus}
                     selectedCategory={selectedCategory}
                     onSelectProduct={goToProduct}
+                    onSelectShop={goToShop}
                     onSeeAll={doSearch}
                   />
                 )}
@@ -133,7 +139,7 @@ const MainNavbar = () => {
                 <span className="text-sm text-gray-400 truncate">
                   {selectedCategory
                     ? `Search in ${selectedCategory.name}`
-                    : "Search products, brands and more"}
+                    : "Search products, shops and more"}
                 </span>
               </div>
             </div>
@@ -176,6 +182,8 @@ const MainNavbar = () => {
           selectedCategoryId={selectedCategoryId}
           searchResults={searchResults}
           searchStatus={searchStatus}
+          shopResults={shopResults}
+          shopStatus={shopStatus}
           inputRef={mobileInputRef}
           onClose={() => setIsMobileSearchOpen(false)}
           onChange={handleChange}
@@ -184,6 +192,7 @@ const MainNavbar = () => {
           onSearch={() => doSearch()}
           onCategorySelect={handleCategoryChange}
           onSelectProduct={goToProduct}
+          onSelectShop={goToShop}
         />
       )}
     </header>

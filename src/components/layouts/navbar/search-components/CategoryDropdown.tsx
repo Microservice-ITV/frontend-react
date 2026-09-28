@@ -11,6 +11,7 @@ interface CategoryDropdownProps {
   onToggle: () => void;
   onSelect: (categoryId: string) => void;
   menuRef: RefObject<HTMLDivElement>;
+  disabled?: boolean;
 }
 
 const CategoryDropdown = ({
@@ -21,13 +22,22 @@ const CategoryDropdown = ({
   onToggle,
   onSelect,
   menuRef,
+  disabled = false,
 }: CategoryDropdownProps) => {
   return (
     <div className="relative flex-shrink-0" ref={menuRef}>
       <button
         type="button"
-        onClick={onToggle}
-        className="flex items-center gap-1 pl-4 pr-3 py-2 text-sm text-gray-700 hover:text-gray-900 transition-colors cursor-pointer whitespace-nowrap"
+        onClick={() => {
+          if (disabled) return;
+          onToggle();
+        }}
+        disabled={disabled}
+        className={`flex items-center gap-1 pl-4 pr-3 py-2 text-sm transition-colors whitespace-nowrap ${
+          disabled
+            ? "text-gray-400 cursor-not-allowed"
+            : "text-gray-700 hover:text-gray-900 cursor-pointer"
+        }`}
         aria-label="Search category"
         aria-expanded={isOpen}
       >
@@ -42,7 +52,7 @@ const CategoryDropdown = ({
 
       <div className="absolute top-1/2 right-0 -translate-y-1/2 h-5 w-px bg-gray-200" />
 
-      {isOpen && (
+      {isOpen && !disabled && (
         <div
           className="absolute left-0 top-full mt-1 w-52 bg-white border border-gray-200 rounded shadow-lg z-50 py-1 max-h-72 overflow-y-auto"
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}

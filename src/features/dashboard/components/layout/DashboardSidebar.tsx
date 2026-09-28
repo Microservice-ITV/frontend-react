@@ -1,20 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
 import { NavLink, useLocation } from "react-router-dom";
 import brandLogo from "@/public/brand-logo.svg";
-import {
-  X,
-  Zap,
-  ChevronDown,
-  PanelLeftClose,
-  PanelLeftOpen,
-} from "lucide-react";
+import { X, Zap, ChevronDown } from "lucide-react";
 import { useDashboardMenu } from "../../hooks/useDashboardMenu";
 import type { DashboardArea } from "../../types/dashboardTypes";
 
 type DashboardSidebarProps = {
   area: DashboardArea;
   isOpen: boolean;
+  isCollapsed: boolean;
   onClose: () => void;
 };
 
@@ -24,21 +19,18 @@ type TooltipState = {
   top: number;
 };
 
-const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
+const DashboardSidebar = ({
+  area,
+  isOpen,
+  isCollapsed,
+  onClose,
+}: DashboardSidebarProps) => {
   const sections = useDashboardMenu(area);
   const location = useLocation();
   const [collapsedSections, setCollapsedSections] = useState<
     Record<string, boolean>
   >({});
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
-
-  useEffect(() => {
-    document.documentElement.style.setProperty(
-      "--sidebar-width",
-      isSidebarCollapsed ? "76px" : "256px",
-    );
-  }, [isSidebarCollapsed]);
 
   const toggleSection = (title: string) => {
     setCollapsedSections((prev) => ({ ...prev, [title]: !prev[title] }));
@@ -49,7 +41,7 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
     label: string,
     badge?: string | number | null,
   ) => {
-    if (!isSidebarCollapsed) return;
+    if (!isCollapsed) return;
     const rect = e.currentTarget.getBoundingClientRect();
     setTooltip({ label, badge, top: rect.top + rect.height / 2 });
   };
@@ -82,11 +74,11 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
         return (
           <div key={item.key}>
             <div className="flex items-center">
-              {hasChildren && !isSidebarCollapsed ? (
+              {hasChildren && !isCollapsed ? (
                 <button
                   type="button"
                   onClick={() => toggleSection(item.key)}
-                  className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-slate-400 transition-colors hover:bg-slate-900 hover:text-slate-300"
+                  className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-emerald-600 transition-colors hover:bg-emerald-50 hover:text-emerald-700"
                   aria-label={`${isItemExpanded ? "Collapse" : "Expand"} ${item.label}`}
                   aria-expanded={isItemExpanded}
                 >
@@ -106,22 +98,22 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
                   onMouseEnter={(e) => showTooltip(e, item.label, item.badge)}
                   onMouseLeave={hideTooltip}
                   className={({ isActive }) =>
-                    `group relative flex min-w-0 flex-1 items-center rounded-md py-2 text-xs transition-colors ${
-                      isSidebarCollapsed
+                    `group relative flex min-w-0 flex-1 items-center rounded-md py-1.5 text-xs transition-colors ${
+                      isCollapsed
                         ? "justify-center px-2"
                         : nested
                           ? "gap-3 pl-9 pr-3"
                           : "gap-3 px-3"
                     } ${
                       isActive || isParentActive
-                        ? "bg-emerald-600 text-white"
-                        : "text-slate-300 hover:bg-slate-900 hover:text-white"
+                        ? "bg-emerald-50 font-medium text-black"
+                        : "text-black hover:bg-slate-100"
                     }`
                   }
                 >
                   {Icon && <Icon size={18} className="shrink-0" />}
 
-                  {!isSidebarCollapsed && (
+                  {!isCollapsed && (
                     <>
                       <span className="min-w-0 flex-1 truncate">
                         {item.label}
@@ -137,7 +129,7 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
               )}
             </div>
 
-            {!isSidebarCollapsed && hasChildren && (
+            {!isCollapsed && hasChildren && (
               <div
                 className={`grid transition-[grid-template-rows] duration-200 ease-out ${
                   isItemExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
@@ -157,15 +149,15 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
   const navContent = (
     <>
       <div
-        className={`flex shrink-0 items-center border-b border-slate-800 px-4 py-4 lg:px-3 lg:py-5 ${
-          isSidebarCollapsed ? "lg:flex-col lg:gap-3" : "justify-between"
+        className={`flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-2 lg:px-3 lg:py-[9.4px] ${
+          isCollapsed ? "lg:justify-center" : ""
         }`}
       >
         {/* Wrap this block in a NavLink pointing to your dashboard route */}
         <NavLink
           to="/dashboard" // <-- Change this to your actual dashboard route path if different (e.g., "/" or "/admin")
           onClick={onClose}
-          className={`flex items-center gap-2 group ${isSidebarCollapsed ? "lg:justify-center" : ""}`}
+          className={`flex items-center gap-2 group ${isCollapsed ? "lg:justify-center" : ""}`}
         >
           <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden">
             <img
@@ -174,12 +166,12 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
               className="w-8 h-8 rounded-sm object-contain"
             />
           </div>
-          {!isSidebarCollapsed && (
+          {!isCollapsed && (
             <div>
-              <p className="text-xs font-semibold text-white group-hover:text-emerald-400 transition-colors">
+              <p className="text-xs font-semibold text-emerald-600 transition-colors group-hover:text-emerald-700">
                 Daily Need Items
               </p>
-              <p className="text-[9px] uppercase tracking-wider text-slate-400">
+              <p className="text-[9px] uppercase tracking-wider text-slate-500">
                 Dashboard
               </p>
             </div>
@@ -188,23 +180,8 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
 
         <button
           type="button"
-          onClick={() => setIsSidebarCollapsed((prev) => !prev)}
-          className="hidden rounded-md p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white lg:block"
-          aria-label={
-            isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"
-          }
-        >
-          {isSidebarCollapsed ? (
-            <PanelLeftOpen size={18} />
-          ) : (
-            <PanelLeftClose size={18} />
-          )}
-        </button>
-
-        <button
-          type="button"
           onClick={onClose}
-          className="rounded-md p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white lg:hidden"
+          className="rounded-md p-2 text-slate-600 transition-colors hover:bg-slate-100 hover:text-black lg:hidden"
           aria-label="Close menu"
         >
           <X size={20} />
@@ -212,7 +189,7 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
       </div>
 
       <nav
-        className={`flex-1 overflow-y-auto py-3 ${isSidebarCollapsed ? "px-2" : "px-3"}`}
+        className={`flex-1 overflow-y-auto py-3 ${isCollapsed ? "px-2" : "px-3"}`}
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
         {sections.map((section) => {
@@ -220,12 +197,12 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
           const isExpanded = !isSectionCollapsed;
 
           return (
-            <div key={section.title} className="mb-4">
+            <div key={section.title} className="mb-2.5">
               {section.hideTitle ? (
                 renderItems(section.items)
-              ) : isSidebarCollapsed ? (
+              ) : isCollapsed ? (
                 <>
-                  <div className="mx-1 mb-2 border-t border-slate-800" />
+                  <div className="mx-1 mb-2 border-t border-slate-200" />
                   {renderItems(section.items)}
                 </>
               ) : (
@@ -233,7 +210,7 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
                   <button
                     type="button"
                     onClick={() => toggleSection(section.title)}
-                    className="flex w-full items-center justify-between px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider text-slate-400 transition-colors hover:text-slate-300"
+                    className="flex w-full items-center justify-between px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider text-emerald-600 transition-colors hover:text-emerald-700"
                     aria-expanded={isExpanded}
                   >
                     {section.title}
@@ -276,21 +253,21 @@ const DashboardSidebar = ({ area, isOpen, onClose }: DashboardSidebarProps) => {
 
       <aside
         className={`
-          fixed inset-y-0 left-0 z-50 flex h-screen shrink-0 flex-col transform border-r border-slate-200 bg-slate-950 text-slate-200
+          fixed inset-y-0 left-0 z-50 flex h-screen shrink-0 flex-col transform border-r border-slate-200 bg-white text-black
           transition-all duration-200 ease-out
           lg:translate-x-0
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
-          ${isSidebarCollapsed ? "w-[76px]" : "w-64"}
+          ${isCollapsed ? "w-[76px]" : "w-64"}
         `}
       >
         {navContent}
       </aside>
 
-      {isSidebarCollapsed &&
+      {isCollapsed &&
         tooltip &&
         createPortal(
           <div
-            className="pointer-events-none fixed z-[60] flex items-center gap-1.5 whitespace-nowrap rounded-md border border-slate-700 bg-slate-800 px-2 py-1 text-xs font-medium text-white shadow-lg"
+            className="pointer-events-none fixed z-[60] flex items-center gap-1.5 whitespace-nowrap rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-black shadow-lg"
             style={{
               left: 84,
               top: tooltip.top,

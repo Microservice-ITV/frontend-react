@@ -358,7 +358,8 @@ function mapGraphVariant(v: CatalogVariantGraph): ProductVariant {
 
 export const productApi = {
   /**
-   * Search products by keyword across title, description, sku, and brand name.
+   * Storefront search: keep products whose title or tags contain the query.
+   * Backend also matches description (seed text includes "Shop slot"), which is too loose here.
    */
   search: async (
     query: string,
@@ -375,9 +376,15 @@ export const productApi = {
       normalized,
       sort,
     );
+    const needle = normalized.toLowerCase();
+    const visibleRows = rows.filter((row) => {
+      const title = String(row.title ?? "").toLowerCase();
+      const tags = (row.tags ?? []).join(" ").toLowerCase();
+      return title.includes(needle) || tags.includes(needle);
+    });
     const data: ProductsApiResponse = {
       success: true,
-      data: rows.map((row) => ({
+      data: visibleRows.map((row) => ({
         id: row.productId,
         name: row.title,
         price: row.price,

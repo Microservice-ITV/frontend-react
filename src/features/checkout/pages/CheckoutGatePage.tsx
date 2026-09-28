@@ -199,28 +199,39 @@ const GuestCheckoutPayment = () => {
 
   return (
     <Elements stripe={stripePromise}>
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-4 py-3 mb-5 space-y-4">
-        <GuestCheckoutAnnouncementBanner />
-        <CheckoutAddress address={paymentDeliveryAddress} loading={false} onChangeAddress={goToGuestForm} />
-        <CheckoutItems checkout={checkoutTotals} />
+      <div className="bg-[#f5f5f5] py-3 sm:py-4 lg:py-5">
+        <div className="mx-auto w-full max-w-7xl px-3 sm:px-4 lg:px-6">
+          <GuestCheckoutAnnouncementBanner />
 
-        <div className="grid lg:grid-cols-[1fr_400px] gap-6 lg:gap-8 mt-4">
-          <div className="space-y-4">
+          <div className="mt-3 grid items-start gap-3 sm:mt-4 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-5">
+            <div className="min-w-0 space-y-3">
+              <CheckoutAddress
+                address={paymentDeliveryAddress}
+                loading={false}
+                onChangeAddress={goToGuestForm}
+              />
+              <CheckoutItems checkout={checkoutTotals} />
+            </div>
+
+            <aside className="space-y-3 lg:sticky lg:top-4">
             <CheckoutPayment totalAmount={checkoutTotals.totalPayment} />
+
+              <CheckoutSummary
+                checkout={checkoutTotals}
+                hasDeliveryAddress={true}
+                onRequireAddress={goToGuestForm}
+                deliveryAddress={paymentDeliveryAddress}
+                cartItems={items}
+              />
+            </aside>
           </div>
 
-          <div className="lg:sticky lg:top-24 lg:self-start mt-4">
-            <CheckoutSummary
-              checkout={checkoutTotals}
-              hasDeliveryAddress={true}
-              onRequireAddress={goToGuestForm}
-              deliveryAddress={paymentDeliveryAddress}
-              cartItems={items}
-            />
-          </div>
+          {sagaId && (
+            <div className="mt-4">
+              <SagaStatusDisplay sagaId={sagaId} />
+            </div>
+          )}
         </div>
-
-        {sagaId && <SagaStatusDisplay sagaId={sagaId} />}
       </div>
     </Elements>
   )

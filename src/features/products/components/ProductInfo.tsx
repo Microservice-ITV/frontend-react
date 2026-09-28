@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import ProductActions from './ProductActions'
 import ProductVariantSelector, { pickDefaultVariant } from './ProductVariantSelector'
 import type { ProductDetail, ProductVariant } from '@/features/products/types/productTypes'
@@ -6,6 +7,10 @@ import { getGalleryImagesForVariant } from '@/features/products/utils/variantGal
 import { formatProductPrice, STORE_CURRENCY } from '@/features/products/utils/formatProductPrice'
 import { stripYouTubeUrlsFromText } from '@/features/products/utils/videoEmbed'
 import { productServiceAssetUrl } from '@/lib/api/apiConfig'
+import { useAppDispatch, useAppSelector } from '@/app/hooks'
+import { toggleWishlist } from '@/features/wishlist/store/wishlistSlice'
+import { selectIsWishlisted } from '@/features/wishlist/store/wishlistSelectors'
+import { Store } from 'lucide-react'
 
 interface Props {
   product: ProductDetail
@@ -69,6 +74,8 @@ function TrustIconCircle({ children }: { children: ReactNode }) {
 }
 
 const ProductInfo = ({ product, onSelectedVariantChange }: Props) => {
+  const dispatch = useAppDispatch()
+  const wishlisted = useAppSelector((s) => selectIsWishlisted(s, product.id))
   const [activeVariant, setActiveVariant] = useState<ProductVariant | null>(null)
   const countdown = useEndOfDayCountdown()
 
@@ -120,20 +127,65 @@ const ProductInfo = ({ product, onSelectedVariantChange }: Props) => {
     return `${oneLine.slice(0, 157).trimEnd()}…`
   }, [product.description])
 
+  const handleWishlist = useCallback(() => {
+    dispatch(toggleWishlist(product.id))
+  }, [dispatch, product.id])
+
   return (
     <section className="flex-1 space-y-5 sm:space-y-6">
       {/* Title + brand + social proof */}
       <div className="space-y-2">
-        <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 leading-snug tracking-tight">
-          {product.name}
-        </h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 leading-snug tracking-tight">
+            {product.name}
+          </h1>
 
-        {product.brandName ? (
-          <p className="text-sm text-gray-500">
-            Brand:{' '}
-            <span className="font-medium text-[var(--dni-primary)]">{product.brandName}</span>
-          </p>
-        ) : null}
+          <button
+            type="button"
+            onClick={handleWishlist}
+            aria-label={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+            className="
+              mt-0.5 inline-flex h-10 w-10 items-center justify-center
+              border border-black/10 bg-white text-gray-600
+              transition-colors duration-200
+              hover:border-[var(--dni-primary)] hover:text-[var(--dni-primary)]
+            "
+          >
+            <svg
+              viewBox="0 0 24 24"
+              className={`h-5 w-5 origin-center transition-all duration-200 ease-out ${
+                wishlisted
+                  ? 'fill-[#ef4444] text-[#ef4444] scale-110'
+                  : 'fill-none stroke-current scale-100'
+              }`}
+              strokeWidth={wishlisted ? 0 : 1.8}
+              aria-hidden
+            >
+              <path d="M12 21s-6.5-4.35-9.2-8.1C1.1 10.5 1.4 7.4 3.7 5.7c2-1.5 4.7-1.1 6.2.7L12 8.3l2.1-1.9c1.5-1.8 4.2-2.2 6.2-.7 2.3 1.7 2.6 4.8.9 7.2C18.5 16.65 12 21 12 21z" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
+          {product.shop?.id && product.shop?.name ? (
+            <Link
+              to={`/shops/${product.shop.id}`}
+              className="inline-flex items-center gap-1.5 hover:text-[var(--dni-primary)] transition-colors"
+              aria-label={`View shop ${product.shop.name}`}
+            >
+              <Store size={16} className="text-[var(--dni-primary)]" />
+              <span className="text-gray-500">Shop:</span>
+              <span className="font-semibold text-gray-900">{product.shop.name}</span>
+            </Link>
+          ) : null}
+
+          {product.brandName ? (
+            <span className="text-gray-500">
+              Brand:{' '}
+              <span className="font-medium text-[var(--dni-primary)]">{product.brandName}</span>
+            </span>
+          ) : null}
+        </div>
 
         {product.tags && product.tags.length > 0 && (
           <div className="flex flex-wrap gap-1.5">

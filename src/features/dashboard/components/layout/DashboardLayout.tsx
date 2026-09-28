@@ -10,7 +10,15 @@ type DashboardLayoutProps = {
 
 const DashboardLayout = ({ area }: DashboardLayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    document.documentElement.style.setProperty(
+      "--sidebar-width",
+      isSidebarCollapsed ? "76px" : "256px",
+    );
+  }, [isSidebarCollapsed]);
 
   // Mobile: convert dashboard tables into expandable/collapsible row cards
   useEffect(() => {
@@ -47,6 +55,7 @@ const DashboardLayout = ({ area }: DashboardLayoutProps) => {
 
   const openSidebar = () => setSidebarOpen(true);
   const closeSidebar = () => setSidebarOpen(false);
+  const toggleSidebarCollapse = () => setIsSidebarCollapsed((prev) => !prev);
 
   return (
     <div
@@ -56,11 +65,17 @@ const DashboardLayout = ({ area }: DashboardLayoutProps) => {
       <DashboardSidebar
         area={area}
         isOpen={sidebarOpen}
+        isCollapsed={isSidebarCollapsed}
         onClose={closeSidebar}
       />
 
       <div className="min-w-0 transition-[margin] duration-200 ease-out lg:ml-[var(--sidebar-width,16rem)]">
-        <DashboardTopbar area={area} onMenuClick={openSidebar} />
+        <DashboardTopbar
+          area={area}
+          onMenuClick={openSidebar}
+          isSidebarCollapsed={isSidebarCollapsed}
+          onToggleSidebar={toggleSidebarCollapse}
+        />
         <main className="p-4 sm:p-6">
           <Outlet />
         </main>

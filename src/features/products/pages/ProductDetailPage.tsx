@@ -11,6 +11,7 @@ import ProductDescriptionSection from '../components/ProductDescriptionSection'
 import ProductGallery from '../components/ProductGallery'
 import ProductInfo from '../components/ProductInfo'
 import { pickDefaultVariant } from '../components/ProductVariantSelector'
+import { usePageTitle } from '@/components/routing/PageTitle'
 
 const ProductDetailPage = () => {
   const { id } = useParams<{ id: string }>()
@@ -18,6 +19,9 @@ const ProductDetailPage = () => {
 
   const { selectedProduct, status, error } = useAppSelector((state) => state.products)
   const [galleryVariant, setGalleryVariant] = useState<ProductVariant | null>(null)
+  const productName =
+    selectedProduct && selectedProduct.id === id ? selectedProduct.name : undefined
+  usePageTitle(productName)
 
   const onGalleryVariantChange = useCallback((v: ProductVariant | null) => {
     setGalleryVariant(v)
