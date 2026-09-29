@@ -50,6 +50,7 @@ const GuestCheckoutPage = () => {
   const [fullName, setFullName] = useState('')
   // Store digits only (no +95 prefix)
   const [phone, setPhone] = useState('')
+  const [phoneTouched, setPhoneTouched] = useState(false)
   const [address, setAddress] = useState('')
   const [cities, setCities] = useState<CityOption[]>([])
   const [selectedCityId, setSelectedCityId] = useState<string>('')
@@ -97,6 +98,10 @@ const GuestCheckoutPage = () => {
     }
     return ''
   }, [phone])
+  const phoneError =
+    phoneTouched && phone.length > 0 && !phoneE164
+      ? 'Enter a valid Myanmar phone number (9xxxxxxxxx or 09xxxxxxxxx).'
+      : null
 
   const deliveryAddress: UserAddress | null = useMemo(() => {
     if (!fullName.trim() || !phoneE164 || !selectedCity || !address.trim()) return null
@@ -248,6 +253,7 @@ const GuestCheckoutPage = () => {
                   +95
                 </div>
                 <input
+                  id="guest-phone"
                   type="text"
                   inputMode="numeric"
                   autoComplete="tel-national"
@@ -257,10 +263,22 @@ const GuestCheckoutPage = () => {
                     const next = e.target.value.replace(/\D/g, '').slice(0, 11)
                     setPhone(next)
                   }}
+                  onBlur={() => setPhoneTouched(true)}
                   maxLength={11}
-                  className="w-full border border-l-0 rounded-r-sm px-3 py-2 text-sm focus:outline-none focus:ring-1 border-gray-300 focus:ring-emerald-600"
+                  aria-invalid={!!phoneError}
+                  aria-describedby={phoneError ? 'guest-phone-error' : undefined}
+                  className={`w-full border border-l-0 rounded-r-sm px-3 py-2 text-sm focus:outline-none focus:ring-1 ${
+                    phoneError
+                      ? 'border-red-500 focus:ring-red-500'
+                      : 'border-gray-300 focus:ring-emerald-600'
+                  }`}
                 />
               </div>
+              {phoneError && (
+                <p id="guest-phone-error" role="alert" className="mt-1 text-xs text-red-600">
+                  {phoneError}
+                </p>
+              )}
             </div>
             <div className="md:col-span-2">
               <SearchableSelect

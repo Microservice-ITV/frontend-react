@@ -156,6 +156,10 @@ const GuestCheckoutPayment = () => {
         address: paymentDeliveryAddress,
         items,
         cacheKey: shippingCalculateCacheKey,
+        customer: {
+          id: paymentDeliveryAddress.address_id,
+          name: paymentDeliveryAddress.full_name || undefined,
+        },
       }),
     )
   }, [dispatch, paymentDeliveryAddress, items, shippingCalculateCacheKey])
