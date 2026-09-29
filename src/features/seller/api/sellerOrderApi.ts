@@ -460,15 +460,23 @@ export const sellerOrderApi = {
   },
 
   async paymentRecordsForShops(shopIds: string[]): Promise<PaymentRecord[]> {
-    if (shopIds.length === 0) return []
+    const uniqueShopIds = [...new Set(shopIds.filter(Boolean))]
+    if (uniqueShopIds.length === 0) return []
     const responses = await Promise.all(
-      Array.from({ length: Math.ceil(shopIds.length / 50) }, (_, index) =>
+      Array.from({ length: Math.ceil(uniqueShopIds.length / 50) }, (_, index) =>
         orderClient.get<{ data: PaymentRecord[] }>('/orders/payments', {
-          params: { shop_ids: shopIds.slice(index * 50, index * 50 + 50).join(',') },
+          params: { shop_ids: uniqueShopIds.slice(index * 50, index * 50 + 50).join(',') },
         }),
       ),
     )
-    return responses.flatMap((response) => response.data.data ?? [])
+    // An order spanning shops that fall into different chunks is returned by
+    // more than one request, so de-duplicate the merged payment records by id.
+    const byId = new Map<string, PaymentRecord>()
+    for (const record of responses.flatMap((response) => response.data.data ?? [])) {
+      const key = record.id || record.orderId
+      if (key && !byId.has(key)) byId.set(key, record)
+    }
+    return [...byId.values()]
   },
 
   async paymentDetail(paymentId: string): Promise<PaymentDetail> {
