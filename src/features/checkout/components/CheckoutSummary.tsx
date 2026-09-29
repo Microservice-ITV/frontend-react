@@ -429,6 +429,8 @@ const CheckoutSummary = ({
   const isTerminal =
     paymentStatus === 'PAID' ||
     paymentStatus === 'COMPLETED' ||
+    paymentStatus === 'FAILED' ||
+    paymentStatus === 'FAILED_STOCK' ||
     paymentStatus === 'FAILED_PAYMENT' ||
     paymentStatus === 'EXPIRED'
 
@@ -451,6 +453,12 @@ const CheckoutSummary = ({
     }
     if (paymentStatus === 'FAILED_PAYMENT') {
       return 'Payment failed. Please try again.'
+    }
+    if (paymentStatus === 'FAILED_STOCK') {
+      return 'We could not reserve the selected items. Please return to your cart and try again.'
+    }
+    if (paymentStatus === 'FAILED') {
+      return 'Checkout could not be completed. Please start a new checkout.'
     }
     if (paymentStatus === 'STOCK_CONFIRMED') {
       return 'Stock confirmed. Finalizing payment...'
