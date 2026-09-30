@@ -21,7 +21,8 @@ const getNotificationSocketUrl = (): string => {
   return normalized || 'http://localhost:5007'
 }
 
-const getSocketPath = (): string => '/socket.io'
+const getSocketPath = (): string =>
+  import.meta.env.VITE_NOTIFICATION_SOCKET_PATH ?? '/socket.io'
 
 export const useNotificationRealtime = ({
   userId,

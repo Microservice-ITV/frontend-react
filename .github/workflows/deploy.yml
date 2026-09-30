@@ -61,7 +61,7 @@ jobs:
             VITE_PROMOTION_SERVICE_URL=https://api.dailyneeditems.com/promotions
             VITE_BFF_SERVICE_URL=https://api.dailyneeditems.com/bff
             VITE_ACCOUNTING_SERVICE_URL=https://api.dailyneeditems.com/accounting
-            VITE_NOTIFICATION_SOCKET_URL=https://api.dailyneeditems.com
+            VITE_NOTIFICATION_SERVICE_URL=https://api.dailyneeditems.com
             VITE_NOTIFICATION_SOCKET_PATH=/notifications/socket.io/
             VITE_ASSET_BASE_URL=https://dnistore.sgp1.cdn.digitaloceanspaces.com
             VITE_MAP_PROVIDER=osm
