@@ -99,7 +99,7 @@ const EditFlashDealPage = () => {
     } = {
       name: values.name.trim(),
       description: values.description.trim() || null,
-      slotTime: values.slotTime || null,
+      slotTime: values.startTime || null,
       startAt: values.startAt,
       endAt: values.endAt,
     };

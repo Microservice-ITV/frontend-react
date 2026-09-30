@@ -27,7 +27,7 @@ const NewFlashDealPage = () => {
           name: values.name.trim(),
           description: values.description.trim() || null,
           status: values.status,
-          slotTime: values.slotTime || null,
+          slotTime: values.startTime || null,
           startAt: values.startAt,
           endAt: values.endAt,
           items: items.map((item, index) => ({
@@ -88,7 +88,7 @@ const NewFlashDealPage = () => {
         initialValues={flashDealInitialValues(null)}
         initialItems={[]}
         onSubmit={onSubmit}
-        submitLabel="Create Flash Deal"
+        submitLabel="Create"
         cancelTo="/super-admin/promotion-engine/flash-deals"
         isSubmitting={isSubmitting}
         submitError={submitError}

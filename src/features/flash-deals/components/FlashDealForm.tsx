@@ -16,11 +16,13 @@ export interface FlashDealFormValues {
   name: string;
   description: string;
   status: FlashDealStatus;
-  /** YYYY-MM-DD campaign date (replaces free-form start/end datetime pickers). */
+  /** Campaign date (YYYY-MM-DD). */
   campaignDate: string;
-  /** One of the fixed time slots (e.g. "10:30"). */
-  slotTime: string;
-  /** Computed from campaignDate + slotTime; submitted as UTC ISO strings. */
+  /** Start time (HH:mm). */
+  startTime: string;
+  /** End time (HH:mm). */
+  endTime: string;
+  /** Computed from campaignDate + startTime; submitted as UTC ISO strings. */
   startAt: string;
   endAt: string;
 }
@@ -42,7 +44,8 @@ export interface FlashDealItemRow {
 interface FlashDealFormErrors {
   name?: string;
   campaignDate?: string;
-  slotTime?: string;
+  startTime?: string;
+  endTime?: string;
   startAt?: string;
   endAt?: string;
   items?: string;
@@ -75,26 +78,19 @@ const localDatePart = (value: string): string => {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 };
 
-/** Fixed two-hour flash-deal time slots shown as selectable chips. */
-const FLASH_DEAL_TIME_SLOTS = [
-  { time: "10:30", label: "10:30 AM – 12:30 PM" },
-  { time: "12:30", label: "12:30 PM – 02:30 PM" },
-  { time: "16:30", label: "04:30 PM – 06:30 PM" },
-  { time: "22:30", label: "10:30 PM – 12:30 AM" },
-] as const;
-
-const SLOT_DURATION_MS = 2 * 60 * 60 * 1000;
-
 const buildSchedule = (
   campaignDate: string,
-  slotTime: string,
+  startTime: string,
+  endTime: string,
 ): { startAt: string; endAt: string } => {
-  if (!campaignDate || !slotTime) return { startAt: "", endAt: "" };
-  const start = new Date(`${campaignDate}T${slotTime}:00`);
-  if (Number.isNaN(start.getTime())) return { startAt: "", endAt: "" };
+  if (!campaignDate || !startTime || !endTime) return { startAt: "", endAt: "" };
+  const start = new Date(`${campaignDate}T${startTime}:00`);
+  const end = new Date(`${campaignDate}T${endTime}:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return { startAt: "", endAt: "" };
+  if (end <= start) return { startAt: "", endAt: "" };
   return {
     startAt: start.toISOString(),
-    endAt: new Date(start.getTime() + SLOT_DURATION_MS).toISOString(),
+    endAt: end.toISOString(),
   };
 };
 
@@ -215,16 +211,17 @@ const FlashDealForm = ({
     return out;
   }, [searchResults, items]);
 
-  const onScheduleChange = (campaignDate: string, slotTime: string) => {
+  const onScheduleChange = (campaignDate: string, startTime: string, endTime: string) => {
     setValues((prev) => {
       const next: FlashDealFormValues = {
         ...prev,
         campaignDate,
-        slotTime,
+        startTime,
+        endTime,
         startAt: "",
         endAt: "",
       };
-      const computed = buildSchedule(campaignDate, slotTime);
+      const computed = buildSchedule(campaignDate, startTime, endTime);
       if (computed.startAt) {
         next.startAt = computed.startAt;
         next.endAt = computed.endAt;
@@ -234,7 +231,8 @@ const FlashDealForm = ({
     setErrors((prev) => ({
       ...prev,
       campaignDate: undefined,
-      slotTime: undefined,
+      startTime: undefined,
+      endTime: undefined,
       startAt: undefined,
       endAt: undefined,
     }));
@@ -332,14 +330,15 @@ const FlashDealForm = ({
     if (!values.campaignDate.trim()) {
       nextErrors.campaignDate = "Select a campaign date.";
     }
-    if (!values.slotTime.trim()) nextErrors.slotTime = "Select a time slot.";
+    if (!values.startTime.trim()) nextErrors.startTime = "Select a start time.";
+    if (!values.endTime.trim()) nextErrors.endTime = "Select an end time.";
 
-    const computed = buildSchedule(values.campaignDate, values.slotTime);
+    const computed = buildSchedule(values.campaignDate, values.startTime, values.endTime);
     if (!computed.startAt) {
-      nextErrors.startAt = "Start time could not be computed from the selected date and slot.";
+      nextErrors.startAt = "Start time could not be computed from the selected date and time.";
     }
     if (!computed.endAt) {
-      nextErrors.endAt = "End time could not be computed from the selected date and slot.";
+      nextErrors.endAt = "End time could not be computed from the selected date and time.";
     } else if (computed.startAt && new Date(computed.endAt) <= new Date(computed.startAt)) {
       nextErrors.endAt = "End time must be after start time.";
     }
@@ -409,7 +408,7 @@ const FlashDealForm = ({
           <div className="mt-5 space-y-4">
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-700">
-                Deal Name
+                Flash Deal Name
               </label>
               <input
                 type="text"
@@ -436,7 +435,7 @@ const FlashDealForm = ({
                 value={values.campaignDate}
                 disabled={disabled}
                 onChange={(e) =>
-                  onScheduleChange(e.target.value, values.slotTime)
+                  onScheduleChange(e.target.value, values.startTime, values.endTime)
                 }
                 className="w-full rounded-lg border border-[var(--dni-border)] px-3 py-2 text-sm text-slate-900 outline-none focus:border-[var(--dni-primary)] disabled:bg-slate-50 disabled:text-slate-400"
               />
@@ -447,45 +446,41 @@ const FlashDealForm = ({
               )}
             </div>
 
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-700">
-                Time Slot
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {FLASH_DEAL_TIME_SLOTS.map((slot) => {
-                  const isSelected = values.slotTime === slot.time;
-                  return (
-                    <button
-                      key={slot.time}
-                      type="button"
-                      disabled={disabled}
-                      onClick={() =>
-                        onScheduleChange(values.campaignDate, slot.time)
-                      }
-                      aria-pressed={isSelected}
-                      className={`flex flex-col items-start gap-0.5 rounded-lg border px-3 py-2.5 text-left transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
-                        isSelected
-                          ? "border-[var(--dni-primary)] bg-[var(--dni-primary)] text-white shadow-sm"
-                          : "border-[var(--dni-border)] bg-white text-slate-700 hover:border-[var(--dni-primary)]"
-                      }`}
-                    >
-                      <span className="text-sm font-bold leading-none">
-                        {slot.time}
-                      </span>
-                      <span
-                        className={`text-[11px] font-medium ${
-                          isSelected ? "text-white/85" : "text-slate-500"
-                        }`}
-                      >
-                        {slot.label}
-                      </span>
-                    </button>
-                  );
-                })}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-700">
+                  Start Time
+                </label>
+                <input
+                  type="time"
+                  value={values.startTime}
+                  disabled={disabled}
+                  onChange={(e) =>
+                    onScheduleChange(values.campaignDate, e.target.value, values.endTime)
+                  }
+                  className="w-full rounded-lg border border-[var(--dni-border)] px-3 py-2 text-sm text-slate-900 outline-none focus:border-[var(--dni-primary)] disabled:bg-slate-50 disabled:text-slate-400"
+                />
+                {errors.startTime && (
+                  <p className="mt-1 text-xs text-red-600">{errors.startTime}</p>
+                )}
               </div>
-              {errors.slotTime && (
-                <p className="mt-1 text-xs text-red-600">{errors.slotTime}</p>
-              )}
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-700">
+                  End Time
+                </label>
+                <input
+                  type="time"
+                  value={values.endTime}
+                  disabled={disabled}
+                  onChange={(e) =>
+                    onScheduleChange(values.campaignDate, values.startTime, e.target.value)
+                  }
+                  className="w-full rounded-lg border border-[var(--dni-border)] px-3 py-2 text-sm text-slate-900 outline-none focus:border-[var(--dni-primary)] disabled:bg-slate-50 disabled:text-slate-400"
+                />
+                {errors.endTime && (
+                  <p className="mt-1 text-xs text-red-600">{errors.endTime}</p>
+                )}
+              </div>
             </div>
 
             {values.startAt && values.endAt && (
@@ -515,7 +510,7 @@ const FlashDealForm = ({
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm font-semibold text-slate-900">
-                Deal Items
+                Flash Deal Items
               </h2>
               <p className="mt-0.5 text-xs text-slate-500">
                 Pick products and set a discounted deal price.
@@ -542,7 +537,7 @@ const FlashDealForm = ({
               </p>
             </div>
           ) : (
-            <div ref={pickerRef} className="relative z-30 mt-5">
+            <div ref={pickerRef} className="relative z-50 mt-5">
               <div className="relative">
                 <Search
                   size={16}
@@ -820,18 +815,27 @@ const FlashDealForm = ({
   );
 };
 
+const localTimePart = (value: string): string => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
 export const flashDealInitialValues = (
   deal?: FlashDeal | null,
 ): FlashDealFormValues => {
-  const slotTime = deal?.slotTime ?? "";
   const campaignDate = deal?.startAt ? localDatePart(deal.startAt) : "";
-  const computed = buildSchedule(campaignDate, slotTime);
+  const startTime = deal?.startAt ? localTimePart(deal.startAt) : "";
+  const endTime = deal?.endAt ? localTimePart(deal.endAt) : "";
+  const computed = buildSchedule(campaignDate, startTime, endTime);
   return {
     name: deal?.name ?? "",
     description: deal?.description ?? "",
     status: deal?.status ?? "DRAFT",
     campaignDate,
-    slotTime,
+    startTime,
+    endTime,
     startAt: computed.startAt,
     endAt: computed.endAt,
   };
