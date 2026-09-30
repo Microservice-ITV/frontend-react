@@ -16,10 +16,10 @@ export type InvoiceDocument = {
   invoiceNumber: string
   orderId: string
   shopId: string
-  shopName?: string
+  shopName?: string | null
   customerId: string
-  customerName?: string
-  customerEmail?: string
+  customerName?: string | null
+  customerEmail?: string | null
   lineItems: Array<{
     name: string
     quantity: number
