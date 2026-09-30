@@ -18,6 +18,7 @@ import adminPricingRulesReducer from "@/features/admin/store/adminPricingRulesSl
 import adminWeightRatesReducer from "@/features/admin/store/adminWeightRatesSlice";
 import adminDistanceRangesReducer from "@/features/admin/store/adminDistanceRangesSlice";
 import adminDeliveryQuotesReducer from "@/features/admin/store/adminDeliveryQuotesSlice";
+import adminDeliveryCityRatesReducer from "@/features/admin/store/adminDeliveryCityRatesSlice";
 import shippingReducer from "@/features/shipping/store/shippingSlice";
 import homeFeatureReducer from "@/features/homeFeatures/store/homeFeatureSlice";
 import homeQuickActionsReducer from "@/features/home/store/homeSlice";
@@ -29,6 +30,7 @@ import announcementReducer from "@/features/announcements/store/announcementSlic
 import aiAssistantReducer from "@/features/ai/store/aiAssistantSlice";
 import wishlistReducer from "@/features/wishlist/store/wishlistSlice";
 import notificationReducer from "@/features/notifications/store/notificationSlice";
+import shopsReducer from "@/features/shops/store/shopSlice";
 
 // Single source of truth for all state
 const rootReducer = combineReducers({
@@ -51,6 +53,8 @@ const rootReducer = combineReducers({
   adminWeightRates: adminWeightRatesReducer,
   adminDistanceRanges: adminDistanceRangesReducer,
   adminDeliveryQuotes: adminDeliveryQuotesReducer,
+  adminDeliveryCityRates: adminDeliveryCityRatesReducer,
+
   // adminFlashDeals: adminFlashDealsReducer,
   // flashDeals: flashDealsReducer,
   homeFeatures: homeFeatureReducer,
@@ -63,6 +67,7 @@ const rootReducer = combineReducers({
   aiAssistant: aiAssistantReducer,
   wishlist: wishlistReducer,
   notifications: notificationReducer,
+  shops: shopsReducer,
 });
 
 export default rootReducer;

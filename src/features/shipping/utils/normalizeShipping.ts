@@ -6,6 +6,17 @@ function num(v: unknown): number | null {
     return Number.isFinite(n) ? n : null
 }
 
+function textOrNull(v: unknown): string | null {
+    if (typeof v !== 'string') return null
+    const trimmed = v.trim()
+    return trimmed || null
+}
+
+function calculationMethodOf(v: unknown): 'REAL_ROUTE' | 'CITY_ROUTE' | undefined {
+    if (v === 'REAL_ROUTE' || v === 'CITY_ROUTE') return v
+    return undefined
+}
+
 /** Turn batch API JSON into a map by shopId (tolerates several response shapes). */
 export function normalizeBatchShopProfiles(data: unknown): Record<string, ShopShippingProfileRow> {
     const out: Record<string, ShopShippingProfileRow> = {}
@@ -71,6 +82,7 @@ export function normalizeCalculateResponse(data: unknown): {
     const root = typeof data === 'object' && data !== null ? (data as Record<string, unknown>) : {}
     let list: unknown[] = []
     let totalShippingFee = num(root.totalShippingFee)
+    let rootMethod = calculationMethodOf(root.calculationMethod)
 
     if (Array.isArray(data)) {
         list = data
@@ -81,6 +93,7 @@ export function normalizeCalculateResponse(data: unknown): {
     } else if (root.data && typeof root.data === 'object') {
         const d = root.data as Record<string, unknown>
         if (totalShippingFee == null) totalShippingFee = num(d.totalShippingFee)
+        if (!rootMethod) rootMethod = calculationMethodOf(d.calculationMethod)
         if (Array.isArray(d.shops)) list = d.shops as unknown[]
         else if (Array.isArray(d.results)) list = d.results as unknown[]
     }
@@ -94,8 +107,21 @@ export function normalizeCalculateResponse(data: unknown): {
         const amount = num(
             r.shippingFee ?? r.fee ?? r.amount ?? r.totalShipping ?? r.calculatedFee ?? r.price,
         )
+        const deliveryStatusRaw =
+            typeof r.deliveryStatus === 'string' ? r.deliveryStatus.trim().toUpperCase() : ''
+        const deliveryStatus =
+            deliveryStatusRaw === 'NOT_DELIVERABLE'
+                ? ('NOT_DELIVERABLE' as const)
+                : deliveryStatusRaw === 'DELIVERABLE'
+                  ? ('DELIVERABLE' as const)
+                  : amount != null
+                    ? ('DELIVERABLE' as const)
+                    : undefined
         const currency =
             typeof r.currency === 'string' && r.currency.trim() ? r.currency.trim() : undefined
+        const calculationMethod = calculationMethodOf(r.calculationMethod) ?? rootMethod
+        const fromCityId = textOrNull(r.fromCityId ?? r.from_city_id)
+        const toCityId = textOrNull(r.toCityId ?? r.to_city_id)
         const estimatedDays = num(r.estimatedDays)
         const methodLabel =
             typeof r.method === 'string'
@@ -118,8 +144,12 @@ export function normalizeCalculateResponse(data: unknown): {
 
         byShopId[shopId] = {
             shopId,
-            amount,
+            amount: deliveryStatus === 'NOT_DELIVERABLE' ? 0 : amount,
+            deliveryStatus,
             currency,
+            calculationMethod,
+            fromCityId,
+            toCityId,
             methodLabel,
             etaHint,
             estimatedDays,

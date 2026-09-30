@@ -1,4 +1,5 @@
 import type { DashboardArea } from '@/features/dashboard/types/dashboardTypes'
+import { DeliveryCalculationMethodSettings } from '@/features/admin/components/DeliveryCalculationMethodSettings'
 
 type CommonSettingsPageProps = {
   area: DashboardArea
@@ -60,6 +61,8 @@ const CommonSettingsPage = ({ area }: CommonSettingsPageProps) => {
             </label>
           </div>
         </div>
+
+        {area === 'super_admin' ? <DeliveryCalculationMethodSettings /> : null}
       </div>
 
       <div className="flex justify-end">

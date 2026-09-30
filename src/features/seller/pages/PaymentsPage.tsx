@@ -22,6 +22,10 @@ const PAYMENT_STATUS_STYLES: Record<string, string> = {
 const DELIVERY_STATUS_STYLES: Record<string, string> = {
   DELIVERED: 'bg-emerald-100 text-emerald-700',
   SHIPPED: 'bg-sky-100 text-sky-700',
+  IN_TRANSIT: 'bg-blue-100 text-blue-700',
+  OUT_FOR_DELIVERY: 'bg-indigo-100 text-indigo-700',
+  PARTIALLY_FULFILLED: 'bg-orange-100 text-orange-700',
+  FULFILLED: 'bg-sky-100 text-sky-700',
   READY_FOR_FULFILLMENT: 'bg-violet-100 text-violet-700',
   PAID: 'bg-amber-100 text-amber-700',
   CONFIRMED: 'bg-slate-100 text-slate-600',
@@ -34,12 +38,24 @@ const deliveryLabel = (status?: string | null) => {
       return 'Delivered'
     case 'SHIPPED':
       return 'Shipped'
+    case 'IN_TRANSIT':
+      return 'In Transit'
+    case 'OUT_FOR_DELIVERY':
+      return 'Out for Delivery'
+    case 'PARTIALLY_FULFILLED':
+      return 'Partially Shipped'
+    case 'FULFILLED':
+      return 'Shipped'
     case 'READY_FOR_FULFILLMENT':
       return 'Ready to fulfil'
     default:
       return status.charAt(0) + status.slice(1).toLowerCase()
   }
 }
+
+/** True when this payment co-mingles other owners' shops (share < full). */
+const isSharedPayment = (payment: PaymentRecord) =>
+  Boolean(payment.seller) && Math.abs(payment.seller!.orderShare - payment.amount) > 0.005
 
 export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
   const user = useAppSelector((state) => state.auth.user)
@@ -123,6 +139,26 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
   const totalPages = Math.max(1, Math.ceil(filteredPayments.length / rowsPerPage))
   const paginatedPayments = filteredPayments.slice((page - 1) * rowsPerPage, page * rowsPerPage)
 
+  // Seller-scoped summary across settled payments (success/collected).
+  const stats = useMemo(() => {
+    const settled = payments.filter((payment) =>
+      ['SUCCESS', 'COLLECTED'].includes((payment.status || '').toUpperCase()),
+    )
+    const sum = (pick: (payment: PaymentRecord) => number) =>
+      Number(settled.reduce((carry, payment) => carry + pick(payment), 0).toFixed(2))
+    const scoped = payments.some((payment) => payment.seller)
+    return {
+      scoped,
+      collected: sum((payment) => payment.amount),
+      share: sum((payment) => payment.seller?.orderShare ?? payment.amount),
+      payout: sum((payment) => payment.seller?.payout ?? payment.amount),
+      pending: payments.filter((payment) =>
+        ['PENDING', 'CREATED', 'PROCESSING'].includes((payment.status || '').toUpperCase()),
+      ).length,
+      currency: payments[0]?.currency || 'USD',
+    }
+  }, [payments])
+
   const collect = async (payment: PaymentRecord) => {
     setCollecting(payment.id)
     setError('')
@@ -167,6 +203,40 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
       </div>
 
       {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+
+      {!admin && payments.length > 0 && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+              Collected (your shops)
+            </p>
+            <p className="mt-1 text-lg font-bold tracking-tight text-slate-900">
+              {money(stats.scoped ? stats.share : stats.collected, stats.currency)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+              Net Payouts
+            </p>
+            <p className="mt-1 text-lg font-bold tracking-tight text-emerald-600">
+              {money(stats.payout, stats.currency)}
+            </p>
+            <p className="mt-0.5 text-[10px] text-slate-400">after platform fees</p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+              Payments
+            </p>
+            <p className="mt-1 text-lg font-bold tracking-tight text-slate-900">{payments.length}</p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+              Awaiting Payment
+            </p>
+            <p className="mt-1 text-lg font-bold tracking-tight text-amber-600">{stats.pending}</p>
+          </div>
+        </div>
+      )}
 
       <div className="rounded-xl border border-slate-200 bg-white p-4">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -249,17 +319,54 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
                       )}
                     </td>
                     <td className="px-2 py-3 text-xs font-semibold text-slate-900">
-                      {money(payment.amount, payment.currency)}
+                      {(() => {
+                        const share = payment.seller?.orderShare ?? payment.amount
+                        const shared = isSharedPayment(payment)
+                        return (
+                          <div
+                            title={
+                              shared && payment.seller
+                                ? `Full order: ${money(payment.amount, payment.currency)} (other owners' shops excluded) · your payout after fees: ${money(payment.seller.payout, payment.currency)}`
+                                : payment.seller
+                                  ? `Payout after platform fee: ${money(payment.seller.payout, payment.currency)}`
+                                  : undefined
+                            }
+                          >
+                            <p>{money(share, payment.currency)}</p>
+                            {shared && (
+                              <p className="mt-0.5 text-[10px] font-normal text-slate-400">
+                                your share · full {money(payment.amount, payment.currency)}
+                              </p>
+                            )}
+                          </div>
+                        )
+                      })()}
                     </td>
                     <td className="px-2 py-3">
-                      <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                          DELIVERY_STATUS_STYLES[(payment.deliveryStatus ?? '').toUpperCase()] ??
-                          'bg-slate-100 text-slate-600'
-                        }`}
-                      >
-                        {deliveryLabel(payment.deliveryStatus)}
-                      </span>
+                      {(() => {
+                        // Seller's own shops drive this badge; the full order
+                        // status can lag behind other owners' shops.
+                        const display = payment.sellerDeliveryStatus || payment.deliveryStatus
+                        const differs = Boolean(
+                          payment.sellerDeliveryStatus &&
+                            payment.sellerDeliveryStatus !== payment.deliveryStatus,
+                        )
+                        return (
+                          <span
+                            title={
+                              differs
+                                ? `Your shops: ${deliveryLabel(display)} · Full order: ${deliveryLabel(payment.deliveryStatus)}`
+                                : undefined
+                            }
+                            className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                              DELIVERY_STATUS_STYLES[(display ?? '').toUpperCase()] ??
+                              'bg-slate-100 text-slate-600'
+                            }`}
+                          >
+                            {deliveryLabel(display)}
+                          </span>
+                        )
+                      })()}
                     </td>
                     <td className="px-2 py-3">
                       <span
@@ -283,7 +390,7 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
                           <button
                             disabled={collecting === payment.id}
                             onClick={() => void collect(payment)}
-                            className="rounded-md bg-emerald-600 px-2.5 py-1.5 text-xs font-medium text-white disabled:opacity-60"
+                            className="rounded-md bg-emerald-600 px-2.5 py-1.5 text-xs font-medium text-white disabled:opacity-60 cursor-pointer"
                           >
                             {collecting === payment.id ? 'Collecting…' : 'Collect COD'}
                           </button>

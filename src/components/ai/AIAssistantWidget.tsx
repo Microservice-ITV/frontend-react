@@ -1,5 +1,5 @@
 import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, useEffect, useRef, useState } from 'react'
-import { Clock3, Maximize2, MessageSquarePlus, Minimize2, Minus, Send, Sparkles, Square, X } from 'lucide-react'
+import { Clock3, Maximize2, MessageSquarePlus, Minimize2, Minus, Send, Square, X } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { AIMessage } from '@/components/ai/AIMessage'
 import { selectIsAuthenticated } from '@/features/auth/store/authSelectors'
@@ -14,6 +14,7 @@ import {
   toggleAiHistory,
 } from '@/features/ai/store/aiAssistantSlice'
 import { useAIChat } from '@/hooks/useAIChat'
+import brandLogo from '@/public/brand-logo.svg'
 
 const PROMPTS = [
   'Find a thoughtful gift under my budget',
@@ -33,7 +34,7 @@ const formatWhen = (value: string | null) => {
  *
  * The launcher and panel are offset above the bottom-right corner (bottom-24 = 96px) and stay far
  * below the reCAPTCHA badge z-index, so Google's bottom-right reCAPTCHA badge is never covered or
- * blocked.
+ * blocked. 
  */
 export const AIAssistantWidget = () => {
   const dispatch = useAppDispatch()
@@ -111,10 +112,12 @@ export const AIAssistantWidget = () => {
       <button
         type="button"
         onClick={() => dispatch(panel.isMinimized ? restoreAiAssistant() : toggleAiAssistant())}
-        className="fixed right-4 bottom-24 z-[80] inline-flex items-center gap-2 rounded-sm bg-[var(--dni-primary)] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_6px_18px_rgba(0,0,0,0.18)] transition-colors hover:bg-[var(--dni-primary-hover)] sm:right-6 sm:bottom-24"
+        className="fixed right-4 bottom-4 z-[80] inline-flex items-center gap-2 rounded-sm bg-[var(--dni-primary)] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_6px_18px_rgba(0,0,0,0.18)] transition-colors hover:bg-[var(--dni-primary-hover)] sm:right-6 sm:bottom-6"
         aria-label={panel.isMinimized ? 'Resume the shopping assistant chat' : 'Open the shopping assistant'}
       >
-        <Sparkles size={16} />
+        <svg viewBox="0 0 20 20" className="h-4 w-4 fill-white" aria-hidden>
+          <path d="M18 6.07a1 1 0 01.993.883L19 7.07v10.365a1 1 0 01-1.64.768l-1.6-1.333H6.42a1 1 0 01-.98-.8l-.016-.117-.149-1.783h9.292a1.8 1.8 0 001.776-1.508l.018-.154.494-6.438H18zm-2.78-4.5a1 1 0 011 1l-.003.077-.746 9.7a1 1 0 01-.997.923H4.24l-1.6 1.333a1 1 0 01-.5.222l-.14.01a1 1 0 01-.993-.883L1 13.835V2.57a1 1 0 011-1h13.22zm-4.638 5.082c-.223.222-.53.397-.903.526A4.61 4.61 0 018.2 7.42a4.61 4.61 0 01-1.48-.242c-.372-.129-.68-.304-.902-.526a.45.45 0 00-.636.636c.329.33.753.571 1.246.74A5.448 5.448 0 008.2 8.32c.51 0 1.126-.068 1.772-.291.493-.17.917-.412 1.246-.74a.45.45 0 00-.636-.637z" />
+        </svg>
         <span>{panel.isMinimized ? 'Resume chat' : 'Ask DNI'}</span>
         {panel.isMinimized && hasConversation && (
           <span className="inline-flex h-2 w-2 rounded-full bg-white/90" aria-hidden="true" />
@@ -125,16 +128,18 @@ export const AIAssistantWidget = () => {
 
   return (
     <section
-      className={`fixed inset-x-0 top-0 bottom-24 z-[80] flex flex-col bg-white sm:inset-auto sm:right-6 sm:bottom-24 sm:rounded-sm sm:border sm:border-[var(--dni-cart-border)] sm:shadow-[0_10px_34px_rgba(0,0,0,0.22)] ${
+      className={`fixed inset-x-0 top-0 bottom-0 z-[80] flex flex-col bg-white sm:inset-auto sm:right-6 sm:bottom-6 sm:rounded-sm sm:border sm:border-[var(--dni-cart-border)] sm:shadow-[0_10px_34px_rgba(0,0,0,0.22)] ${
         panel.isMaximized ? 'sm:h-[min(82vh,760px)] sm:w-[min(92vw,720px)]' : 'sm:h-[560px] sm:w-[min(92vw,380px)]'
       }`}
       aria-label="Shopping assistant"
     >
       <header className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--dni-cart-border)] px-3 py-2.5">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-[var(--dni-primary)] text-white">
-            <Sparkles size={15} />
-          </span>
+          <img
+            src={brandLogo}
+            alt=""
+            className="h-8 w-8 shrink-0 rounded-sm"
+          />
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-gray-900">Shopping assistant</p>
             <p className="truncate text-[11px] text-gray-500">
@@ -215,9 +220,11 @@ export const AIAssistantWidget = () => {
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-3 py-4">
           {!hasConversation ? (
             <div className="flex h-full flex-col items-center justify-center px-2 text-center">
-              <span className="flex h-11 w-11 items-center justify-center rounded-sm bg-[var(--dni-primary)] text-white">
-                <Sparkles size={18} />
-              </span>
+              <img
+                src={brandLogo}
+                alt=""
+                className="h-9 w-9 shrink-0 rounded-sm"
+              />
               <p className="mt-3 text-sm font-semibold text-gray-900">How can I help you shop today?</p>
               <p className="mt-1 text-xs text-gray-500">Ask about products, prices, stock, delivery or an order.</p>
               <div className="mt-4 flex w-full flex-col gap-2">

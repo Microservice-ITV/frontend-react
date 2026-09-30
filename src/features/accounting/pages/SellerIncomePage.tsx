@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react' 
 import { Link } from 'react-router-dom' 
-import { CircleDollarSign, RefreshCw, Search } from 'lucide-react' 
+import { CircleDollarSign, Download, RefreshCw, Search } from 'lucide-react' 
+import * as XLSX from 'xlsx'
 import DataTablePagination from '@/components/ui/DataTablePagination' 
 import { authClient } from '@/lib/api/authClient' 
 import { accountingClient } from '@/lib/api/accountingClient' 
@@ -9,7 +10,14 @@ import type { AccountingIncomeLine } from '@/features/admin/api/adminAccountingA
  
 type AccessContextResponse = { 
   data?: { 
+    user?: {
+      active_shop_id?: string | null
+    }
     access_context?: { 
+      active_shop?: {
+        shop_id?: string | null
+        shop_name?: string | null
+      } | null
       shops?: Array<{ 
         shop_id?: string | null 
         shop_name?: string | null 
@@ -47,7 +55,7 @@ const extractShopIdFromMemo = (value?: string | null): string | null => {
   return match?.[1] ? match[1].trim() : null 
 } 
  
-const toIncomeRows = ( 
+export const toIncomeRows = ( 
   entries: AccountingIncomeLine[], 
   allowedShopIds: Set<string>, 
   shopNames: Record<string, string>, 
@@ -56,9 +64,10 @@ const toIncomeRows = (
     .filter((line) => line.direction === 'CREDIT' && line.account.type === 'INCOME') 
     .map((line) => { 
       const rawShopId = extractShopIdFromMemo(line.memo ?? line.journalEntry.narration) ?? extractShopIdFromMemo(line.journalEntry.narration) 
-      const shopId = rawShopId && allowedShopIds.has(normalizeShopId(rawShopId)) ? normalizeShopId(rawShopId) : null 
+      const shopId = rawShopId ? normalizeShopId(rawShopId) : null 
       const fallbackShopId = allowedShopIds.size === 1 ? Array.from(allowedShopIds)[0] : null 
-      const resolvedShopId = shopId ?? fallbackShopId 
+      const candidateShopId = shopId ?? fallbackShopId 
+      const resolvedShopId = candidateShopId && allowedShopIds.has(candidateShopId) ? candidateShopId : null
  
       return { 
         id: line.id, 
@@ -99,19 +108,27 @@ const SellerIncomePage = () => {
         accountingClient.get<{ entries?: AccountingIncomeLine[]; totalIncome?: number | string }>('/reports/profit-loss'), 
       ]) 
  
-      const shops = accessContextResponse.data.data?.access_context?.shops ?? [] 
+      const accessContext = accessContextResponse.data.data?.access_context
+      const activeShop = accessContext?.active_shop
+      const shops = [
+        ...(accessContext?.shops ?? []),
+        ...(activeShop ? [activeShop] : []),
+      ]
       const shopNames = Object.fromEntries( 
         shops.flatMap((shop) => 
           shop.shop_id && shop.shop_name ? [[normalizeShopId(shop.shop_id), shop.shop_name]] : [], 
         ), 
       ) 
-      const activeShopId = authUser?.active_shop_id ? normalizeShopId(authUser.active_shop_id) : null 
+      const contextShopId = accessContextResponse.data.data?.user?.active_shop_id
+      const activeShopId = [activeShop?.shop_id, contextShopId, authUser?.active_shop_id]
+        .find((shopId): shopId is string => typeof shopId === 'string' && shopId.trim() !== '')
+      const normalizedActiveShopId = activeShopId ? normalizeShopId(activeShopId) : null
       const allowedShopIds = new Set<string>() 
  
       for (const shop of shops) { 
         if (shop.shop_id) allowedShopIds.add(normalizeShopId(shop.shop_id)) 
       } 
-      if (activeShopId) allowedShopIds.add(activeShopId) 
+      if (normalizedActiveShopId) allowedShopIds.add(normalizedActiveShopId) 
  
       const safeEntries = entriesResponse.data?.entries ?? [] 
       const rows = toIncomeRows(safeEntries, allowedShopIds, shopNames) 
@@ -141,6 +158,27 @@ const SellerIncomePage = () => {
   const visibleRows = filteredRows.slice((page - 1) * rowsPerPage, page * rowsPerPage) 
   const totalIncome = filteredRows.reduce((sum, row) => sum + row.amount, 0) 
  
+  const exportIncome = () => {
+    const rows = [
+      ['Date', 'Shop', 'Reference', 'Account', 'Narration', 'Memo', 'Status', 'Amount'],
+      ...filteredRows.map((row) => [
+        row.dateValue,
+        row.shopName,
+        row.reference,
+        row.account,
+        row.narration,
+        row.memo,
+        row.status,
+        row.amount,
+      ]),
+    ]
+
+    const worksheet = XLSX.utils.aoa_to_sheet(rows)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Seller Income')
+    XLSX.writeFile(workbook, `seller-income-${new Date().toISOString().slice(0, 10)}.xlsx`)
+  }
+ 
   return ( 
     <div className="space-y-6"> 
       <nav className="text-xs text-slate-500"> 
@@ -159,15 +197,26 @@ const SellerIncomePage = () => {
           </h1> 
           <p className="mt-0.5 text-sm text-slate-600">Income journal lines for your shop only.</p> 
         </div> 
-        <button 
-          type="button" 
-          onClick={() => void loadIncome()} 
-          disabled={status === 'loading'} 
-          className="flex items-center gap-1.5 self-start rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50" 
-        > 
-          <RefreshCw size={14} className={status === 'loading' ? 'animate-spin' : ''} /> 
-          Refresh 
-        </button> 
+        <div className="flex items-center gap-2 self-start">
+          <button
+            type="button"
+            onClick={exportIncome}
+            disabled={filteredRows.length === 0}
+            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+          >
+            <Download size={14} />
+            Export
+          </button>
+          <button 
+            type="button" 
+            onClick={() => void loadIncome()} 
+            disabled={status === 'loading'} 
+            className="flex items-center gap-1.5 self-start rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50" 
+          > 
+            <RefreshCw size={14} className={status === 'loading' ? 'animate-spin' : ''} /> 
+            Refresh 
+          </button> 
+        </div>
       </div> 
  
       {error && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>} 

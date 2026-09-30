@@ -6,7 +6,6 @@ export type Invoice = {
   orderId: string
   status: InvoiceStatus
   issued: string
-  due: string
   amount: string
   currency: string
   pdfUrl: string | null

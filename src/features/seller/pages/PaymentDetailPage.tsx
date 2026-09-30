@@ -1,7 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { RefreshCw, ArrowLeft, CreditCard, PackageCheck, Fingerprint, History } from 'lucide-react'
-import { sellerOrderApi, type PaymentDetail } from '../api/sellerOrderApi'
+import { RefreshCw, ArrowLeft, CreditCard, PackageCheck, Fingerprint, History, Wallet } from 'lucide-react'
+import { useAppSelector } from '@/app/hooks'
+import {
+  sellerOrderApi,
+  type PaymentAllocation,
+  type PaymentDetail,
+} from '../api/sellerOrderApi'
+import PaymentAllocationCard from '../components/PaymentAllocationCard'
 
 const money = (value: number, currency: string) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD' }).format(value || 0)
@@ -30,6 +36,14 @@ const deliveryLabel = (status?: string | null) => {
       return 'Delivered'
     case 'SHIPPED':
       return 'Shipped'
+    case 'IN_TRANSIT':
+      return 'In Transit'
+    case 'OUT_FOR_DELIVERY':
+      return 'Out for Delivery'
+    case 'PARTIALLY_FULFILLED':
+      return 'Partially Shipped'
+    case 'FULFILLED':
+      return 'Shipped'
     case 'READY_FOR_FULFILLMENT':
       return 'Ready to fulfil'
     default:
@@ -52,9 +66,73 @@ const formatDate = (value?: string | null) => {
 
 export default function PaymentDetailPage() {
   const { paymentId = '' } = useParams()
+  const authUser = useAppSelector((state) => state.auth.user)
   const [payment, setPayment] = useState<PaymentDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [shopNames, setShopNames] = useState<Record<string, string>>({})
+  const [sellerShopIds, setSellerShopIds] = useState<string[]>([])
+  const [allocations, setAllocations] = useState<PaymentAllocation[]>([])
+
+  // Resolve the shops owned by this account so the allocation view can be
+  // restricted to the seller's own slice of a shared payment.
+  useEffect(() => {
+    if (!authUser?.id) return
+    let cancelled = false
+    sellerOrderApi
+      .listShopsByUser(authUser.id)
+      .then((shops) => {
+        if (cancelled) return
+        const map: Record<string, string> = {}
+        const ids: string[] = []
+        for (const shop of shops) {
+          const id = shop.id ?? shop.shopId
+          if (id) {
+            map[id] = shop.name?.trim() || shop.slug || id
+            ids.push(id)
+          }
+        }
+        setShopNames(map)
+        setSellerShopIds(ids)
+      })
+      .catch(() => {
+        /* Non-fatal: share card stays hidden. */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [authUser?.id])
+
+  // Per-shop payout split for this payment (seller's shops only).
+  useEffect(() => {
+    const orderId = payment?.orderId
+    if (!orderId || !payment || sellerShopIds.length === 0) {
+      setAllocations([])
+      return
+    }
+    let cancelled = false
+    sellerOrderApi
+      .paymentAllocations(orderId, sellerShopIds)
+      .then((rows) => {
+        if (!cancelled) setAllocations(rows.filter((row) => row.paymentId === payment.id))
+      })
+      .catch(() => {
+        if (!cancelled) setAllocations([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [payment?.orderId, payment?.id, sellerShopIds])
+
+  const shopLabel = (shopId: string) =>
+    shopNames[shopId] || (shopId ? `Shop ${shopId.slice(0, 8)}` : 'Unknown shop')
+
+  const sellerShareTotal = useMemo(
+    () => Number(allocations.reduce((carry, row) => carry + row.orderAmount, 0).toFixed(2)),
+    [allocations],
+  )
+  const isSharedPayment =
+    allocations.length > 0 && Math.abs(sellerShareTotal - (payment?.amount ?? 0)) > 0.005
 
   const load = async () => {
     setLoading(true)
@@ -144,6 +222,34 @@ export default function PaymentDetailPage() {
               {payment.failureReason && <DetailItem label="Failure Reason" value={payment.failureReason} />}
             </dl>
           </div>
+
+          {allocations.length > 0 && (
+            <div className="mt-6 rounded-xl border border-emerald-100 bg-gradient-to-br from-emerald-50/60 to-white">
+              <div className="flex items-center gap-2 border-b border-emerald-100 px-4 py-3">
+                <Wallet size={15} className="text-emerald-600" />
+                <h2 className="text-sm font-semibold text-slate-900">Your Share of This Payment</h2>
+                {isSharedPayment && (
+                  <span className="ml-auto inline-flex rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
+                    shared order
+                  </span>
+                )}
+              </div>
+              <div className="px-4">
+                {isSharedPayment && (
+                  <p className="border-b border-emerald-100 pb-2 pt-1 text-xs text-slate-500">
+                    This payment covers other owners&apos; shops too — showing only your shops&apos; amounts.
+                  </p>
+                )}
+                <PaymentAllocationCard
+                  allocations={allocations}
+                  currency={payment.currency}
+                  shopLabel={shopLabel}
+                  title="Payout by shop"
+                  scopedCaption={isSharedPayment}
+                />
+              </div>
+            </div>
+          )}
 
           <div className="mt-6 rounded-xl border border-slate-200 bg-white">
             <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">

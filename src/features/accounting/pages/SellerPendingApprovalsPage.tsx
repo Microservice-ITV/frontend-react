@@ -152,7 +152,7 @@ const SellerPendingApprovalsPage = () => {
                     <td className="px-4 py-3"><AccountingStatusBadge status={approval.status} /></td>
                     <td className="px-4 py-3">
                       <Link
-                        to={`/seller/accounting/expenses/${encodeURIComponent(expense.id)}`}
+                        to={`/seller/accounting/expenses/${encodeURIComponent(expense.expenseNo)}`}
                         className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:text-emerald-800"
                       >
                         <ReceiptText size={12} />

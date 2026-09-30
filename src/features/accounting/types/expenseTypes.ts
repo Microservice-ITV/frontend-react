@@ -51,12 +51,15 @@ export type ExpenseJournalEntry = {
 export type AccountingExpense = {
   id: string
   expenseNo: string
+  scope?: 'SHOP' | 'PLATFORM'
   shopId: string | null
+  createdByUserId?: string | null
   sellerUserId: string | null
   expenseTypeId: string
   amount: string
   currency: string
   description: string | null
+  receiptImage?: string | null
   expenseDate: string
   status: ExpenseStatus
   createdAt: string
@@ -67,7 +70,8 @@ export type AccountingExpense = {
 }
 
 export type CreateExpensePayload = {
-  shopId: string
+  scope?: 'SHOP' | 'PLATFORM'
+  shopId?: string | null
   amount: number
   expenseDate?: string
   expenseAccountCode: string
@@ -75,11 +79,12 @@ export type CreateExpensePayload = {
   eventId?: string
   expenseCategoryId: string
   description?: string
+  receiptImage?: string
 }
 
 export type CreateExpenseResponse = {
   expense: AccountingExpense
-  journalEntry: ExpenseJournalEntry
+  journalEntry: ExpenseJournalEntry | null
 }
 
 export type ExpenseApprovalSummary = {
@@ -138,6 +143,9 @@ export type ApprovalPolicyCondition = {
 export type ApprovalPolicy = {
   id: string
   name: string
+  scope?: 'SHOP' | 'PLATFORM'
+  shopId?: string | null
+  approverUserId?: string | null
   minAmount: string
   maxAmount: string | null
   level: number
@@ -146,7 +154,8 @@ export type ApprovalPolicy = {
 }
 
 export type ApprovalPolicyInput = {
-  shopId: string
+  scope?: 'SHOP' | 'PLATFORM'
+  shopId?: string | null
   name: string
   minAmount: number
   maxAmount?: number | null

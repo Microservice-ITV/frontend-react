@@ -20,7 +20,14 @@ export type InvoiceDocument = {
   customerId: string
   customerName?: string
   customerEmail?: string
+  lineItems: Array<{
+    name: string
+    quantity: number
+    unitPrice: string
+    total: string
+  }> | null
   subtotal: string
+  deliveryFee: string
   taxAmount: string
   discountAmount: string
   grandTotal: string
@@ -34,6 +41,9 @@ export type InvoiceDocument = {
   verifiedAt: string | null
   rejectionReason: string | null
   verificationNote: string | null
+  refundAmount: string | null
+  refundMethod: string | null
+  refundReason: string | null
   createdAt: string
   updatedAt: string
 }

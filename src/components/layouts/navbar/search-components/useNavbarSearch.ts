@@ -7,10 +7,27 @@ import {
   selectCategoriesWithProducts,
   selectCategoriesStatus,
 } from "@/features/categories/store/categorySelectors";
+import { searchShops } from "@/features/shops/store/shopThunks";
+import { clearSearch as clearProductSearch } from "@/features/products/store/productSlice";
+import { clearShopSearch } from "@/features/shops/store/shopSlice";
 
 export const DEBOUNCE_MS = 400;
 export const MIN_QUERY_LENGTH = 2;
 export const ALL_CATEGORIES = "";
+
+const runCombinedSearch = (
+  dispatch: ReturnType<typeof useAppDispatch>,
+  query: string,
+  categoryId?: string,
+) => {
+  dispatch(
+    searchProducts({
+      query,
+      categoryId: categoryId || undefined,
+    }),
+  );
+  dispatch(searchShops({ query, perPage: 10 }));
+};
 
 export function useNavbarSearch() {
   const dispatch = useAppDispatch();
@@ -19,6 +36,8 @@ export function useNavbarSearch() {
 
   const searchResults = useAppSelector((s) => s.products.searchResults || []);
   const searchStatus = useAppSelector((s) => s.products.searchStatus || "idle");
+  const shopResults = useAppSelector((s) => s.shops.searchResults || []);
+  const shopStatus = useAppSelector((s) => s.shops.searchStatus || "idle");
   const categories = useAppSelector(selectCategoriesWithProducts);
   const categoriesStatus = useAppSelector(selectCategoriesStatus);
 
@@ -116,16 +135,11 @@ export function useNavbarSearch() {
 
       if (timerRef.current) clearTimeout(timerRef.current);
 
-      const trimmed = value.trim();
-      if (trimmed.length >= MIN_QUERY_LENGTH) {
+      const query = value.trim();
+      if (query.length >= MIN_QUERY_LENGTH) {
         setIsDropdownOpen(true);
         timerRef.current = setTimeout(() => {
-          dispatch(
-            searchProducts({
-              query: trimmed,
-              categoryId: categoryRef.current || undefined,
-            }),
-          );
+          runCombinedSearch(dispatch, query, categoryRef.current);
         }, DEBOUNCE_MS);
       } else {
         setIsDropdownOpen(false);
@@ -137,15 +151,10 @@ export function useNavbarSearch() {
   const handleCategoryChange = useCallback(
     (categoryId: string) => {
       setSelectedCategoryId(categoryId);
-      const trimmed = queryRef.current.trim();
-      if (trimmed.length >= MIN_QUERY_LENGTH) {
+      const query = queryRef.current.trim();
+      if (query.length >= MIN_QUERY_LENGTH) {
         if (timerRef.current) clearTimeout(timerRef.current);
-        dispatch(
-          searchProducts({
-            query: trimmed,
-            categoryId: categoryId || undefined,
-          }),
-        );
+        runCombinedSearch(dispatch, query, categoryId);
       }
     },
     [dispatch],
@@ -174,8 +183,10 @@ export function useNavbarSearch() {
     if (timerRef.current) clearTimeout(timerRef.current);
     setSearchQuery("");
     setIsDropdownOpen(false);
+    dispatch(clearProductSearch());
+    dispatch(clearShopSearch());
     navigate("/");
-  }, [navigate]);
+  }, [navigate, dispatch]);
 
   const clearMobileSearch = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -192,6 +203,8 @@ export function useNavbarSearch() {
     categories,
     searchResults,
     searchStatus,
+    shopResults,
+    shopStatus,
     searchContainerRef,
     categoryMenuRef,
     mobileInputRef,

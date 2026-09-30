@@ -1,6 +1,8 @@
 import { useMemo, useState, useRef, useEffect } from 'react'
 import {
   Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
   Search,
   Bell,
   Settings,
@@ -32,6 +34,8 @@ import { getTopbarRouteConfig } from '../../config/topbarRouteConfig'
 type DashboardTopbarProps = {
   area: DashboardArea;
   onMenuClick: () => void;
+  isSidebarCollapsed: boolean;
+  onToggleSidebar: () => void;
 };
 type SearchResult = {
   key: string;
@@ -44,7 +48,12 @@ type SearchResult = {
 // with the `duration-*` class used on the backdrop/panel below.
 const MODAL_TRANSITION_MS = 200;
 
-const DashboardTopbar = ({ area, onMenuClick }: DashboardTopbarProps) => {
+const DashboardTopbar = ({
+  area,
+  onMenuClick,
+  isSidebarCollapsed,
+  onToggleSidebar,
+}: DashboardTopbarProps) => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const authUser = useAppSelector((state) => state.auth.user);
@@ -379,6 +388,21 @@ const DashboardTopbar = ({ area, onMenuClick }: DashboardTopbarProps) => {
       <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 sm:px-6">
         {/* Left: menu + search trigger button */}
         <div className="flex min-w-0 flex-1 items-center gap-3">
+          <button
+            type="button"
+            onClick={onToggleSidebar}
+            className="hidden shrink-0 rounded-md p-2 text-slate-600 transition-colors hover:bg-slate-100 hover:text-black lg:block"
+            aria-label={
+              isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"
+            }
+          >
+            {isSidebarCollapsed ? (
+              <PanelLeftOpen size={18} />
+            ) : (
+              <PanelLeftClose size={18} />
+            )}
+          </button>
+
           <button
             type="button"
             onClick={onMenuClick}

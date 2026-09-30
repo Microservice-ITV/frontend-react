@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeft, Phone, ShieldCheck } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -18,7 +18,6 @@ export const PhoneAuthPage = () => {
   const [isLoading, setIsLoading] = useState(false)
 
   const normalizedPhone = normalizeMyanmarPhone(phone)
-
   const isValid = /^\+95\d{9,10}$/.test(normalizedPhone)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -29,11 +28,9 @@ export const PhoneAuthPage = () => {
     setIsLoading(true)
 
     try {
-      const fullPhone = normalizedPhone
       const recaptchaToken = await getRecaptchaToken('phone_otp_request')
-      await dispatch(requestPhoneOtp({ phone: fullPhone, recaptchaToken })).unwrap()
-
-      navigate(`/phone-verify?phone=${encodeURIComponent(fullPhone)}`)
+      await dispatch(requestPhoneOtp({ phone: normalizedPhone, recaptchaToken })).unwrap()
+      navigate(`/phone-verify?phone=${encodeURIComponent(normalizedPhone)}`)
     } catch {
       // The auth slice exposes the server error beside this form.
     } finally {
@@ -42,172 +39,100 @@ export const PhoneAuthPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-8 sm:py-12">
-      <div className="mx-auto flex w-full max-w-md flex-col">
-        <Link
-          to="/login"
-          className="
-            mb-6
-            inline-flex
-            w-fit
-            items-center
-            gap-2
-            text-sm
-            font-medium
-            text-gray-500
-            transition-colors
-            hover:text-gray-900
-          "
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to login
-        </Link>
+    <div className="bg-gray-50 px-4 pt-8 pb-12 flex flex-col items-center">
+      <Card className="w-full max-w-md p-8">
+        <h1 className="text-2xl font-semibold text-gray-900 text-center">
+          Continue with phone
+        </h1>
 
-        <Card className="w-full overflow-hidden p-0 shadow-sm">
-          {/* Header */}
-          <div className="border-b border-gray-100 bg-gradient-to-b from-white to-gray-50 px-6 pb-8 pt-8 sm:px-8">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-black shadow-lg">
-              <Phone className="h-6 w-6 text-white" strokeWidth={2.2} />
+        <p className="mt-2 text-sm text-gray-600 text-center">
+          Enter your phone number and we'll send you a verification code.
+        </p>
+
+        {error && (
+          <div
+            className="mt-4 flex items-start gap-2 rounded-sm border border-red-200 bg-[#fff6f6] px-3 py-2 text-xs text-red-700"
+            role="alert"
+            aria-live="polite"
+          >
+            <AlertCircle className="mt-[1px] h-4 w-4 shrink-0 text-red-500" aria-hidden />
+            <p className="flex-1">{error}</p>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+          <div className="space-y-1">
+            <label htmlFor="phone" className="text-sm font-medium">
+              Phone number
+            </label>
+            <div className="flex overflow-hidden rounded border focus-within:ring focus-within:ring-blue-300">
+              <div className="flex items-center gap-1.5 border-r bg-gray-50 px-3 py-2.5 text-base font-medium text-gray-700">
+                <span aria-hidden>🇲🇲</span>
+                <span>{COUNTRY_CODE}</span>
+              </div>
+              <input
+                id="phone"
+                type="tel"
+                inputMode="numeric"
+                autoComplete="tel"
+                placeholder="9*********"
+                value={phone}
+                maxLength={11}
+                disabled={isLoading}
+                onChange={(e) => {
+                  const value = e.target.value
+                  if (/^\d*$/.test(value)) {
+                    setPhone(value)
+                  }
+                }}
+                required
+                className="min-w-0 flex-1 border-0 px-3 py-2.5 text-base outline-none disabled:bg-white disabled:text-gray-400"
+              />
             </div>
-
-            <h1 className="mt-5 text-center text-2xl font-semibold tracking-tight text-gray-900">
-              Continue with phone
-            </h1>
-
-            <p className="mx-auto mt-2 max-w-sm text-center text-sm leading-6 text-gray-500">
-              Enter your phone number and we&apos;ll send you a verification code.
-            </p>
+            <p className="text-xs text-gray-500">Example: 9*********</p>
           </div>
 
-          {/* Form */}
-          <form
-            onSubmit={handleSubmit}
-            className="space-y-6 px-6 py-8 sm:px-8"
-          >
-            <div>
-              <label
-                htmlFor="phone"
-                className="mb-2 block text-sm font-semibold text-gray-800"
-              >
-                Phone number
-              </label>
-
-              <div
-                className="
-                  flex
-                  overflow-hidden
-                  rounded-xl
-                  border
-                  border-gray-200
-                  bg-white
-                  shadow-sm
-                  transition-all
-                  focus-within:border-gray-400
-                  focus-within:ring-4
-                  focus-within:ring-gray-100
-                "
-              >
-                {/* Country */}
-                <div
-                  className="
-                    flex
-                    items-center
-                    gap-2
-                    border-r
-                    border-gray-200
-                    bg-gray-50
-                    px-4
-                    text-sm
-                    font-semibold
-                    text-gray-700
-                  "
-                >
-                  <span className="text-base">🇲🇲</span>
-                  <span>{COUNTRY_CODE}</span>
-                </div>
-
-                <input
-                  id="phone"
-                  type="tel"
-                  inputMode="numeric"
-                  autoComplete="tel"
-                  placeholder="9*********"
-                  value={phone}
-                  maxLength={10}
-                  onChange={(e) => {
-                    const value = e.target.value
-                    if (/^\d*$/.test(value)) {
-                      setPhone(value)
-                    }
-                  }}
-                  className="
-                    min-w-0
-                    flex-1
-                    border-0
-                    bg-transparent
-                    px-4
-                    py-3.5
-                    text-sm
-                    font-medium
-                    text-gray-900
-                    outline-none
-                    placeholder:text-gray-400
-                  "
-                />
-              </div>
-
-              <p className="mt-2 text-xs leading-5 text-gray-400">
-                Example: 9*********
+          <div className="flex gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+            <div className="text-blue-600 text-lg">🛡️</div>
+            <div className="text-xs text-gray-600">
+              <p className="font-semibold text-gray-700">
+                Protected by Google reCAPTCHA
               </p>
+              <p>We use reCAPTCHA to prevent spam and abuse.</p>
             </div>
+          </div>
 
-            <Button
-              type="submit"
-              loading={isLoading}
-              disabled={!isValid || isLoading}
-            >
-              Continue
-            </Button>
+          <Button type="submit" loading={isLoading} disabled={!isValid || isLoading}>
+            Continue
+          </Button>
+        </form>
 
-            {error && (
-              <p className="text-sm text-red-600" role="alert">{error}</p>
-            )}
+        <p className="mt-6 text-sm text-center text-gray-600">
+          <Link to="/login" className="font-medium text-black hover:underline">
+            Back to login
+          </Link>
+        </p>
 
-            {/* Security */}
-            <div className="flex items-start gap-3 rounded-xl border border-gray-100 bg-gray-50 p-4">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white shadow-sm">
-                <ShieldCheck className="h-4 w-4 text-gray-700" />
-              </div>
-
-              <div>
-                <p className="text-xs font-semibold text-gray-700">
-                  Secure verification
-                </p>
-
-                <p className="mt-1 text-xs leading-5 text-gray-500">
-                  Your phone number is used only to verify your identity and
-                  secure your account.
-                </p>
-              </div>
-            </div>
-          </form>
-        </Card>
-
-        <p className="mt-6 text-center text-sm text-gray-500">
-          By continuing, you agree to our{' '}
-          <a href="/terms" className="font-medium text-gray-800 hover:underline">
-            Terms
-          </a>{' '}
-          and{' '}
+        <p className="mt-4 text-[10px] text-center text-gray-400">
+          This site is protected by reCAPTCHA and the Google
           <a
-            href="/privacy"
-            className="font-medium text-gray-800 hover:underline"
+            href="https://policies.google.com/privacy"
+            target="_blank"
+            className="underline mx-1"
           >
             Privacy Policy
           </a>
-          .
+          and
+          <a
+            href="https://policies.google.com/terms"
+            target="_blank"
+            className="underline ml-1"
+          >
+            Terms of Service
+          </a>
+          apply.
         </p>
-      </div>
+      </Card>
     </div>
   )
 }

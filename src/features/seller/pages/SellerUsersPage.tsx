@@ -1,6 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useAppSelector } from '@/app/hooks'
 import DataTablePagination from '@/components/ui/DataTablePagination'
+import { authClient } from '@/lib/api/authClient'
+import * as XLSX from 'xlsx'
 import type { UserRole, UserRow, UserStatus } from '../types/userTypes'
 import {
   Plus,
@@ -9,22 +12,73 @@ import {
   Download,
   Pencil,
   Trash2,
+  UserCheck,
 } from 'lucide-react'
 
-const MOCK_USERS: UserRow[] = [
-  { id: 'u1', name: 'Aigars Silkans', email: 'aigars@company.com', initials: 'AS', role: 'admin', department: 'Engineering', status: 'active', lastActive: '2 hours ago' },
-  { id: 'u2', name: 'Emma Wilson', email: 'emma@company.com', initials: 'EW', role: 'editor', department: 'Marketing', status: 'active', lastActive: '5 min ago' },
-  { id: 'u3', name: 'James Chen', email: 'james@company.com', initials: 'JC', role: 'admin', department: 'Engineering', status: 'active', lastActive: '1 hour ago' },
-  { id: 'u4', name: 'Sofia Garcia', email: 'sofia@company.com', initials: 'SG', role: 'moderator', department: 'Support', status: 'active', lastActive: '30 min ago' },
-  { id: 'u5', name: 'Alex Thompson', email: 'alex@company.com', initials: 'AT', role: 'viewer', department: 'Sales', status: 'active', lastActive: '3 hours ago' },
-  { id: 'u6', name: 'Maria Santos', email: 'maria@company.com', initials: 'MS', role: 'editor', department: 'Design', status: 'active', lastActive: '1 day ago' },
-  { id: 'u7', name: 'David Kim', email: 'david@company.com', initials: 'DK', role: 'viewer', department: 'Finance', status: 'inactive', lastActive: '2 weeks ago' },
-  { id: 'u8', name: 'Lisa Park', email: 'lisa@company.com', initials: 'LP', role: 'editor', department: 'Marketing', status: 'active', lastActive: '10 min ago' },
-  { id: 'u9', name: 'Ryan Mitchell', email: 'ryan@company.com', initials: 'RM', role: 'moderator', department: 'Support', status: 'active', lastActive: '45 min ago' },
-  { id: 'u10', name: 'Nina Patel', email: 'nina@company.com', initials: 'NP', role: 'admin', department: 'Engineering', status: 'active', lastActive: '15 min ago' },
-  { id: 'u11', name: 'Oliver Scott', email: 'oliver@company.com', initials: 'OS', role: 'viewer', department: 'Operations', status: 'suspended', lastActive: '3 days ago' },
-  { id: 'u12', name: 'Ava Reed', email: 'ava@company.com', initials: 'AR', role: 'editor', department: 'Design', status: 'active', lastActive: '9 min ago' },
-]
+type SellerUserRow = UserRow & {
+  shopId: string
+  reportingTo: string | null
+}
+
+const getInitials = (name: string): string =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('') || 'NU'
+
+const normalizeRole = (role?: { code?: string; name?: string } | null): UserRole => {
+  const code = (role?.code ?? role?.name ?? '').toLowerCase()
+  if (code.includes('admin')) return 'admin'
+  if (code.includes('editor')) return 'editor'
+  if (code.includes('moderator')) return 'moderator'
+  return 'viewer'
+}
+
+const normalizeStatus = (status?: string | null): UserStatus => {
+  if (status === 'inactive') return 'inactive'
+  if (status === 'suspended') return 'suspended'
+  return 'active'
+}
+
+const formatLastActive = (value?: string | null): string => {
+  if (!value) return 'just now'
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'just now'
+
+  const diffMinutes = Math.max(1, Math.round((Date.now() - date.getTime()) / 60000))
+  if (diffMinutes < 60) return `${diffMinutes} min ago`
+
+  const diffHours = Math.round(diffMinutes / 60)
+  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`
+
+  const diffDays = Math.round(diffHours / 24)
+  if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`
+
+  return 'recently'
+}
+
+const mapShopUserToRow = (shopUser: any): SellerUserRow => {
+  const user = shopUser.user ?? {}
+  const role = shopUser.role ?? null
+  const manager = shopUser.manager ?? null
+  const name = user.name ?? 'Unknown User'
+
+  return {
+    id: shopUser.id ?? user.id ?? `shop-user-${Date.now()}`,
+    name,
+    email: user.email ?? '',
+    initials: getInitials(name),
+    role: normalizeRole(role),
+    department: user.department ?? role?.name ?? 'Operations',
+    status: normalizeStatus(shopUser.status),
+    lastActive: formatLastActive(shopUser.updated_at ?? shopUser.joined_at ?? shopUser.created_at),
+    shopId: shopUser.shop_id ?? 'unknown-shop',
+    reportingTo: manager?.id ?? shopUser.reporting_to ?? null,
+  }
+}
 
 const STATUS_STYLES: Record<UserStatus, string> = {
   active: 'bg-emerald-100 text-emerald-700',
@@ -46,13 +100,76 @@ const FILTER_TABS: { key: 'all' | UserStatus; label: string }[] = [
   { key: 'suspended', label: 'Suspended' },
 ]
 
+const EMPTY_DRAFT = {
+  name: '',
+  email: '',
+  department: '',
+  role: 'viewer' as UserRole,
+  status: 'active' as UserStatus,
+  reportingTo: null as string | null,
+}
+
+const normalizeRoleCodeForApi = (role: UserRole | string): string => {
+  if (role === 'shop_owner' || role === 'shop_admin' || role === 'finance_manager' || role === 'director') {
+    return role
+  }
+
+  return 'shop_admin'
+}
+
 const SellerUsersPage = () => {
+  const authUser = useAppSelector((state) => state.auth.user)
+  const activeShopId = authUser?.active_shop_id ?? null
+
+  const [users, setUsers] = useState<SellerUserRow[]>([])
   const [activeFilter, setActiveFilter] = useState<'all' | UserStatus>('all')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [rowsPerPage, setRowsPerPage] = useState(10)
+  const [formOpen, setFormOpen] = useState(false)
+  const [editingUserId, setEditingUserId] = useState<string | null>(null)
+  const [draft, setDraft] = useState(EMPTY_DRAFT)
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false)
+  const [usersError, setUsersError] = useState<string | null>(null)
+  const [showColumnMenu, setShowColumnMenu] = useState(false)
+  const [visibleColumns, setVisibleColumns] = useState({
+    reportingTo: true,
+    status: true,
+    lastActive: true,
+  })
 
-  const filteredUsers = MOCK_USERS.filter((user) => {
+  const loadUsers = async () => {
+    if (!activeShopId) {
+      setUsers([])
+      setUsersError(null)
+      return
+    }
+
+    try {
+      setIsLoadingUsers(true)
+      setUsersError(null)
+      const response = await authClient.get(`/shops/${activeShopId}/users`)
+      const rows = ((response.data?.data?.users ?? response.data?.users ?? []) as any[]).map(mapShopUserToRow)
+      setUsers(rows)
+      setPage(1)
+    } catch (error: any) {
+      setUsers([])
+      setUsersError(error?.response?.data?.message ?? 'Unable to load shop users.')
+    } finally {
+      setIsLoadingUsers(false)
+    }
+  }
+
+  useEffect(() => {
+    void loadUsers()
+  }, [activeShopId])
+
+  const activeShopUsers = useMemo(
+    () => (activeShopId ? users.filter((user) => user.shopId === activeShopId) : []),
+    [activeShopId, users],
+  )
+
+  const filteredUsers = activeShopUsers.filter((user) => {
     const matchesFilter = activeFilter === 'all' || user.status === activeFilter
     const q = search.toLowerCase()
     const matchesSearch =
@@ -66,6 +183,160 @@ const SellerUsersPage = () => {
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / rowsPerPage))
   const paginatedUsers = filteredUsers.slice((page - 1) * rowsPerPage, page * rowsPerPage)
 
+  const managerOptions = activeShopUsers.filter((user) => user.id !== editingUserId)
+
+  const resetForm = () => {
+    setDraft({ ...EMPTY_DRAFT })
+    setEditingUserId(null)
+    setFormOpen(false)
+  }
+
+  const openCreateForm = () => {
+    setEditingUserId(null)
+    setDraft({ ...EMPTY_DRAFT })
+    setFormOpen(true)
+  }
+
+  const openEditForm = (user: SellerUserRow) => {
+    setEditingUserId(user.id)
+    setDraft({
+      name: user.name,
+      email: user.email,
+      department: user.department,
+      role: user.role,
+      status: user.status,
+      reportingTo: user.reportingTo,
+    })
+    setFormOpen(true)
+  }
+
+  const handleSaveUser = async () => {
+    const trimmedName = draft.name.trim()
+    const trimmedEmail = draft.email.trim()
+    const trimmedDepartment = draft.department.trim()
+
+    if (!trimmedName) {
+      setUsersError('Full name is required.')
+      return
+    }
+
+    if (!trimmedEmail || !/^\S+@\S+\.\S+$/.test(trimmedEmail)) {
+      setUsersError('A valid email address is required.')
+      return
+    }
+
+    if (!trimmedDepartment) {
+      setUsersError('Department is required.')
+      return
+    }
+
+    if (!['admin', 'editor', 'moderator', 'viewer'].includes(draft.role)) {
+      setUsersError('Select a valid role.')
+      return
+    }
+
+    if (!['active', 'inactive', 'suspended'].includes(draft.status)) {
+      setUsersError('Select a valid status.')
+      return
+    }
+
+    if (draft.reportingTo === editingUserId) {
+      setUsersError('A user cannot report to themselves.')
+      return
+    }
+
+    if (!activeShopId) {
+      setUsersError('No active shop selected.')
+      return
+    }
+
+    if (editingUserId) {
+      try {
+        const payload = {
+          name: trimmedName,
+          email: trimmedEmail,
+          department: trimmedDepartment,
+          role: normalizeRoleCodeForApi(draft.role),
+          role_code: normalizeRoleCodeForApi(draft.role),
+          status: draft.status,
+          reporting_to: draft.reportingTo ?? null,
+        }
+
+        await authClient.patch(`/shops/${activeShopId}/users/${editingUserId}`, payload)
+        await loadUsers()
+        setUsersError(null)
+        resetForm()
+      } catch (error: any) {
+        setUsersError(error?.response?.data?.message ?? 'Unable to update user details.')
+      }
+      return
+    }
+
+    const nextId = `u${Date.now()}`
+    const initials = trimmedName
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? '')
+      .join('') || 'NU'
+
+    setUsers((current) => [
+      {
+        id: nextId,
+        name: trimmedName,
+        email: trimmedEmail,
+        initials,
+        department: trimmedDepartment,
+        role: draft.role,
+        status: draft.status,
+        lastActive: 'just now',
+        shopId: activeShopId,
+        reportingTo: draft.reportingTo,
+      },
+      ...current,
+    ])
+
+    setUsersError(null)
+    resetForm()
+  }
+
+  const handleDeleteUser = (userId: string) => {
+    setUsers((current) => current.filter((user) => user.id !== userId))
+  }
+
+  const toggleColumn = (column: keyof typeof visibleColumns) => {
+    setVisibleColumns((current) => ({
+      ...current,
+      [column]: !current[column],
+    }))
+  }
+
+  const handleExportUsers = () => {
+    if (!filteredUsers.length) return
+
+    const rows = filteredUsers.map((user) => {
+      const managerName = user.reportingTo
+        ? users.find((member) => member.id === user.reportingTo)?.name ?? 'Unknown manager'
+        : 'No manager'
+
+      return {
+        Name: user.name,
+        Email: user.email,
+        Role: user.role,
+        Department: user.department,
+        'Reporting To': managerName,
+        Status: user.status,
+        'Last Active': user.lastActive,
+      }
+    })
+
+    const workbook = XLSX.utils.book_new()
+    const worksheet = XLSX.utils.json_to_sheet(rows)
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Shop Users')
+
+    const fileName = `shop-users-${Date.now()}.xlsx`
+    XLSX.writeFile(workbook, fileName)
+  }
+
   return (
     <div className="space-y-6">
       <nav className="text-xs text-slate-500">
@@ -77,16 +348,168 @@ const SellerUsersPage = () => {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Users</h1>
-          <p className="mt-0.5 text-sm text-slate-600">Manage team members, roles, and permissions.</p>
+          <p className="mt-0.5 text-sm text-slate-600">Manage staff, roles, and same-shop reporting lines.</p>
         </div>
-        <Link
-          to="/seller/users"
+        <button
+          type="button"
+          onClick={openCreateForm}
           className="flex shrink-0 items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
         >
           <Plus size={18} />
           Add User
-        </Link>
+        </button>
       </div>
+
+      {formOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+          onClick={resetForm}
+        >
+          <div
+            className="w-full max-w-3xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+              <div className="flex items-center gap-2 text-slate-900">
+                <UserCheck size={18} className="text-emerald-600" />
+                <h2 className="text-base font-semibold">
+                  {editingUserId ? 'Edit user' : 'Create user'}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={resetForm}
+                className="rounded-lg p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                aria-label="Close form"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="max-h-[75vh] overflow-y-auto p-5">
+              <div className="space-y-5">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="mb-3 flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                    <span className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">User details</span>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <label className="text-sm text-slate-700">
+                      <span className="mb-1.5 block font-medium">Full name</span>
+                      <input
+                        value={draft.name}
+                        onChange={(e) => setDraft((current) => ({ ...current, name: e.target.value }))}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                        placeholder="Jane Doe"
+                      />
+                    </label>
+
+                    <label className="text-sm text-slate-700">
+                      <span className="mb-1.5 block font-medium">Email</span>
+                      <input
+                        type="email"
+                        value={draft.email}
+                        onChange={(e) => setDraft((current) => ({ ...current, email: e.target.value }))}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                        placeholder="jane@shop.com"
+                      />
+                    </label>
+
+                    <label className="text-sm text-slate-700">
+                      <span className="mb-1.5 block font-medium">Department</span>
+                      <input
+                        value={draft.department}
+                        onChange={(e) => setDraft((current) => ({ ...current, department: e.target.value }))}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                        placeholder="Operations"
+                      />
+                    </label>
+
+                    <label className="text-sm text-slate-700">
+                      <span className="mb-1.5 block font-medium">Role</span>
+                      <select
+                        value={draft.role}
+                        onChange={(e) => setDraft((current) => ({ ...current, role: e.target.value as UserRole }))}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                      >
+                        <option value="admin">Admin</option>
+                        <option value="editor">Editor</option>
+                        <option value="moderator">Moderator</option>
+                        <option value="viewer">Viewer</option>
+                      </select>
+                    </label>
+
+                    <label className="text-sm text-slate-700 md:col-span-2">
+                      <span className="mb-1.5 block font-medium">Status</span>
+                      <select
+                        value={draft.status}
+                        onChange={(e) => setDraft((current) => ({ ...current, status: e.target.value as UserStatus }))}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                      >
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="suspended">Suspended</option>
+                      </select>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="mb-3 flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-amber-500" />
+                    <span className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Reporting</span>
+                  </div>
+
+                  <label className="block text-sm text-slate-700">
+                    <span className="mb-1.5 block font-medium">Reporting To</span>
+                    <select
+                      value={draft.reportingTo ?? ''}
+                      onChange={(e) => setDraft((current) => ({ ...current, reportingTo: e.target.value || null }))}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                    >
+                      <option value="">No manager</option>
+                      {activeShopUsers
+                        .filter((user) => user.id !== editingUserId)
+                        .map((user) => (
+                          <option key={user.id} value={user.id}>{user.name}</option>
+                        ))}
+                    </select>
+                  </label>
+
+                  <p className="mt-2 text-xs text-slate-500">
+                    Only users from this shop can be selected as a manager. Leave blank if no reporting line is assigned.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-5 py-3 text-xs text-slate-600">
+              <span>
+                {editingUserId
+                  ? 'Assign or update the current manager for this existing user.'
+                  : 'This user will be created with the selected reporting line, if any.'}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveUser}
+                  className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                >
+                  {editingUserId ? 'Save Changes' : 'Create user'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-1">
         {FILTER_TABS.map((tab) => (
@@ -120,12 +543,48 @@ const SellerUsersPage = () => {
             className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm outline-none placeholder:text-slate-400 focus:border-emerald-500"
           />
         </div>
-        <div className="flex gap-2">
-          <button type="button" className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 cursor-pointer">
-            <Columns3 size={16} />
-            Columns
-          </button>
-          <button type="button" className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 cursor-pointer">
+        <div className="relative flex gap-2">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowColumnMenu((value) => !value)}
+              className="flex items-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
+            >
+              <Columns3 size={16} />
+              Columns
+            </button>
+
+            {showColumnMenu && (
+              <div className="absolute right-0 top-[calc(100%+8px)] z-20 w-44 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+                {[
+                  { key: 'reportingTo', label: 'Reporting To' },
+                  { key: 'status', label: 'Status' },
+                  { key: 'lastActive', label: 'Last Active' },
+                ].map((column) => (
+                  <button
+                    key={column.key}
+                    type="button"
+                    onClick={() => {
+                      toggleColumn(column.key as keyof typeof visibleColumns)
+                      setShowColumnMenu(false)
+                    }}
+                    className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                  >
+                    <span>{column.label}</span>
+                    <span className={`flex h-4 w-4 items-center justify-center rounded border ${visibleColumns[column.key as keyof typeof visibleColumns] ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-300 bg-white text-transparent'}`}>
+                      ✓
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={handleExportUsers}
+            className="flex items-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
+          >
             <Download size={16} />
             Export
           </button>
@@ -134,7 +593,7 @@ const SellerUsersPage = () => {
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px]">
+          <table className="w-full min-w-[1000px]">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
@@ -146,53 +605,83 @@ const SellerUsersPage = () => {
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
                   <span className="flex items-center gap-1">Department</span>
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
-                  <span className="flex items-center gap-1">Status</span>
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
-                  <span className="flex items-center gap-1">Last Active</span>
-                </th>
+                {visibleColumns.reportingTo && (
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
+                    <span className="flex items-center gap-1">Reporting To</span>
+                  </th>
+                )}
+                {visibleColumns.status && (
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
+                    <span className="flex items-center gap-1">Status</span>
+                  </th>
+                )}
+                {visibleColumns.lastActive && (
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
+                    <span className="flex items-center gap-1">Last Active</span>
+                  </th>
+                )}
                 <th className="w-16 px-4 py-3" />
               </tr>
             </thead>
             <tbody>
-              {paginatedUsers.map((user) => (
-                <tr key={user.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-semibold text-emerald-700">
-                        {user.initials}
+              {paginatedUsers.map((user) => {
+                const managerName = user.reportingTo
+                  ? users.find((member) => member.id === user.reportingTo)?.name
+                  : null
+
+                return (
+                  <tr key={user.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-semibold text-emerald-700">
+                          {user.initials}
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-slate-900">{user.name}</p>
+                          <p className="text-xs text-slate-500">{user.email}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-xs font-semibold text-slate-900">{user.name}</p>
-                        <p className="text-xs text-slate-500">{user.email}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${ROLE_STYLES[user.role]}`}>
+                        {user.role}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-slate-700">{user.department}</td>
+                    {visibleColumns.reportingTo && (
+                      <td className="px-4 py-3 text-xs text-slate-700">
+                        {managerName ? (
+                          <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">
+                            {managerName}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">No manager</span>
+                        )}
+                      </td>
+                    )}
+                    {visibleColumns.status && (
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${STATUS_STYLES[user.status]}`}>
+                          {user.status}
+                        </span>
+                      </td>
+                    )}
+                    {visibleColumns.lastActive && (
+                      <td className="px-4 py-3 text-xs text-slate-600">{user.lastActive}</td>
+                    )}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2 text-slate-500">
+                        <button type="button" className="hover:text-slate-700" aria-label="Edit user" onClick={() => openEditForm(user)}>
+                          <Pencil size={14} />
+                        </button>
+                        <button type="button" className="hover:text-red-600" aria-label="Delete user" onClick={() => handleDeleteUser(user.id)}>
+                          <Trash2 size={14} />
+                        </button>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${ROLE_STYLES[user.role]}`}>
-                      {user.role}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-slate-700">{user.department}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${STATUS_STYLES[user.status]}`}>
-                      {user.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-slate-600">{user.lastActive}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2 text-slate-500">
-                      <button type="button" className="hover:text-slate-700" aria-label="Edit user">
-                        <Pencil size={14} />
-                      </button>
-                      <button type="button" className="hover:text-red-600" aria-label="Delete user">
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

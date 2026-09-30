@@ -1,17 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { fetchShopProfilesForCurrentCart } from '@/features/shipping/store/shippingThunks'
 import { selectCartItems, selectCartTotal, selectCartProductKey } from '@/features/cart/store/cartSelectors'
 import { fetchRelatedProducts, fetchBroughtTogetherProducts } from '@/features/products/store/recommendationsSlice'
 
-import CartHeader from '../components/CartHeader'
 import CartItemLists from '../components/CartItemLists'
-import CartSummary from '../components/CartSummary'
+import CartSummary, { GuestCheckoutModal } from '../components/CartSummary'
 import CartEmptyState from '../components/CartEmptyState'
 import RecommendationSection from '@/features/products/components/RecommendationSection'
 
 const CartPage = () => {
     const dispatch = useAppDispatch()
+    const [showGuestModal, setShowGuestModal] = useState(false)
     const items = useAppSelector(selectCartItems)
     const total = useAppSelector(selectCartTotal)
     const cartProductKey = useAppSelector(selectCartProductKey)
@@ -20,11 +20,6 @@ const CartPage = () => {
         [items],
     )
 
-    const contentRef = useRef<HTMLDivElement>(null)
-    const [isFloating, setIsFloating] = useState(false)
-
-    // Get all product IDs in cart for recommendations (aggregated across ALL items).
-    // Derived from a stable key so quantity changes don't refetch/reflash.
     const cartProductIds = useMemo(
         () => (cartProductKey ? cartProductKey.split(',') : []),
         [cartProductKey],
@@ -36,7 +31,6 @@ const CartPage = () => {
         void dispatch(fetchShopProfilesForCurrentCart())
     }, [dispatch, cartShopIdsKey])
 
-    // Fetch recommendations aggregated across every product in the cart
     useEffect(() => {
         if (cartProductIds.length > 0) {
             dispatch(fetchRelatedProducts(cartProductIds))
@@ -44,44 +38,24 @@ const CartPage = () => {
         }
     }, [dispatch, cartProductKey])
 
-    useEffect(() => {
-        const onScroll = () => {
-            if (!contentRef.current) return
-
-            const contentBottom = contentRef.current.offsetTop + contentRef.current.offsetHeight
-            const viewportBottom = window.scrollY + window.innerHeight
-            setIsFloating(viewportBottom < contentBottom)
-        }
-
-        window.addEventListener('scroll', onScroll)
-        onScroll()
-
-        return () => window.removeEventListener('scroll', onScroll)
-    }, [])
-
     if (items.length === 0) {
         return <CartEmptyState />
     }
 
     return (
-        <main className="min-h-screen bg-[#f5f5f5]">
-            {/* CART CONTENT */}
-            <div
-                ref={contentRef}
-                className={`
-                    max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-4
-                    ${isFloating ? 'pb-[140px]' : ''}
-                `}
-            >
-                <CartHeader />
-                <CartItemLists items={items} />
+        <div className="relative bg-[#f5f5f5] py-4 sm:py-5">
+            <div className="mx-auto w-full max-w-7xl px-4 sm:px-6">
+                <h1 className="mb-3 text-lg font-semibold text-gray-900 sm:mb-4 sm:text-xl">Shopping cart</h1>
 
-                {/* CART SUMMARY */}
-                <CartSummary total={total} />
+                <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-5">
+                    <CartItemLists items={items} />
+                    <aside className="max-lg:sticky max-lg:bottom-0 max-lg:z-20 lg:sticky lg:top-4">
+                        <CartSummary total={total} onGuestCheckout={() => setShowGuestModal(true)} />
+                    </aside>
+                </div>
 
-                {/* RECOMMENDATIONS SECTION */}
                 {firstProductId && (
-                    <RecommendationSection 
+                    <RecommendationSection
                         productId={firstProductId}
                         title="YOU MAY ALSO LIKE"
                         showSeeMore={true}
@@ -89,8 +63,9 @@ const CartPage = () => {
                         excludeProductIds={cartProductIds}
                     />
                 )}
-            </div> 
-        </main>
+            </div>
+            {showGuestModal && <GuestCheckoutModal onClose={() => setShowGuestModal(false)} />}
+        </div>
     )
 }
 

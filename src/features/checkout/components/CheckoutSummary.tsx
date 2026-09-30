@@ -13,7 +13,7 @@ import type { UserAddress } from '@/features/account/types/addressTypes'
 import type { CartItem } from '@/features/cart/types/cartTypes'
 import type { CheckoutShopShippingPayload } from '../api/checkoutApi'
 import type { CheckoutStatusResponse } from '../types/checkoutTypes'
-import { formatProductPrice } from '@/features/products/utils/formatProductPrice'
+import { formatKsPrice, formatProductPrice } from '@/features/products/utils/formatProductPrice'
 
 interface CheckoutSummaryProps {
   checkout: CheckoutTotals
@@ -429,6 +429,8 @@ const CheckoutSummary = ({
   const isTerminal =
     paymentStatus === 'PAID' ||
     paymentStatus === 'COMPLETED' ||
+    paymentStatus === 'FAILED' ||
+    paymentStatus === 'FAILED_STOCK' ||
     paymentStatus === 'FAILED_PAYMENT' ||
     paymentStatus === 'EXPIRED'
 
@@ -451,6 +453,12 @@ const CheckoutSummary = ({
     }
     if (paymentStatus === 'FAILED_PAYMENT') {
       return 'Payment failed. Please try again.'
+    }
+    if (paymentStatus === 'FAILED_STOCK') {
+      return 'We could not reserve the selected items. Please return to your cart and try again.'
+    }
+    if (paymentStatus === 'FAILED') {
+      return 'Checkout could not be completed. Please start a new checkout.'
     }
     if (paymentStatus === 'STOCK_CONFIRMED') {
       return 'Stock confirmed. Finalizing payment...'
@@ -483,21 +491,36 @@ const CheckoutSummary = ({
     shippingDiscount,
     totalPayment,
   } = checkout
+  const deliveryFees = Object.values(feesByShopId)
+  const deliveryCurrency = deliveryFees.find((fee) => fee.currency)?.currency
+  const anyNotDeliverable = deliveryFees.some((fee) => fee.deliveryStatus === 'NOT_DELIVERABLE')
+  const deliveryPriceText = (() => {
+    if (!hasDeliveryAddress) return 'Add address'
+    if (shippingCalculateStatus === 'loading') return 'Calculating…'
+    if (shippingCalculateStatus === 'failed') return 'Unavailable'
+    if (shippingCalculateStatus === 'succeeded' && anyNotDeliverable) return 'Not available'
+    if (shippingCalculateStatus === 'succeeded') {
+      return formatProductPrice(shippingSubtotal, deliveryCurrency)
+    }
+    return '—'
+  })()
   const displayedTotal = authoritativeTotal ?? totalPayment
   const promoFeedback = promoStatusLabel(promoCodeStatus, promoCodeMessage)
   const promoIsValid = promoCodeStatus === 'VALID'
 
   return (
-    <div className="bg-[#fffefb] border-t border-dashed border-black/10 px-6 py-6">
-      <div className="text-sm text-gray-700 mb-6">
-        <div className="flex justify-between mb-3">
-          <span className="text-gray-600">Merchandise Subtotal</span>
-          <span className="text-gray-900">{formatProductPrice(merchandiseSubtotal)}</span>
+    <div className="rounded-sm border border-[var(--dni-cart-border)] bg-white px-3 py-3 sm:px-4 sm:py-4 lg:px-5 lg:py-5">
+      <div className="mb-4 text-sm text-gray-700 sm:mb-5">
+        <div className="mb-2.5 flex justify-between gap-3">
+          <span className="shrink-0 text-gray-600">Merchandise Subtotal</span>
+          <span className="whitespace-nowrap tabular-nums text-gray-900">{formatKsPrice(merchandiseSubtotal)}</span>
         </div>
-
-        <div className="flex justify-between mb-3">
-          <span className="text-gray-600">Shipping Subtotal</span>
-          <span className="text-gray-900">{formatProductPrice(shippingSubtotal)}</span>
+        <div className="mb-3 flex justify-between gap-3">
+          <span className="shrink-0 text-gray-600">Delivery</span>
+          <span className="whitespace-nowrap tabular-nums text-gray-900">{deliveryPriceText}</span>
+          {shippingCalculateStatus === 'failed' && shippingCalculateError && (
+            <p className="mt-1 text-right text-[11px] text-amber-700">{shippingCalculateError}</p>
+          )}
         </div>
 
         <div className="mb-4 space-y-3 rounded-xl border border-emerald-100 bg-emerald-50/70 p-3">
@@ -505,7 +528,7 @@ const CheckoutSummary = ({
             <label htmlFor="checkout-promo-code" className="text-xs font-bold uppercase tracking-[0.12em] text-emerald-800">
               Promotion code
             </label>
-            <div className="mt-2 flex gap-2">
+            <div className="mt-2 flex flex-wrap gap-2">
               <input
                 id="checkout-promo-code"
                 type="text"
@@ -556,25 +579,25 @@ const CheckoutSummary = ({
             {promotionQuoteLoading ? (
               <span className="text-xs font-medium text-emerald-700">Checking…</span>
             ) : (
-              <span className="text-lg font-bold text-emerald-700">-{formatProductPrice(promotionDiscount)}</span>
+              <span className="whitespace-nowrap text-lg font-bold tabular-nums text-emerald-700">-{formatKsPrice(promotionDiscount)}</span>
             )}
           </div>
           <div className="flex items-center justify-between text-xs">
             <span className="text-gray-600">Shipping discount</span>
-            <span className="font-medium text-emerald-700">-{formatProductPrice(shippingDiscount)}</span>
+            <span className="font-medium text-emerald-700">-{formatKsPrice(shippingDiscount)}</span>
           </div>
           <div className="flex items-center justify-between text-xs">
             <span className="text-gray-600">Promotion discount</span>
-            <span className="font-semibold text-emerald-700">-{formatProductPrice(promotionDiscount)}</span>
+            <span className="font-semibold text-emerald-700">-{formatKsPrice(promotionDiscount)}</span>
           </div>
         </div>
 
-        <div className="flex justify-between items-end pt-4 border-t border-black/10">
-          <span className="text-gray-900 font-medium">
+        <div className="flex items-end justify-between gap-3 border-t border-[var(--dni-cart-border)] pt-3">
+          <span className="shrink-0 font-medium text-gray-900">
             Total Payment:
           </span>
-          <span className="text-3xl font-semibold text-emerald-600">
-            {formatProductPrice(displayedTotal)}
+          <span className="whitespace-nowrap text-right text-xl font-semibold tabular-nums text-emerald-600 sm:text-2xl">
+            {formatKsPrice(displayedTotal)}
           </span>
         </div>
         {promotionQuoteError && (
@@ -598,7 +621,7 @@ const CheckoutSummary = ({
         <button
           onClick={() => void handlePlaceOrder()}
           disabled={!canPlaceOrder}
-          className="w-full px-12 py-3 bg-emerald-600 text-white text-base font-medium rounded hover:bg-emerald-700 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+          className="w-full rounded bg-emerald-600 px-4 py-3 text-base font-medium text-white hover:bg-emerald-700 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isPlacingOrder
             ? 'Processing...'

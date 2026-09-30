@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import noMoreAnnouncementsIcon from "@/assets/announcement/no_more_announcements_icon.png";
 import { announcementApi } from "@/features/announcements/api/announcementApi";
 import type { Announcement } from "@/features/announcements/types/announcementTypes";
+import { usePageTitle } from "@/components/routing/PageTitle";
 
 const accentClasses: Record<string, string> = {
   FREE_SHIPPING: "from-emerald-600 via-emerald-500 to-green-400",
@@ -132,6 +133,7 @@ const AnnouncementDetailPage = () => {
 
     return announcement.title ?? announcement.name ?? "Announcement";
   }, [announcement]);
+  usePageTitle(title);
 
   const summary = useMemo(() => {
     if (!announcement) {
@@ -203,20 +205,20 @@ const AnnouncementDetailPage = () => {
           <span>/</span>
           <span className="font-medium text-slate-700">Announcements</span>
           <span>/</span>
-          <span className="font-medium text-emerald-600">{title}</span>
+          <span className="font-medium text-emerald-600">{announcement.announcementType?.name ?? title}</span>
         </div>
 
         <section className="relative overflow-hidden">
           <div className="pointer-events-none absolute inset-0 opacity-60" />
 
           <div className="relative mx-auto">
-            <div className="rounded-[28px] border border-[var(--dni-cart-border)] bg-white/90 p-5 shadow-sm backdrop-blur-sm sm:p-6 lg:p-8">
+            <div className="rounded-sm border border-[var(--dni-cart-border)] bg-white/90 p-5 shadow-sm backdrop-blur-sm sm:p-6 lg:p-8">
               <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
                 <div className="flex flex-col justify-center">
                   <p className="mb-3 inline-flex w-fit rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.25em] text-emerald-700">
                     {announcement.announcementType?.name ?? title}
                   </p>
-                  <h1 className="text-3xl font-black text-gray-900 sm:text-4xl">
+                  <h1 className="text-2xl text-black font-semibold sm:text-3xl">
                     {title}
                   </h1>
 
@@ -248,7 +250,7 @@ const AnnouncementDetailPage = () => {
                 </div>
 
                 <div className="flex items-center justify-center">
-                  <div className="relative w-full overflow-hidden rounded-[24px] border border-[var(--dni-cart-border)] bg-[#fafafa] p-5 shadow-sm">
+                  <div className="relative w-full overflow-hidden rounded-sm border border-[var(--dni-cart-border)] bg-[#fafafa] p-5 shadow-sm">
                     <div className="relative flex items-center justify-between text-sm">
                       <span className="text-base font-black text-gray-900">
                         Offer details
@@ -263,7 +265,7 @@ const AnnouncementDetailPage = () => {
                         <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-gray-500">
                           Campaign
                         </p>
-                        <p className="mt-2 text-2xl font-black text-gray-900">
+                        <p className="mt-2 text-2xl text-black font-semibold">
                           {title}
                         </p>
                       </div>
@@ -272,7 +274,7 @@ const AnnouncementDetailPage = () => {
                         <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-gray-500">
                           Why it matters
                         </p>
-                        <p className="mt-2 text-base text-gray-600">
+                        <p className="mt-2 text-black font-medium">
                           {summary}
                         </p>
                       </div>
@@ -314,10 +316,10 @@ const AnnouncementDetailPage = () => {
                   <Link
                     key={item.id}
                     to={`/announcements/${item.id}`}
-                    className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
+                    className="group rounded-sm border border-slate-200 bg-white p-5 shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
                   >
                     <div
-                      className={`rounded-xl bg-gradient-to-r ${accentClasses[itemCode] ?? "from-emerald-600 via-emerald-500 to-green-400"} p-3`}
+                      className={`rounded-sm bg-gradient-to-r ${accentClasses[itemCode] ?? "from-emerald-600 via-emerald-500 to-green-400"} p-3`}
                     >
                       <p
                         className={`text-xs font-bold uppercase tracking-[0.2em] ${highlightClasses[itemCode] ?? "text-white"}`}

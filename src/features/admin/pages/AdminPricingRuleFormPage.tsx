@@ -260,7 +260,10 @@ const AdminPricingRuleFormPage = ({ mode }: PricingRuleFormPageProps) => {
 
           <section className={sectionClass}>
             <h2 className={sectionTitleClass}>Basic details</h2>
-            <p className={sectionHintClass}>Name, currency, status, and fee bounds for this rule.</p>
+            <p className={sectionHintClass}>
+              Name, currency, status, and fee bounds for this rule. Active rules of the same service
+              type cannot have overlapping effective dates.
+            </p>
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <label htmlFor="rule-name" className={labelClass}>
@@ -364,6 +367,9 @@ const AdminPricingRuleFormPage = ({ mode }: PricingRuleFormPageProps) => {
                   onChange={(e) => setEffectiveUntil(e.target.value)}
                   className={inputClass}
                 />
+                <p className="mt-1 text-[11px] text-slate-500">
+                  Leave empty for open-ended. Must not overlap another active STANDARD rule.
+                </p>
               </div>
             </div>
           </section>

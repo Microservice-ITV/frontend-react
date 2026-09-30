@@ -8,52 +8,10 @@ const PhoneAuthSection = () => {
     <button
       type="button"
       onClick={() => navigate('/phone-auth')}
-      className="
-        group
-        flex
-        w-full
-        items-center
-        justify-center
-        gap-3
-        rounded-xl
-        border
-        border-gray-200
-        bg-white
-        px-4
-        py-3
-        text-sm
-        font-semibold
-        text-gray-800
-        shadow-sm
-        transition-all
-        duration-200
-        hover:border-gray-300
-        hover:bg-gray-50
-        hover:shadow-md
-        active:scale-[0.99]
-        focus:outline-none
-        focus:ring-2
-        focus:ring-black
-        focus:ring-offset-2
-      "
+      className="flex h-10 w-full items-center justify-center gap-2 border border-gray-300 rounded bg-white hover:border-gray-400 transition cursor-pointer"
     >
-      <span
-        className="
-          flex
-          h-8
-          w-8
-          items-center
-          justify-center
-          rounded-full
-          bg-gray-100
-          transition-colors
-          group-hover:bg-gray-200
-        "
-      >
-        <Phone className="h-4 w-4" strokeWidth={2.2} />
-      </span>
-
-      Continue with phone
+      <Phone className="h-4 w-4 text-gray-700" strokeWidth={2} />
+      <span className="font-medium text-gray-700">Continue with phone</span>
     </button>
   )
 }

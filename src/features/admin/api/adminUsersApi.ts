@@ -76,6 +76,17 @@ export type AdminUserShopRolesApiResponse = {
   }
 }
 
+export type PlatformUserDto = {
+  id: string
+  user_id: string
+  reporting_to: string | null
+  joined_at: string | null
+  status: string
+  user?: { id: string; name: string; email: string } | null
+  role?: { id: string; code: string; name: string; scope: string } | null
+  manager?: { id: string; user?: { name?: string | null; email?: string | null } | null } | null
+}
+
 // ─── Request params ─────────────────────────────────────────────────────────
 
 export type AdminUsersParams = {
@@ -140,6 +151,14 @@ export const adminUsersApi = {
       user_id: userId,
       role_code: roleCode,
     })
+  },
+
+  listPlatformUsers(): Promise<{ data: { data: { users: PlatformUserDto[] } } }> {
+    return authClient.get('/platform-users')
+  },
+
+  updatePlatformReportingTo(platformUserId: string, reportingTo: string | null) {
+    return authClient.patch(`/platform-users/${platformUserId}/reporting-to`, { reporting_to: reportingTo })
   },
 
   // ─ Shop-role assignments (Manage Roles) ───────────────────────────────────

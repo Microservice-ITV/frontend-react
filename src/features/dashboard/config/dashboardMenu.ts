@@ -7,6 +7,7 @@ import {
   FileText,
   Building2,
   UserCog,
+  Network,
   Server,
   Shield,
   Bell,
@@ -33,6 +34,7 @@ import {
   Truck,
   Scale,
   Route,
+  MapPin,
 } from "lucide-react";
 import { CAPABILITIES } from "@/app/rbac/capabilities";
 import type { DashboardMenuSection } from "../types/dashboardTypes";
@@ -132,6 +134,14 @@ withSearch({
       requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
       icon: CreditCard,
     }),
+    withSearch({
+      key: 'seller-invoices',
+      label: 'Invoices',
+      to: '/seller/invoices',
+      area: 'seller',
+      requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+      icon: FileText,
+    }),
     ],
   },
   {
@@ -206,6 +216,14 @@ withSearch({
         requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
         icon: BookOpen,
       },
+      {
+        key: "seller-accounting-chart-of-accounts",
+        label: "Chart of Accounts",
+        to: "/seller/accounting/chart-of-accounts",
+        area: "seller",
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: Calculator,
+      },
     ],
   },
   {
@@ -255,6 +273,14 @@ withSearch({
         area: "seller",
         requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
         icon: Settings,
+      },
+      {
+        key: "seller-users",
+        label: "Users",
+        to: "/seller/users",
+        area: "seller",
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: UserCog,
       },
       {
         key: "seller-help-support",
@@ -333,6 +359,14 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
         icon: UserCog,
       }),
+      withSearch({
+        key: 'admin-platform-users',
+        label: 'Platform Users',
+        to: '/super-admin/platform-users',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: Network,
+      }),
     ],
   },
   {
@@ -353,6 +387,14 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         area: 'super_admin',
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
         icon: Scale,
+      },
+      {
+        key: 'admin-route-rates',
+        label: 'Route Rates',
+        to: '/super-admin/shipping/city-rates',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: MapPin,
       },
       {
         key: 'admin-distance-ranges',
@@ -423,14 +465,14 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
         icon: LayoutList,
         }),
-        withSearch({
-        key: "admin-users",
-        label: "Users",
-        to: "/super-admin/users",
-        area: "super_admin",
-        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
-        icon: UserCog,
-      }),
+      //   withSearch({
+      //   key: "admin-users",
+      //   label: "Users",
+      //   to: "/super-admin/users",
+      //   area: "super_admin",
+      //   requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+      //   icon: UserCog,
+      // }),
       {
         key: "admin-system",
         label: "System",
@@ -492,6 +534,27 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
             key: "admin-accounting-expenses",
             label: "Expenses",
             to: "/super-admin/accounting/expenses",
+            area: "super_admin",
+            requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+          },
+          {
+            key: "admin-accounting-platform-expenses",
+            label: "Platform Expenses",
+            to: "/super-admin/accounting/platform-expenses",
+            area: "super_admin",
+            requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+          },
+          {
+            key: "admin-accounting-platform-pending-approvals",
+            label: "Pending Approvals",
+            to: "/super-admin/accounting/platform-pending-approvals",
+            area: "super_admin",
+            requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+          },
+          {
+            key: "admin-accounting-platform-approval-policies",
+            label: "Approval Policies",
+            to: "/super-admin/accounting/platform-approval-policies",
             area: "super_admin",
             requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
           },
