@@ -74,15 +74,23 @@ const NavbarTopUtilityBar = () => {
                     {isAuthenticated && user ? (
                         <div className="relative z-[100] group">
                             <button className="flex items-center gap-2 text-gray-800 hover:text-black cursor-pointer">
-                                <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
-                                    <svg viewBox="0 0 15 15" className="w-4 h-4 text-gray-600">
-                                        <circle cx="7.5" cy="4.5" r="3.8" fill="none" stroke="currentColor" />
-                                        <path
-                                            d="M1.5 14.2c0-3.3 2.7-6 6-6s6 2.7 6 6"
-                                            fill="none"
-                                            stroke="currentColor"
+                                <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                                    {user.profile_image ? (
+                                        <img
+                                            src={user.profile_image}
+                                            alt=""
+                                            className="w-full h-full object-cover"
                                         />
-                                    </svg>
+                                    ) : (
+                                        <svg viewBox="0 0 15 15" className="w-4 h-4 text-gray-600">
+                                            <circle cx="7.5" cy="4.5" r="3.8" fill="none" stroke="currentColor" />
+                                            <path
+                                                d="M1.5 14.2c0-3.3 2.7-6 6-6s6 2.7 6 6"
+                                                fill="none"
+                                                stroke="currentColor"
+                                            />
+                                        </svg>
+                                    )}
                                 </div>
 
                                 <span className="max-w-[120px] truncate text-sm">{user.name}</span>

@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import SocialAuthSection from "@/features/auth/components/SocialAuthSection";
 import PhoneAuthSection from "../components/PhoneAuthSection";
+import ProfileImageField from "../components/ProfileImageField";
+import { useProfileImageSelection } from "../hooks/useProfileImageSelection";
 
 export const RegisterPage = () => {
   const dispatch = useAppDispatch();
@@ -18,6 +20,9 @@ export const RegisterPage = () => {
   const { status, error, registerDraft } = useAppSelector((s) => s.auth);
 
   const [form, setForm] = useState(registerDraft);
+
+  // Local (in-memory) photo selection - a File cannot live in the persisted draft.
+  const profileImage = useProfileImageSelection();
 
   const isLoading = status === "loading";
   const isFormValid =
@@ -37,8 +42,15 @@ export const RegisterPage = () => {
     try {
       const recaptchaToken = await getRecaptchaToken("register");
 
-      await dispatch(register({ ...normalizedForm, recaptchaToken })).unwrap();
+      await dispatch(
+        register({
+          ...normalizedForm,
+          recaptchaToken,
+          profileImage: profileImage.file,
+        }),
+      ).unwrap();
 
+      profileImage.clear();
       navigate("/login", { replace: true });
     } catch (err: unknown) {
       if (err && typeof err === "object" && "requiresVerification" in err) {
@@ -108,6 +120,14 @@ export const RegisterPage = () => {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+          <ProfileImageField
+            previewUrl={profileImage.previewUrl}
+            error={profileImage.error}
+            disabled={isLoading}
+            onSelect={profileImage.select}
+            onClear={profileImage.clear}
+          />
+
           <Input
             label="Name"
             placeholder="John Doe"
