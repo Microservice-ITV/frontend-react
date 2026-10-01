@@ -39,6 +39,11 @@ const cartSlice = createSlice({
                 if (payload.lengthCm != null) existing.lengthCm = payload.lengthCm
                 if (payload.widthCm != null) existing.widthCm = payload.widthCm
                 if (payload.heightCm != null) existing.heightCm = payload.heightCm
+                if (payload.categoryId) existing.categoryId = payload.categoryId
+                if (payload.shopId && payload.shopId !== 'unknown') existing.shopId = payload.shopId
+                if (payload.shopName && payload.shopName !== 'Seller store') {
+                    existing.shopName = payload.shopName
+                }
             } else {
                 state.items.push({
                     ...payload,
@@ -125,6 +130,23 @@ const cartSlice = createSlice({
                 item.selected = action.payload
             })
         },
+        setItemShop(
+            state,
+            action: PayloadAction<{
+                productId: string
+                variantId?: string
+                shopId: string
+                shopName: string
+            }>
+        ) {
+            const vid = normalizeVariantId(action.payload.variantId)
+            const item = state.items.find(
+                i => i.productId === action.payload.productId && normalizeVariantId(i.variantId) === vid
+            )
+            if (!item) return
+            item.shopId = action.payload.shopId
+            item.shopName = action.payload.shopName
+        },
     },
 })
 
@@ -138,6 +160,7 @@ export const {
     toggleItemSelection,
     toggleShopSelection,
     toggleAllSelection,
+    setItemShop,
 } = cartSlice.actions
 
 export default cartSlice.reducer

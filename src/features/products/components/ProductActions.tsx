@@ -73,6 +73,7 @@ const ProductActions = ({
     heightCm: effective?.height ?? null,
     shopId: product.shop.id,
     shopName: product.shop.name,
+    categoryId: product.categoryId,
     selected: true,
   });
 

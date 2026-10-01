@@ -15,6 +15,7 @@ import CheckoutAddress from '../components/CheckoutAddress'
 import GuestCheckoutAnnouncementBanner from '../components/GuestCheckoutAnnouncementBanner'
 import CheckoutPayment from '../components/CheckoutPayment'
 import CheckoutSummary from '../components/CheckoutSummary'
+import CheckoutSummarySkeleton, { stockReadyCheckoutStatuses } from '../components/CheckoutSummarySkeleton'
 import { SagaStatusDisplay } from '../components/SagaStatusDisplay'
 import { fetchCheckoutStatus, fetchSagaStatus } from '../store/checkoutThunks'
 import { fetchCheckoutShippingCalculation } from '@/features/shipping/store/shippingThunks'
@@ -169,6 +170,7 @@ const GuestCheckoutPayment = () => {
     [],
   )
   const terminalSagaStatuses = useMemo(() => new Set(['COMPLETED', 'FAILED', 'TIMEOUT']), [])
+  const isStockReady = paymentStatus ? stockReadyCheckoutStatuses.has(paymentStatus) : false
 
   useEffect(() => {
     if (!currentCheckout?.checkout_id) return
@@ -220,13 +222,17 @@ const GuestCheckoutPayment = () => {
             <aside className="space-y-3 lg:sticky lg:top-4">
             <CheckoutPayment totalAmount={checkoutTotals.totalPayment} />
 
-              <CheckoutSummary
-                checkout={checkoutTotals}
-                hasDeliveryAddress={true}
-                onRequireAddress={goToGuestForm}
-                deliveryAddress={paymentDeliveryAddress}
-                cartItems={items}
-              />
+              {isStockReady ? (
+                <CheckoutSummary
+                  checkout={checkoutTotals}
+                  hasDeliveryAddress={true}
+                  onRequireAddress={goToGuestForm}
+                  deliveryAddress={paymentDeliveryAddress}
+                  cartItems={items}
+                />
+              ) : (
+                <CheckoutSummarySkeleton />
+              )}
             </aside>
           </div>
 

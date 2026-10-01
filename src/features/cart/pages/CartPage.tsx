@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { fetchShopProfilesForCurrentCart } from '@/features/shipping/store/shippingThunks'
 import { selectCartItems, selectCartTotal, selectCartProductKey } from '@/features/cart/store/cartSelectors'
+import { setItemShop } from '@/features/cart/store/cartSlice'
+import { resolveProductShop } from '@/features/products/api/productApi'
 import { fetchRelatedProducts, fetchBroughtTogetherProducts } from '@/features/products/store/recommendationsSlice'
 
 import CartItemLists from '../components/CartItemLists'
@@ -26,10 +28,52 @@ const CartPage = () => {
     )
     const firstProductId = cartProductIds[0]
 
+    const staleShopKey = useMemo(
+        () =>
+            items
+                .filter(
+                    (item) =>
+                        !item.shopId ||
+                        item.shopId === 'unknown' ||
+                        item.shopName === 'Seller store',
+                )
+                .map((item) => `${item.productId}:${item.variantId}`)
+                .join('|'),
+        [items],
+    )
+
     useEffect(() => {
         if (!cartShopIdsKey) return
         void dispatch(fetchShopProfilesForCurrentCart())
     }, [dispatch, cartShopIdsKey])
+
+    useEffect(() => {
+        if (!staleShopKey) return
+        let cancelled = false
+        const stale = items.filter(
+            (item) =>
+                !item.shopId ||
+                item.shopId === 'unknown' ||
+                item.shopName === 'Seller store',
+        )
+        void (async () => {
+            for (const item of stale) {
+                const shop = await resolveProductShop(item.productId)
+                if (cancelled || !shop) continue
+                dispatch(
+                    setItemShop({
+                        productId: item.productId,
+                        variantId: item.variantId,
+                        shopId: shop.shopId,
+                        shopName: shop.shopName,
+                    }),
+                )
+            }
+        })()
+        return () => {
+            cancelled = true
+        }
+    }, [dispatch, staleShopKey, items])
 
     useEffect(() => {
         if (cartProductIds.length > 0) {
