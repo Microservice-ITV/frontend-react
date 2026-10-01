@@ -124,9 +124,10 @@ const FlashDealTable = ({
   ): { label: string; action?: FlashDealLifecycleAction } => {
     switch (deal.status) {
       case "DRAFT":
-        return { label: "Publish", action: "publish" };
       case "SCHEDULED":
-        return { label: "Start Now", action: "activate" };
+        // Publishing transitions straight to ACTIVE, so no extra "Start Now"
+        // step is needed for deals that were scheduled before that flow existed.
+        return { label: "Publish", action: "publish" };
       case "ACTIVE":
         return { label: "Pause", action: "pause" };
       case "PAUSED":

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppSelector } from '@/app/hooks'
 import AdminFlashDealsPage from '@/features/flash-deals/pages/AdminFlashDealsPage'
+import { useFlashDealPaths } from '@/features/flash-deals/config/flashDealPaths'
 import { useAuthRole } from '@/app/rbac/hooks'
 import {
   promotionApi,
@@ -255,6 +256,7 @@ const PromotionEnginePage = () => {
   const canManagePromotionAssets = isPlatformAdmin || isShopOwner
   const activeShopId = authUser?.active_shop_id
   const navigate = useNavigate()
+  const flashDealPaths = useFlashDealPaths()
 
   const [promotions, setPromotions] = useState<PromotionListItem[]>([])
   const [promotionsLoading, setPromotionsLoading] = useState(true)
@@ -522,7 +524,7 @@ const PromotionEnginePage = () => {
                 type="button"
                 onClick={() => {
                   setShowCreateMenu(false)
-                  navigate('/super-admin/promotion-engine/flash-deals')
+                  navigate(flashDealPaths.list)
                 }}
                 className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 no-underline transition hover:bg-slate-50 hover:no-underline"
               >

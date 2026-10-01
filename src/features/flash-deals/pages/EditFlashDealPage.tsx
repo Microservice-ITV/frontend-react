@@ -12,12 +12,14 @@ import FlashDealForm, {
 } from "../components/FlashDealForm";
 import { updateFlashDeal } from "../store/flashDealThunks";
 import { selectFlashDealsSubmitting } from "../store/flashDealSelectors";
+import { useFlashDealPaths } from "../config/flashDealPaths";
 import type { FlashDeal } from "../types/flashDealTypes";
 
 const EditFlashDealPage = () => {
   const { id } = useParams<{ id: string }>();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const paths = useFlashDealPaths();
   const isSubmitting = useAppSelector(selectFlashDealsSubmitting);
 
   const [submitError, setSubmitError] = useState("");
@@ -119,7 +121,7 @@ const EditFlashDealPage = () => {
     setSubmitError("");
     try {
       await dispatch(updateFlashDeal({ id, payload })).unwrap();
-      navigate("/super-admin/promotion-engine/flash-deals");
+      navigate(paths.list);
     } catch (error: unknown) {
       const err = error as {
         response?: {
@@ -140,19 +142,19 @@ const EditFlashDealPage = () => {
   return (
     <div className="space-y-6">
       <nav className="text-xs text-slate-500">
-        <Link to="/super-admin/overview" className="no-underline hover:text-slate-700 hover:no-underline">
+        <Link to={paths.overview} className="no-underline hover:text-slate-700 hover:no-underline">
           Dashboard
         </Link>
         <span className="mx-1">/</span>
         <Link
-          to="/super-admin/promotion-engine"
+          to={paths.promotionEngine}
           className="no-underline hover:text-slate-700 hover:no-underline"
         >
           Promotion Engine
         </Link>
         <span className="mx-1">/</span>
         <Link
-          to="/super-admin/promotion-engine/flash-deals"
+          to={paths.list}
           className="no-underline hover:text-slate-700 hover:no-underline"
         >
           Flash Deals
@@ -182,7 +184,7 @@ const EditFlashDealPage = () => {
           currentStatus={deal?.status}
           onSubmit={onSubmit}
           submitLabel="Save Changes"
-          cancelTo="/super-admin/promotion-engine/flash-deals"
+          cancelTo={paths.list}
           isSubmitting={isSubmitting}
           submitError={submitError}
         />

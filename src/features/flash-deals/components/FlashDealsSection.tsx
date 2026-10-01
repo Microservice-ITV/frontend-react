@@ -6,6 +6,10 @@ import {
   getFlashDealsByTimeSlot,
   type FlashDealApiItem,
 } from "@/lib/api/flashDealClient";
+import {
+  FLASH_DEAL_STOREFRONT_REFRESH_MS,
+  selectLiveFlashDeals,
+} from "../lib/flashDealStorefront";
 
 const CARD_WIDTH_PX = 220;
 const GAP_PX = 16;
@@ -35,12 +39,33 @@ const FlashDealsSection = () => {
     Math.max(0, Math.floor((endTime - Date.now()) / 1000)),
   );
 
+  const [refreshTick, setRefreshTick] = useState(0);
+  const hasLoadedRef = useRef(false);
+
+  useEffect(() => {
+    const bump = () => setRefreshTick((tick) => tick + 1);
+    const timer = window.setInterval(bump, FLASH_DEAL_STOREFRONT_REFRESH_MS);
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") bump();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
-    getFlashDealsByTimeSlot({ limit: 12, status: "ongoing" })
+    // Only the initial fetch shows skeletons; later refreshes stay silent.
+    // This must not be a "first run" flag: StrictMode runs the effect twice and
+    // discards the first run, which would leave the skeletons up forever.
+    if (!hasLoadedRef.current) setLoading(true);
+
+    getFlashDealsByTimeSlot({ limit: 12, status: "all" })
       .then((res) => {
         if (cancelled) return;
-        const items = res.data.items ?? [];
+        const items = selectLiveFlashDeals(res.data.items);
         const slots = res.data.timeSlots ?? [];
         setDeals(items);
         const activeSlot = slots.find((slot) => slot.isActive);
@@ -59,12 +84,14 @@ const FlashDealsSection = () => {
         if (!cancelled) setDeals([]);
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (cancelled) return;
+        hasLoadedRef.current = true;
+        setLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshTick]);
 
   useEffect(() => {
     const timer = setInterval(() => {
