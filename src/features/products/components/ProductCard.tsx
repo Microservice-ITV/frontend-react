@@ -6,6 +6,7 @@ import { addToCart } from "@/features/cart/store/cartSlice";
 import { toggleWishlist } from "@/features/wishlist/store/wishlistSlice";
 import { selectIsWishlisted } from "@/features/wishlist/store/wishlistSelectors";
 import { fetchShopProfilesForCurrentCart } from "@/features/shipping/store/shippingThunks";
+import { resolveProductShop } from "../api/productApi";
 import { Product } from "../types/productTypes";
 import { formatProductPrice } from "../utils/formatProductPrice";
 
@@ -182,20 +183,24 @@ const ProductCard = ({ product }: ProductCardProps) => {
   const handleAddToCart = (e: MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    dispatch(
-      addToCart({
-        productId: product.id,
-        variantId: "",
-        name: product.name,
-        price: product.price,
-        image: product.images?.[0],
-        quantity: 1,
-        shopId: "unknown",
-        shopName: "Seller store",
-        selected: true,
-      }),
-    );
-    void dispatch(fetchShopProfilesForCurrentCart());
+    void (async () => {
+      const shop = await resolveProductShop(product.id);
+      dispatch(
+        addToCart({
+          productId: product.id,
+          variantId: "",
+          name: product.name,
+          price: product.price,
+          image: product.images?.[0],
+          quantity: 1,
+          shopId: shop?.shopId || product.shopId || "unknown",
+          shopName: shop?.shopName || "Seller store",
+          categoryId: product.categoryId,
+          selected: true,
+        }),
+      );
+      void dispatch(fetchShopProfilesForCurrentCart());
+    })();
   };
 
   return (

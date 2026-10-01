@@ -93,6 +93,8 @@ import AdminShopDetailPage from "@/features/admin/pages/AdminShopDetailPage";
 import AdminShopEditPage from "@/features/admin/pages/AdminShopEditPage";
 import AdminShopsPage from "@/features/admin/pages/AdminShopsPage";
 import AdminPricingRulesPage from "@/features/admin/pages/AdminPricingRulesPage";
+import AdminTaxPage from "@/features/admin/pages/AdminTaxPage";
+import AdminTaxFormPage from "@/features/admin/pages/AdminTaxFormPage";
 import AdminPricingRuleFormPage from "@/features/admin/pages/AdminPricingRuleFormPage";
 import AdminPricingRuleDetailPage from "@/features/admin/pages/AdminPricingRuleDetailPage";
 import AdminWeightRatesPage from "@/features/admin/pages/AdminWeightRatesPage";
@@ -958,6 +960,30 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
                 >
                   <AdminPricingRuleFormPage mode="edit" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="tax/new"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminTax}>
+                  <AdminTaxFormPage mode="create" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="tax/:id/edit"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminTax}>
+                  <AdminTaxFormPage mode="edit" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="tax"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminTax}>
+                  <AdminTaxPage />
                 </ProtectedRoute>
               }
             />

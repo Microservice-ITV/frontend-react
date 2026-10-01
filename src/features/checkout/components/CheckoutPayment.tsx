@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { CardElement } from "@stripe/react-stripe-js";
 import { useDispatch, useSelector } from "react-redux";
+import { checkoutApi } from "../api/checkoutApi";
 import {
   setPaymentMethod,
   selectPaymentMethod,
@@ -17,12 +18,18 @@ type CheckoutPaymentProps = {
 const CheckoutPayment = ({ totalAmount }: CheckoutPaymentProps) => {
   const dispatch = useDispatch();
   const selectedPaymentMethod = useSelector(selectPaymentMethod);
+  const checkoutId = useSelector(
+    (state: { checkout: { currentCheckout: { checkout_id?: string } | null } }) =>
+      state.checkout.currentCheckout?.checkout_id,
+  );
 
   const handlePaymentMethodChange = useCallback(
     (method: PaymentMethod) => {
       dispatch(setPaymentMethod(method));
+      if (!checkoutId) return;
+      void checkoutApi.updatePaymentMethod(checkoutId, method);
     },
-    [dispatch],
+    [dispatch, checkoutId],
   );
 
   const isPrepaid = selectedPaymentMethod === "prepaid";
@@ -204,13 +211,6 @@ const CheckoutPayment = ({ totalAmount }: CheckoutPaymentProps) => {
             Cash on Delivery (COD)
           </h2>
           <div className="flex flex-col gap-3">
-            <button
-              type="button"
-              onClick={() => handlePaymentMethodChange("cod")}
-              className="w-full rounded border border-gray-300 px-4 py-2 text-sm text-gray-700 cursor-pointer"
-            >
-              Cash on Delivery
-            </button>
             <p className="rounded bg-[#f0eff5] px-4 py-2 text-xs text-gray-700 sm:flex-1">
               Pay{" "}
               <span className="font-semibold">

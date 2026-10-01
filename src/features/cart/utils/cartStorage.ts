@@ -25,6 +25,7 @@ function normalizeStoredItem(raw: Partial<CartItem>): CartItem {
         widthCm: toPositiveNumber(raw.widthCm),
         heightCm: toPositiveNumber(raw.heightCm),
         selected: Boolean(raw.selected),
+        categoryId: raw.categoryId ? String(raw.categoryId) : undefined,
     }
 }
 

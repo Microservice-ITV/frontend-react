@@ -1,19 +1,27 @@
 import { CheckoutTotals } from '../utils/checkoutCalculator'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CardElement, useElements, useStripe } from '@stripe/react-stripe-js'
-import { checkoutApi, type PromoCodeStatus } from '../api/checkoutApi'
+import {
+  checkoutApi,
+  formatDisabledTaxAmount,
+  isTaxChargeEnabled,
+  lineTaxesFromQuote,
+  resolveCartTax,
+  type PromoCodeStatus,
+} from '../api/checkoutApi'
 import {
   setAwaitingFinalStatus,
   setCheckoutError,
   setCheckoutPaymentStatus,
   setCheckoutPlacingOrder,
+  setItemTaxes,
 } from '../store/checkoutSlice'
 import type { UserAddress } from '@/features/account/types/addressTypes'
 import type { CartItem } from '@/features/cart/types/cartTypes'
 import type { CheckoutShopShippingPayload } from '../api/checkoutApi'
 import type { CheckoutStatusResponse } from '../types/checkoutTypes'
-import { formatKsPrice, formatProductPrice } from '@/features/products/utils/formatProductPrice'
+import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
 
 interface CheckoutSummaryProps {
   checkout: CheckoutTotals
@@ -125,7 +133,13 @@ const CheckoutSummary = ({
   const shippingCalculateStatus = useAppSelector(state => state.shipping.calculateStatus)
   const shippingCalculateError = useAppSelector(state => state.shipping.calculateError)
   const [promotionDiscount, setPromotionDiscount] = useState(0)
+  const [taxAmount, setTaxAmount] = useState(0)
+  const [taxEnabled, setTaxEnabled] = useState(true)
+  const [taxLoading, setTaxLoading] = useState(false)
+  const [taxPreviewError, setTaxPreviewError] = useState(false)
   const [authoritativeTotal, setAuthoritativeTotal] = useState<number | null>(null)
+  const [promotionFinal, setPromotionFinal] = useState<number | null>(null)
+  const promotionAllocationsRef = useRef<Array<Record<string, unknown>>>([])
   const [promotionQuoteLoading, setPromotionQuoteLoading] = useState(false)
   const [promotionQuoteError, setPromotionQuoteError] = useState(false)
   const [promoCodeInput, setPromoCodeInput] = useState('')
@@ -156,6 +170,78 @@ const CheckoutSummary = ({
     })
   }
 
+  const applyQuotedTotals = (quote: Awaited<ReturnType<typeof requestPromotionQuote>>) => {
+    if (!quote) return
+    const discount = Number(quote.discount_total ?? 0)
+    setPromotionDiscount(discount)
+    promotionAllocationsRef.current = Array.isArray(quote.allocations) ? quote.allocations : []
+    setPromotionFinal(Number(quote.final_total ?? checkout.totalPayment))
+  }
+
+  useEffect(() => {
+    const checkoutId = currentCheckout?.checkout_id
+    if (!checkoutId) return
+
+    let cancelled = false
+    setTaxLoading(true)
+    setTaxPreviewError(false)
+
+    void (async () => {
+      try {
+        const preview = await checkoutApi.previewTax(checkoutId, {
+          discount_total: promotionDiscount,
+          allocations: promotionAllocationsRef.current,
+        })
+        if (cancelled) return
+
+        let nextTax = Number(preview.tax_amount ?? 0)
+        let quoteForDisplay = preview
+        const lines = preview.lines ?? []
+        const missingCategory =
+          nextTax === 0 &&
+          lines.length > 0 &&
+          lines.every((line) => line.reason === 'NO_TAX_FOR_CATEGORY')
+
+        if (missingCategory && cartItems.length > 0) {
+          const resolved = await resolveCartTax(
+            cartItems.map((item) => ({
+              productId: item.productId,
+              categoryId: item.categoryId,
+              price: item.price,
+              quantity: item.quantity,
+            })),
+            promotionDiscount,
+          )
+          if (Object.keys(resolved.categoryByProduct).length > 0) {
+            const corrected = await checkoutApi.previewTax(checkoutId, {
+              discount_total: promotionDiscount,
+              allocations: promotionAllocationsRef.current,
+              category_by_product: resolved.categoryByProduct,
+            })
+            nextTax = Number(corrected.tax_amount ?? resolved.taxAmount)
+            quoteForDisplay = corrected
+          } else {
+            nextTax = resolved.taxAmount
+            quoteForDisplay = resolved.quote
+          }
+        }
+
+        if (cancelled) return
+        setTaxAmount(nextTax)
+        setTaxEnabled(isTaxChargeEnabled(quoteForDisplay))
+        dispatch(setItemTaxes(lineTaxesFromQuote(quoteForDisplay, cartItems)))
+      } catch {
+        if (!cancelled) setTaxPreviewError(true)
+      } finally {
+        if (!cancelled) setTaxLoading(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [cartItems, currentCheckout?.checkout_id, dispatch, promotionDiscount])
+
   useEffect(() => {
     const checkoutId = currentCheckout?.checkout_id
     const userId = user?.id
@@ -167,8 +253,8 @@ const CheckoutSummary = ({
 
     void requestPromotionQuote(appliedPromoCode).then((quote) => {
       if (cancelled || !quote) return
-      setPromotionDiscount(Number(quote.discount_total ?? 0))
-      setAuthoritativeTotal(Number(quote.final_total ?? checkout.totalPayment))
+      applyQuotedTotals(quote)
+      if (cancelled) return
       if (appliedPromoCode) {
         setPromoCodeStatus(quote.promo_code_status ?? null)
         setPromoCodeMessage(quote.promo_code_message ?? null)
@@ -199,8 +285,7 @@ const CheckoutSummary = ({
       const quote = await requestPromotionQuote(code)
       if (!quote) return
 
-      setPromotionDiscount(Number(quote.discount_total ?? 0))
-      setAuthoritativeTotal(Number(quote.final_total ?? checkout.totalPayment))
+      applyQuotedTotals(quote)
       setPromoCodeStatus(quote.promo_code_status ?? 'INVALID')
       setPromoCodeMessage(quote.promo_code_message ?? null)
 
@@ -323,6 +408,8 @@ const CheckoutSummary = ({
         buildCheckoutAddressPayload(deliveryAddress),
       )
       setPromotionDiscount(Number(addressResponse.data?.promotion_discount_total ?? 0))
+      setTaxAmount(Number(addressResponse.data?.tax_amount ?? 0))
+      setTaxPreviewError(false)
       setAuthoritativeTotal(addressResponse.data?.grand_total ?? null)
       if (addressResponse.data?.promo_code_status) {
         setPromoCodeStatus(addressResponse.data.promo_code_status)
@@ -492,7 +579,6 @@ const CheckoutSummary = ({
     totalPayment,
   } = checkout
   const deliveryFees = Object.values(feesByShopId)
-  const deliveryCurrency = deliveryFees.find((fee) => fee.currency)?.currency
   const anyNotDeliverable = deliveryFees.some((fee) => fee.deliveryStatus === 'NOT_DELIVERABLE')
   const deliveryPriceText = (() => {
     if (!hasDeliveryAddress) return 'Add address'
@@ -500,11 +586,13 @@ const CheckoutSummary = ({
     if (shippingCalculateStatus === 'failed') return 'Unavailable'
     if (shippingCalculateStatus === 'succeeded' && anyNotDeliverable) return 'Not available'
     if (shippingCalculateStatus === 'succeeded') {
-      return formatProductPrice(shippingSubtotal, deliveryCurrency)
+      return formatKsPrice(shippingSubtotal)
     }
     return '—'
   })()
-  const displayedTotal = authoritativeTotal ?? totalPayment
+  const displayedTotal =
+    authoritativeTotal ??
+    (promotionFinal ?? totalPayment) + taxAmount
   const promoFeedback = promoStatusLabel(promoCodeStatus, promoCodeMessage)
   const promoIsValid = promoCodeStatus === 'VALID'
 
@@ -514,6 +602,18 @@ const CheckoutSummary = ({
         <div className="mb-2.5 flex justify-between gap-3">
           <span className="shrink-0 text-gray-600">Merchandise Subtotal</span>
           <span className="whitespace-nowrap tabular-nums text-gray-900">{formatKsPrice(merchandiseSubtotal)}</span>
+        </div>
+        <div className="mb-2.5 flex justify-between gap-3">
+          <span className="shrink-0 text-gray-600">
+            Tax
+          </span>
+          <span className="whitespace-nowrap tabular-nums text-gray-900">
+            {taxLoading
+              ? 'Calculating…'
+              : taxEnabled
+                ? formatKsPrice(taxAmount)
+                : formatDisabledTaxAmount(taxAmount)}
+          </span>
         </div>
         <div className="mb-3 flex justify-between gap-3">
           <span className="shrink-0 text-gray-600">Delivery</span>
@@ -571,25 +671,29 @@ const CheckoutSummary = ({
             )}
           </div>
 
-          <div className="flex items-center justify-between gap-3 border-t border-emerald-100 pt-3">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.12em] text-emerald-800">Your savings</p>
-              <p className="mt-0.5 text-xs text-emerald-700">Promotions are checked for this checkout</p>
-            </div>
-            {promotionQuoteLoading ? (
-              <span className="text-xs font-medium text-emerald-700">Checking…</span>
-            ) : (
-              <span className="whitespace-nowrap text-lg font-bold tabular-nums text-emerald-700">-{formatKsPrice(promotionDiscount)}</span>
-            )}
-          </div>
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-gray-600">Shipping discount</span>
-            <span className="font-medium text-emerald-700">-{formatKsPrice(shippingDiscount)}</span>
-          </div>
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-gray-600">Promotion discount</span>
-            <span className="font-semibold text-emerald-700">-{formatKsPrice(promotionDiscount)}</span>
-          </div>
+          {(promoCodeInput.trim() || appliedPromoCode) && (
+            <>
+              <div className="flex items-center justify-between gap-3 border-t border-emerald-100 pt-3">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-emerald-800">Your savings</p>
+                  <p className="mt-0.5 text-xs text-emerald-700">Promotions are checked for this checkout</p>
+                </div>
+                {promotionQuoteLoading ? (
+                  <span className="text-xs font-medium text-emerald-700">Checking…</span>
+                ) : (
+                  <span className="whitespace-nowrap text-lg font-bold tabular-nums text-emerald-700">-{formatKsPrice(promotionDiscount)}</span>
+                )}
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-600">Shipping discount</span>
+                <span className="font-medium text-emerald-700">-{formatKsPrice(shippingDiscount)}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-600">Promotion discount</span>
+                <span className="font-semibold text-emerald-700">-{formatKsPrice(promotionDiscount)}</span>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="flex items-end justify-between gap-3 border-t border-[var(--dni-cart-border)] pt-3">
@@ -602,6 +706,9 @@ const CheckoutSummary = ({
         </div>
         {promotionQuoteError && (
           <p className="mt-2 text-right text-[11px] text-amber-700">Promotion preview unavailable. Your total will be checked before payment.</p>
+        )}
+        {taxPreviewError && (
+          <p className="mt-2 text-right text-[11px] text-amber-700">Tax preview unavailable. Tax is calculated again before payment.</p>
         )}
       </div>
 
