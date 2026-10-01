@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { fetchSagaStatus, fetchSagaStatusByCheckout } from '../store/checkoutThunks'
 import { selectSagaStatus, selectSagaProgress } from '../store/checkoutSlice'
@@ -55,9 +56,16 @@ export const SagaStatusDisplay = ({ sagaId, checkoutId }: { sagaId?: string; che
   const dispatch = useAppDispatch()
   const sagaStatus = useAppSelector(selectSagaStatus)
   const progressPercentage = useAppSelector(selectSagaProgress)
+  const [spinKey, setSpinKey] = useState(0)
 
-  const refresh = () =>
-    checkoutId ? dispatch(fetchSagaStatusByCheckout(checkoutId)) : dispatch(fetchSagaStatus(sagaId as string))
+  const refresh = () => {
+    setSpinKey((key) => key + 1)
+    if (checkoutId) {
+      void dispatch(fetchSagaStatusByCheckout(checkoutId))
+    } else {
+      void dispatch(fetchSagaStatus(sagaId as string))
+    }
+  }
 
   const stepStatus = (stepName: string): { status: string; color: string } => {
     if (!sagaStatus) return { status: 'pending', color: 'text-gray-500' }
@@ -93,7 +101,11 @@ export const SagaStatusDisplay = ({ sagaId, checkoutId }: { sagaId?: string; che
               className="p-1 hover:bg-gray-100 rounded transition-colors"
               aria-label="Refresh order progress"
             >
-              <RefreshCw className="h-4 w-4 text-gray-500" />
+              <RefreshCw
+                key={spinKey}
+                onAnimationIteration={() => setSpinKey(0)}
+                className={`h-4 w-4 text-gray-500 ${spinKey > 0 ? 'animate-spin' : ''}`}
+              />
             </button>
           </div>
         </div>
