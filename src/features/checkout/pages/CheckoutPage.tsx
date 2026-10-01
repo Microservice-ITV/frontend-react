@@ -254,6 +254,23 @@ const CheckoutPage = () => {
         }
 
         if (currentCheckout?.checkout_id) {
+            let storedFingerprint: string | null = null
+            try {
+                const raw = checkoutStorageKey ? sessionStorage.getItem(checkoutStorageKey) : null
+                if (raw) {
+                    const parsed = JSON.parse(raw) as StoredCheckoutSession
+                    if (parsed.checkoutId === currentCheckout.checkout_id) {
+                        storedFingerprint = parsed.cartFingerprint
+                    }
+                }
+            } catch {
+                if (checkoutStorageKey) sessionStorage.removeItem(checkoutStorageKey)
+            }
+
+            if (storedFingerprint && storedFingerprint !== selectedItemsFingerprint) {
+                if (checkoutStorageKey) sessionStorage.removeItem(checkoutStorageKey)
+                dispatch(clearCheckout())
+            }
             setCheckoutSessionBootstrapped(true)
             return
         }
@@ -307,13 +324,32 @@ const CheckoutPage = () => {
     useEffect(() => {
         if (!checkoutStorageKey || !currentCheckout?.checkout_id) return
 
+        let storedFingerprint: string | null = null
+        try {
+            const raw = sessionStorage.getItem(checkoutStorageKey)
+            if (raw) {
+                const parsed = JSON.parse(raw) as StoredCheckoutSession
+                if (parsed.checkoutId === currentCheckout.checkout_id) {
+                    storedFingerprint = parsed.cartFingerprint
+                }
+            }
+        } catch {
+            sessionStorage.removeItem(checkoutStorageKey)
+        }
+
+        if (storedFingerprint && storedFingerprint !== selectedItemsFingerprint) {
+            sessionStorage.removeItem(checkoutStorageKey)
+            dispatch(clearCheckout())
+            return
+        }
+
         const payload: StoredCheckoutSession = {
             checkoutId: currentCheckout.checkout_id,
             cartFingerprint: selectedItemsFingerprint,
             sagaId: currentCheckout.saga_id ?? undefined,
         }
         sessionStorage.setItem(checkoutStorageKey, JSON.stringify(payload))
-    }, [checkoutStorageKey, currentCheckout?.checkout_id, selectedItemsFingerprint])
+    }, [checkoutStorageKey, currentCheckout?.checkout_id, currentCheckout?.saga_id, dispatch, selectedItemsFingerprint])
 
     useEffect(() => {
         if (!checkoutStorageKey || !paymentStatus) return

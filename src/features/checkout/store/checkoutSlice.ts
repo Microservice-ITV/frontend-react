@@ -61,6 +61,7 @@ const checkoutSlice = createSlice({
             state.paymentStatus = null
             state.clientSecret = null
             state.error = null
+            state.loading = false
             state.isPlacingOrder = false
             state.isAwaitingFinalStatus = false
             state.sessionPaymentMethod = null

@@ -6,7 +6,6 @@ import {
   checkoutApi,
   formatDisabledTaxAmount,
   isTaxChargeEnabled,
-  lineTaxesFromQuote,
   resolveCartTax,
   type PromoCodeStatus,
 } from '../api/checkoutApi'
@@ -179,57 +178,46 @@ const CheckoutSummary = ({
   }
 
   useEffect(() => {
-    const checkoutId = currentCheckout?.checkout_id
-    if (!checkoutId) return
+    if (cartItems.length === 0) return
 
     let cancelled = false
     setTaxLoading(true)
     setTaxPreviewError(false)
 
+    const cartLines = cartItems.map((item) => ({
+      productId: item.productId,
+      categoryId: item.categoryId,
+      price: item.price,
+      quantity: item.quantity,
+    }))
+
     void (async () => {
       try {
-        const preview = await checkoutApi.previewTax(checkoutId, {
-          discount_total: promotionDiscount,
-          allocations: promotionAllocationsRef.current,
-        })
+        const resolved = await resolveCartTax(cartLines, promotionDiscount)
         if (cancelled) return
 
-        let nextTax = Number(preview.tax_amount ?? 0)
-        let quoteForDisplay = preview
-        const lines = preview.lines ?? []
-        const missingCategory =
-          nextTax === 0 &&
-          lines.length > 0 &&
-          lines.every((line) => line.reason === 'NO_TAX_FOR_CATEGORY')
-
-        if (missingCategory && cartItems.length > 0) {
-          const resolved = await resolveCartTax(
-            cartItems.map((item) => ({
-              productId: item.productId,
-              categoryId: item.categoryId,
-              price: item.price,
-              quantity: item.quantity,
-            })),
-            promotionDiscount,
-          )
-          if (Object.keys(resolved.categoryByProduct).length > 0) {
-            const corrected = await checkoutApi.previewTax(checkoutId, {
-              discount_total: promotionDiscount,
-              allocations: promotionAllocationsRef.current,
-              category_by_product: resolved.categoryByProduct,
-            })
-            nextTax = Number(corrected.tax_amount ?? resolved.taxAmount)
-            quoteForDisplay = corrected
-          } else {
-            nextTax = resolved.taxAmount
-            quoteForDisplay = resolved.quote
+        const quotedLines = resolved.quote.lines ?? []
+        setTaxAmount(resolved.taxAmount)
+        setTaxEnabled(isTaxChargeEnabled(resolved.quote))
+        dispatch(setItemTaxes(cartItems.map((item, index) => {
+          const line = quotedLines[index]
+          const rate = line?.tax_rate
+          return {
+            productId: item.productId,
+            variantId: item.variantId ?? '',
+            taxRate: rate == null || !Number.isFinite(Number(rate)) ? null : Number(rate),
+            taxAmount: Number(line?.tax_amount ?? 0),
           }
-        }
+        })))
 
-        if (cancelled) return
-        setTaxAmount(nextTax)
-        setTaxEnabled(isTaxChargeEnabled(quoteForDisplay))
-        dispatch(setItemTaxes(lineTaxesFromQuote(quoteForDisplay, cartItems)))
+        const checkoutId = currentCheckout?.checkout_id
+        if (checkoutId) {
+          await checkoutApi.previewTax(checkoutId, {
+            discount_total: promotionDiscount,
+            allocations: promotionAllocationsRef.current,
+            category_by_product: resolved.categoryByProduct,
+          })
+        }
       } catch {
         if (!cancelled) setTaxPreviewError(true)
       } finally {
