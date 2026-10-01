@@ -206,8 +206,8 @@ const FlashDealsSection = () => {
               ? Array.from({ length: 6 }).map((_, idx) => (
                   <div
                     key={`skeleton-${idx}`}
-                    className="shrink-0"
-                    style={{ width: `${CARD_WIDTH_PX}px` }}
+                    className="min-w-0 shrink-0"
+                    style={{ width: CARD_WIDTH_PX, maxWidth: CARD_WIDTH_PX }}
                   >
                     <div className="flex flex-col overflow-hidden border border-[var(--dni-cart-border)] bg-white">
                       <div className="aspect-square animate-pulse bg-[#f0f0f0]" />
@@ -222,8 +222,8 @@ const FlashDealsSection = () => {
               : deals.map((deal) => (
                   <div
                     key={deal.id}
-                    className="shrink-0"
-                    style={{ width: `${CARD_WIDTH_PX}px` }}
+                    className="min-w-0 shrink-0"
+                    style={{ width: CARD_WIDTH_PX, maxWidth: CARD_WIDTH_PX }}
                   >
                     <FlashDealCard deal={deal} />
                   </div>
