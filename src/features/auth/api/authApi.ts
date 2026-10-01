@@ -1,17 +1,39 @@
 import { authClient } from "@/lib/api/authClient";
+import { PROFILE_IMAGE_FIELD } from "../constants/profileImage";
 
 export const authFeatureApi = {
   login(data: { email: string; password: string; recaptchaToken: string }) {
     return authClient.post("/login", data);
   },
 
+  /**
+   * The profile image stays optional, so the payload is only switched to
+   * multipart/form-data when the user actually picked a photo.
+   */
   register(data: {
     name: string;
     email: string;
     password: string;
     recaptchaToken: string;
+    profileImage?: File | null;
   }) {
-    return authClient.post("/register", data);
+    if (!data.profileImage) {
+      return authClient.post("/register", {
+        name: data.name,
+        email: data.email,
+        password: data.password,
+        recaptchaToken: data.recaptchaToken,
+      });
+    }
+
+    const formData = new FormData();
+    formData.append("name", data.name);
+    formData.append("email", data.email);
+    formData.append("password", data.password);
+    formData.append("recaptchaToken", data.recaptchaToken);
+    formData.append(PROFILE_IMAGE_FIELD, data.profileImage);
+
+    return authClient.post("/register", formData);
   },
 
   requestPhoneOtp(data: { phone: string; recaptchaToken?: string }) {
@@ -39,10 +61,19 @@ export const authFeatureApi = {
     return authClient.patch("/profile", data);
   },
 
+  /**
+   * Uploads (or replaces) the authenticated user's profile image.
+   * The backend converts it to WebP and returns the resolved image URL.
+   */
   updateProfileImage(image: File) {
     const formData = new FormData();
-    formData.append("image", image);
+    formData.append(PROFILE_IMAGE_FIELD, image);
     return authClient.post("/profile/image", formData);
+  },
+
+  /** Removes the authenticated user's profile image (idempotent). */
+  removeProfileImage() {
+    return authClient.delete("/profile/image");
   },
 
   setPassword(password: string, passwordConfirmation: string) {

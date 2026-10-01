@@ -173,7 +173,7 @@ const checkoutSlice = createSlice({
                         state.paymentMethod = pm
                     }
                 }
-                if (['PAID', 'COMPLETED', 'FAILED', 'FAILED_PAYMENT', 'EXPIRED'].includes(action.payload.status)) {
+                if (['PAID', 'COMPLETED', 'FAILED', 'FAILED_STOCK', 'FAILED_PAYMENT', 'EXPIRED'].includes(action.payload.status)) {
                     state.isAwaitingFinalStatus = false
                 }
             })

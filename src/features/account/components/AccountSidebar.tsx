@@ -26,20 +26,30 @@ const AccountSidebar = ({ onNavigate }: AccountSidebarProps) => {
         : "text-slate-600 hover:text-slate-900 hover:bg-slate-50 font-normal"
     }`;
 
-  const userInitial = user?.name ? user.name.charAt(0).toUpperCase() : "T";
+  const userInitial = user?.name
+    ? user.name.charAt(0).toUpperCase()
+    : "U";
 
   return (
     <aside className="w-full md:w-64 flex-shrink-0 select-none">
       <div className="bg-white rounded-lg border border-slate-100 shadow-sm p-4 sm:p-5">
         {/* User Profile Header */}
         <div className="flex items-center gap-3.5 pb-5 border-b border-slate-100">
-          <div className="w-12 h-12 rounded-full bg-slate-200/90 border border-slate-200 flex items-center justify-center text-slate-700 font-bold text-base shadow-2xs">
-            {userInitial}
+          <div className="w-12 h-12 rounded-full bg-slate-200/90 border border-slate-200 flex items-center justify-center overflow-hidden text-slate-700 font-bold text-base shadow-2xs shrink-0">
+            {user?.profile_image ? (
+              <img
+                src={user.profile_image}
+                alt={user?.name ?? "User"}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              userInitial
+            )}
           </div>
 
           <div className="flex flex-col min-w-0">
             <span className="text-sm font-bold text-slate-900 truncate">
-              {user?.name ?? "thatnaing tun"}
+              {user?.name ?? "User"}
             </span>
 
             <NavLink

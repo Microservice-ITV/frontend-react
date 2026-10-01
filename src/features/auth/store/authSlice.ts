@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
-import { login, register, requestPhoneOtp, verifyPhoneOtp, fetchMe, refreshAccessToken, logout, bootstrapAuth, verifyEmail, resendVerification } from './authThunks'
+import { login, register, requestPhoneOtp, verifyPhoneOtp, fetchMe, refreshAccessToken, logout, bootstrapAuth, verifyEmail, resendVerification, updateProfileImage, removeProfileImage } from './authThunks'
 import type { AuthState } from '../types/authTypes'
 
 const initialState: AuthState = {
@@ -10,6 +10,8 @@ const initialState: AuthState = {
   initialized: false,
   status: 'idle',
   error: null,
+  profileImageStatus: 'idle',
+  profileImageError: null,
   requiresVerification: false,
   verificationEmail: null,
   loginDraft: {
@@ -177,6 +179,39 @@ const authSlice = createSlice({
           initialized: true,
           status: 'idle',
         }
+      })
+
+      // ================= PROFILE IMAGE =================
+      // The single source of truth for the photo is state.auth.user, so the
+      // avatar updates everywhere at once - no reload and no duplicate state.
+      .addCase(updateProfileImage.pending, (state) => {
+        state.profileImageStatus = 'loading'
+        state.profileImageError = null
+      })
+      .addCase(updateProfileImage.fulfilled, (state, action) => {
+        state.profileImageStatus = 'succeeded'
+        state.profileImageError = null
+
+        if (state.user) state.user.profile_image = action.payload
+      })
+      .addCase(updateProfileImage.rejected, (state, action) => {
+        state.profileImageStatus = 'failed'
+        state.profileImageError = action.payload ?? 'We could not update your profile photo.'
+      })
+
+      .addCase(removeProfileImage.pending, (state) => {
+        state.profileImageStatus = 'loading'
+        state.profileImageError = null
+      })
+      .addCase(removeProfileImage.fulfilled, (state) => {
+        state.profileImageStatus = 'succeeded'
+        state.profileImageError = null
+
+        if (state.user) state.user.profile_image = null
+      })
+      .addCase(removeProfileImage.rejected, (state, action) => {
+        state.profileImageStatus = 'failed'
+        state.profileImageError = action.payload ?? 'We could not remove your profile photo.'
       })
 
       // ================= AUTH BOOTSTRAP =================

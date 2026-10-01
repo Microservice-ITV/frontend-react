@@ -10,7 +10,14 @@ import type { AccountingIncomeLine } from '@/features/admin/api/adminAccountingA
  
 type AccessContextResponse = { 
   data?: { 
+    user?: {
+      active_shop_id?: string | null
+    }
     access_context?: { 
+      active_shop?: {
+        shop_id?: string | null
+        shop_name?: string | null
+      } | null
       shops?: Array<{ 
         shop_id?: string | null 
         shop_name?: string | null 
@@ -48,7 +55,7 @@ const extractShopIdFromMemo = (value?: string | null): string | null => {
   return match?.[1] ? match[1].trim() : null 
 } 
  
-const toIncomeRows = ( 
+export const toIncomeRows = ( 
   entries: AccountingIncomeLine[], 
   allowedShopIds: Set<string>, 
   shopNames: Record<string, string>, 
@@ -57,9 +64,10 @@ const toIncomeRows = (
     .filter((line) => line.direction === 'CREDIT' && line.account.type === 'INCOME') 
     .map((line) => { 
       const rawShopId = extractShopIdFromMemo(line.memo ?? line.journalEntry.narration) ?? extractShopIdFromMemo(line.journalEntry.narration) 
-      const shopId = rawShopId && allowedShopIds.has(normalizeShopId(rawShopId)) ? normalizeShopId(rawShopId) : null 
+      const shopId = rawShopId ? normalizeShopId(rawShopId) : null 
       const fallbackShopId = allowedShopIds.size === 1 ? Array.from(allowedShopIds)[0] : null 
-      const resolvedShopId = shopId ?? fallbackShopId 
+      const candidateShopId = shopId ?? fallbackShopId 
+      const resolvedShopId = candidateShopId && allowedShopIds.has(candidateShopId) ? candidateShopId : null
  
       return { 
         id: line.id, 
@@ -100,19 +108,27 @@ const SellerIncomePage = () => {
         accountingClient.get<{ entries?: AccountingIncomeLine[]; totalIncome?: number | string }>('/reports/profit-loss'), 
       ]) 
  
-      const shops = accessContextResponse.data.data?.access_context?.shops ?? [] 
+      const accessContext = accessContextResponse.data.data?.access_context
+      const activeShop = accessContext?.active_shop
+      const shops = [
+        ...(accessContext?.shops ?? []),
+        ...(activeShop ? [activeShop] : []),
+      ]
       const shopNames = Object.fromEntries( 
         shops.flatMap((shop) => 
           shop.shop_id && shop.shop_name ? [[normalizeShopId(shop.shop_id), shop.shop_name]] : [], 
         ), 
       ) 
-      const activeShopId = authUser?.active_shop_id ? normalizeShopId(authUser.active_shop_id) : null 
+      const contextShopId = accessContextResponse.data.data?.user?.active_shop_id
+      const activeShopId = [activeShop?.shop_id, contextShopId, authUser?.active_shop_id]
+        .find((shopId): shopId is string => typeof shopId === 'string' && shopId.trim() !== '')
+      const normalizedActiveShopId = activeShopId ? normalizeShopId(activeShopId) : null
       const allowedShopIds = new Set<string>() 
  
       for (const shop of shops) { 
         if (shop.shop_id) allowedShopIds.add(normalizeShopId(shop.shop_id)) 
       } 
-      if (activeShopId) allowedShopIds.add(activeShopId) 
+      if (normalizedActiveShopId) allowedShopIds.add(normalizedActiveShopId) 
  
       const safeEntries = entriesResponse.data?.entries ?? [] 
       const rows = toIncomeRows(safeEntries, allowedShopIds, shopNames) 

@@ -13,6 +13,7 @@ export type CheckoutPaymentStatus =
     | 'PAYMENT_PENDING_CONFIRMATION'
     | 'PENDING_STOCK'
     | 'STOCK_CONFIRMED'
+    | 'FAILED_STOCK'
     | 'PENDING_PAYMENT'
     | 'PAID'
     | 'COMPLETED'

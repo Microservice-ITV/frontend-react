@@ -33,7 +33,7 @@ type StoredCheckoutSession = {
     sagaId?: string
 }
 
-const terminalCheckoutStatuses = new Set(['PAID', 'COMPLETED', 'FAILED', 'FAILED_PAYMENT', 'EXPIRED'])
+const terminalCheckoutStatuses = new Set(['PAID', 'COMPLETED', 'FAILED', 'FAILED_STOCK', 'FAILED_PAYMENT', 'EXPIRED'])
 const terminalSagaStatuses = new Set(['COMPLETED', 'FAILED', 'TIMEOUT'])
 
 const CheckoutPage = () => {
@@ -448,6 +448,10 @@ const CheckoutPage = () => {
                                     deliveryAddress={selectedDeliveryAddress}
                                     cartItems={items}
                                 />
+                            ) : checkoutError ? (
+                                <div role="alert" className="rounded-sm border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                                    {checkoutError}
+                                </div>
                             ) : (
                                 <CheckoutSummarySkeleton />
                             )}

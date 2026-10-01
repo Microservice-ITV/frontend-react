@@ -57,9 +57,12 @@ jobs:
             VITE_ECOMMERCE_READ_GRAPHQL_URL=https://api.dailyneeditems.com/graphql
             VITE_ORDER_SERVICE_URL=https://api.dailyneeditems.com/orders
             VITE_ECOMMERCE_READ_SERVICE_URL=https://api.dailyneeditems.com
-            VITE_SHIPPING_SERVICE_URL=https://api.dailyneeditems.com/shipping
+            VITE_SHIPPING_SERVICE_URL=https://api.dailyneeditems.com
             VITE_PROMOTION_SERVICE_URL=https://api.dailyneeditems.com/promotions
             VITE_BFF_SERVICE_URL=https://api.dailyneeditems.com/bff
+            VITE_ACCOUNTING_SERVICE_URL=https://api.dailyneeditems.com/accounting
+            VITE_NOTIFICATION_SERVICE_URL=https://api.dailyneeditems.com
+            VITE_NOTIFICATION_SOCKET_PATH=/notifications/socket.io/
             VITE_ASSET_BASE_URL=https://dnistore.sgp1.cdn.digitaloceanspaces.com
             VITE_MAP_PROVIDER=osm
             VITE_USE_MOCK_API=false

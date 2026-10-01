@@ -334,7 +334,7 @@ const CustomerInvoicesPage = () => {
             <table className="min-w-190 w-full text-left">
               <thead className="border-b border-gray-100 bg-gray-50/80">
                 <tr>
-                  {['Invoice #', 'Order ID', 'Date', 'Amount', 'Status', 'Actions'].map((header) => (
+                  {['Invoice #', 'Order ID', 'Shop', 'Date', 'Amount', 'Status', 'Actions'].map((header) => (
                     <th key={header} className="px-5 py-3 text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">
                       {header}
                     </th>
@@ -345,7 +345,7 @@ const CustomerInvoicesPage = () => {
               <tbody>
                 {invoices.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-12 text-center">
+                    <td colSpan={7} className="px-4 py-12 text-center">
                       <div className="mx-auto flex max-w-sm flex-col items-center">
                         <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gray-100 text-gray-400">
                           <FileText size={20} />
@@ -360,6 +360,7 @@ const CustomerInvoicesPage = () => {
                     <tr key={invoice.id} className="border-t border-gray-100 transition hover:bg-emerald-50/30">
                       <td className="whitespace-nowrap px-5 py-4"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700"><FileText size={15} /></span><div><p className="text-sm font-semibold text-gray-900">{invoice.invoiceNumber}</p><p className="mt-0.5 text-[10px] text-gray-400">Invoice document</p></div></div></td>
                       <td className="max-w-45 truncate px-5 py-4 font-mono text-xs text-gray-600" title={invoice.orderId}>{invoice.orderId}</td>
+                      <td className="whitespace-nowrap px-5 py-4 text-sm text-gray-700">{invoice.shopName || 'N/A'}</td>
                       <td className="whitespace-nowrap px-5 py-4 text-sm text-gray-600">{formatDate(invoice.createdAt)}</td>
                       <td className="whitespace-nowrap px-5 py-4 text-sm font-semibold text-gray-900">{formatAmount(invoice.grandTotal)}</td>
                       <td className="whitespace-nowrap px-5 py-4">
@@ -446,6 +447,8 @@ const CustomerInvoicesPage = () => {
               </div>
               <dl className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-xl border border-gray-100 p-3"><dt className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Order ID</dt><dd className="mt-1 break-all font-mono text-xs text-gray-700">{detailsInvoice.orderId}</dd></div>
+                <div className="rounded-xl border border-gray-100 p-3"><dt className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Shop</dt><dd className="mt-1 text-sm text-gray-700">{detailsInvoice.shopName || 'N/A'}</dd></div>
+                <div className="rounded-xl border border-gray-100 p-3"><dt className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Customer</dt><dd className="mt-1 text-sm text-gray-700">{detailsInvoice.customerName || 'N/A'}</dd><dd className="mt-1 break-all text-xs text-gray-500">{detailsInvoice.customerEmail || 'N/A'}</dd></div>
                 <div className="rounded-xl border border-gray-100 p-3"><dt className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Issued</dt><dd className="mt-1 text-sm text-gray-700">{formatDate(detailsInvoice.createdAt)}</dd></div>
                 <div className="rounded-xl border border-gray-100 p-3"><dt className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Payment method</dt><dd className="mt-1 text-sm capitalize text-gray-700">{detailsInvoice.paymentMethod || 'Not provided'}</dd></div>
                 <div className="rounded-xl border border-gray-100 p-3"><dt className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Payment reference</dt><dd className="mt-1 break-all font-mono text-xs text-gray-700">{detailsInvoice.paymentGatewayRef || 'Not provided'}</dd></div>

@@ -2,7 +2,8 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  image?: string | null;
+  /** Resolved (or CDN) URL of the user's profile image, null when none is set. */
+  profile_image?: string | null;
   phone?: string | null;
   hasPassword?: boolean;
   gender?: "male" | "female" | "other" | null;
@@ -26,6 +27,9 @@ export interface AuthState {
   initialized: boolean;
   status: "idle" | "loading" | "succeeded" | "failed";
   error: string | null;
+  /** Separate status for profile image updates so a photo upload never blocks the rest of the UI. */
+  profileImageStatus: "idle" | "loading" | "succeeded" | "failed";
+  profileImageError: string | null;
   requiresVerification: boolean;
   verificationEmail: string | null;
   loginDraft: {
