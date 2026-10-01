@@ -345,6 +345,7 @@ const CheckoutSummary = ({
       shipping_total,
       shop_shippings,
       promo_code: appliedPromoCode,
+      payment_method: sessionPaymentMethod ?? paymentMethod,
     }
   }
 

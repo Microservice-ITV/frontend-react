@@ -31,6 +31,7 @@ export type CheckoutAddressPayload = {
   shop_shippings: CheckoutShopShippingPayload[]
   /** Optional one-time voucher / promo code */
   promo_code?: string | null
+  payment_method?: 'prepaid' | 'cod'
 }
 
 export type PromoCodeStatus =
