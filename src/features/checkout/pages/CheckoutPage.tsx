@@ -362,6 +362,8 @@ const CheckoutPage = () => {
         // Allow a fresh checkout attempt when the cart or address changes.
         dispatch(setCheckoutError(null))
     }, [dispatch, selectedItemsFingerprint, selectedDeliveryAddress?.address_id])
+        console.log('checkoutError', checkoutError);
+
 
     useEffect(() => {
         if (!hasDeliveryAddress) {
