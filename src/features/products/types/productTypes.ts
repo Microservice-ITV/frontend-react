@@ -6,6 +6,8 @@ export interface Product {
   price: number
   images: string[]
   categoryId: string
+  /** Catalog list includes the owning shop id. Name is loaded from the product when adding to cart. */
+  shopId?: string
   tags?: string[]
 }
 

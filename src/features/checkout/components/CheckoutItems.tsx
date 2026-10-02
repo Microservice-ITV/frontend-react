@@ -2,10 +2,9 @@ import { useEffect, useState } from 'react'
 import { useAppSelector } from '@/app/hooks'
 import { locationApi } from '@/features/account/api/locationApi'
 import type { ShopCalculatedShipping } from '@/features/shipping/types/shippingTypes'
-import { formatProductPrice } from '@/features/products/utils/formatProductPrice'
+import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
 import { chatIcon, voucherIcon } from '@/assets/icons'
 import { CheckoutTotals } from '../utils/checkoutCalculator'
-import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
 import placeholderImage from '@/public/placeholder.svg'
 import { Truck } from 'lucide-react'
 
@@ -19,10 +18,6 @@ function formatKm(value: number): string {
 
 function formatKg(value: number): string {
   return `${value.toFixed(2)} kg`
-}
-
-function formatKgAmount(value: number): string {
-  return value.toFixed(2)
 }
 
 const ShippingOptionCard = ({
@@ -57,10 +52,6 @@ const ShippingOptionCard = ({
   const fromCity = fee.fromCityId ? cityNames[fee.fromCityId] : undefined
   const toCity = fee.toCityId ? cityNames[fee.toCityId] : undefined
   const routeLabel = [fromCity, toCity].filter(Boolean).join(' → ')
-  const weightParts = [
-    fee.actualWeightKg != null ? `actual ${formatKgAmount(fee.actualWeightKg)}` : null,
-    fee.volumetricWeightKg != null ? `volumetric ${formatKgAmount(fee.volumetricWeightKg)}` : null,
-  ].filter(Boolean)
 
   return (
     <div className="rounded-sm border border-emerald-200 bg-[#f3faf6] px-3 py-3 text-[13px] leading-5 text-gray-700">
@@ -69,15 +60,15 @@ const ShippingOptionCard = ({
         <span>
           {fee.deliveryStatus === 'NOT_DELIVERABLE'
             ? 'Not available'
-            : formatProductPrice(fee.amount, currency)}
+            : formatKsPrice(fee.amount, currency)}
         </span>
       </div>
 
       <div className="mt-2 space-y-0.5 text-xs text-gray-600">
-        <p className="flex items-center gap-1.5 text-emerald-700">
+        {/* <p className="flex items-center gap-1.5 text-emerald-700">
           <Truck className="h-3.5 w-3.5 shrink-0" aria-hidden />
           <span>{fee.etaHint?.trim() || 'Delivery estimate unavailable'}</span>
-        </p>
+        </p> */}
         {fee.deliveryStatus === 'NOT_DELIVERABLE' ? (
           <p className="text-amber-800">Delivery is not available to this address.</p>
         ) : (
@@ -88,23 +79,26 @@ const ShippingOptionCard = ({
               fee.distanceKm != null && fee.distanceKm > 0 && <p>Distance: {formatKm(fee.distanceKm)}</p>
             )}
             {fee.chargeableWeightKg != null && (
-              <p>
-                Chargeable weight: {formatKg(fee.chargeableWeightKg)}
-                {weightParts.length > 0 ? ` (${weightParts.join(' · ')})` : ''}
-              </p>
+              <p>Chargeable weight: {formatKg(fee.chargeableWeightKg)}</p>
             )}
-            {fee.baseFee != null && <p>Base fee: {formatProductPrice(fee.baseFee, currency)}</p>}
+            {fee.baseFee != null && <p>Base fee: {formatKsPrice(fee.baseFee, currency)}</p>}
             {fee.distanceFee != null && (
               <p>
-                {isCityRoute ? 'Route fee' : 'Distance fee'}: {formatProductPrice(fee.distanceFee, currency)}
+                {isCityRoute ? 'Route fee' : 'Distance fee'}: {formatKsPrice(fee.distanceFee, currency)}
               </p>
             )}
-            {fee.weightFee != null && <p>Weight fee: {formatProductPrice(fee.weightFee, currency)}</p>}
+            {fee.weightFee != null && <p>Weight fee: {formatKsPrice(fee.weightFee, currency)}</p>}
           </>
         )}
       </div>
     </div>
   )
+}
+
+function formatLineTaxRate(rate: number | null | undefined): string {
+  if (rate == null || !Number.isFinite(rate)) return '—'
+  const rounded = Math.round(rate * 100) / 100
+  return `${Number.isInteger(rounded) ? rounded : rounded}%`
 }
 
 const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
@@ -113,6 +107,7 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
   const calculateStatus = useAppSelector(state => state.shipping.calculateStatus)
   const calculateError = useAppSelector(state => state.shipping.calculateError)
   const [cityNames, setCityNames] = useState<Record<string, string>>({})
+  const itemTaxes = useAppSelector((state) => state.checkout.itemTaxes)
   const needsCityNames = Object.values(feesByShopId).some(
     (fee) => fee.calculationMethod === 'CITY_ROUTE' && (fee.fromCityId || fee.toCityId),
   )
@@ -145,11 +140,13 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
         </div>
       ) : null}
 
-      <div className="hidden items-center gap-3.5 rounded-sm border border-[var(--dni-cart-border)] bg-white px-3 py-2.5 text-sm text-gray-500 sm:px-4 md:grid md:grid-cols-[minmax(0,1fr)_7.5rem_5rem_8.5rem]">
+      <div className="hidden items-center gap-3.5 rounded-sm border border-[var(--dni-cart-border)] bg-white px-3 py-2.5 text-sm text-gray-500 sm:px-4 md:grid md:grid-cols-[minmax(0,1fr)_7.5rem_5rem_8.5rem_5.5rem_7.5rem]">
         <span className="text-gray-900">Products Ordered</span>
         <span className="whitespace-nowrap text-right">Unit Price</span>
         <span className="text-center">Quantity</span>
         <span className="whitespace-nowrap text-right">Item Subtotal</span>
+        <span className="whitespace-nowrap text-right">Tax Rate</span>
+        <span className="whitespace-nowrap text-right">Tax</span>
       </div>
 
       {Object.entries(groupedByShop).map(([shopId, shopItems]) => {
@@ -169,7 +166,7 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
           feeRow?.amount != null &&
           feeRow.amount >= 0
         const shippingFee = hasFee ? (feeRow?.amount as number) : 0
-        const shippingCurrency = feeRow?.currency ?? 'MMK'
+        const shippingCurrency = feeRow?.currency ?? 'Ks'
         const rawMethod = feeRow?.methodLabel?.trim()
         const methodTitle = isNotDeliverable
           ? 'Delivery unavailable'
@@ -204,11 +201,17 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
               {shopItems.map(item => {
                 const subtotal = item.price * item.quantity
                 const variation = item.variantLabel?.trim() || 'Standard'
+                const variantId = item.variantId ?? ''
+                const lineTax = itemTaxes.find(
+                  (tax) => tax.productId === item.productId && tax.variantId === variantId,
+                )
+                const taxRateLabel = lineTax ? formatLineTaxRate(lineTax.taxRate) : 'Calculating…'
+                const taxAmountLabel = lineTax ? formatKsPrice(lineTax.taxAmount) : 'Calculating…'
 
                 return (
                   <li
                     key={`${item.productId}-${item.variantId ?? ''}-${item.shopId}`}
-                    className="flex flex-col gap-2 border-b border-[var(--dni-cart-border)] px-3 py-3 last:border-b-0 sm:px-4 md:grid md:grid-cols-[minmax(0,1fr)_7.5rem_5rem_8.5rem] md:items-center md:gap-3.5"
+                    className="flex flex-col gap-2 border-b border-[var(--dni-cart-border)] px-3 py-3 last:border-b-0 sm:px-4 md:grid md:grid-cols-[minmax(0,1fr)_7.5rem_5rem_8.5rem_5.5rem_7.5rem] md:items-center md:gap-3.5"
                   >
                     <div className="flex min-w-0 items-center gap-3">
                       <img
@@ -227,6 +230,9 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
                         <p className="mt-1 whitespace-nowrap text-sm font-medium text-emerald-700 md:hidden">
                           {formatKsPrice(item.price)}
                         </p>
+                        <p className={`mt-0.5 md:hidden ${lineTax ? 'text-xs text-gray-500' : 'text-[11px] text-gray-400'}`}>
+                          {lineTax ? `Tax ${taxRateLabel} · ${taxAmountLabel}` : 'Calculating…'}
+                        </p>
                       </div>
                     </div>
 
@@ -238,6 +244,12 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
                       <p className="hidden text-center text-sm text-gray-700 md:block">{item.quantity}</p>
                       <p className="whitespace-nowrap text-sm font-semibold tabular-nums text-emerald-700 md:text-right md:text-[15px]">
                         {formatKsPrice(subtotal)}
+                      </p>
+                      <p className={`hidden whitespace-nowrap text-right md:block ${lineTax ? 'text-sm tabular-nums text-gray-700' : 'text-xs text-gray-400'}`}>
+                        {taxRateLabel}
+                      </p>
+                      <p className={`hidden whitespace-nowrap text-right md:block ${lineTax ? 'text-sm font-medium tabular-nums text-gray-900' : 'text-xs text-gray-400'}`}>
+                        {taxAmountLabel}
                       </p>
                     </div>
                   </li>

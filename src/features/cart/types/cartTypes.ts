@@ -23,6 +23,8 @@ export interface CartItem {
 
     // selection state
     selected: boolean
+    /** Catalog category used to match a tax charge at checkout. */
+    categoryId?: string
 }
 
 export interface CartState {

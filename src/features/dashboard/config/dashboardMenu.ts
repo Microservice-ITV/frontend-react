@@ -378,6 +378,19 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
     ],
   },
   {
+    title: 'TAX',
+    items: [
+      {
+        key: 'admin-tax',
+        label: 'Tax',
+        to: '/super-admin/tax',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: Receipt,
+      },
+    ],
+  },
+  {
     title: 'SHIPPING',
     items: [
       {

@@ -45,4 +45,8 @@ const requestCategoriesWithRetry = async (
 
 export const categoryApi = {
   getAll: () => requestCategoriesWithRetry(),
+  getPage: (page: number, limit = 100) =>
+    publicClient.get<CategoriesApiResponse>('/categories', {
+      params: { page, limit },
+    }),
 }

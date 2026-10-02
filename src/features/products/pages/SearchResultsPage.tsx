@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { searchProducts } from "@/features/products/store/productThunks";
@@ -10,11 +10,14 @@ import {
 } from "@/features/categories/store/categorySelectors";
 import ProductGrid from "../components/ProductGrid";
 import ProductSortBar from "../components/ProductSortBar";
+import Pagination from "@/components/ui/Pagination";
 import {
   normalizeProductSort,
   type ProductSortKey,
 } from "../utils/productSort";
 import ShopSearchList from "@/features/shops/components/ShopSearchList";
+
+const PAGE_SIZE = 10;
 
 const SearchResultsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -23,6 +26,8 @@ const SearchResultsPage = () => {
   const [sort, setSort] = useState<ProductSortKey>(() =>
     normalizeProductSort(searchParams.get("sort")),
   );
+  const [currentPage, setCurrentPage] = useState(1);
+  const [shopPage, setShopPage] = useState(1);
 
   const searchResults = useAppSelector((s) => s.products.searchResults || []);
   const searchStatus = useAppSelector((s) => s.products.searchStatus || "idle");
@@ -64,17 +69,40 @@ const SearchResultsPage = () => {
         categoryId,
       }),
     );
+    setCurrentPage(1);
+    setShopPage(1);
     if (trimmedQuery) {
-      void dispatch(searchShops({ query: trimmedQuery, perPage: 50 }));
+      void dispatch(searchShops({ query: trimmedQuery, perPage: 100 }));
     }
   }, [dispatch, query, sort, categorySlug, categories, categoriesStatus]);
 
   const handleSortChange = (nextSort: ProductSortKey) => {
     setSort(nextSort);
+    setCurrentPage(1);
     const next = new URLSearchParams(searchParams);
     next.set("sort", nextSort);
     setSearchParams(next, { replace: true });
   };
+
+  const totalPages = Math.max(1, Math.ceil(searchResults.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+  const pagedProducts = useMemo(
+    () =>
+      searchResults.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [searchResults, safePage],
+  );
+  const pageStart =
+    searchResults.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
+  const pageEnd = Math.min(safePage * PAGE_SIZE, searchResults.length);
+
+  const shopTotalPages = Math.max(1, Math.ceil(shops.length / PAGE_SIZE));
+  const safeShopPage = Math.min(shopPage, shopTotalPages);
+  const pagedShops = useMemo(
+    () => shops.slice((safeShopPage - 1) * PAGE_SIZE, safeShopPage * PAGE_SIZE),
+    [shops, safeShopPage],
+  );
+  const shopPageStart = shops.length === 0 ? 0 : (safeShopPage - 1) * PAGE_SIZE + 1;
+  const shopPageEnd = Math.min(safeShopPage * PAGE_SIZE, shops.length);
 
   const bothEmpty =
     searchStatus === "succeeded" &&
@@ -84,7 +112,7 @@ const SearchResultsPage = () => {
   const bothFailed = searchStatus === "failed" && shopStatus === "failed";
 
   return (
-    <div className="bg-[#f5f5f5] min-h-screen pt-4 sm:pt-5 pb-12">
+    <div className="bg-[#f5f5f5] pt-4 sm:pt-5 pb-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="mb-6 flex sm:flex-row sm:items-center justify-between gap-3">
           <h1 className="text-lg sm:text-xl font-semibold text-gray-800">
@@ -106,7 +134,20 @@ const SearchResultsPage = () => {
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">
               Shops
             </h2>
-            <ShopSearchList shops={shops} />
+            <ShopSearchList shops={pagedShops} />
+            {shopTotalPages > 1 && (
+              <div className="mt-6 flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
+                <p className="text-xs text-slate-600">
+                  Showing {shopPageStart}-{shopPageEnd} of {shops.length} shops
+                </p>
+                <Pagination
+                  page={safeShopPage}
+                  totalPages={shopTotalPages}
+                  onPageChange={setShopPage}
+                  className="justify-center sm:justify-end"
+                />
+              </div>
+            )}
           </section>
         )}
 
@@ -127,8 +168,21 @@ const SearchResultsPage = () => {
             </h2>
             <ProductSortBar sort={sort} onSortChange={handleSortChange} />
             <div className="mt-4">
-              <ProductGrid products={searchResults} />
+              <ProductGrid products={pagedProducts} />
             </div>
+            {totalPages > 1 && (
+              <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
+                <p className="text-xs text-slate-600">
+                  Showing {pageStart}-{pageEnd} of {searchResults.length} products
+                </p>
+                <Pagination
+                  page={safePage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                  className="justify-center sm:justify-end"
+                />
+              </div>
+            )}
           </section>
         )}
 

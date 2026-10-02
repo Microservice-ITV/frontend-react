@@ -82,6 +82,7 @@ type CatalogProductGraphItem = {
     categoryId: string
     categoryName?: string
     parentCategoryName?: string
+    shopId?: string
 }
 
 type CatalogProductsGraphQLData = {
@@ -163,6 +164,7 @@ const CATALOG_PRODUCTS_BY_CATEGORY_QUERY = `
         categoryName
         categorySlug
         parentCategoryName
+        shopId
       }
       page
       limit
@@ -401,6 +403,7 @@ export const productApi = {
         tags: normalizeTags(row.tags),
         images: buildCatalogListImages(row),
         categoryId: row.categoryId ?? "",
+        shopId: row.shopId?.trim() || undefined,
       })),
     };
 
@@ -453,6 +456,7 @@ export const productApi = {
         tags: normalizeTags(row.tags),
         images: buildCatalogListImages(row),
         categoryId: row.categoryId ?? "",
+        shopId: row.shopId?.trim() || undefined,
       })),
     };
 
@@ -558,3 +562,24 @@ export const productApi = {
     } as AxiosResponse<ProductDetailApiResponse>;
   },
 };
+
+/** Shop id and display name from product-service. Catalog cards do not include the shop name. */
+export async function resolveProductShop(
+  productId: string,
+): Promise<{ shopId: string; shopName: string } | null> {
+  const id = productId.trim();
+  if (!id) return null;
+  try {
+    const response = await productClient.get<{
+      success?: boolean;
+      data?: { shopId?: string; shop?: { id?: string; name?: string } };
+    }>(`/products/${id}`);
+    const data = response.data?.data;
+    const shopId = data?.shop?.id?.trim() || data?.shopId?.trim() || "";
+    const shopName = data?.shop?.name?.trim() || "";
+    if (!shopId || !shopName) return null;
+    return { shopId, shopName };
+  } catch {
+    return null;
+  }
+}

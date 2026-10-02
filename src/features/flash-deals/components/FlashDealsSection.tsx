@@ -31,6 +31,7 @@ const FlashDealsSection = () => {
 
   const [deals, setDeals] = useState<FlashDealApiItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [countdownLabel, setCountdownLabel] = useState("Ends Soon");
   const [endTime, setEndTime] = useState<number>(() =>
     getNextSessionEnd().getTime(),
   );
@@ -68,16 +69,35 @@ const FlashDealsSection = () => {
         const items = selectLiveFlashDeals(res.data.items);
         const slots = res.data.timeSlots ?? [];
         setDeals(items);
-        const activeSlot = slots.find((slot) => slot.isActive);
-        if (activeSlot) {
-          const ends = items
-            .filter((item) => item.slot === activeSlot.time)
-            .map((item) => {
-              const t = item.endAt ? new Date(item.endAt).getTime() : 0;
-              return Number.isFinite(t) && t > 0 ? t : 0;
-            })
-            .filter((t) => t > 0);
-          if (ends.length > 0) setEndTime(Math.max(...ends));
+
+        const now = Date.now();
+        const windows = items
+          .map((item) => ({
+            start: item.startAt ? new Date(item.startAt).getTime() : 0,
+            end: item.endAt ? new Date(item.endAt).getTime() : 0,
+          }))
+          .filter(
+            (window) =>
+              Number.isFinite(window.start) &&
+              Number.isFinite(window.end) &&
+              window.end > now,
+          );
+
+        const activeEnds = windows
+          .filter((window) => window.start <= now)
+          .map((window) => window.end);
+        if (activeEnds.length > 0) {
+          setCountdownLabel("Ends Soon");
+          setEndTime(Math.min(...activeEnds));
+          return;
+        }
+
+        const upcomingStarts = windows
+          .map((window) => window.start)
+          .filter((start) => start > now);
+        if (upcomingStarts.length > 0) {
+          setCountdownLabel("Starts In");
+          setEndTime(Math.min(...upcomingStarts));
         }
       })
       .catch(() => {
@@ -133,7 +153,7 @@ const FlashDealsSection = () => {
       ro.disconnect();
       window.clearTimeout(t);
     };
-  }, [updateScrollAffordance]);
+  }, [updateScrollAffordance, deals.length, loading]);
 
   const scrollByStep = (direction: "left" | "right") => {
     const el = scrollerRef.current;
@@ -176,7 +196,7 @@ const FlashDealsSection = () => {
               ))}
             </div>
             <span className="ml-1 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
-              Ends Soon
+              {countdownLabel}
             </span>
           </div>
         </div>
@@ -214,8 +234,8 @@ const FlashDealsSection = () => {
               ? Array.from({ length: 6 }).map((_, idx) => (
                   <div
                     key={`skeleton-${idx}`}
-                    className="shrink-0"
-                    style={{ width: `${CARD_WIDTH_PX}px` }}
+                    className="min-w-0 shrink-0"
+                    style={{ width: CARD_WIDTH_PX, maxWidth: CARD_WIDTH_PX }}
                   >
                     <div className="flex flex-col overflow-hidden border border-[var(--dni-cart-border)] bg-white">
                       <div className="aspect-square animate-pulse bg-[#f0f0f0]" />
@@ -230,8 +250,8 @@ const FlashDealsSection = () => {
               : deals.map((deal) => (
                   <div
                     key={deal.id}
-                    className="shrink-0"
-                    style={{ width: `${CARD_WIDTH_PX}px` }}
+                    className="min-w-0 shrink-0"
+                    style={{ width: CARD_WIDTH_PX, maxWidth: CARD_WIDTH_PX }}
                   >
                     <FlashDealCard deal={deal} />
                   </div>

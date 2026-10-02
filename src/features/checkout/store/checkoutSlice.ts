@@ -7,6 +7,8 @@ import type {
 } from '../types/checkoutTypes'
 import type { SagaStatusResponse } from '../types/sagaTypes'
 
+import type { CheckoutLineTax } from '../api/checkoutApi'
+
 export type PaymentMethod = 'prepaid' | 'cod'
 
 interface CheckoutState {
@@ -21,6 +23,7 @@ interface CheckoutState {
     isAwaitingFinalStatus: boolean
     paymentMethod: PaymentMethod
     sessionPaymentMethod: PaymentMethod | null
+    itemTaxes: CheckoutLineTax[]
     loading: boolean
     error: string | null
 }
@@ -37,6 +40,7 @@ const initialState: CheckoutState = {
     isAwaitingFinalStatus: false,
     paymentMethod: 'prepaid',
     sessionPaymentMethod: null,
+    itemTaxes: [],
     loading: false,
     error: null,
 }
@@ -57,12 +61,18 @@ const checkoutSlice = createSlice({
             state.paymentStatus = null
             state.clientSecret = null
             state.error = null
+            state.loading = false
             state.isPlacingOrder = false
             state.isAwaitingFinalStatus = false
             state.sessionPaymentMethod = null
+            state.itemTaxes = []
         },
         setPaymentMethod(state, action: { payload: PaymentMethod }) {
             state.paymentMethod = action.payload
+            state.sessionPaymentMethod = action.payload
+        },
+        setItemTaxes(state, action: { payload: CheckoutLineTax[] }) {
+            state.itemTaxes = action.payload
         },
         setCheckoutPlacingOrder(state, action: { payload: boolean }) {
             state.isPlacingOrder = action.payload
@@ -146,11 +156,11 @@ const checkoutSlice = createSlice({
                 state.loading = false
                 state.error = action.payload ?? 'Checkout failed'
             })
-            .addCase(fetchCheckoutStatus.pending, state => {
-                state.loading = true
+            .addCase(fetchCheckoutStatus.pending, () => {
+                // Polling must not set loading. That flag blocks a payment-method
+                // change and was snapping Cash on Delivery back to Prepaid.
             })
             .addCase(fetchCheckoutStatus.fulfilled, (state, action) => {
-                state.loading = false
                 state.currentStatus = action.payload
                 state.paymentStatus = action.payload.status
                 const secret = action.payload.client_secret ?? action.payload.payment?.client_secret
@@ -159,17 +169,16 @@ const checkoutSlice = createSlice({
                 }
                 if (typeof action.payload.payment_method === 'string') {
                     const pm = action.payload.payment_method as PaymentMethod
-                    if (pm === 'prepaid' || pm === 'cod') {
+                    if ((pm === 'prepaid' || pm === 'cod') && state.sessionPaymentMethod == null) {
                         state.sessionPaymentMethod = pm
                         state.paymentMethod = pm
                     }
                 }
-                if (['PAID', 'COMPLETED', 'FAILED', 'FAILED_PAYMENT', 'EXPIRED'].includes(action.payload.status)) {
+                if (['PAID', 'COMPLETED', 'FAILED', 'FAILED_STOCK', 'FAILED_PAYMENT', 'EXPIRED'].includes(action.payload.status)) {
                     state.isAwaitingFinalStatus = false
                 }
             })
             .addCase(fetchCheckoutStatus.rejected, (state, action) => {
-                state.loading = false
                 state.error = action.payload ?? 'Failed to fetch checkout status'
             })
             .addCase(completeCheckout.pending, state => {
@@ -268,6 +277,7 @@ export const {
     setSagaId,
     setSagaStatistics,
     setPaymentMethod,
+    setItemTaxes,
 } = checkoutSlice.actions
 
 export default checkoutSlice.reducer
