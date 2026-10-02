@@ -4,7 +4,7 @@ import ProductActions from './ProductActions'
 import ProductVariantSelector, { pickDefaultVariant } from './ProductVariantSelector'
 import type { ProductDetail, ProductVariant } from '@/features/products/types/productTypes'
 import { getGalleryImagesForVariant } from '@/features/products/utils/variantGallery'
-import { formatProductPrice, STORE_CURRENCY } from '@/features/products/utils/formatProductPrice'
+import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
 import { stripYouTubeUrlsFromText } from '@/features/products/utils/videoEmbed'
 import { productServiceAssetUrl } from '@/lib/api/apiConfig'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
@@ -19,7 +19,7 @@ interface Props {
 }
 
 function formatMoney(n: number, currency?: string) {
-  return formatProductPrice(n, currency || STORE_CURRENCY)
+  return formatKsPrice(n, currency)
 }
 
 function pad2(n: number) {
@@ -247,14 +247,14 @@ const ProductInfo = ({ product, onSelectedVariantChange }: Props) => {
         <div className="bg-gradient-to-br from-[var(--dni-primary-50)] to-white px-4 py-4 sm:py-5">
           <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
             <span className="text-2xl sm:text-3xl font-bold text-[var(--dni-primary-700)] tracking-tight">
-              {formatMoney(displayPrice, STORE_CURRENCY)}
+              {formatMoney(displayPrice)}
             </span>
             {product.variants.length > 1 && product.minPrice !== product.maxPrice && (
               <span className="text-xs text-gray-500">Selected option</span>
             )}
             {showStrike && strikePrice != null && (
               <span className="text-sm sm:text-base text-gray-400 line-through">
-                {formatMoney(strikePrice, STORE_CURRENCY)}
+                {formatMoney(strikePrice)}
               </span>
             )}
             {discountPct > 0 && (

@@ -54,7 +54,7 @@ const AdminTaxFormPage = ({ mode }: TaxFormPageProps) => {
       try {
         const [categories, existingTaxes] = await Promise.all([
           loadCatalogCategories(),
-          adminTaxApi.listTaxes(),
+          adminTaxApi.listAllTaxes(),
         ])
         if (cancelled) return
         setCatalogCategories(categories)

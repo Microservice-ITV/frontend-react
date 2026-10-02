@@ -328,6 +328,37 @@ export function formatTaxRateLabel(rates: number[]): string {
     .join(', ')
 }
 
+/** Same cent rounding as order-service tax quotes. */
+export function taxChargeForAmount(amount: number, ratePercent: number | null): number | null {
+  if (ratePercent == null || !Number.isFinite(Number(ratePercent))) return null
+  const baseCents = Math.max(0, Math.round(amount * 100))
+  if (baseCents <= 0 || ratePercent <= 0) return 0
+  return Math.round((baseCents * ratePercent) / 100) / 100
+}
+
+/** Tax for the current cart using rates already quoted. Null until every line has a rate. */
+export function cartTaxFromKnownRates(
+  items: Array<{ productId: string; variantId?: string; price: number; quantity: number }>,
+  taxes: Array<{ productId: string; variantId: string; taxRate: number | null }>,
+  discountTotal = 0,
+): number | null {
+  if (items.length === 0) return null
+  const merchandise = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  let totalCents = 0
+  for (const item of items) {
+    const variantId = item.variantId ?? ''
+    const tax = taxes.find((row) => row.productId === item.productId && row.variantId === variantId)
+    if (!tax || tax.taxRate == null) return null
+    const lineTotal = item.price * item.quantity
+    const share = merchandise > 0 ? (lineTotal / merchandise) * discountTotal : 0
+    const base = Math.max(0, Math.round((lineTotal - share) * 100) / 100)
+    const charge = taxChargeForAmount(base, tax.taxRate)
+    if (charge == null) return null
+    totalCents += Math.round(charge * 100)
+  }
+  return totalCents / 100
+}
+
 export function formatDisabledTaxAmount(amount: number): string {
   const value = Number(amount) || 0
   return `Ks ${value.toLocaleString('en-US', {
