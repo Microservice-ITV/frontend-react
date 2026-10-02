@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Pencil, Plus, Receipt, RefreshCw, Search, Trash2 } from 'lucide-react'
 import DataTablePagination from '@/components/ui/DataTablePagination'
@@ -15,6 +15,8 @@ const AdminTaxPage = () => {
   const { openModal } = useGlobalModal()
   const [settings, setSettings] = useState<TaxSettings | null>(null)
   const [taxes, setTaxes] = useState<TaxCharge[]>([])
+  const [totalItems, setTotalItems] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
   const [status, setStatus] = useState<'loading' | 'succeeded' | 'failed'>('loading')
   const [error, setError] = useState('')
   const [switchError, setSwitchError] = useState('')
@@ -29,10 +31,12 @@ const AdminTaxPage = () => {
     try {
       const [nextSettings, nextTaxes] = await Promise.all([
         adminTaxApi.getSettings(),
-        adminTaxApi.listTaxes(),
+        adminTaxApi.listTaxes({ page, limit: rowsPerPage, search }),
       ])
       setSettings(nextSettings)
-      setTaxes(nextTaxes)
+      setTaxes(nextTaxes.data)
+      setTotalItems(nextTaxes.pagination.total)
+      setTotalPages(Math.max(1, nextTaxes.pagination.totalPages))
       setStatus('succeeded')
     } catch (loadError: unknown) {
       setError(errorMessage(loadError, 'Unable to load taxes.'))
@@ -42,23 +46,7 @@ const AdminTaxPage = () => {
 
   useEffect(() => {
     void load()
-  }, [])
-
-  const filtered = useMemo(() => {
-    const query = search.trim().toLowerCase()
-    if (!query) return taxes
-    return taxes.filter((tax) => {
-      const categories = tax.categories.map((category) => category.categoryName).join(' ')
-      return `${tax.rate} ${categories}`.toLowerCase().includes(query)
-    })
-  }, [taxes, search])
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / rowsPerPage))
-  const pageItems = filtered.slice((page - 1) * rowsPerPage, page * rowsPerPage)
-
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages)
-  }, [page, totalPages])
+  }, [page, rowsPerPage, search])
 
   const toggleTax = async (nextEnabled: boolean) => {
     setSavingSwitch(true)
@@ -198,7 +186,7 @@ const AdminTaxPage = () => {
                   </td>
                 </tr>
               )}
-              {status === 'succeeded' && filtered.length === 0 && (
+              {status === 'succeeded' && taxes.length === 0 && (
                 <tr>
                   <td colSpan={3} className="px-4 py-12 text-center">
                     <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
@@ -219,7 +207,7 @@ const AdminTaxPage = () => {
                 </tr>
               )}
               {status === 'succeeded' &&
-                pageItems.map((tax) => (
+                taxes.map((tax) => (
                   <tr key={tax.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                     <td className="px-4 py-3 text-xs font-semibold tabular-nums text-slate-900">{tax.rate}%</td>
                     <td className="px-4 py-3 text-xs text-slate-600">
@@ -255,7 +243,7 @@ const AdminTaxPage = () => {
           page={page}
           totalPages={totalPages}
           rowsPerPage={rowsPerPage}
-          totalItems={filtered.length}
+          totalItems={totalItems}
           itemLabel="taxes"
           onPageChange={setPage}
           onRowsPerPageChange={(value) => {

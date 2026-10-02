@@ -3,6 +3,7 @@ import { useAppSelector } from '@/app/hooks'
 import { locationApi } from '@/features/account/api/locationApi'
 import type { ShopCalculatedShipping } from '@/features/shipping/types/shippingTypes'
 import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
+import { taxChargeForAmount } from '../api/checkoutApi'
 import { chatIcon, voucherIcon } from '@/assets/icons'
 import { CheckoutTotals } from '../utils/checkoutCalculator'
 import placeholderImage from '@/public/placeholder.svg'
@@ -190,10 +191,10 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
                 <span className="min-w-0 truncate text-sm font-medium text-gray-900 sm:text-[15px]">
                   {shopItems[0].shopName}
                 </span>
-                <button type="button" className="hidden shrink-0 items-center gap-1 text-sm text-emerald-600 sm:flex">
+                {/* <button type="button" className="hidden shrink-0 items-center gap-1 text-sm text-emerald-600 sm:flex">
                   <img src={chatIcon} alt="" className="h-4 w-4" />
                   Chat
-                </button>
+                </button> */}
               </div>
             </div>
 
@@ -205,8 +206,13 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
                 const lineTax = itemTaxes.find(
                   (tax) => tax.productId === item.productId && tax.variantId === variantId,
                 )
+                const liveTaxAmount = lineTax ? taxChargeForAmount(subtotal, lineTax.taxRate) : null
                 const taxRateLabel = lineTax ? formatLineTaxRate(lineTax.taxRate) : 'Calculating…'
-                const taxAmountLabel = lineTax ? formatKsPrice(lineTax.taxAmount) : 'Calculating…'
+                const taxAmountLabel = liveTaxAmount != null
+                  ? formatKsPrice(liveTaxAmount)
+                  : lineTax
+                    ? formatKsPrice(lineTax.taxAmount)
+                    : 'Calculating…'
 
                 return (
                   <li
@@ -267,7 +273,7 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 bg-[#fafdff] lg:grid-cols-2 lg:items-stretch">
+            <div className="border-t border-dashed border-black/10 grid grid-cols-1 bg-[#fafdff] lg:grid-cols-2 lg:items-stretch">
               <div className="px-3 py-3 sm:px-4 sm:py-4 lg:flex lg:border-r lg:border-dashed lg:border-black/10">
                 <div className="flex min-h-28 w-full flex-col gap-2 lg:h-full lg:min-h-0">
                   <span className="text-sm font-medium text-gray-900">Message for Seller</span>
@@ -301,13 +307,13 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
               </div>
             </div>
 
-            <div className="border-t border-dashed border-black/10 bg-[#fafdff] px-3 py-3 text-sm sm:px-4">
-              <span className="font-medium text-gray-900">Guaranteed to get by 9 Feb</span>
+            <div className="border-t border-dashed border-black/10 bg-[#fafdff] px-3 py-0 text-sm sm:px-4">
+              {/* <span className="font-medium text-gray-900">Guaranteed to get by 9 Feb</span>
               <span className="ml-1 text-gray-500">with Collection Points</span>
-              <span className="ml-1 text-gray-400">›</span>
+              <span className="ml-1 text-gray-400">›</span> */}
             </div>
 
-            <div className="flex items-center justify-between gap-2 border-t border-dashed border-black/10 bg-[#fafdff] px-3 py-3 sm:px-4">
+            {/* <div className="flex items-center justify-between gap-2 border-t border-dashed border-black/10 bg-[#fafdff] px-3 py-3 sm:px-4">
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-700">Allow to leave at doorstep</span>
                 <span className="rounded bg-emerald-600 px-2 py-[1px] text-xs text-white">New</span>
@@ -315,7 +321,7 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
               <div className="relative h-5 w-10 cursor-pointer rounded-full bg-green-500">
                 <div className="absolute top-0.5 right-0.5 h-4 w-4 rounded-full bg-white" />
               </div>
-            </div>
+            </div> */}
 
             <div className="flex flex-wrap items-center justify-end gap-2 bg-[#fafdff] px-3 py-2.5 sm:px-4">
               <span className="text-sm text-gray-600">

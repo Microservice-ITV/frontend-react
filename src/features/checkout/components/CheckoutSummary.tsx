@@ -1,8 +1,9 @@
 import { CheckoutTotals } from '../utils/checkoutCalculator'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { CardElement, useElements, useStripe } from '@stripe/react-stripe-js'
 import {
+  cartTaxFromKnownRates,
   checkoutApi,
   formatDisabledTaxAmount,
   isTaxChargeEnabled,
@@ -21,6 +22,8 @@ import type { CartItem } from '@/features/cart/types/cartTypes'
 import type { CheckoutShopShippingPayload } from '../api/checkoutApi'
 import type { CheckoutStatusResponse } from '../types/checkoutTypes'
 import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
+
+let activeCartTaxRequest = 0
 
 interface CheckoutSummaryProps {
   checkout: CheckoutTotals
@@ -122,7 +125,7 @@ const CheckoutSummary = ({
   const dispatch = useAppDispatch()
   const stripe = useStripe()
   const elements = useElements()
-  const { currentCheckout, currentStatus, clientSecret, paymentStatus, isPlacingOrder, isAwaitingFinalStatus, error, paymentMethod, sessionPaymentMethod } = useAppSelector(
+  const { currentCheckout, currentStatus, clientSecret, paymentStatus, isPlacingOrder, isAwaitingFinalStatus, error, paymentMethod, sessionPaymentMethod, itemTaxes } = useAppSelector(
     state => state.checkout
   )
 
@@ -146,6 +149,15 @@ const CheckoutSummary = ({
   const [promoCodeStatus, setPromoCodeStatus] = useState<PromoCodeStatus | null>(null)
   const [promoCodeMessage, setPromoCodeMessage] = useState<string | null>(null)
   const [promoCodeApplying, setPromoCodeApplying] = useState(false)
+  const checkoutIdRef = useRef(currentCheckout?.checkout_id)
+  checkoutIdRef.current = currentCheckout?.checkout_id
+  const cartTaxKey = cartItems
+    .map((item) => `${item.productId}:${item.variantId ?? ''}:${item.quantity}:${item.price}:${item.categoryId ?? ''}`)
+    .join('|')
+  const scaledTax = useMemo(
+    () => cartTaxFromKnownRates(cartItems, itemTaxes, promotionDiscount),
+    [cartItems, itemTaxes, promotionDiscount],
+  )
 
   const promotionItems = cartItems.map((item) => ({
     product_id: item.productId,
@@ -178,9 +190,10 @@ const CheckoutSummary = ({
   }
 
   useEffect(() => {
-    if (cartItems.length === 0) return
+    if (!cartTaxKey) return
 
-    let cancelled = false
+    const requestId = activeCartTaxRequest + 1
+    activeCartTaxRequest = requestId
     setTaxLoading(true)
     setTaxPreviewError(false)
 
@@ -190,16 +203,17 @@ const CheckoutSummary = ({
       price: item.price,
       quantity: item.quantity,
     }))
+    const quotedItems = cartItems
 
     void (async () => {
       try {
         const resolved = await resolveCartTax(cartLines, promotionDiscount)
-        if (cancelled) return
+        if (requestId !== activeCartTaxRequest) return
 
         const quotedLines = resolved.quote.lines ?? []
         setTaxAmount(resolved.taxAmount)
         setTaxEnabled(isTaxChargeEnabled(resolved.quote))
-        dispatch(setItemTaxes(cartItems.map((item, index) => {
+        dispatch(setItemTaxes(quotedItems.map((item, index) => {
           const line = quotedLines[index]
           const rate = line?.tax_rate
           return {
@@ -210,25 +224,31 @@ const CheckoutSummary = ({
           }
         })))
 
-        const checkoutId = currentCheckout?.checkout_id
+        const checkoutId = checkoutIdRef.current
         if (checkoutId) {
-          await checkoutApi.previewTax(checkoutId, {
-            discount_total: promotionDiscount,
-            allocations: promotionAllocationsRef.current,
-            category_by_product: resolved.categoryByProduct,
-          })
+          try {
+            await checkoutApi.previewTax(checkoutId, {
+              discount_total: promotionDiscount,
+              allocations: promotionAllocationsRef.current,
+              category_by_product: resolved.categoryByProduct,
+            })
+          } catch {
+            // The amounts on screen already follow the current cart.
+          }
         }
       } catch {
-        if (!cancelled) setTaxPreviewError(true)
+        if (requestId === activeCartTaxRequest) setTaxPreviewError(true)
       } finally {
-        if (!cancelled) setTaxLoading(false)
+        if (requestId === activeCartTaxRequest) setTaxLoading(false)
       }
     })()
 
     return () => {
-      cancelled = true
+      if (activeCartTaxRequest === requestId) {
+        activeCartTaxRequest += 1
+      }
     }
-  }, [cartItems, currentCheckout?.checkout_id, dispatch, promotionDiscount])
+  }, [cartItems, cartTaxKey, currentCheckout?.checkout_id, dispatch, promotionDiscount])
 
   useEffect(() => {
     const checkoutId = currentCheckout?.checkout_id
@@ -579,9 +599,10 @@ const CheckoutSummary = ({
     }
     return '—'
   })()
+  const shownTax = scaledTax ?? taxAmount
   const displayedTotal =
     authoritativeTotal ??
-    (promotionFinal ?? totalPayment) + taxAmount
+    (promotionFinal ?? totalPayment) + shownTax
   const promoFeedback = promoStatusLabel(promoCodeStatus, promoCodeMessage)
   const promoIsValid = promoCodeStatus === 'VALID'
 
@@ -597,11 +618,11 @@ const CheckoutSummary = ({
             Tax
           </span>
           <span className="whitespace-nowrap tabular-nums text-gray-900">
-            {taxLoading
+            {scaledTax == null && taxLoading
               ? 'Calculating…'
               : taxEnabled
-                ? formatKsPrice(taxAmount)
-                : formatDisabledTaxAmount(taxAmount)}
+                ? formatKsPrice(shownTax)
+                : formatDisabledTaxAmount(shownTax)}
           </span>
         </div>
         <div className="mb-3 flex justify-between gap-3">

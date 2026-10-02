@@ -8,7 +8,7 @@ import { selectIsWishlisted } from "@/features/wishlist/store/wishlistSelectors"
 import { fetchShopProfilesForCurrentCart } from "@/features/shipping/store/shippingThunks";
 import { resolveProductShop } from "../api/productApi";
 import { Product } from "../types/productTypes";
-import { formatProductPrice } from "../utils/formatProductPrice";
+import { formatKsPrice } from "../utils/formatProductPrice";
 
 type BadgeTone = {
   label: string;
@@ -282,7 +282,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
           <ProductName name={product.name} />
 
           <p className="text-base font-bold leading-none tracking-tight text-[var(--dni-primary)]">
-            {formatProductPrice(product.price)}
+            {formatKsPrice(product.price)}
           </p>
 
           <div className="mt-auto flex items-center justify-between gap-2 pt-0.5">

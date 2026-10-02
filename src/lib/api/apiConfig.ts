@@ -34,7 +34,7 @@ export const SHIPPING_SERVICE_BASE_URL =
 
 export const TAX_SERVICE_BASE_URL =
     import.meta.env.VITE_TAX_SERVICE_URL ??
-    'http://localhost:5030/api/v1/tax'
+    'http://localhost:5030/api/v1'
 
 export const INVOICE_SERVICE_BASE_URL =
     import.meta.env.VITE_INVOICE_SERVICE_URL ??
