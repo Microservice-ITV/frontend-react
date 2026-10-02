@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Zap } from "lucide-react";
 import FlashDealCard from "../components/FlashDealCard";
@@ -7,6 +7,7 @@ import {
   type FlashDealApiItem,
   type FlashDealTimeSlot,
 } from "@/lib/api/flashDealClient";
+import { FLASH_DEAL_STOREFRONT_REFRESH_MS } from "../lib/flashDealStorefront";
 
 /** 24h "HH:MM" — deal-drop times, repeating daily. */
 const DEAL_SLOTS = [
@@ -61,10 +62,30 @@ const FlashDealsPage = () => {
   const [countdownEndMs, setCountdownEndMs] = useState<number>(() =>
     getNextSessionEnd().getTime(),
   );
+  const [refreshTick, setRefreshTick] = useState(0);
+  const hasLoadedRef = useRef(false);
+
+  // Deals published a moment ago must appear without a manual reload.
+  useEffect(() => {
+    const bump = () => setRefreshTick((tick) => tick + 1);
+    const timer = window.setInterval(bump, FLASH_DEAL_STOREFRONT_REFRESH_MS);
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") bump();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    // Only the initial fetch shows skeletons; later refreshes stay silent.
+    // This must not be a "first run" flag: StrictMode runs the effect twice and
+    // discards the first run, which would leave the skeletons up forever.
+    if (!hasLoadedRef.current) setLoading(true);
+
     getFlashDealsByTimeSlot({ limit: 100, status: "all" })
       .then((res) => {
         if (cancelled) return;
@@ -85,23 +106,23 @@ const FlashDealsPage = () => {
         }
       })
       .catch(() => {
-        if (!cancelled) {
-          setItems([]);
-          setSlots([]);
-        }
+        if (cancelled) return;
+        setItems([]);
+        setSlots([]);
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (cancelled) return;
+        hasLoadedRef.current = true;
+        setLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshTick]);
 
   useEffect(() => {
     if (!selectedSlotTime) return;
     let cancelled = false;
-    setLoading(true);
     getFlashDealsByTimeSlot({
       limit: 100,
       status: "all",
@@ -113,14 +134,11 @@ const FlashDealsPage = () => {
       })
       .catch(() => {
         if (!cancelled) setItems([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [selectedSlotTime]);
+  }, [selectedSlotTime, refreshTick]);
 
   useEffect(() => {
     const timer = setInterval(() => {

@@ -119,6 +119,14 @@ withSearch({
       icon: Percent,
     }),
     withSearch({
+      key: "seller-flash-deals",
+      label: "Flash Deals",
+      to: "/seller/promotion-engine/flash-deals",
+      area: "seller",
+      requiredCapabilities: [CAPABILITIES.FLASH_DEALS_MANAGE],
+      icon: Clock3,
+    }),
+    withSearch({
       key: "seller-orders",
       label: "Orders",
       to: "/seller/orders",

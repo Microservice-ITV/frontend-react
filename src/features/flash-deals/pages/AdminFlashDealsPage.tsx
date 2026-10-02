@@ -16,6 +16,7 @@ import {
   selectFlashDealsPagination,
 } from "../store/flashDealSelectors";
 import FlashDealTable from "../components/FlashDealTable";
+import { useFlashDealPaths } from "../config/flashDealPaths";
 
 type StatusFilter = FlashDealStatus | "all";
 
@@ -30,6 +31,7 @@ const FILTER_TABS: { key: StatusFilter; label: string }[] = [
 const FlashDealsPage = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const paths = useFlashDealPaths();
 
   const deals = useAppSelector(selectFlashDeals);
   const loading = useAppSelector(selectFlashDealsLoading);
@@ -82,18 +84,18 @@ const FlashDealsPage = () => {
     : filteredDeals;
 
   const handleEdit = (id: string) => {
-    navigate(`/super-admin/promotion-engine/flash-deals/${id}/edit`);
+    navigate(paths.edit(id));
   };
 
   return (
     <div className="space-y-6">
       <nav className="text-xs text-slate-500">
-        <Link to="/super-admin/overview" className="no-underline hover:text-slate-700 hover:no-underline">
+        <Link to={paths.overview} className="no-underline hover:text-slate-700 hover:no-underline">
           Dashboard
         </Link>
         <span className="mx-1">/</span>
         <Link
-          to="/super-admin/promotion-engine"
+          to={paths.promotionEngine}
           className="no-underline hover:text-slate-700 hover:no-underline"
         >
           Promotion Engine
@@ -106,13 +108,13 @@ const FlashDealsPage = () => {
         <div>
           <h1 className="text-xl font-bold text-slate-900">Flash Deals</h1>
           <p className="mt-0.5 text-sm text-slate-600">
-            Create dynamic flash deals, schedule slots and control the deal
-            lifecycle.
+            Create dynamic flash deals, schedule them with any start and end
+            time, and control the deal lifecycle.
           </p>
         </div>
 
         <Link
-          to="/super-admin/promotion-engine/flash-deals/new"
+          to={paths.new}
           className="flex shrink-0 items-center gap-2 rounded-lg bg-[var(--dni-primary)] px-4 py-2 text-sm font-medium text-white no-underline hover:bg-[var(--dni-primary-hover)] hover:no-underline"
         >
           <Plus size={18} />

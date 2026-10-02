@@ -488,9 +488,39 @@ const AppRoutes = () => {
               element={
                 <ProtectedRoute
                   requiredCapabilities={ROUTE_ACCESS.promotionsView}
-                  allowedRoles={["SHOP_OWNER", "SUPER_ADMIN"]}
+                  allowedRoles={["SHOP_OWNER", "SHOP_ADMIN"]}
                 >
                   <PromotionEnginePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="promotion-engine/flash-deals"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerFlashDealsView}
+                >
+                  <AdminFlashDealsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="promotion-engine/flash-deals/new"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerFlashDealsNew}
+                >
+                  <NewFlashDealPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="promotion-engine/flash-deals/:id/edit"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerFlashDealsEdit}
+                >
+                  <EditFlashDealPage />
                 </ProtectedRoute>
               }
             />
@@ -1316,7 +1346,7 @@ const AppRoutes = () => {
               path="promotion-engine/flash-deals"
               element={
                 <ProtectedRoute
-                  requiredCapabilities={ROUTE_ACCESS.promotionsView}
+                  requiredCapabilities={ROUTE_ACCESS.flashDealsView}
                 >
                   <AdminFlashDealsPage />
                 </ProtectedRoute>
@@ -1326,7 +1356,7 @@ const AppRoutes = () => {
               path="promotion-engine/flash-deals/new"
               element={
                 <ProtectedRoute
-                  requiredCapabilities={ROUTE_ACCESS.promotionsView}
+                  requiredCapabilities={ROUTE_ACCESS.flashDealsView}
                 >
                   <NewFlashDealPage />
                 </ProtectedRoute>
@@ -1336,7 +1366,7 @@ const AppRoutes = () => {
               path="promotion-engine/flash-deals/:id/edit"
               element={
                 <ProtectedRoute
-                  requiredCapabilities={ROUTE_ACCESS.promotionsView}
+                  requiredCapabilities={ROUTE_ACCESS.flashDealsView}
                 >
                   <EditFlashDealPage />
                 </ProtectedRoute>

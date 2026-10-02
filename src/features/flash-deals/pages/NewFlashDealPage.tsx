@@ -11,10 +11,12 @@ import FlashDealForm, {
 } from "../components/FlashDealForm";
 import { createFlashDeal } from "../store/flashDealThunks";
 import { selectFlashDealsSubmitting } from "../store/flashDealSelectors";
+import { useFlashDealPaths } from "../config/flashDealPaths";
 
 const NewFlashDealPage = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const paths = useFlashDealPaths();
   const isSubmitting = useAppSelector(selectFlashDealsSubmitting);
 
   const [submitError, setSubmitError] = useState("");
@@ -22,12 +24,15 @@ const NewFlashDealPage = () => {
   const onSubmit = async ({ values, items }: FlashDealFormPayload) => {
     setSubmitError("");
     try {
-      await dispatch(
+      const created = await dispatch(
         createFlashDeal({
           name: values.name.trim(),
           description: values.description.trim() || null,
-          status: values.status,
-          slotTime: values.slotTime || null,
+          // Deals are always created as DRAFT. Publishing is a deliberate,
+          // separate step from the list screen so a half-built deal can never
+          // reach the storefront by accident.
+          status: "DRAFT",
+          slotTime: values.startTime || null,
           startAt: values.startAt,
           endAt: values.endAt,
           items: items.map((item, index) => ({
@@ -41,7 +46,12 @@ const NewFlashDealPage = () => {
           })),
         }),
       ).unwrap();
-      navigate("/super-admin/promotion-engine/flash-deals");
+
+      navigate(paths.list, {
+        state: created?.id
+          ? { draftFlashDealId: created.id, draftFlashDealName: created.name }
+          : undefined,
+      });
     } catch (error: unknown) {
       const err = error as {
         response?: {
@@ -62,19 +72,19 @@ const NewFlashDealPage = () => {
   return (
     <div className="space-y-6">
       <nav className="text-xs text-slate-500">
-        <Link to="/super-admin/overview" className="no-underline hover:text-slate-700 hover:no-underline">
+        <Link to={paths.overview} className="no-underline hover:text-slate-700 hover:no-underline">
           Dashboard
         </Link>
         <span className="mx-1">/</span>
         <Link
-          to="/super-admin/promotion-engine"
+          to={paths.promotionEngine}
           className="no-underline hover:text-slate-700 hover:no-underline"
         >
           Promotion Engine
         </Link>
         <span className="mx-1">/</span>
         <Link
-          to="/super-admin/promotion-engine/flash-deals"
+          to={paths.list}
           className="no-underline hover:text-slate-700 hover:no-underline"
         >
           Flash Deals
@@ -88,8 +98,8 @@ const NewFlashDealPage = () => {
         initialValues={flashDealInitialValues(null)}
         initialItems={[]}
         onSubmit={onSubmit}
-        submitLabel="Create Flash Deal"
-        cancelTo="/super-admin/promotion-engine/flash-deals"
+        submitLabel="Save as Draft"
+        cancelTo={paths.list}
         isSubmitting={isSubmitting}
         submitError={submitError}
       />

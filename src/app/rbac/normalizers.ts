@@ -10,6 +10,8 @@ const ROLE_ALIASES: Record<string, AppRole> = {
   CFO: 'SUPER_ADMIN',
   SHOP_OWNER: 'SHOP_OWNER',
   SHOP_ADMIN: 'SHOP_ADMIN',
+  SELLER: 'SHOP_ADMIN',
+  SHOP_SELLER: 'SHOP_ADMIN',
   USER: 'USER',
 }
 
