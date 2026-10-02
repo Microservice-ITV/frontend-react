@@ -1,12 +1,3 @@
-export const stockReadyCheckoutStatuses = new Set([
-  'STOCK_CONFIRMED',
-  'PAYMENT_INTENT_READY',
-  'PAYMENT_PENDING_CONFIRMATION',
-  'PENDING_PAYMENT',
-  'PAID',
-  'COMPLETED',
-])
-
 const CheckoutSummarySkeleton = () => (
   <div
     aria-busy="true"

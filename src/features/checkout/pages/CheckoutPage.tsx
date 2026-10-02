@@ -4,7 +4,7 @@ import { CheckoutAddressSelectorModal } from '../components/CheckoutAddressSelec
 import CheckoutItems from '../components/CheckoutItems'
 import CheckoutPayment from '../components/CheckoutPayment'
 import CheckoutSummary from '../components/CheckoutSummary'
-import CheckoutSummarySkeleton, { stockReadyCheckoutStatuses } from '../components/CheckoutSummarySkeleton'
+import CheckoutSummarySkeleton from '../components/CheckoutSummarySkeleton'
 import { SagaStatusDisplay } from '../components/SagaStatusDisplay'
 import { selectSelectedItems } from '@/features/cart/store/cartSelectors'
 import { calculateCheckout } from '../utils/checkoutCalculator'
@@ -26,6 +26,7 @@ import { NewAddressModal } from '@/features/account/components/NewAddressModal'
 import type { UserAddress } from '@/features/account/types/addressTypes'
 import { clearShippingCalculate } from '@/features/shipping/store/shippingSlice'
 import { fetchCheckoutShippingCalculation } from '@/features/shipping/store/shippingThunks'
+import { hasConfirmedStock } from '../utils/checkoutStatus'
 
 type StoredCheckoutSession = {
     checkoutId: string
@@ -47,6 +48,7 @@ const CheckoutPage = () => {
     const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null)
     const [hasResolvedInitialAddressFetch, setHasResolvedInitialAddressFetch] = useState(false)
     const [checkoutSessionBootstrapped, setCheckoutSessionBootstrapped] = useState(false)
+    const [stockConfirmedSessionKey, setStockConfirmedSessionKey] = useState<string | null>(null)
     const hasAutoPromptedRef = useRef(false)
 
     // Only grab selected items for checkout
@@ -93,7 +95,10 @@ const CheckoutPage = () => {
     const sagaId = useAppSelector(state => state.checkout.sagaId)
     const sagaStatus = useAppSelector(state => state.checkout.sagaStatus)
     const checkoutStorageKey = authUser?.id ? `dni.active-checkout.${authUser.id}` : null
-    const isStockReady = paymentStatus ? stockReadyCheckoutStatuses.has(paymentStatus) : false
+    const stockReadinessKey = currentCheckout?.checkout_id
+        ? `${currentCheckout.checkout_id}|${selectedItemsFingerprint}`
+        : null
+    const isStockReady = hasConfirmedStock(paymentStatus) || stockConfirmedSessionKey === stockReadinessKey
 
     const refreshAddresses = useCallback(async () => {
         if (!authUser?.id) return
@@ -246,6 +251,12 @@ const CheckoutPage = () => {
     }, [authUser?.id, selectedItemsFingerprint])
 
     useEffect(() => {
+        if (stockReadinessKey && hasConfirmedStock(paymentStatus)) {
+            setStockConfirmedSessionKey(stockReadinessKey)
+        }
+    }, [paymentStatus, stockReadinessKey])
+
+    useEffect(() => {
         if (!authUser?.id) return
 
         if (!hasDeliveryAddress) {
@@ -362,7 +373,6 @@ const CheckoutPage = () => {
         // Allow a fresh checkout attempt when the cart or address changes.
         dispatch(setCheckoutError(null))
     }, [dispatch, selectedItemsFingerprint, selectedDeliveryAddress?.address_id])
-        console.log('checkoutError', checkoutError);
 
 
     useEffect(() => {
