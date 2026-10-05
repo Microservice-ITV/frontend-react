@@ -628,27 +628,27 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
       },
     ],
   },
-  {
-    title: 'FINANCE',
-    items: [
-      {
-        key: "admin-finance-overview",
-        label: "Finance Overview",
-        to: "/super-admin/finance",
-        area: "super_admin",
-        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
-        icon: DollarSign,
-      },
-      {
-        key: "admin-finance-transactions",
-        label: "Transactions",
-        to: "/super-admin/finance/transactions",
-        area: "super_admin",
-        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
-        icon: Receipt,
-      },
-    ],
-  },
+  // {
+  //   title: 'FINANCE',
+  //   items: [
+  //     {
+  //       key: "admin-finance-overview",
+  //       label: "Finance Overview",
+  //       to: "/super-admin/finance",
+  //       area: "super_admin",
+  //       requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+  //       icon: DollarSign,
+  //     },
+  //     {
+  //       key: "admin-finance-transactions",
+  //       label: "Transactions",
+  //       to: "/super-admin/finance/transactions",
+  //       area: "super_admin",
+  //       requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+  //       icon: Receipt,
+  //     },
+  //   ],
+  // },
   {
     title: "APPS",
     items: [
