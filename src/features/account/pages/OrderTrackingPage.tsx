@@ -6,6 +6,7 @@ import { deliveryApi } from '@/lib/api/deliveryClient'
 import { createPartialInvoice } from '@/lib/api/invoiceClient'
 import DataTablePagination from '@/components/ui/DataTablePagination'
 import { Package, Store, Copy, Check } from 'lucide-react'
+import OrderProductImage from '../components/OrderProductImage'
 import type {
   PurchasedOrder,
   PurchasedOrderDelivery,
@@ -180,16 +181,13 @@ function isTerminal(status: string): boolean {
   )
 }
 
-const formatMoney = (value: number, currency: string): string => {
-  try {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency || 'USD',
-      minimumFractionDigits: 2,
-    }).format(Number.isFinite(value) ? value : 0)
-  } catch {
-    return `${currency} ${(Number.isFinite(value) ? value : 0).toFixed(2)}`
-  }
+const formatMoney = (value: number, _currency?: string): string => {
+  const amount = Number(value)
+  const safe = Number.isFinite(amount) ? amount : 0
+  return `Ks ${safe.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`
 }
 
 const toSafeAmount = (value: unknown): number => {
@@ -697,17 +695,11 @@ const OrderTrackingPage = () => {
           <ul className="mt-2.5 divide-y divide-gray-100 rounded-sm border border-gray-100 bg-white">
             {packageLines.map(({ line, item, key }) => (
               <li key={key} className="flex items-center gap-2.5 px-2.5 py-2">
-                {item?.imageUrl ? (
-                  <img
-                    src={item.imageUrl}
-                    alt={item.name || line.sku || ''}
-                    className="h-9 w-9 shrink-0 rounded-sm object-cover border border-gray-100"
-                  />
-                ) : (
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-gray-100 text-gray-400">
-                    <Package size={14} />
-                  </span>
-                )}
+                <OrderProductImage
+                  imageUrl={item?.imageUrl}
+                  alt={item?.name || line.sku || 'Product'}
+                  className="h-9 w-9"
+                />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-medium text-gray-900">
                     {item?.name || line.sku || line.productId || 'Item'}
@@ -1213,11 +1205,7 @@ const OrderItemRow = ({ item, shopLabel }: { item: PurchasedOrderItem; shopLabel
 
   return (
     <div className="flex gap-3">
-      {item.imageUrl ? (
-        <img src={item.imageUrl} alt={item.name} className="w-16 h-16 object-cover rounded-sm border border-gray-100" />
-      ) : (
-        <div className="w-16 h-16 bg-gray-100 rounded-sm border border-gray-100" />
-      )}
+      <OrderProductImage imageUrl={item.imageUrl} alt={item.name} />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-gray-900 truncate">{item.name}</p>
         {shopLabel && (

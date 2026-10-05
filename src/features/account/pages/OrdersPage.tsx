@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAppSelector } from '@/app/hooks'
 import { ordersApi } from '../api/ordersApi'
+import OrderProductImage from '../components/OrderProductImage'
 import type { PurchasedOrder } from '../types/orderTypes'
 
 type OrderTab = 'all' | 'to-pay' | 'to-ship' | 'to-receive' | 'completed' | 'cancelled' | 'return-refund'
@@ -35,18 +36,13 @@ const isOrderInTab = (order: PurchasedOrder, tab: OrderTab): boolean => {
   return false
 }
 
-const formatMoney = (value: number, currency: string): string => {
-  const safeCurrency = currency || 'USD'
-  try {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: safeCurrency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(Number(value || 0))
-  } catch {
-    return `${safeCurrency} ${Number(value || 0).toFixed(2)}`
-  }
+const formatMoney = (value: number, _currency?: string): string => {
+  const amount = Number(value)
+  const safe = Number.isFinite(amount) ? amount : 0
+  return `Ks ${safe.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`
 }
 
 const OrdersPage = () => {
@@ -170,11 +166,7 @@ const OrdersPage = () => {
                 <div key={`${order.orderId}-${item.productId}-${item.sku}`} className="px-4 py-3 border-b border-gray-100">
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div className="flex gap-3">
-                      {item.imageUrl ? (
-                        <img src={item.imageUrl} alt={item.name} className="w-16 h-16 object-cover rounded-sm" />
-                      ) : (
-                        <div className="w-16 h-16 bg-gray-100 rounded-sm" />
-                      )}
+                      <OrderProductImage imageUrl={item.imageUrl} alt={item.name} />
                       <div className="space-y-1 text-xs md:text-sm">
                         <p className="text-gray-800">{item.name}</p>
                         <div className="flex flex-col gap-0.5">
