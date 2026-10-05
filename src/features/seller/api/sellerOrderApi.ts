@@ -1,3 +1,4 @@
+import { authClient } from '@/lib/api/authClient'
 import { ecommerceReadClient } from '@/lib/api/ecommerceReadClient'
 import { orderClient } from '@/lib/api/orderClient'
 import { productClient } from '@/lib/api/productClient'
@@ -218,6 +219,27 @@ export const canSellerShip = (order: SellerOrder): boolean => {
     return rows.some((row) => (row.status || '').toUpperCase() === 'READY_FOR_FULFILLMENT')
   }
   return (order.status || '').toUpperCase() === 'READY_FOR_FULFILLMENT'
+}
+
+export async function fetchCustomerAvatars(
+  ids: Array<string | null | undefined>,
+): Promise<Record<string, string | null>> {
+  const unique = [...new Set(ids.map((id) => (id ?? '').trim()).filter(Boolean))]
+  const avatars: Record<string, string | null> = {}
+  if (unique.length === 0) return avatars
+
+  for (let index = 0; index < unique.length; index += 50) {
+    const chunk = unique.slice(index, index + 50)
+    const response = await authClient.get<{
+      data?: { users?: Array<{ id: string; profile_image?: string | null }> }
+    }>('/users/avatars', { params: { ids: chunk.join(',') } })
+
+    for (const user of response.data.data?.users ?? []) {
+      avatars[user.id] = user.profile_image || null
+    }
+  }
+
+  return avatars
 }
 
 const SHOP_ORDERS_QUERY = `

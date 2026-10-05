@@ -152,27 +152,27 @@ withSearch({
     }),
     ],
   },
-  {
-    title: "FINANCE",
-    items: [
-      {
-        key: "seller-finance-overview",
-        label: "Finance Overview",
-        to: "/seller/finance",
-        area: "seller",
-        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
-        icon: DollarSign,
-      },
-      {
-        key: "seller-finance-transactions",
-        label: "Transactions",
-        to: "/seller/finance/transactions",
-        area: "seller",
-        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
-        icon: Receipt,
-      },
-    ],
-  },
+  // {
+  //   title: "FINANCE",
+  //   items: [
+  //     {
+  //       key: "seller-finance-overview",
+  //       label: "Finance Overview",
+  //       to: "/seller/finance",
+  //       area: "seller",
+  //       requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+  //       icon: DollarSign,
+  //     },
+  //     {
+  //       key: "seller-finance-transactions",
+  //       label: "Transactions",
+  //       to: "/seller/finance/transactions",
+  //       area: "seller",
+  //       requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+  //       icon: Receipt,
+  //     },
+  //   ],
+  // },
   {
     title: "ACCOUNTING",
     items: [
@@ -183,6 +183,14 @@ withSearch({
         area: "seller",
         requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
         icon: Calculator,
+      },
+      {
+        key: "seller-finance-transactions",
+        label: "Transactions",
+        to: "/seller/finance/transactions",
+        area: "seller",
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: Receipt,
       },
       {
         key: "seller-accounting-income",
