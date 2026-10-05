@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Zap } from "lucide-react";
 import FlashDealCard from "../components/FlashDealCard";
+import FlashDealCountdown from "../components/FlashDealCountdown";
 import {
   getFlashDealsByTimeSlot,
   type FlashDealApiItem,
@@ -25,8 +26,6 @@ const getNextSessionEnd = () => {
   end.setHours(end.getHours() + 1);
   return end;
 };
-
-const pad = (value: number) => String(value).padStart(2, "0");
 
 function parseSlotTime(time: string, base: Date): Date {
   const [hours, minutes] = time.split(":").map(Number);
@@ -227,12 +226,12 @@ const FlashDealsPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5] text-gray-900">
+    <div className="bg-[#f5f5f5] text-gray-900">
       <section className="border-[var(--dni-border)] bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-center gap-3 px-4 py-1.5 sm:px-6">
           <span className="hidden h-px w-10 bg-[#d1d5db] sm:block" />
           <div className="flex items-center gap-1.5 text-[var(--dni-primary)]">
-            <Zap size={18} className="fill-current" />
+            <Zap size={18} className="fill-current" aria-hidden />
             <span className="text-xl font-black uppercase tracking-tight">
               Flash
             </span>
@@ -240,22 +239,13 @@ const FlashDealsPage = () => {
               Deals
             </span>
           </div>
-          <div className="ml-4 flex items-center gap-2 border-l border-[var(--dni-cart-border)] pl-4">
-            {[pad(hours), pad(minutes), pad(seconds)].map((block, index) => (
-              <div key={index} className="flex items-center gap-1.5">
-                <span className="flex h-10 min-w-[36px] items-center justify-center bg-[var(--dni-primary)] px-2 font-mono text-[13px] font-bold text-white">
-                  {block}
-                </span>
-                {index < 2 && (
-                  <span className="font-mono text-[13px] font-bold text-slate-700">
-                    :
-                  </span>
-                )}
-              </div>
-            ))}
-            <span className="ml-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-              Ends Soon
-            </span>
+          <div className="ml-2 border-l border-[var(--dni-cart-border)] pl-4">
+            <FlashDealCountdown
+              hours={hours}
+              minutes={minutes}
+              seconds={seconds}
+              label="Ends Soon"
+            />
           </div>
           <span className="hidden h-px w-10 bg-[#d1d5db] sm:block" />
         </div>

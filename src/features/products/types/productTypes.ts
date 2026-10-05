@@ -36,6 +36,18 @@ export interface ProductVariant {
   imageIndexes?: number[]
 }
 
+/** Live flash-deal row from ecommerce-read, keyed by product (and optional variant). */
+export interface ProductFlashDeal {
+  flashDealId: string
+  flashDealItemId: string
+  variantId: string | null
+  dealPrice: number
+  originalPrice: number
+  discount: number
+  startAt: string
+  endAt: string
+}
+
 // Product used in DETAILS page
 export interface ProductDetail {
   id: string
@@ -71,6 +83,8 @@ export interface ProductDetail {
   primaryVariantId: string | null
   variants: ProductVariant[]
   tags?: string[]
+  /** Empty when this product is not in a live flash deal. */
+  flashDeals?: ProductFlashDeal[]
 }
 
 // Redux state

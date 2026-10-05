@@ -34,7 +34,7 @@ const AccountLayout = () => {
 
         <div className="flex flex-col md:flex-row md:items-start md:gap-4">
           {/* Desktop sidebar stays in view while the order page scrolls */}
-          <div className="hidden md:sticky md:top-46 md:z-20 md:block md:w-64 md:shrink-0 md:self-start">
+          <div className="hidden md:sticky md:top-45 md:z-20 md:block md:w-64 md:shrink-0 md:self-start">
             <AccountSidebar />
           </div>
 

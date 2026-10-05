@@ -154,6 +154,7 @@ export const fetchProductDetail = createAsyncThunk<
             primaryVariantId: product.primaryVariantId,
             variants: product.variants ?? [],
             tags: product.tags ?? [],
+            flashDeals: product.flashDeals ?? [],
         }
     } catch (err: unknown) {
         const message =

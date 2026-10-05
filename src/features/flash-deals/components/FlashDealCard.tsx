@@ -73,7 +73,9 @@ const FlashDealCard = ({ deal }: FlashDealCardProps) => {
 
           <div className="absolute left-2 top-2 flex gap-1.5">
             <span className="inline-flex items-center gap-1 px-2 py-1 bg-[var(--dni-primary)] text-[10px] font-bold text-white">
-              <Flame className="h-3 w-3 fill-current" />
+              <span className="text-xs leading-none" aria-hidden>
+                ⚡
+              </span>
               Flash
             </span>
             <span className="inline-flex items-center px-2 py-1 bg-white/95 backdrop-blur-sm text-[10px] font-black text-[var(--dni-primary)]">
