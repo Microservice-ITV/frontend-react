@@ -21,15 +21,22 @@ function formatKg(value: number): string {
   return `${value.toFixed(2)} kg`
 }
 
+function formatIncludedKg(value: number): string {
+  const rounded = Math.round(value * 100) / 100
+  return Number.isInteger(rounded) ? `${rounded} kg` : `${rounded.toFixed(2)} kg`
+}
+
+function hasFee(value: number | null | undefined): value is number {
+  return value != null && Number.isFinite(value) && value > 0
+}
+
 const ShippingOptionCard = ({
   fee,
   calculateStatus,
-  calculateError,
   cityNames,
 }: {
   fee?: ShopCalculatedShipping
   calculateStatus: string
-  calculateError: string | null
   cityNames: Record<string, string>
 }) => {
   if (calculateStatus === 'loading' || calculateStatus === 'idle') {
@@ -42,8 +49,14 @@ const ShippingOptionCard = ({
 
   if (calculateStatus === 'failed' || !fee || fee.amount == null) {
     return (
-      <div className="rounded-sm border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-800">
-        {calculateError?.trim() || 'Delivery price is unavailable'}
+      <div className="rounded-sm border border-amber-200 bg-amber-50 px-3 py-3 text-[13px] leading-5 text-gray-700">
+        <div className="flex items-start justify-between gap-3 text-sm font-semibold text-gray-900">
+          <span>Standard shipping</span>
+          <span>Not available</span>
+        </div>
+        <p className="mt-2 text-xs text-amber-800">
+          Delivery is under maintenance and is not available right now.
+        </p>
       </div>
     )
   }
@@ -82,13 +95,23 @@ const ShippingOptionCard = ({
             {fee.chargeableWeightKg != null && (
               <p>Chargeable weight: {formatKg(fee.chargeableWeightKg)}</p>
             )}
-            {fee.baseFee != null && <p>Base fee: {formatKsPrice(fee.baseFee, currency)}</p>}
-            {fee.distanceFee != null && (
+            {hasFee(fee.baseFee) && (
+              <p>
+                Base weight fee
+                {fee.baseWeightKg != null && fee.baseWeightKg > 0
+                  ? ` (${formatIncludedKg(fee.baseWeightKg)})`
+                  : ''}
+                : {formatKsPrice(fee.baseFee, currency)}
+              </p>
+            )}
+            {hasFee(fee.distanceFee) && (
               <p>
                 {isCityRoute ? 'Route fee' : 'Distance fee'}: {formatKsPrice(fee.distanceFee, currency)}
               </p>
             )}
-            {fee.weightFee != null && <p>Weight fee: {formatKsPrice(fee.weightFee, currency)}</p>}
+            {hasFee(fee.weightFee) && (
+              <p>Additional weight fee: {formatKsPrice(fee.weightFee, currency)}</p>
+            )}
           </>
         )}
       </div>
@@ -106,7 +129,6 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
   const { groupedByShop } = checkout
   const feesByShopId = useAppSelector(state => state.shipping.feesByShopId)
   const calculateStatus = useAppSelector(state => state.shipping.calculateStatus)
-  const calculateError = useAppSelector(state => state.shipping.calculateError)
   const [cityNames, setCityNames] = useState<Record<string, string>>({})
   const itemTaxes = useAppSelector((state) => state.checkout.itemTaxes)
   const needsCityNames = Object.values(feesByShopId).some(
@@ -135,11 +157,12 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
 
   return (
     <div className="space-y-3">
-      {calculateStatus === 'failed' && calculateError ? (
+
+      {/* {calculateStatus === 'failed' && calculateError ? (
         <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           Delivery fee could not be calculated: {calculateError}
         </div>
-      ) : null}
+      ) : null} */}
 
       <div className="hidden items-center gap-3.5 rounded-sm border border-[var(--dni-cart-border)] bg-white px-3 py-2.5 text-sm text-gray-500 sm:px-4 md:grid md:grid-cols-[minmax(0,1fr)_7.5rem_5rem_8.5rem_auto]">
         <span className="text-gray-900">Products Ordered</span>
@@ -315,7 +338,6 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
                   <ShippingOptionCard
                     fee={feesByShopId[shopId]}
                     calculateStatus={calculateStatus}
-                    calculateError={calculateError}
                     cityNames={cityNames}
                   />
                 </button>

@@ -18,6 +18,19 @@ import {
 type SellerUserRow = UserRow & {
   shopId: string
   reportingTo: string | null
+  roleCode: string
+  roleName: string
+}
+
+type ShopRoleOption = {
+  code: string
+  name: string
+}
+
+type ShopRolesResponse = {
+  data?: {
+    roles?: ShopRoleOption[]
+  }
 }
 
 const getInitials = (name: string): string =>
@@ -30,6 +43,7 @@ const getInitials = (name: string): string =>
 
 const normalizeRole = (role?: { code?: string; name?: string } | null): UserRole => {
   const code = (role?.code ?? role?.name ?? '').toLowerCase()
+  if (code.includes('owner')) return 'admin'
   if (code.includes('admin')) return 'admin'
   if (code.includes('editor')) return 'editor'
   if (code.includes('moderator')) return 'moderator'
@@ -72,6 +86,8 @@ const mapShopUserToRow = (shopUser: any): SellerUserRow => {
     email: user.email ?? '',
     initials: getInitials(name),
     role: normalizeRole(role),
+    roleCode: role?.code ?? '',
+    roleName: role?.name ?? 'Unknown role',
     department: user.department ?? role?.name ?? 'Operations',
     status: normalizeStatus(shopUser.status),
     lastActive: formatLastActive(shopUser.updated_at ?? shopUser.joined_at ?? shopUser.created_at),
@@ -104,17 +120,9 @@ const EMPTY_DRAFT = {
   name: '',
   email: '',
   department: '',
-  role: 'viewer' as UserRole,
+  roleCode: '',
   status: 'active' as UserStatus,
   reportingTo: null as string | null,
-}
-
-const normalizeRoleCodeForApi = (role: UserRole | string): string => {
-  if (role === 'shop_owner' || role === 'shop_admin' || role === 'finance_manager' || role === 'director') {
-    return role
-  }
-
-  return 'shop_admin'
 }
 
 const SellerUsersPage = () => {
@@ -122,6 +130,9 @@ const SellerUsersPage = () => {
   const activeShopId = authUser?.active_shop_id ?? null
 
   const [users, setUsers] = useState<SellerUserRow[]>([])
+  const [shopRoles, setShopRoles] = useState<ShopRoleOption[]>([])
+  const [isLoadingRoles, setIsLoadingRoles] = useState(false)
+  const [rolesError, setRolesError] = useState<string | null>(null)
   const [activeFilter, setActiveFilter] = useState<'all' | UserStatus>('all')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
@@ -164,6 +175,43 @@ const SellerUsersPage = () => {
     void loadUsers()
   }, [activeShopId])
 
+  useEffect(() => {
+    let active = true
+
+    if (!activeShopId) {
+      setShopRoles([])
+      setRolesError(null)
+      setDraft((current) => ({ ...current, roleCode: '' }))
+      return () => { active = false }
+    }
+
+    setIsLoadingRoles(true)
+    setRolesError(null)
+    setUsersError(null)
+    authClient.get<ShopRolesResponse>(`/shops/${activeShopId}/roles`)
+      .then((response) => {
+        if (!active) return
+        const roles = response.data?.data?.roles ?? []
+        setShopRoles(roles)
+        setDraft((current) => ({
+          ...current,
+          roleCode: roles.some((role) => role.code === current.roleCode)
+            ? current.roleCode
+            : roles[0]?.code ?? '',
+        }))
+      })
+      .catch((error: any) => {
+        if (!active) return
+        setShopRoles([])
+        setRolesError(error?.response?.data?.message ?? 'Unable to load available shop roles.')
+      })
+      .finally(() => {
+        if (active) setIsLoadingRoles(false)
+      })
+
+    return () => { active = false }
+  }, [activeShopId])
+
   const activeShopUsers = useMemo(
     () => (activeShopId ? users.filter((user) => user.shopId === activeShopId) : []),
     [activeShopId, users],
@@ -193,7 +241,7 @@ const SellerUsersPage = () => {
 
   const openCreateForm = () => {
     setEditingUserId(null)
-    setDraft({ ...EMPTY_DRAFT })
+    setDraft({ ...EMPTY_DRAFT, roleCode: shopRoles[0]?.code ?? '' })
     setFormOpen(true)
   }
 
@@ -203,7 +251,7 @@ const SellerUsersPage = () => {
       name: user.name,
       email: user.email,
       department: user.department,
-      role: user.role,
+      roleCode: user.roleCode,
       status: user.status,
       reportingTo: user.reportingTo,
     })
@@ -230,7 +278,7 @@ const SellerUsersPage = () => {
       return
     }
 
-    if (!['admin', 'editor', 'moderator', 'viewer'].includes(draft.role)) {
+    if (!shopRoles.some((role) => role.code === draft.roleCode)) {
       setUsersError('Select a valid role.')
       return
     }
@@ -256,8 +304,8 @@ const SellerUsersPage = () => {
           name: trimmedName,
           email: trimmedEmail,
           department: trimmedDepartment,
-          role: normalizeRoleCodeForApi(draft.role),
-          role_code: normalizeRoleCodeForApi(draft.role),
+          role: draft.roleCode,
+          role_code: draft.roleCode,
           status: draft.status,
           reporting_to: draft.reportingTo ?? null,
         }
@@ -273,6 +321,7 @@ const SellerUsersPage = () => {
     }
 
     const nextId = `u${Date.now()}`
+    const selectedRole = shopRoles.find((role) => role.code === draft.roleCode)
     const initials = trimmedName
       .split(/\s+/)
       .slice(0, 2)
@@ -286,7 +335,9 @@ const SellerUsersPage = () => {
         email: trimmedEmail,
         initials,
         department: trimmedDepartment,
-        role: draft.role,
+        role: normalizeRole(selectedRole),
+        roleCode: draft.roleCode,
+        roleName: selectedRole?.name ?? 'Unknown role',
         status: draft.status,
         lastActive: 'just now',
         shopId: activeShopId,
@@ -321,7 +372,7 @@ const SellerUsersPage = () => {
       return {
         Name: user.name,
         Email: user.email,
-        Role: user.role,
+        Role: user.roleName,
         Department: user.department,
         'Reporting To': managerName,
         Status: user.status,
@@ -429,15 +480,18 @@ const SellerUsersPage = () => {
                     <label className="text-sm text-slate-700">
                       <span className="mb-1.5 block font-medium">Role</span>
                       <select
-                        value={draft.role}
-                        onChange={(e) => setDraft((current) => ({ ...current, role: e.target.value as UserRole }))}
+                        value={draft.roleCode}
+                        onChange={(e) => setDraft((current) => ({ ...current, roleCode: e.target.value }))}
+                        disabled={isLoadingRoles || shopRoles.length === 0}
                         className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
                       >
-                        <option value="admin">Admin</option>
-                        <option value="editor">Editor</option>
-                        <option value="moderator">Moderator</option>
-                        <option value="viewer">Viewer</option>
+                        {isLoadingRoles && <option value="">Loading roles...</option>}
+                        {!isLoadingRoles && shopRoles.length === 0 && <option value="">No roles available</option>}
+                        {shopRoles.map((role) => (
+                          <option key={role.code} value={role.code}>{role.name}</option>
+                        ))}
                       </select>
+                      {rolesError && <span role="alert" className="mt-1.5 block text-xs text-red-600">{rolesError}</span>}
                     </label>
 
                     <label className="text-sm text-slate-700 md:col-span-2">
@@ -644,7 +698,7 @@ const SellerUsersPage = () => {
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${ROLE_STYLES[user.role]}`}>
-                        {user.role}
+                        {user.roleName}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-700">{user.department}</td>

@@ -1,8 +1,17 @@
 import axios from 'axios'
 import { setupAuthInterceptors } from './setupAuthInterceptors'
 
+const defaultDeliveryBaseUrl =
+  typeof window !== 'undefined' && window.location.hostname === 'dailyneeditems.com'
+    ? 'https://api.dailyneeditems.com/deliveries'
+    : 'http://localhost:8002/api'
+
+const deliveryBaseUrl = (
+  import.meta.env.VITE_DELIVERY_SERVICE_URL?.trim() || defaultDeliveryBaseUrl
+).replace(/\/+$/, '')
+
 export const deliveryClient = axios.create({
-  baseURL: import.meta.env.VITE_DELIVERY_SERVICE_URL ?? 'http://localhost:8002/api',
+  baseURL: deliveryBaseUrl,
 })
 
 setupAuthInterceptors(deliveryClient)

@@ -499,8 +499,32 @@ const OrderTrackingPage = () => {
       // Multi-shop orders: confirm every shipped package that is still
       // outstanding (each shipment confirms its own delivery).
       for (const delivery of activeDeliveries) {
-        if (!delivery.deliveryId) continue
-        await deliveryApi.confirmReceipt(delivery.deliveryId)
+        const deliveryIdLooksLikeTracking = /^TRK-/i.test(delivery.deliveryId)
+        const identifiers = [
+          delivery.trackingNumber,
+          deliveryIdLooksLikeTracking ? null : delivery.deliveryId,
+          activeDeliveries.length === 1 ? orderId : null,
+          deliveryIdLooksLikeTracking ? delivery.deliveryId : null,
+        ].filter((value): value is string => typeof value === 'string' && value.trim() !== '')
+
+        let confirmed = false
+        let lastError: unknown = null
+        for (const identifier of [...new Set(identifiers)]) {
+          try {
+            await deliveryApi.confirmReceipt(identifier)
+            confirmed = true
+            break
+          } catch (err: any) {
+            lastError = err
+            if (err?.response?.status !== 404) {
+              throw err
+            }
+          }
+        }
+
+        if (!confirmed) {
+          throw lastError ?? new Error('Delivery not found')
+        }
       }
       // Refresh the order so the timeline/status reflects DELIVERED.
       const response = await ecommerceReadClient.post<{
