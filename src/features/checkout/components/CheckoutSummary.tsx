@@ -221,6 +221,7 @@ const CheckoutSummary = ({
             variantId: item.variantId ?? '',
             taxRate: rate == null || !Number.isFinite(Number(rate)) ? null : Number(rate),
             taxAmount: Number(line?.tax_amount ?? 0),
+            noCategoryTax: line?.reason === 'NO_TAX_FOR_CATEGORY',
           }
         })))
 

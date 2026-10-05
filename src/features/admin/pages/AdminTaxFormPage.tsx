@@ -91,14 +91,16 @@ const AdminTaxFormPage = ({ mode }: TaxFormPageProps) => {
     return owners
   }, [taxes, id])
 
-  const categoryOptions = catalogCategories.map((category) => {
-    const owner = ownerByCategory.get(category.id)
-    return {
-      value: category.id,
-      label: owner ? `${category.name} (${owner})` : category.name,
-      disabled: selectedCategoryIds.includes(category.id),
-    }
-  })
+  const categoryOptions = catalogCategories
+    .filter((category) => (category._count?.products ?? 0) > 0)
+    .map((category) => {
+      const owner = ownerByCategory.get(category.id)
+      return {
+        value: category.id,
+        label: owner ? `${category.name} (${owner})` : category.name,
+        disabled: selectedCategoryIds.includes(category.id),
+      }
+    })
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
@@ -178,14 +180,6 @@ const AdminTaxFormPage = ({ mode }: TaxFormPageProps) => {
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <button
-                type="button"
-                onClick={() => navigate('/super-admin/tax')}
-                className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-800 cursor-pointer"
-              >
-                <ArrowLeft size={14} />
-                Back to taxes
-              </button>
               <h1 className="text-xl font-bold text-slate-900">
                 {mode === 'create' ? 'New tax' : 'Edit tax'}
               </h1>
@@ -235,7 +229,7 @@ const AdminTaxFormPage = ({ mode }: TaxFormPageProps) => {
                   required
                 />
               </div>
-              <div className="sm:col-span-2">
+              <div>
                 <label htmlFor="tax-category" className={labelClass}>
                   Categories
                 </label>
