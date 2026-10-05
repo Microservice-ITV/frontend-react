@@ -15,7 +15,7 @@ export const deliveryApi = {
     delivered_at?: string | null
     confirmed_by: string
   }> {
-    const response = await deliveryClient.post(`/deliveries/${deliveryId}/confirm-receipt`)
+    const response = await deliveryClient.post(`deliveries/${deliveryId}/confirm-receipt`)
     return response.data
   },
 }
