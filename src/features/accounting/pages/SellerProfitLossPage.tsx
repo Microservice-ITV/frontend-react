@@ -15,6 +15,7 @@ import {
 import type { ProfitLossCurrencyReport, ProfitLossOverviewResponse } from "../types/accountingTypes";
 import type { AccountingExpense } from "../types/expenseTypes";
 import { accountingExpensesAdapter } from "../adapters/accountingExpensesAdapter";
+import DataTablePagination from "@/components/ui/DataTablePagination";
 import { accountingClient } from "@/lib/api/accountingClient";
 import { Download, RefreshCw, TrendingUp, Wallet, CircleDollarSign, ChartColumnIncreasing, CalendarDays } from "lucide-react";
 import * as XLSX from "xlsx";
@@ -106,6 +107,33 @@ const comparisonLabel = (current: number, previous: number) => {
   return `${change >= 0 ? "+" : ""}${change.toFixed(1)}% vs. previous period`;
 };
 
+const getExpenseSliceName = (expense: AccountingExpense) => {
+  const code = expense.expenseType?.code?.trim().toUpperCase();
+  const rawName = expense.expenseType?.name?.trim();
+  const description = expense.description?.trim() ?? "";
+  const normalizedName = rawName?.toLowerCase() ?? "";
+
+  if (
+    code === "DELI" ||
+    normalizedName === "deli" ||
+    description.toLowerCase().includes("deli") ||
+    description.toLowerCase().includes("delivery")
+  ) {
+    return "Deli";
+  }
+
+  if (
+    !rawName ||
+    normalizedName === "operating expenses" ||
+    normalizedName === "other operating expenses" ||
+    normalizedName === "other"
+  ) {
+    return "Operating Expenses";
+  }
+
+  return rawName;
+};
+
 const getExpenseSlices = (
   expenses: AccountingExpense[],
   report: ProfitLossCurrencyReport | undefined,
@@ -124,7 +152,7 @@ const getExpenseSlices = (
       (report && expense.currency !== report.currency)
     ) continue;
 
-    const label = expense.expenseType?.name ?? "Other operating expenses";
+    const label = getExpenseSliceName(expense);
     amounts.set(label, (amounts.get(label) ?? 0) + Number(expense.amount));
   }
 
@@ -150,6 +178,8 @@ const SellerProfitLossPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [comparisonError, setComparisonError] = useState(false);
   const [expenseError, setExpenseError] = useState(false);
+  const [breakdownPage, setBreakdownPage] = useState(1);
+  const [breakdownRowsPerPage, setBreakdownRowsPerPage] = useState(10);
 
   const loadReport = async () => {
     setStatus("loading");
@@ -198,6 +228,9 @@ const SellerProfitLossPage = () => {
   const activeCurrency = currencyReports.some((item) => item.currency === selectedCurrency)
     ? selectedCurrency
     : currencyReports[0]?.currency ?? "";
+  useEffect(() => {
+    setBreakdownPage(1);
+  }, [activeCurrency, fromDate, toDate]);
   const availableCurrencies = currencyReports.map((item) => item.currency);
   const activeReport = currencyReports.find((item) => item.currency === activeCurrency);
   const previousCurrencyReport = previousReport?.reports.find((item) => item.currency === activeCurrency);
@@ -213,6 +246,15 @@ const SellerProfitLossPage = () => {
   const groupBy = rangeQuery?.groupBy ?? "day";
 
   const rows = useMemo(() => activeReport?.breakdown ?? [], [activeReport]);
+  const breakdownTotalPages = Math.max(
+    1,
+    Math.ceil(rows.length / breakdownRowsPerPage),
+  );
+  const currentBreakdownPage = Math.min(breakdownPage, breakdownTotalPages);
+  const visibleBreakdownRows = rows.slice(
+    (currentBreakdownPage - 1) * breakdownRowsPerPage,
+    currentBreakdownPage * breakdownRowsPerPage,
+  );
   const expenseSlices = useMemo(
     () => getExpenseSlices(expenses, activeReport, fromDate, toDate),
     [activeReport, expenses, fromDate, toDate],
@@ -454,7 +496,7 @@ const SellerProfitLossPage = () => {
             </thead>
             <tbody>
               {status === "loading" && <tr><td colSpan={6} className="px-3 py-8 text-center text-sm text-slate-500">Loading report…</td></tr>}
-              {status === "succeeded" && rows.map((row: PeriodRow) => (
+              {status === "succeeded" && visibleBreakdownRows.map((row: PeriodRow) => (
                 <tr key={row.period} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/70">
                   <td className="px-3 py-3 text-xs font-medium text-slate-700">{formatDate(row.period, groupBy)}</td>
                   <AmountCell value={row.grossSales} currency={activeCurrency} />
@@ -485,6 +527,20 @@ const SellerProfitLossPage = () => {
             )}
           </table>
         </div>
+        {status === "succeeded" && rows.length > 0 && (
+          <DataTablePagination
+            page={currentBreakdownPage}
+            totalPages={breakdownTotalPages}
+            rowsPerPage={breakdownRowsPerPage}
+            totalItems={rows.length}
+            itemLabel="periods"
+            onPageChange={setBreakdownPage}
+            onRowsPerPageChange={(value) => {
+              setBreakdownRowsPerPage(value);
+              setBreakdownPage(1);
+            }}
+          />
+        )}
       </section>
       <p className="text-[11px] text-slate-500">
         * Partial profit = actual recognized revenue − approved operating expenses. Other profit and loss components are not currently provided by the accounting report API.
