@@ -7,7 +7,6 @@ import RowActionMenu from '@/components/ui/RowActionMenu'
 import { fetchSellerOrdersByShop } from '../store'
 import { sellerOrderApi, canSellerShip, fetchCustomerAvatars, type SellerOrder } from '../api/sellerOrderApi'
 import CustomerAvatar from '../components/CustomerAvatar'
-import OrderProductImage from '@/features/account/components/OrderProductImage'
 import {
   Search,
   Eye,
@@ -353,16 +352,9 @@ const SellerOrdersPage = () => {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <OrderProductImage
-                            imageUrl={order.items[0]?.imageUrl}
-                            alt={order.items[0]?.name || 'Product'}
-                            className="h-8 w-8"
-                          />
-                          <p className="max-w-[200px] truncate text-xs text-slate-700" title={itemNames}>
-                            {order.items.length} item{order.items.length !== 1 ? 's' : ''}
-                          </p>
-                        </div>
+                        <p className="max-w-[200px] truncate text-xs text-slate-700" title={itemNames}>
+                          {order.items.length} item{order.items.length !== 1 ? 's' : ''}
+                        </p>
                       </td>
                       <td className="px-4 py-3">
                         <span

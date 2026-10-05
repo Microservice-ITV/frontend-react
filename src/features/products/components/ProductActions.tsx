@@ -19,6 +19,8 @@ type ProductActionsProps = {
   promoPrice?: number | null;
   flashDealId?: string | null;
   flashDealItemId?: string | null;
+  /** Strikethrough price recorded on the cart line when a flash deal applies. */
+  originalPrice?: number | null;
 };
 
 const ProductActions = ({
@@ -27,6 +29,7 @@ const ProductActions = ({
   promoPrice,
   flashDealId,
   flashDealItemId,
+  originalPrice,
 }: ProductActionsProps) => {
   const dispatch = useAppDispatch();
   const [quantity, setQuantity] = useState(1);
@@ -39,7 +42,7 @@ const ProductActions = ({
   );
 
   const unitPrice = promoPrice != null ? Math.max(0, promoPrice) : effective?.price ?? product.price;
-  const originalUnitPrice = effective?.price ?? product.price;
+  const originalUnitPrice = originalPrice != null ? originalPrice : effective?.price ?? product.price;
   const maxStock = effective ? effective.shopStock : (product.stock ?? 0);
   const maxQty = Math.min(99, Math.max(0, maxStock));
   const outOfStock = maxStock <= 0;

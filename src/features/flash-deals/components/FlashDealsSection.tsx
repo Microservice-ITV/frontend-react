@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Flame } from "lucide-react";
+import { ChevronLeft, ChevronRight, Zap } from "lucide-react";
 import FlashDealCard from "./FlashDealCard";
+import FlashDealCountdown from "./FlashDealCountdown";
 import {
   getFlashDealsByTimeSlot,
   type FlashDealApiItem,
@@ -21,8 +22,6 @@ const getNextSessionEnd = () => {
   end.setHours(end.getHours() + 1);
   return end;
 };
-
-const pad = (value: number) => String(value).padStart(2, "0");
 
 const FlashDealsSection = () => {
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -124,8 +123,6 @@ const FlashDealsSection = () => {
   const minutes = Math.floor((timeLeft % 3600) / 60);
   const seconds = timeLeft % 60;
 
-  const timerBlocks = [pad(hours), pad(minutes), pad(seconds)];
-
   const updateScrollAffordance = useCallback(() => {
     const el = scrollerRef.current;
     if (!el) return;
@@ -172,7 +169,7 @@ const FlashDealsSection = () => {
       <div className="flex items-center gap-4 px-4 py-4 border-b border-[var(--dni-cart-border)]">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <div className="flex items-center gap-2 text-[var(--dni-primary)]">
-            <Flame className="h-7 w-7 fill-[var(--dni-primary)]" />
+            <Zap className="h-7 w-7 fill-[var(--dni-primary)]" aria-hidden />
             <span className="text-xl font-black uppercase tracking-tight">
               Flash
             </span>
@@ -181,23 +178,13 @@ const FlashDealsSection = () => {
             </span>
           </div>
 
-          <div className="flex items-center gap-2 ml-4 border-l border-[var(--dni-cart-border)] pl-4">
-            <div className="flex items-center gap-1.5">
-              {timerBlocks.map((block, idx) => (
-                <div key={idx} className="flex items-center gap-1">
-                  <span className="relative flex h-10 min-w-[36px] items-center justify-center overflow-hidden bg-[var(--dni-primary)] px-2 text-sm font-bold text-white font-mono shadow-inner">
-                    <span className="absolute inset-x-0 top-0 h-1/2 border-b border-white/10 bg-[var(--dni-primary)]" />
-                    <span className="relative">{block}</span>
-                  </span>
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                    {[":", ":", ":"][idx]}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <span className="ml-1 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
-              {countdownLabel}
-            </span>
+          <div className="ml-2 border-l border-[var(--dni-cart-border)] pl-4">
+            <FlashDealCountdown
+              hours={hours}
+              minutes={minutes}
+              seconds={seconds}
+              label={countdownLabel}
+            />
           </div>
         </div>
 
