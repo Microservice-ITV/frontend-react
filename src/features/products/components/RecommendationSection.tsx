@@ -48,8 +48,10 @@ const RecommendationSection = ({
     const remainingProducts = allRecommendations.slice(maxInitialProducts)
     const canSeeMore = showSeeMore && remainingProducts.length > 0
 
-    const isLoading = status === 'loading'
-    const hasError = status === 'failed' && error
+    // A cart change refetches recommendations. Keep the current cards mounted
+    // during that refresh so the grid does not swap to skeletons and back.
+    const isInitialLoading = status === 'loading' && allRecommendations.length === 0
+    const hasError = status === 'failed' && error && allRecommendations.length === 0
 
     const header = (
         <div className="mb-4 flex items-center justify-between gap-3">
@@ -65,7 +67,7 @@ const RecommendationSection = ({
         </div>
     )
 
-    if (isLoading) {
+    if (isInitialLoading) {
         return (
             <div className="py-6">
                 <div className="mb-4 flex items-center justify-between gap-3">

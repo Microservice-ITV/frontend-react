@@ -88,10 +88,10 @@ const CartSeeMorePage = () => {
     );
   }
 
-  const isLoading = status === "loading";
-  const hasError = status === "failed" && error;
+  const isInitialLoading = status === "loading" && allProducts.length === 0;
+  const hasError = status === "failed" && error && allProducts.length === 0;
 
-  if (isLoading) {
+  if (isInitialLoading) {
     return (
       <div className="min-h-screen bg-[#f5f5f5] py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
