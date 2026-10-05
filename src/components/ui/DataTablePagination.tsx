@@ -4,7 +4,8 @@ type DataTablePaginationProps = {
   rowsPerPage: number
   totalItems: number
   onPageChange: (page: number) => void
-  onRowsPerPageChange: (value: number) => void
+  // Omit to lock the page size; the "Rows" selector is then hidden.
+  onRowsPerPageChange?: (value: number) => void
   rowsPerPageOptions?: number[]
   itemLabel?: string
 }
@@ -30,20 +31,22 @@ const DataTablePagination = ({
         Showing {start}-{end} of {totalItems} {itemLabel}
       </p>
       <div className="flex flex-wrap items-center gap-4">
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-600">Rows</span>
-          <select
-            value={rowsPerPage}
-            onChange={(e) => onRowsPerPageChange(Number(e.target.value))}
-            className="rounded border border-slate-200 bg-white px-2 py-1 text-xs"
-          >
-            {rowsPerPageOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </div>
+        {onRowsPerPageChange && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-600">Rows</span>
+            <select
+              value={rowsPerPage}
+              onChange={(e) => onRowsPerPageChange(Number(e.target.value))}
+              className="rounded border border-slate-200 bg-white px-2 py-1 text-xs"
+            >
+              {rowsPerPageOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="flex items-center gap-1">
           <button
             type="button"

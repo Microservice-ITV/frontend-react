@@ -15,6 +15,9 @@ import type {
   PurchasedOrderTotals,
 } from '../types/orderTypes'
 
+// Customer-facing order item list is always paginated 5 per page.
+const ITEMS_PER_PAGE = 5
+
 const ORDER_BY_ID_QUERY = `
   query OrderById($id: ID!) {
     orderById(id: $id) {
@@ -260,9 +263,8 @@ const OrderTrackingPage = () => {
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const [shopNames, setShopNames] = useState<Record<string, string>>({})
 
-  // Items pagination
+  // Items pagination (fixed page size)
   const [itemsPage, setItemsPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(5)
 
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([])
   const [invoiceQuantities, setInvoiceQuantities] = useState<Record<string, number>>({})
@@ -453,11 +455,11 @@ const OrderTrackingPage = () => {
     () => itemsByShop.flatMap(([, items]) => items),
     [itemsByShop],
   )
-  const itemsTotalPages = Math.max(1, Math.ceil(groupedItems.length / itemsPerPage))
+  const itemsTotalPages = Math.max(1, Math.ceil(groupedItems.length / ITEMS_PER_PAGE))
   const safeItemsPage = Math.min(itemsPage, itemsTotalPages)
   const paginatedItems = groupedItems.slice(
-    (safeItemsPage - 1) * itemsPerPage,
-    safeItemsPage * itemsPerPage,
+    (safeItemsPage - 1) * ITEMS_PER_PAGE,
+    safeItemsPage * ITEMS_PER_PAGE,
   )
 
   const copyTracking = async (key: string, value: string) => {
@@ -953,7 +955,7 @@ const OrderTrackingPage = () => {
 
                 <div className="divide-y divide-gray-100">
                   {paginatedItems.map((item, index) => {
-                    const itemKey = item.orderItemId ?? `unavailable-${index}`
+                    const itemKey = item.orderItemId || `unavailable-${index}`
                     const isChecked = Boolean(item.orderItemId && selectedItemIds.includes(item.orderItemId))
                     return (
                       <div key={`${itemKey}-${index}`} className="px-5 py-4">
@@ -994,19 +996,14 @@ const OrderTrackingPage = () => {
                   })}
                 </div>
 
-                {groupedItems.length > itemsPerPage && (
+                {groupedItems.length > ITEMS_PER_PAGE && (
                   <DataTablePagination
                     page={safeItemsPage}
                     totalPages={itemsTotalPages}
-                    rowsPerPage={itemsPerPage}
+                    rowsPerPage={ITEMS_PER_PAGE}
                     totalItems={groupedItems.length}
-                    rowsPerPageOptions={[5, 10, 20]}
                     itemLabel="items"
                     onPageChange={setItemsPage}
-                    onRowsPerPageChange={(value) => {
-                      setItemsPerPage(value)
-                      setItemsPage(1)
-                    }}
                   />
                 )}
 
@@ -1048,14 +1045,14 @@ const OrderTrackingPage = () => {
                     </p>
                   </div>
                   <div className="divide-y divide-gray-100">
-                    {order.shopBreakdown.map((row) => {
+                    {order.shopBreakdown.map((row, rowIndex) => {
                       const promos = promotionsForShop(row.shopId)
                       const itemPromos = promos.filter((p) => p.discountType !== 'SHIPPING')
                       const shippingPromos = promos.filter((p) => p.discountType === 'SHIPPING')
                       const shopItems = itemsByShop.find(([id]) => id === row.shopId)?.[1] ?? []
                       const status = (row.status || '').toUpperCase()
                       return (
-                        <div key={row.shopOrderId || row.shopId} className="px-5 py-4">
+                        <div key={row.shopOrderId || row.shopId || `shop-${rowIndex}`} className="px-5 py-4">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
                               <Store size={12} />
