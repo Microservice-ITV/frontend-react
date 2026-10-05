@@ -1,30 +1,12 @@
 import { accountingClient } from '@/lib/api/accountingClient'
+import type {
+  AccountingAccount,
+  AccountingIncomeLine,
+  ProfitLossOverviewResponse,
+} from '@/features/accounting/types/accountingTypes'
 
-export type AccountingAccount = {
-  code: string
-  name: string
-  type: string
-}
-
-export type AccountingIncomeLine = {
-  id: string
-  direction: string
-  amount: number | string
-  memo: string | null
-  account: AccountingAccount
-  journalEntry: {
-    referenceType: string
-    referenceId: string
-    narration: string | null
-    entryDate: string
-    status: string
-  }
-}
-
-export type ProfitLossResponse = {
-  totalIncome: number | string
-  entries: AccountingIncomeLine[]
-}
+export type { AccountingAccount, AccountingIncomeLine } from '@/features/accounting/types/accountingTypes'
+export type ProfitLossResponse = ProfitLossOverviewResponse
 
 export type ExpenseCategory = {
   id: string
@@ -54,6 +36,16 @@ export type CreateExpensePayload = {
 export const adminAccountingApi = {
   async getIncomeEntries() {
     const response = await accountingClient.get<ProfitLossResponse>('/reports/profit-loss')
+    return response.data
+  },
+
+  async getProfitLoss(params?: {
+    from?: string
+    to?: string
+    shopId?: string
+    groupBy?: 'day' | 'month'
+  }) {
+    const response = await accountingClient.get<ProfitLossResponse>('/reports/profit-loss', { params })
     return response.data
   },
 
