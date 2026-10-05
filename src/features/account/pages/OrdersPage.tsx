@@ -3,7 +3,11 @@ import { Link } from 'react-router-dom'
 import { useAppSelector } from '@/app/hooks'
 import { ordersApi } from '../api/ordersApi'
 import OrderProductImage from '../components/OrderProductImage'
+import DataTablePagination from '@/components/ui/DataTablePagination'
 import type { PurchasedOrder } from '../types/orderTypes'
+
+// Customer order list is always paginated 5 per page.
+const ORDERS_PER_PAGE = 5
 
 type OrderTab = 'all' | 'to-pay' | 'to-ship' | 'to-receive' | 'completed' | 'cancelled' | 'return-refund'
 
@@ -51,6 +55,7 @@ const OrdersPage = () => {
   const [orders, setOrders] = useState<PurchasedOrder[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
   const userId = useAppSelector((s) => s.auth.user?.id)
 
   useEffect(() => {
@@ -86,6 +91,18 @@ const OrdersPage = () => {
         return byOrderId || byProduct
       })
   }, [orders, activeTab, search])
+
+  // Changing tab or search invalidates the current offset.
+  useEffect(() => {
+    setPage(1)
+  }, [activeTab, search])
+
+  const totalPages = Math.max(1, Math.ceil(visibleOrders.length / ORDERS_PER_PAGE))
+  const safePage = Math.min(page, totalPages)
+  const paginatedOrders = visibleOrders.slice(
+    (safePage - 1) * ORDERS_PER_PAGE,
+    safePage * ORDERS_PER_PAGE,
+  )
 
   return (
     <div className="p-0 md:p-6">
@@ -153,8 +170,8 @@ const OrdersPage = () => {
 
         {!loading &&
           !error &&
-          visibleOrders.map((order) => (
-            <div key={order.orderId} className="bg-white border border-gray-200 rounded-sm">
+          paginatedOrders.map((order, orderIndex) => (
+            <div key={order.orderId || `order-${orderIndex}`} className="bg-white border border-gray-200 rounded-sm">
               <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between text-xs md:text-sm">
                 <div className="text-gray-700">
                   Order ID: <span className="font-medium text-gray-900">{order.orderId}</span>
@@ -162,8 +179,11 @@ const OrdersPage = () => {
                 <span className="text-red-500 font-medium uppercase">{order.status}</span>
               </div>
 
-              {order.items.map((item) => (
-                <div key={`${order.orderId}-${item.productId}-${item.sku}`} className="px-4 py-3 border-b border-gray-100">
+              {order.items.map((item, index) => (
+                <div
+                  key={item.orderItemId || `${order.orderId}-${item.productId}-${item.sku}-${index}`}
+                  className="px-4 py-3 border-b border-gray-100"
+                >
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div className="flex gap-3">
                       <OrderProductImage imageUrl={item.imageUrl} alt={item.name} />
@@ -217,6 +237,17 @@ const OrdersPage = () => {
               </div>
             </div>
           ))}
+
+        {!loading && !error && visibleOrders.length > ORDERS_PER_PAGE && (
+          <DataTablePagination
+            page={safePage}
+            totalPages={totalPages}
+            rowsPerPage={ORDERS_PER_PAGE}
+            totalItems={visibleOrders.length}
+            itemLabel="orders"
+            onPageChange={setPage}
+          />
+        )}
       </div>
     </div>
   )
