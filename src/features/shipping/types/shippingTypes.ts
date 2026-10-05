@@ -34,11 +34,13 @@ export type ShopCalculatedShipping = {
     actualWeightKg?: number | null
     volumetricWeightKg?: number | null
     chargeableWeightKg?: number | null
-    /** From DB weight rate (`base_fee`). */
+    /** From DB weight rate (`base_fee`). Covers the first `baseWeightKg`. */
     baseFee?: number | null
+    /** Included kilograms covered by the base weight fee (`base_weight_kg`). */
+    baseWeightKg?: number | null
     /** Route fee (distance bracket or city rate), stored as distanceFee. */
     distanceFee?: number | null
-    /** Additional weight fee beyond base weight. */
+    /** Additional weight fee beyond base weight. Zero means no extra weight charge. */
     weightFee?: number | null
     raw?: unknown
 }
