@@ -141,13 +141,15 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
         </div>
       ) : null}
 
-      <div className="hidden items-center gap-3.5 rounded-sm border border-[var(--dni-cart-border)] bg-white px-3 py-2.5 text-sm text-gray-500 sm:px-4 md:grid md:grid-cols-[minmax(0,1fr)_7.5rem_5rem_8.5rem_5.5rem_7.5rem]">
+      <div className="hidden items-center gap-3.5 rounded-sm border border-[var(--dni-cart-border)] bg-white px-3 py-2.5 text-sm text-gray-500 sm:px-4 md:grid md:grid-cols-[minmax(0,1fr)_7.5rem_5rem_8.5rem_auto]">
         <span className="text-gray-900">Products Ordered</span>
         <span className="whitespace-nowrap text-right">Unit Price</span>
         <span className="text-center">Quantity</span>
         <span className="whitespace-nowrap text-right">Item Subtotal</span>
-        <span className="whitespace-nowrap text-right">Tax Rate</span>
-        <span className="whitespace-nowrap text-right">Tax</span>
+        <div className="grid w-[13.875rem] grid-cols-[5.5rem_7.5rem] gap-3.5">
+          <span className="whitespace-nowrap text-right">Tax Rate</span>
+          <span className="whitespace-nowrap text-right">Tax</span>
+        </div>
       </div>
 
       {Object.entries(groupedByShop).map(([shopId, shopItems]) => {
@@ -206,18 +208,27 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
                 const lineTax = itemTaxes.find(
                   (tax) => tax.productId === item.productId && tax.variantId === variantId,
                 )
-                const liveTaxAmount = lineTax ? taxChargeForAmount(subtotal, lineTax.taxRate) : null
-                const taxRateLabel = lineTax ? formatLineTaxRate(lineTax.taxRate) : 'Calculating…'
-                const taxAmountLabel = liveTaxAmount != null
-                  ? formatKsPrice(liveTaxAmount)
-                  : lineTax
-                    ? formatKsPrice(lineTax.taxAmount)
-                    : 'Calculating…'
+                const noCategoryTax = Boolean(lineTax?.noCategoryTax)
+                const liveTaxAmount = lineTax && !noCategoryTax
+                  ? taxChargeForAmount(subtotal, lineTax.taxRate)
+                  : null
+                const taxRateLabel = !lineTax
+                  ? 'Calculating…'
+                  : noCategoryTax
+                    ? '0.00'
+                    : formatLineTaxRate(lineTax.taxRate)
+                const taxAmountLabel = !lineTax
+                  ? 'Calculating…'
+                  : noCategoryTax
+                    ? formatKsPrice(0)
+                    : liveTaxAmount != null
+                      ? formatKsPrice(liveTaxAmount)
+                      : formatKsPrice(lineTax.taxAmount)
 
                 return (
                   <li
                     key={`${item.productId}-${item.variantId ?? ''}-${item.shopId}`}
-                    className="flex flex-col gap-2 border-b border-[var(--dni-cart-border)] px-3 py-3 last:border-b-0 sm:px-4 md:grid md:grid-cols-[minmax(0,1fr)_7.5rem_5rem_8.5rem_5.5rem_7.5rem] md:items-center md:gap-3.5"
+                    className="flex flex-col gap-2 border-b border-[var(--dni-cart-border)] px-3 py-3 last:border-b-0 sm:px-4 md:grid md:grid-cols-[minmax(0,1fr)_7.5rem_5rem_8.5rem_auto] md:items-center md:gap-3.5"
                   >
                     <div className="flex min-w-0 items-center gap-3">
                       <img
@@ -251,12 +262,16 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
                       <p className="whitespace-nowrap text-sm font-semibold tabular-nums text-emerald-700 md:text-right md:text-[15px]">
                         {formatKsPrice(subtotal)}
                       </p>
-                      <p className={`hidden whitespace-nowrap text-right md:block ${lineTax ? 'text-sm tabular-nums text-gray-700' : 'text-xs text-gray-400'}`}>
-                        {taxRateLabel}
-                      </p>
-                      <p className={`hidden whitespace-nowrap text-right md:block ${lineTax ? 'text-sm font-medium tabular-nums text-gray-900' : 'text-xs text-gray-400'}`}>
-                        {taxAmountLabel}
-                      </p>
+                      <div className="hidden w-[13.875rem] md:block">
+                        <div className="grid grid-cols-[5.5rem_7.5rem] gap-3.5">
+                          <p className={`whitespace-nowrap text-right ${lineTax ? 'text-sm tabular-nums text-gray-700' : 'text-xs text-gray-400'}`}>
+                            {taxRateLabel}
+                          </p>
+                          <p className={`whitespace-nowrap text-right ${lineTax ? 'text-sm font-medium tabular-nums text-gray-900' : 'text-xs text-gray-400'}`}>
+                            {taxAmountLabel}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </li>
                 )

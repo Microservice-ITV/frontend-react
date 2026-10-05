@@ -211,6 +211,7 @@ export type CheckoutLineTax = {
   variantId: string
   taxRate: number | null
   taxAmount: number
+  noCategoryTax?: boolean
 }
 
 export function lineTaxesFromQuote(
@@ -233,6 +234,7 @@ export function lineTaxesFromQuote(
       variantId,
       taxRate: rate == null || !Number.isFinite(Number(rate)) ? null : Number(rate),
       taxAmount: Number(line?.tax_amount ?? 0),
+      noCategoryTax: line?.reason === 'NO_TAX_FOR_CATEGORY',
     }
   })
 }
