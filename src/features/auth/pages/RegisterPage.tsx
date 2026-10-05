@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Lock } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { register } from "@/features/auth/store/authThunks";
@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import SocialAuthSection from "@/features/auth/components/SocialAuthSection";
 import PhoneAuthSection from "../components/PhoneAuthSection";
+import ProfileImageField from "../components/ProfileImageField";
+import { useProfileImageSelection } from "../hooks/useProfileImageSelection";
 
 export const RegisterPage = () => {
   const dispatch = useAppDispatch();
@@ -18,6 +20,9 @@ export const RegisterPage = () => {
   const { status, error, registerDraft } = useAppSelector((s) => s.auth);
 
   const [form, setForm] = useState(registerDraft);
+
+  // Local (in-memory) photo selection - a File cannot live in the persisted draft.
+  const profileImage = useProfileImageSelection();
 
   const isLoading = status === "loading";
   const isFormValid =
@@ -37,8 +42,15 @@ export const RegisterPage = () => {
     try {
       const recaptchaToken = await getRecaptchaToken("register");
 
-      await dispatch(register({ ...normalizedForm, recaptchaToken })).unwrap();
+      await dispatch(
+        register({
+          ...normalizedForm,
+          recaptchaToken,
+          profileImage: profileImage.file,
+        }),
+      ).unwrap();
 
+      profileImage.clear();
       navigate("/login", { replace: true });
     } catch (err: unknown) {
       if (err && typeof err === "object" && "requiresVerification" in err) {
@@ -72,6 +84,25 @@ export const RegisterPage = () => {
           Join us and start shopping today
         </p>
 
+        <div className="mt-5 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-3">
+          <div className="flex items-center gap-2">
+            <Lock className="h-4 w-4 shrink-0 text-emerald-600" aria-hidden />
+            <p className="text-xs font-semibold text-emerald-700">Your Privacy Matters</p>
+          </div>
+          <p className="mt-1 text-xs leading-4 tracking-tight text-gray-600">
+            We use your information to create your account, process
+            
+            orders, provide customer support, and keep your account secure.
+          </p>
+          <Link
+            to="/privacy"
+            className="mt-1 inline-flex items-center text-xs font-medium text-emerald-700 hover:underline"
+          >
+            Privacy Policy
+            <span aria-hidden className="ml-1">›</span>
+          </Link>
+        </div>
+
         {/* Error message */}
         {error && (
           <div
@@ -89,6 +120,14 @@ export const RegisterPage = () => {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+          <ProfileImageField
+            previewUrl={profileImage.previewUrl}
+            error={profileImage.error}
+            disabled={isLoading}
+            onSelect={profileImage.select}
+            onClear={profileImage.clear}
+          />
+
           <Input
             label="Name"
             placeholder="John Doe"

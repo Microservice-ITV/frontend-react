@@ -6,7 +6,8 @@ type DataTablePaginationProps = {
   rowsPerPage: number
   totalItems: number
   onPageChange: (page: number) => void
-  onRowsPerPageChange: (value: number) => void
+  // Omit to lock the page size; the "Rows" selector is then hidden.
+  onRowsPerPageChange?: (value: number) => void
   rowsPerPageOptions?: number[]
   itemLabel?: string
 }
@@ -45,14 +46,14 @@ const DataTablePagination = ({
         Showing <span className="font-semibold text-slate-900">{start}-{end}</span> of{' '}
         <span className="font-semibold text-slate-900">{totalItems}</span> {itemLabel}
       </p>
-      <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-end">
-        <div className="flex items-center gap-2">
-          <label className="flex items-center gap-2 text-xs text-slate-600">
-            Rows per page
+      <div className="flex flex-wrap items-center gap-4">
+        {onRowsPerPageChange && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-600">Rows</span>
             <select
               value={rowsPerPage}
               onChange={(e) => onRowsPerPageChange(Number(e.target.value))}
-              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-sm outline-none transition hover:border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              className="rounded border border-slate-200 bg-white px-2 py-1 text-xs"
             >
               {rowsPerPageOptions.map((option) => (
                 <option key={option} value={option}>
@@ -60,9 +61,9 @@ const DataTablePagination = ({
                 </option>
               ))}
             </select>
-          </label>
-        </div>
-        <nav aria-label="Table pagination" className="flex items-center gap-1">
+          </div>
+        )}
+        <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={() => onPageChange(Math.max(1, safePage - 1))}

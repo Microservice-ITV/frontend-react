@@ -14,6 +14,23 @@ function buildRecommendationImages(product: any): string[] {
     return []
 }
 
+/** Catalog and product-service both key products by `productId` (UUID). Mongo `_id` is not that id. */
+function mapRecommendationProduct(product: any): Product | null {
+    const id = String(product?.productId ?? '').trim()
+    if (!id) return null
+    const price = typeof product.price === 'string' ? parseFloat(product.price) : Number(product.price ?? 0)
+    const shopId = String(product.shopId ?? '').trim()
+    return {
+        id,
+        name: String(product.title ?? product.name ?? ''),
+        price: Number.isFinite(price) ? price : 0,
+        images: buildRecommendationImages(product),
+        categoryId: String(product.categoryId ?? ''),
+        shopId: shopId || undefined,
+        tags: normalizeTags(product.tags),
+    }
+}
+
 // API RESPONSE TYPES
 interface RelatedProductsApiResponse {
     success: boolean
@@ -36,15 +53,10 @@ export const recommendationApi = {
             throw new Error('Product ID is required.')
         }
 
-const response = await ecommerceReadRestClient.get(`/catalog/products/${normalized}/related`)
-        const products = response.data.products.map((product: any) => ({
-            id: product._id,
-            name: product.title,
-            price: typeof product.price === 'string' ? parseFloat(product.price) : product.price,
-            images: buildRecommendationImages(product),
-            categoryId: product.categoryId,
-            tags: normalizeTags(product.tags),
-        }))
+        const response = await ecommerceReadRestClient.get(`/catalog/products/${normalized}/related`)
+        const products = (response.data.products ?? [])
+            .map(mapRecommendationProduct)
+            .filter((product: Product | null): product is Product => product != null)
 
         return {
             data: {
@@ -61,7 +73,6 @@ const response = await ecommerceReadRestClient.get(`/catalog/products/${normaliz
     /**
      * Fetch brought-together products for a given product ID
      * Calls ecommerce-read-service: GET /catalog/products/:productId/brought-together
-     * Calls ecommerce-read-service: GET /catalog/products/:productId/brought-together
      */
     getBroughtTogetherProducts: async (productId: string): Promise<AxiosResponse<BroughtTogetherProductsApiResponse>> => {
         const normalized = productId.trim()
@@ -70,14 +81,9 @@ const response = await ecommerceReadRestClient.get(`/catalog/products/${normaliz
         }
 
         const response = await ecommerceReadRestClient.get(`/catalog/products/${normalized}/brought-together`)
-        const products = response.data.products.map((product: any) => ({
-            id: product._id,
-            name: product.title,
-            price: typeof product.price === 'string' ? parseFloat(product.price) : product.price,
-            images: buildRecommendationImages(product),
-            categoryId: product.categoryId,
-            tags: normalizeTags(product.tags),
-        }))
+        const products = (response.data.products ?? [])
+            .map(mapRecommendationProduct)
+            .filter((product: Product | null): product is Product => product != null)
 
         return {
             data: {

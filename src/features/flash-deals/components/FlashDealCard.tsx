@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Flame } from "lucide-react";
 import type { FlashDealApiItem } from "@/lib/api/flashDealClient";
+import { formatProductPrice } from "@/features/products/utils/formatProductPrice";
 
 const PLACEHOLDER_IMAGE = "/placeholder.svg";
 
@@ -42,7 +43,7 @@ const FlashDealCard = ({ deal }: FlashDealCardProps) => {
 
   return (
     <article className="
-      group relative flex flex-col overflow-hidden
+      group relative flex h-full w-full min-w-0 flex-col overflow-hidden
       border border-[var(--dni-cart-border)] bg-white
       transition-[border-color,background-color] duration-150
       hover:border-[var(--dni-primary)] hover:bg-[var(--dni-primary-soft)]
@@ -60,7 +61,7 @@ const FlashDealCard = ({ deal }: FlashDealCardProps) => {
             endAt: deal.endAt ?? null,
           },
         }}
-        className="flex min-h-0 flex-1 flex-col h-full"
+        className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col"
       >
         <div className="relative w-full shrink-0 bg-[#fafafa] pt-[100%]">
           <img
@@ -72,7 +73,9 @@ const FlashDealCard = ({ deal }: FlashDealCardProps) => {
 
           <div className="absolute left-2 top-2 flex gap-1.5">
             <span className="inline-flex items-center gap-1 px-2 py-1 bg-[var(--dni-primary)] text-[10px] font-bold text-white">
-              <Flame className="h-3 w-3 fill-current" />
+              <span className="text-xs leading-none" aria-hidden>
+                ⚡
+              </span>
               Flash
             </span>
             <span className="inline-flex items-center px-2 py-1 bg-white/95 backdrop-blur-sm text-[10px] font-black text-[var(--dni-primary)]">
@@ -91,14 +94,16 @@ const FlashDealCard = ({ deal }: FlashDealCardProps) => {
           </div> */}
         </div>
 
-        <div className="flex flex-1 flex-col gap-2 p-4">
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="text-base font-bold leading-none text-[var(--dni-primary)]">
-              MMK{dealPrice.toFixed(2)}
-            </span>
-            <span className="text-sm text-slate-400 line-through font-medium">
-              MMK{originalPrice.toFixed(2)}
-            </span>
+        <div className="flex min-w-0 flex-1 flex-col gap-2 p-4">
+          <div className="min-w-0">
+            <p className="truncate text-base font-bold leading-none tracking-tight text-[var(--dni-primary)]">
+              {formatProductPrice(dealPrice)}
+            </p>
+            {originalPrice > dealPrice && (
+              <p className="mt-1 truncate text-xs font-medium text-slate-400 line-through">
+                {formatProductPrice(originalPrice)}
+              </p>
+            )}
           </div>
 
           <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-5 text-slate-800">

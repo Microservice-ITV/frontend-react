@@ -15,5 +15,7 @@ export const CAPABILITIES = {
   /** Create / update / delete categories — super admin */
   CATEGORIES_MANAGE: 'categories.manage',
   PROMOTIONS_VIEW: 'promotions.view',
+  /** Create, schedule, publish and remove flash deals — super admin and sellers */
+  FLASH_DEALS_MANAGE: 'flash.deals.manage',
   ALL: '*',
 } as const

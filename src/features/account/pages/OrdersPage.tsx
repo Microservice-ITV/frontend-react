@@ -2,7 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAppSelector } from '@/app/hooks'
 import { ordersApi } from '../api/ordersApi'
+import OrderProductImage from '../components/OrderProductImage'
+import DataTablePagination from '@/components/ui/DataTablePagination'
 import type { PurchasedOrder } from '../types/orderTypes'
+
+// Customer order list is always paginated 5 per page.
+const ORDERS_PER_PAGE = 5
 
 type OrderTab = 'all' | 'to-pay' | 'to-ship' | 'to-receive' | 'completed' | 'cancelled' | 'return-refund'
 
@@ -35,18 +40,13 @@ const isOrderInTab = (order: PurchasedOrder, tab: OrderTab): boolean => {
   return false
 }
 
-const formatMoney = (value: number, currency: string): string => {
-  const safeCurrency = currency || 'USD'
-  try {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: safeCurrency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(Number(value || 0))
-  } catch {
-    return `${safeCurrency} ${Number(value || 0).toFixed(2)}`
-  }
+const formatMoney = (value: number, _currency?: string): string => {
+  const amount = Number(value)
+  const safe = Number.isFinite(amount) ? amount : 0
+  return `Ks ${safe.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`
 }
 
 const OrdersPage = () => {
@@ -55,6 +55,7 @@ const OrdersPage = () => {
   const [orders, setOrders] = useState<PurchasedOrder[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
   const userId = useAppSelector((s) => s.auth.user?.id)
 
   useEffect(() => {
@@ -90,6 +91,18 @@ const OrdersPage = () => {
         return byOrderId || byProduct
       })
   }, [orders, activeTab, search])
+
+  // Changing tab or search invalidates the current offset.
+  useEffect(() => {
+    setPage(1)
+  }, [activeTab, search])
+
+  const totalPages = Math.max(1, Math.ceil(visibleOrders.length / ORDERS_PER_PAGE))
+  const safePage = Math.min(page, totalPages)
+  const paginatedOrders = visibleOrders.slice(
+    (safePage - 1) * ORDERS_PER_PAGE,
+    safePage * ORDERS_PER_PAGE,
+  )
 
   return (
     <div className="p-0 md:p-6">
@@ -157,8 +170,8 @@ const OrdersPage = () => {
 
         {!loading &&
           !error &&
-          visibleOrders.map((order) => (
-            <div key={order.orderId} className="bg-white border border-gray-200 rounded-sm">
+          paginatedOrders.map((order, orderIndex) => (
+            <div key={order.orderId || `order-${orderIndex}`} className="bg-white border border-gray-200 rounded-sm">
               <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between text-xs md:text-sm">
                 <div className="text-gray-700">
                   Order ID: <span className="font-medium text-gray-900">{order.orderId}</span>
@@ -166,15 +179,14 @@ const OrdersPage = () => {
                 <span className="text-red-500 font-medium uppercase">{order.status}</span>
               </div>
 
-              {order.items.map((item) => (
-                <div key={`${order.orderId}-${item.productId}-${item.sku}`} className="px-4 py-3 border-b border-gray-100">
+              {order.items.map((item, index) => (
+                <div
+                  key={item.orderItemId || `${order.orderId}-${item.productId}-${item.sku}-${index}`}
+                  className="px-4 py-3 border-b border-gray-100"
+                >
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div className="flex gap-3">
-                      {item.imageUrl ? (
-                        <img src={item.imageUrl} alt={item.name} className="w-16 h-16 object-cover rounded-sm" />
-                      ) : (
-                        <div className="w-16 h-16 bg-gray-100 rounded-sm" />
-                      )}
+                      <OrderProductImage imageUrl={item.imageUrl} alt={item.name} />
                       <div className="space-y-1 text-xs md:text-sm">
                         <p className="text-gray-800">{item.name}</p>
                         <div className="flex flex-col gap-0.5">
@@ -225,6 +237,17 @@ const OrdersPage = () => {
               </div>
             </div>
           ))}
+
+        {!loading && !error && visibleOrders.length > ORDERS_PER_PAGE && (
+          <DataTablePagination
+            page={safePage}
+            totalPages={totalPages}
+            rowsPerPage={ORDERS_PER_PAGE}
+            totalItems={visibleOrders.length}
+            itemLabel="orders"
+            onPageChange={setPage}
+          />
+        )}
       </div>
     </div>
   )

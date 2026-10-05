@@ -1,6 +1,8 @@
 import { createAsyncThunk } from '@reduxjs/toolkit'
 import type { AxiosResponse } from 'axios'
 import { authFeatureApi } from '../api/authApi'
+import { PROFILE_IMAGE_FIELD } from '../constants/profileImage'
+
 import type { User, TokenPayload, AuthState } from '../types/authTypes'
 import { markInitialized, setAccessToken, setHasSession } from './authSlice'
 import { hasSessionCookie, setSessionCookie, clearSessionCookie } from '@/utils/session'
@@ -39,7 +41,7 @@ export const login = createAsyncThunk<
 
 export const register = createAsyncThunk<
     TokenPayload,
-    { name: string; email: string; password: string; recaptchaToken: string },
+    { name: string; email: string; password: string; recaptchaToken: string; profileImage?: File | null },
     { rejectValue: string | { requiresVerification: true; email: string } }
 >('auth/register', async (data, { rejectWithValue }) => {
     try {
@@ -259,6 +261,65 @@ export const changePassword = createAsyncThunk<
     }
 })
 
+
+/**
+ * Laravel replies to validation failures with `errors.<field>[0]` and to other
+ * problems with `message`; both shapes are read so the UI can show the exact
+ * reason a photo was rejected.
+ */
+const profileImageErrorMessage = (error: unknown, fallback: string): string => {
+    if (axios.isAxiosError(error)) {
+        const data = error.response?.data as
+            | { message?: string; errors?: Record<string, string[] | undefined> }
+            | undefined
+
+        return data?.errors?.[PROFILE_IMAGE_FIELD]?.[0] ?? data?.message ?? fallback
+    }
+
+    return fallback
+}
+
+/**
+ * Uploads (or replaces) the authenticated user's photo and returns the resolved
+ * URL so the central auth state can be updated without a page reload.
+ */
+export const updateProfileImage = createAsyncThunk<
+    string | null,
+    { image: File },
+    { rejectValue: string }
+>('auth/updateProfileImage', async ({ image }, { rejectWithValue }) => {
+    try {
+        const res = await authFeatureApi.updateProfileImage(image)
+
+        return (res.data?.data?.user?.profile_image ?? null) as string | null
+    } catch (error: unknown) {
+        return rejectWithValue(
+            profileImageErrorMessage(
+                error,
+                'We could not update your profile photo. Please try again.'
+            )
+        )
+    }
+})
+
+export const removeProfileImage = createAsyncThunk<
+    null,
+    void,
+    { rejectValue: string }
+>('auth/removeProfileImage', async (_, { rejectWithValue }) => {
+    try {
+        await authFeatureApi.removeProfileImage()
+
+        return null
+    } catch (error: unknown) {
+        return rejectWithValue(
+            profileImageErrorMessage(
+                error,
+                'We could not remove your profile photo. Please try again.'
+            )
+        )
+    }
+})
 
 export const bootstrapAuth = createAsyncThunk(
     'auth/bootstrap',

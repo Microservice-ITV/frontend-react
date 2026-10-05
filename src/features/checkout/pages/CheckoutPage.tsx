@@ -4,6 +4,7 @@ import { CheckoutAddressSelectorModal } from '../components/CheckoutAddressSelec
 import CheckoutItems from '../components/CheckoutItems'
 import CheckoutPayment from '../components/CheckoutPayment'
 import CheckoutSummary from '../components/CheckoutSummary'
+import CheckoutSummarySkeleton from '../components/CheckoutSummarySkeleton'
 import { SagaStatusDisplay } from '../components/SagaStatusDisplay'
 import { selectSelectedItems } from '@/features/cart/store/cartSelectors'
 import { calculateCheckout } from '../utils/checkoutCalculator'
@@ -25,6 +26,7 @@ import { NewAddressModal } from '@/features/account/components/NewAddressModal'
 import type { UserAddress } from '@/features/account/types/addressTypes'
 import { clearShippingCalculate } from '@/features/shipping/store/shippingSlice'
 import { fetchCheckoutShippingCalculation } from '@/features/shipping/store/shippingThunks'
+import { hasConfirmedStock } from '../utils/checkoutStatus'
 
 type StoredCheckoutSession = {
     checkoutId: string
@@ -32,41 +34,8 @@ type StoredCheckoutSession = {
     sagaId?: string
 }
 
-const terminalCheckoutStatuses = new Set(['PAID', 'COMPLETED', 'FAILED', 'FAILED_PAYMENT', 'EXPIRED'])
+const terminalCheckoutStatuses = new Set(['PAID', 'COMPLETED', 'FAILED', 'FAILED_STOCK', 'FAILED_PAYMENT', 'EXPIRED'])
 const terminalSagaStatuses = new Set(['COMPLETED', 'FAILED', 'TIMEOUT'])
-const stockReadyCheckoutStatuses = new Set([
-    'STOCK_CONFIRMED',
-    'PAYMENT_INTENT_READY',
-    'PAYMENT_PENDING_CONFIRMATION',
-    'PENDING_PAYMENT',
-    'PAID',
-    'COMPLETED',
-])
-
-const CheckoutSummarySkeleton = () => (
-    <div
-        aria-busy="true"
-        aria-label="Confirming stock availability"
-        className="animate-pulse bg-[#fffefb] border-t border-dashed border-black/10 px-6 py-6"
-    >
-        <div className="space-y-4">
-            <div className="flex justify-between">
-                <div className="h-4 w-32 rounded bg-gray-200" />
-                <div className="h-4 w-16 rounded bg-gray-200" />
-            </div>
-            <div className="flex justify-between">
-                <div className="h-4 w-28 rounded bg-gray-200" />
-                <div className="h-4 w-16 rounded bg-gray-200" />
-            </div>
-            <div className="h-24 rounded-xl bg-gray-100" />
-            <div className="flex justify-between border-t border-black/10 pt-4">
-                <div className="h-5 w-28 rounded bg-gray-200" />
-                <div className="h-8 w-24 rounded bg-gray-200" />
-            </div>
-            <div className="h-12 w-full rounded bg-gray-200" />
-        </div>
-    </div>
-)
 
 const CheckoutPage = () => {
     const dispatch = useAppDispatch()
@@ -79,6 +48,7 @@ const CheckoutPage = () => {
     const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null)
     const [hasResolvedInitialAddressFetch, setHasResolvedInitialAddressFetch] = useState(false)
     const [checkoutSessionBootstrapped, setCheckoutSessionBootstrapped] = useState(false)
+    const [stockConfirmedSessionKey, setStockConfirmedSessionKey] = useState<string | null>(null)
     const hasAutoPromptedRef = useRef(false)
 
     // Only grab selected items for checkout
@@ -125,7 +95,10 @@ const CheckoutPage = () => {
     const sagaId = useAppSelector(state => state.checkout.sagaId)
     const sagaStatus = useAppSelector(state => state.checkout.sagaStatus)
     const checkoutStorageKey = authUser?.id ? `dni.active-checkout.${authUser.id}` : null
-    const isStockReady = paymentStatus ? stockReadyCheckoutStatuses.has(paymentStatus) : false
+    const stockReadinessKey = currentCheckout?.checkout_id
+        ? `${currentCheckout.checkout_id}|${selectedItemsFingerprint}`
+        : null
+    const isStockReady = hasConfirmedStock(paymentStatus) || stockConfirmedSessionKey === stockReadinessKey
 
     const refreshAddresses = useCallback(async () => {
         if (!authUser?.id) return
@@ -278,6 +251,12 @@ const CheckoutPage = () => {
     }, [authUser?.id, selectedItemsFingerprint])
 
     useEffect(() => {
+        if (stockReadinessKey && hasConfirmedStock(paymentStatus)) {
+            setStockConfirmedSessionKey(stockReadinessKey)
+        }
+    }, [paymentStatus, stockReadinessKey])
+
+    useEffect(() => {
         if (!authUser?.id) return
 
         if (!hasDeliveryAddress) {
@@ -286,6 +265,23 @@ const CheckoutPage = () => {
         }
 
         if (currentCheckout?.checkout_id) {
+            let storedFingerprint: string | null = null
+            try {
+                const raw = checkoutStorageKey ? sessionStorage.getItem(checkoutStorageKey) : null
+                if (raw) {
+                    const parsed = JSON.parse(raw) as StoredCheckoutSession
+                    if (parsed.checkoutId === currentCheckout.checkout_id) {
+                        storedFingerprint = parsed.cartFingerprint
+                    }
+                }
+            } catch {
+                if (checkoutStorageKey) sessionStorage.removeItem(checkoutStorageKey)
+            }
+
+            if (storedFingerprint && storedFingerprint !== selectedItemsFingerprint) {
+                if (checkoutStorageKey) sessionStorage.removeItem(checkoutStorageKey)
+                dispatch(clearCheckout())
+            }
             setCheckoutSessionBootstrapped(true)
             return
         }
@@ -339,13 +335,32 @@ const CheckoutPage = () => {
     useEffect(() => {
         if (!checkoutStorageKey || !currentCheckout?.checkout_id) return
 
+        let storedFingerprint: string | null = null
+        try {
+            const raw = sessionStorage.getItem(checkoutStorageKey)
+            if (raw) {
+                const parsed = JSON.parse(raw) as StoredCheckoutSession
+                if (parsed.checkoutId === currentCheckout.checkout_id) {
+                    storedFingerprint = parsed.cartFingerprint
+                }
+            }
+        } catch {
+            sessionStorage.removeItem(checkoutStorageKey)
+        }
+
+        if (storedFingerprint && storedFingerprint !== selectedItemsFingerprint) {
+            sessionStorage.removeItem(checkoutStorageKey)
+            dispatch(clearCheckout())
+            return
+        }
+
         const payload: StoredCheckoutSession = {
             checkoutId: currentCheckout.checkout_id,
             cartFingerprint: selectedItemsFingerprint,
             sagaId: currentCheckout.saga_id ?? undefined,
         }
         sessionStorage.setItem(checkoutStorageKey, JSON.stringify(payload))
-    }, [checkoutStorageKey, currentCheckout?.checkout_id, selectedItemsFingerprint])
+    }, [checkoutStorageKey, currentCheckout?.checkout_id, currentCheckout?.saga_id, dispatch, selectedItemsFingerprint])
 
     useEffect(() => {
         if (!checkoutStorageKey || !paymentStatus) return
@@ -358,6 +373,7 @@ const CheckoutPage = () => {
         // Allow a fresh checkout attempt when the cart or address changes.
         dispatch(setCheckoutError(null))
     }, [dispatch, selectedItemsFingerprint, selectedDeliveryAddress?.address_id])
+
 
     useEffect(() => {
         if (!hasDeliveryAddress) {
@@ -378,29 +394,6 @@ const CheckoutPage = () => {
             dispatch(checkoutCart())
         }
     }, [dispatch, currentCheckout, loading, hasDeliveryAddress, checkoutError])
-
-    useEffect(() => {
-        if (!hasDeliveryAddress) return
-        if (!currentCheckout?.checkout_id) return
-        if (!sessionPaymentMethod) return
-        if (paymentMethod === sessionPaymentMethod) return
-        if (loading) return
-        if (paymentStatus && terminalCheckoutStatuses.has(paymentStatus)) return
-
-        dispatch(clearCheckout())
-        if (checkoutStorageKey) {
-            sessionStorage.removeItem(checkoutStorageKey)
-        }
-    }, [
-        hasDeliveryAddress,
-        currentCheckout?.checkout_id,
-        sessionPaymentMethod,
-        paymentMethod,
-        loading,
-        paymentStatus,
-        dispatch,
-        checkoutStorageKey,
-    ])
 
     useEffect(() => {
         if (!hasDeliveryAddress) {
@@ -478,38 +471,47 @@ const CheckoutPage = () => {
 
     return (
         <Elements stripe={stripePromise}>
-            <div className="max-w-[1200px] mx-auto px-4 sm:px-4 py-3 mb-5">
-                <CheckoutAddress
-                    address={selectedDeliveryAddress}
-                    loading={addressesLoading}
-                    onChangeAddress={openAddressSelectionModal}
-                />
-                <CheckoutItems items={items} />
-                
-                <div className="grid lg:grid-cols-[1fr_400px] gap-6 lg:gap-8 mt-4">
-                    {/* LEFT COLUMN - Payment Method Sections */}
-                    <div className="space-y-4">
+            <div className="bg-[#f5f5f5] py-3 sm:py-4 lg:py-5">
+                <div className="mx-auto w-full max-w-7xl px-3 sm:px-4 lg:px-6">
+                    {/* <h1 className="mb-3 text-lg font-semibold text-gray-900 sm:mb-4 sm:text-xl">Checkout</h1> */}
+
+                    <div className="grid items-start gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-5">
+                        <div className="min-w-0 space-y-3">
+                            <CheckoutAddress
+                                address={selectedDeliveryAddress}
+                                loading={addressesLoading}
+                                onChangeAddress={openAddressSelectionModal}
+                            />
+                            <CheckoutItems checkout={checkout} />
+                        </div>
+
+                        <aside className="space-y-3 lg:sticky lg:top-4">
                         <CheckoutPayment totalAmount={checkout.totalPayment} />
+
+                            {isStockReady ? (
+                                <CheckoutSummary
+                                    checkout={checkout}
+                                    hasDeliveryAddress={hasDeliveryAddress}
+                                    onRequireAddress={openAddressSelectionModal}
+                                    deliveryAddress={selectedDeliveryAddress}
+                                    cartItems={items}
+                                />
+                            ) : checkoutError ? (
+                                <div role="alert" className="rounded-sm border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                                    {checkoutError}
+                                </div>
+                            ) : (
+                                <CheckoutSummarySkeleton />
+                            )}
+                        </aside>
                     </div>
 
-                    {/* RIGHT COLUMN - Order Summary */}
-                    <div className="lg:sticky lg:top-24 lg:self-start mt-4">
-                        {isStockReady ? (
-                            <CheckoutSummary
-                                checkout={checkout}
-                                hasDeliveryAddress={hasDeliveryAddress}
-                                onRequireAddress={openAddressSelectionModal}
-                                deliveryAddress={selectedDeliveryAddress}
-                                cartItems={items}
-                            />
-                        ) : (
-                            <CheckoutSummarySkeleton />
-                        )}
-                    </div>
-                </div>
                     {sagaId && (
-                    <SagaStatusDisplay sagaId={sagaId} />
-                )}
+                        <div className="mt-4">
+                            <SagaStatusDisplay sagaId={sagaId} />
+                        </div>
+                    )}
+                </div>
             </div>
         </Elements>
     )

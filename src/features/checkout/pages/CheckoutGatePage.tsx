@@ -8,18 +8,20 @@ import { selectSelectedItems } from '@/features/cart/store/cartSelectors'
 import { Elements } from '@stripe/react-stripe-js'
 import { stripePromise } from '@/lib/stripe'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { calculateCheckout } from '../utils/checkoutCalculator'
 import CheckoutItems from '../components/CheckoutItems'
 import CheckoutAddress from '../components/CheckoutAddress'
 import GuestCheckoutAnnouncementBanner from '../components/GuestCheckoutAnnouncementBanner'
 import CheckoutPayment from '../components/CheckoutPayment'
 import CheckoutSummary from '../components/CheckoutSummary'
+import CheckoutSummarySkeleton from '../components/CheckoutSummarySkeleton'
 import { SagaStatusDisplay } from '../components/SagaStatusDisplay'
 import { fetchCheckoutStatus, fetchSagaStatus } from '../store/checkoutThunks'
 import { fetchCheckoutShippingCalculation } from '@/features/shipping/store/shippingThunks'
 import { clearShippingCalculate } from '@/features/shipping/store/shippingSlice'
 import { clearCheckout, setCurrentCheckout } from '../store/checkoutSlice'
+import { hasConfirmedStock } from '../utils/checkoutStatus'
 
 const AuthCheckout = () => {
   const items = useAppSelector(selectSelectedItems)
@@ -37,6 +39,7 @@ const GuestCheckoutPayment = () => {
 
   const items = useAppSelector(selectSelectedItems)
   const { currentCheckout, loading, paymentStatus, sagaId, sagaStatus } = useAppSelector((state) => state.checkout)
+  const [stockConfirmedSessionKey, setStockConfirmedSessionKey] = useState<string | null>(null)
 
   // If nothing selected, checkout shouldn't be reachable.
   if (items.length === 0) {
@@ -156,6 +159,10 @@ const GuestCheckoutPayment = () => {
         address: paymentDeliveryAddress,
         items,
         cacheKey: shippingCalculateCacheKey,
+        customer: {
+          id: paymentDeliveryAddress.address_id,
+          name: paymentDeliveryAddress.full_name || undefined,
+        },
       }),
     )
   }, [dispatch, paymentDeliveryAddress, items, shippingCalculateCacheKey])
@@ -165,6 +172,16 @@ const GuestCheckoutPayment = () => {
     [],
   )
   const terminalSagaStatuses = useMemo(() => new Set(['COMPLETED', 'FAILED', 'TIMEOUT']), [])
+  const stockReadinessKey = currentCheckout?.checkout_id
+    ? `${currentCheckout.checkout_id}|${currentCartKey}`
+    : null
+  const isStockReady = hasConfirmedStock(paymentStatus) || stockConfirmedSessionKey === stockReadinessKey
+
+  useEffect(() => {
+    if (stockReadinessKey && hasConfirmedStock(paymentStatus)) {
+      setStockConfirmedSessionKey(stockReadinessKey)
+    }
+  }, [paymentStatus, stockReadinessKey])
 
   useEffect(() => {
     if (!currentCheckout?.checkout_id) return
@@ -199,28 +216,43 @@ const GuestCheckoutPayment = () => {
 
   return (
     <Elements stripe={stripePromise}>
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-4 py-3 mb-5 space-y-4">
-        <GuestCheckoutAnnouncementBanner />
-        <CheckoutAddress address={paymentDeliveryAddress} loading={false} onChangeAddress={goToGuestForm} />
-        <CheckoutItems checkout={checkoutTotals} />
+      <div className="bg-[#f5f5f5] py-3 sm:py-4 lg:py-5">
+        <div className="mx-auto w-full max-w-7xl px-3 sm:px-4 lg:px-6">
+          <GuestCheckoutAnnouncementBanner />
 
-        <div className="grid lg:grid-cols-[1fr_400px] gap-6 lg:gap-8 mt-4">
-          <div className="space-y-4">
+          <div className="mt-3 grid items-start gap-3 sm:mt-4 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-5">
+            <div className="min-w-0 space-y-3">
+              <CheckoutAddress
+                address={paymentDeliveryAddress}
+                loading={false}
+                onChangeAddress={goToGuestForm}
+              />
+              <CheckoutItems checkout={checkoutTotals} />
+            </div>
+
+            <aside className="space-y-3 lg:sticky lg:top-4">
             <CheckoutPayment totalAmount={checkoutTotals.totalPayment} />
+
+              {isStockReady ? (
+                <CheckoutSummary
+                  checkout={checkoutTotals}
+                  hasDeliveryAddress={true}
+                  onRequireAddress={goToGuestForm}
+                  deliveryAddress={paymentDeliveryAddress}
+                  cartItems={items}
+                />
+              ) : (
+                <CheckoutSummarySkeleton />
+              )}
+            </aside>
           </div>
 
-          <div className="lg:sticky lg:top-24 lg:self-start mt-4">
-            <CheckoutSummary
-              checkout={checkoutTotals}
-              hasDeliveryAddress={true}
-              onRequireAddress={goToGuestForm}
-              deliveryAddress={paymentDeliveryAddress}
-              cartItems={items}
-            />
-          </div>
+          {sagaId && (
+            <div className="mt-4">
+              <SagaStatusDisplay sagaId={sagaId} />
+            </div>
+          )}
         </div>
-
-        {sagaId && <SagaStatusDisplay sagaId={sagaId} />}
       </div>
     </Elements>
   )
@@ -232,4 +264,3 @@ const CheckoutGatePage = () => {
 }
 
 export default CheckoutGatePage
-

@@ -13,10 +13,10 @@ export const Button = ({ loading = false,disabled, children, className, ...props
             {...props}
             disabled={isDisabled}
             className={clsx(
-                'w-full bg-emerald-600 text-white py-2 rounded transition',
+                'h-10 w-full bg-emerald-600 text-white py-2 rounded transition',
                 isDisabled
                   ? 'cursor-not-allowed opacity-50'
-                  : 'cursor-pointer hover:bg-gray-800',
+                  : 'cursor-pointer hover:bg-emerald-700',
                 className
             )}
         >

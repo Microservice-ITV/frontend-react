@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import DataTablePagination from '@/components/ui/DataTablePagination'
 import { AlertCircle, Download, Eye, RefreshCw, Search, SendHorizontal, ShieldCheck } from 'lucide-react'
@@ -193,6 +193,10 @@ const SellerInvoicesPage = () => {
               <dd className="mt-1 break-all font-mono text-xs text-slate-700">{invoice.orderId}</dd>
             </div>
             <div className="rounded-lg border border-slate-200 p-3">
+              <dt className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Shop</dt>
+              <dd className="mt-1 text-xs text-slate-700">{invoiceDocument.shopName || 'N/A'}</dd>
+            </div>
+            <div className="rounded-lg border border-slate-200 p-3">
               <dt className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Customer</dt>
               <dd className="mt-1 text-xs text-slate-700">{invoice.customer.name}</dd>
               <dd className="mt-1 break-all text-[11px] text-slate-400">{invoice.customer.email}</dd>
@@ -290,10 +294,7 @@ const SellerInvoicesPage = () => {
     })
   }
 
-  const statusTabs = useMemo(
-    () => [{ key: 'all', label: 'All' }, ...FILTER_TABS.filter((tab) => tab.key !== 'all').map((tab) => ({ key: tab.key, label: tab.label }))],
-    [],
-  )
+  const statusTabs = FILTER_TABS
 
   return (
     <section className="space-y-6">
@@ -367,10 +368,12 @@ const SellerInvoicesPage = () => {
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px]">
+              <table className="w-full min-w-225">
                 <thead>
                   <tr className="border-b border-slate-100">
                     <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Invoice</th>
+                    <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Shop</th>
+                    <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Customer</th>
                     <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Order</th>
                     <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Payment Method</th>
                     <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Amount</th>
@@ -381,7 +384,7 @@ const SellerInvoicesPage = () => {
                 <tbody>
                   {paginatedInvoices.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-2 py-8 text-center text-sm text-slate-500">
+                      <td colSpan={8} className="px-2 py-8 text-center text-sm text-slate-500">
                         No invoices found.
                       </td>
                     </tr>
@@ -390,6 +393,13 @@ const SellerInvoicesPage = () => {
                       <tr key={invoice.id} className="border-b border-slate-100 last:border-0">
                         <td className="px-2 py-3 text-xs font-semibold text-slate-900">
                           {invoice.id}
+                        </td>
+                        <td className="px-2 py-3 text-xs text-slate-700">
+                          {invoice.document.shopName || 'N/A'}
+                        </td>
+                        <td className="px-2 py-3 text-xs text-slate-700">
+                          <p>{invoice.customer.name}</p>
+                          <p className="mt-1 text-[11px] text-slate-500">{invoice.customer.email}</p>
                         </td>
                         <td className="px-2 py-3 text-xs text-slate-600">
                           <span className="font-mono">{invoice.orderId}</span>

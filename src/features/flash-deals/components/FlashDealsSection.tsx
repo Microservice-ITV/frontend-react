@@ -1,11 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Flame } from "lucide-react";
+import { ChevronLeft, ChevronRight, Zap } from "lucide-react";
 import FlashDealCard from "./FlashDealCard";
+import FlashDealCountdown from "./FlashDealCountdown";
 import {
   getFlashDealsByTimeSlot,
   type FlashDealApiItem,
 } from "@/lib/api/flashDealClient";
+import {
+  FLASH_DEAL_STOREFRONT_REFRESH_MS,
+  selectLiveFlashDeals,
+} from "../lib/flashDealStorefront";
 
 const CARD_WIDTH_PX = 220;
 const GAP_PX = 16;
@@ -18,8 +23,6 @@ const getNextSessionEnd = () => {
   return end;
 };
 
-const pad = (value: number) => String(value).padStart(2, "0");
-
 const FlashDealsSection = () => {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -27,6 +30,7 @@ const FlashDealsSection = () => {
 
   const [deals, setDeals] = useState<FlashDealApiItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [countdownLabel, setCountdownLabel] = useState("Ends Soon");
   const [endTime, setEndTime] = useState<number>(() =>
     getNextSessionEnd().getTime(),
   );
@@ -35,36 +39,78 @@ const FlashDealsSection = () => {
     Math.max(0, Math.floor((endTime - Date.now()) / 1000)),
   );
 
+  const [refreshTick, setRefreshTick] = useState(0);
+  const hasLoadedRef = useRef(false);
+
+  useEffect(() => {
+    const bump = () => setRefreshTick((tick) => tick + 1);
+    const timer = window.setInterval(bump, FLASH_DEAL_STOREFRONT_REFRESH_MS);
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") bump();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
-    getFlashDealsByTimeSlot({ limit: 12, status: "ongoing" })
+    // Only the initial fetch shows skeletons; later refreshes stay silent.
+    // This must not be a "first run" flag: StrictMode runs the effect twice and
+    // discards the first run, which would leave the skeletons up forever.
+    if (!hasLoadedRef.current) setLoading(true);
+
+    getFlashDealsByTimeSlot({ limit: 12, status: "all" })
       .then((res) => {
         if (cancelled) return;
-        const items = res.data.items ?? [];
+        const items = selectLiveFlashDeals(res.data.items);
         const slots = res.data.timeSlots ?? [];
         setDeals(items);
-        const activeSlot = slots.find((slot) => slot.isActive);
-        if (activeSlot) {
-          const ends = items
-            .filter((item) => item.slot === activeSlot.time)
-            .map((item) => {
-              const t = item.endAt ? new Date(item.endAt).getTime() : 0;
-              return Number.isFinite(t) && t > 0 ? t : 0;
-            })
-            .filter((t) => t > 0);
-          if (ends.length > 0) setEndTime(Math.max(...ends));
+
+        const now = Date.now();
+        const windows = items
+          .map((item) => ({
+            start: item.startAt ? new Date(item.startAt).getTime() : 0,
+            end: item.endAt ? new Date(item.endAt).getTime() : 0,
+          }))
+          .filter(
+            (window) =>
+              Number.isFinite(window.start) &&
+              Number.isFinite(window.end) &&
+              window.end > now,
+          );
+
+        const activeEnds = windows
+          .filter((window) => window.start <= now)
+          .map((window) => window.end);
+        if (activeEnds.length > 0) {
+          setCountdownLabel("Ends Soon");
+          setEndTime(Math.min(...activeEnds));
+          return;
+        }
+
+        const upcomingStarts = windows
+          .map((window) => window.start)
+          .filter((start) => start > now);
+        if (upcomingStarts.length > 0) {
+          setCountdownLabel("Starts In");
+          setEndTime(Math.min(...upcomingStarts));
         }
       })
       .catch(() => {
         if (!cancelled) setDeals([]);
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (cancelled) return;
+        hasLoadedRef.current = true;
+        setLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshTick]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -76,8 +122,6 @@ const FlashDealsSection = () => {
   const hours = Math.floor(timeLeft / 3600);
   const minutes = Math.floor((timeLeft % 3600) / 60);
   const seconds = timeLeft % 60;
-
-  const timerBlocks = [pad(hours), pad(minutes), pad(seconds)];
 
   const updateScrollAffordance = useCallback(() => {
     const el = scrollerRef.current;
@@ -106,7 +150,7 @@ const FlashDealsSection = () => {
       ro.disconnect();
       window.clearTimeout(t);
     };
-  }, [updateScrollAffordance]);
+  }, [updateScrollAffordance, deals.length, loading]);
 
   const scrollByStep = (direction: "left" | "right") => {
     const el = scrollerRef.current;
@@ -118,12 +162,14 @@ const FlashDealsSection = () => {
     });
   };
 
+  if (!loading && deals.length === 0) return null;
+
   return (
     <section className="relative w-full border border-[var(--dni-cart-border)] bg-white">
       <div className="flex items-center gap-4 px-4 py-4 border-b border-[var(--dni-cart-border)]">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <div className="flex items-center gap-2 text-[var(--dni-primary)]">
-            <Flame className="h-7 w-7 fill-[var(--dni-primary)]" />
+            <Zap className="h-7 w-7 fill-[var(--dni-primary)]" aria-hidden />
             <span className="text-xl font-black uppercase tracking-tight">
               Flash
             </span>
@@ -132,23 +178,13 @@ const FlashDealsSection = () => {
             </span>
           </div>
 
-          <div className="flex items-center gap-2 ml-4 border-l border-[var(--dni-cart-border)] pl-4">
-            <div className="flex items-center gap-1.5">
-              {timerBlocks.map((block, idx) => (
-                <div key={idx} className="flex items-center gap-1">
-                  <span className="relative flex h-10 min-w-[36px] items-center justify-center overflow-hidden bg-[var(--dni-primary)] px-2 text-sm font-bold text-white font-mono shadow-inner">
-                    <span className="absolute inset-x-0 top-0 h-1/2 border-b border-white/10 bg-[var(--dni-primary)]" />
-                    <span className="relative">{block}</span>
-                  </span>
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                    {[":", ":", ":"][idx]}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <span className="ml-1 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
-              Ends Soon
-            </span>
+          <div className="ml-2 border-l border-[var(--dni-cart-border)] pl-4">
+            <FlashDealCountdown
+              hours={hours}
+              minutes={minutes}
+              seconds={seconds}
+              label={countdownLabel}
+            />
           </div>
         </div>
 
@@ -185,8 +221,8 @@ const FlashDealsSection = () => {
               ? Array.from({ length: 6 }).map((_, idx) => (
                   <div
                     key={`skeleton-${idx}`}
-                    className="shrink-0"
-                    style={{ width: `${CARD_WIDTH_PX}px` }}
+                    className="min-w-0 shrink-0"
+                    style={{ width: CARD_WIDTH_PX, maxWidth: CARD_WIDTH_PX }}
                   >
                     <div className="flex flex-col overflow-hidden border border-[var(--dni-cart-border)] bg-white">
                       <div className="aspect-square animate-pulse bg-[#f0f0f0]" />
@@ -198,29 +234,15 @@ const FlashDealsSection = () => {
                     </div>
                   </div>
                 ))
-              : deals.length === 0 ? (
+              : deals.map((deal) => (
                   <div
-                    className="shrink-0"
-                    style={{ width: `${CARD_WIDTH_PX}px` }}
+                    key={deal.id}
+                    className="min-w-0 shrink-0"
+                    style={{ width: CARD_WIDTH_PX, maxWidth: CARD_WIDTH_PX }}
                   >
-                    <div className="flex h-full min-h-[220px] flex-col items-center justify-center gap-2 border border-[var(--dni-cart-border)] bg-white px-4 text-center">
-                      <Flame className="h-8 w-8 fill-[var(--dni-primary-50)] text-[var(--dni-primary)]" />
-                      <p className="text-sm font-medium text-slate-500">
-                        No flash deals right now
-                      </p>
-                    </div>
+                    <FlashDealCard deal={deal} />
                   </div>
-                ) : (
-                  deals.map((deal) => (
-                    <div
-                      key={deal.id}
-                      className="shrink-0"
-                      style={{ width: `${CARD_WIDTH_PX}px` }}
-                    >
-                      <FlashDealCard deal={deal} />
-                    </div>
-                  ))
-                )}
+                ))}
           </div>
         </div>
         {canScrollRight && (

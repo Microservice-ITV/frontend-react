@@ -4,12 +4,15 @@ import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
 import { fetchSellerOrdersByShop } from '../store'
 import {
+  fetchCustomerAvatars,
   fetchOrdersAcrossOwnedShops,
   sellerOrderApi,
   type SellerOrder,
   type SellerOrderItem,
   type PaymentAllocation,
 } from '../api/sellerOrderApi'
+import CustomerAvatar from '../components/CustomerAvatar'
+import OrderProductImage from '@/features/account/components/OrderProductImage'
 import { Truck, MapPin, Package, CreditCard, Mail, Store, Tag } from 'lucide-react'
 import PaymentAllocationCard from '../components/PaymentAllocationCard'
 
@@ -60,16 +63,13 @@ function getStepIndex(status: string): number {
   return -1
 }
 
-const formatMoney = (value: number, currency: string): string => {
-  try {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency || 'USD',
-      minimumFractionDigits: 2,
-    }).format(Number(value || 0))
-  } catch {
-    return `${currency} ${Number(value || 0).toFixed(2)}`
-  }
+const formatMoney = (value: number, _currency?: string): string => {
+  const amount = Number(value)
+  const safe = Number.isFinite(amount) ? amount : 0
+  return `Ks ${safe.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`
 }
 
 const formatDate = (value?: string | null): string => {
@@ -99,6 +99,7 @@ const SellerOrderDetailPage = () => {
   const [order, setOrder] = useState<SellerOrder | null>(null)
   const [shopNames, setShopNames] = useState<Record<string, string>>({})
   const [allocations, setAllocations] = useState<PaymentAllocation[]>([])
+  const [customerAvatar, setCustomerAvatar] = useState<string | null>(null)
 
   // Payment allocation (payout split) restricted to this seller's shops.
   useEffect(() => {
@@ -120,6 +121,25 @@ const SellerOrderDetailPage = () => {
       cancelled = true
     }
   }, [order])
+
+  useEffect(() => {
+    const customerId = order?.customerId
+    if (!customerId) {
+      setCustomerAvatar(null)
+      return
+    }
+    let cancelled = false
+    void fetchCustomerAvatars([customerId])
+      .then((avatars) => {
+        if (!cancelled) setCustomerAvatar(avatars[customerId] ?? null)
+      })
+      .catch(() => {
+        if (!cancelled) setCustomerAvatar(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [order?.customerId])
 
   // Resolve shop display names (every shop owned by this seller).
   useEffect(() => {
@@ -525,17 +545,11 @@ const SellerOrderDetailPage = () => {
                               key={`${item.shopId}-${item.productId}-${item.sku}`}
                               className="flex gap-3 py-3.5"
                             >
-                              {item.imageUrl ? (
-                                <img
-                                  src={item.imageUrl}
-                                  alt={item.name}
-                                  className="h-14 w-14 shrink-0 rounded-lg object-cover ring-1 ring-slate-100"
-                                />
-                              ) : (
-                                <div className="h-14 w-14 shrink-0 rounded-lg bg-slate-100 flex items-center justify-center">
-                                  <Package size={20} className="text-slate-400" />
-                                </div>
-                              )}
+                              <OrderProductImage
+                                imageUrl={item.imageUrl}
+                                alt={item.name}
+                                className="h-14 w-14"
+                              />
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-slate-900 truncate">{item.name}</p>
                                 <p className="text-xs text-slate-400 mt-0.5 truncate">SKU: {item.sku || '—'}</p>
@@ -745,7 +759,14 @@ const SellerOrderDetailPage = () => {
                     Delivery Address
                   </h2>
                   <div className="mt-4 text-sm text-slate-700 space-y-0.5">
-                    <p className="font-medium text-slate-900">{order.deliveryAddress.recipientName || '—'}</p>
+                    <div className="mb-2 flex items-center gap-2.5">
+                      <CustomerAvatar
+                        imageUrl={customerAvatar}
+                        alt={order.deliveryAddress.recipientName || 'Customer'}
+                        className="h-10 w-10"
+                      />
+                      <p className="font-medium text-slate-900">{order.deliveryAddress.recipientName || '—'}</p>
+                    </div>
                     {order.deliveryAddress.recipientPhone && (
                       <p className="text-slate-500">{order.deliveryAddress.recipientPhone}</p>
                     )}
