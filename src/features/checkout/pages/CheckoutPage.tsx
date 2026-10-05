@@ -26,7 +26,7 @@ import { NewAddressModal } from '@/features/account/components/NewAddressModal'
 import type { UserAddress } from '@/features/account/types/addressTypes'
 import { clearShippingCalculate } from '@/features/shipping/store/shippingSlice'
 import { fetchCheckoutShippingCalculation } from '@/features/shipping/store/shippingThunks'
-import { hasConfirmedStock } from '../utils/checkoutStatus'
+import { hasConfirmedStock, isStockReadinessConfirmed } from '../utils/checkoutStatus'
 
 type StoredCheckoutSession = {
     checkoutId: string
@@ -98,7 +98,10 @@ const CheckoutPage = () => {
     const stockReadinessKey = currentCheckout?.checkout_id
         ? `${currentCheckout.checkout_id}|${selectedItemsFingerprint}`
         : null
-    const isStockReady = hasConfirmedStock(paymentStatus) || stockConfirmedSessionKey === stockReadinessKey
+    const isStockReady = isStockReadinessConfirmed({
+        paymentStatus,
+        confirmedReadinessKey: stockConfirmedSessionKey,
+    })
 
     const refreshAddresses = useCallback(async () => {
         if (!authUser?.id) return

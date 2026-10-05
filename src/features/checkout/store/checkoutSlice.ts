@@ -193,35 +193,40 @@ const checkoutSlice = createSlice({
                 state.loading = false
                 state.error = action.payload ?? 'Failed to complete checkout'
             })
-            .addCase(fetchSagaStatus.pending, state => {
-                state.loading = true
+            // Read-only saga polls must NOT touch `loading`. That flag means
+            // "a checkout session is being created", and real user actions depend on
+            // it: CheckoutPage holds back checkoutCart() while it is set, and
+            // GuestCheckoutPage disables its Continue button. Toggling it every 5s
+            // from a background poll made that button flicker on/off, and because
+            // `loading` is a dependency of the checkout-status polling effect in
+            // CheckoutGatePage, each saga tick also tore that poller down and
+            // skipped a cycle of its refresh.
+            .addCase(fetchSagaStatus.pending, () => {
+                // no-op: a status poll is not checkout-loading state
             })
             .addCase(fetchSagaStatus.fulfilled, (state, action) => {
-                state.loading = false
                 state.sagaStatus = action.payload
             })
-            .addCase(fetchSagaStatus.rejected, (state) => {
-                state.loading = false
+            .addCase(fetchSagaStatus.rejected, () => {
+                // no-op: a failed status poll is not checkout-loading state
             })
-            .addCase(fetchSagaStatusByCheckout.pending, state => {
-                state.loading = true
+            .addCase(fetchSagaStatusByCheckout.pending, () => {
+                // no-op: a status poll is not checkout-loading state
             })
             .addCase(fetchSagaStatusByCheckout.fulfilled, (state, action) => {
-                state.loading = false
                 state.sagaStatus = action.payload
             })
-            .addCase(fetchSagaStatusByCheckout.rejected, (state) => {
-                state.loading = false
+            .addCase(fetchSagaStatusByCheckout.rejected, () => {
+                // no-op: a failed status poll is not checkout-loading state
             })
-            .addCase(fetchSagaStatistics.pending, state => {
-                state.loading = true
+            .addCase(fetchSagaStatistics.pending, () => {
+                // no-op: a statistics read is not checkout-loading state
             })
             .addCase(fetchSagaStatistics.fulfilled, (state, action) => {
-                state.loading = false
                 state.sagaStatistics = action.payload
             })
-            .addCase(fetchSagaStatistics.rejected, (state) => {
-                state.loading = false
+            .addCase(fetchSagaStatistics.rejected, () => {
+                // no-op: a failed statistics read is not checkout-loading state
             })
     },
 })
