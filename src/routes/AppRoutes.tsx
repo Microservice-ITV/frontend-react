@@ -126,6 +126,7 @@ import EditFlashDealPage from "@/features/flash-deals/pages/EditFlashDealPage";
 import SellerFinanceOverviewPage from "@/features/finance/pages/SellerFinanceOverviewPage";
 import SellerFinanceTransactionsPage from "@/features/finance/pages/SellerFinanceTransactionsPage";
 import SellerAccountingOverviewPage from "@/features/accounting/pages/SellerAccountingOverviewPage";
+import SellerProfitLossPage from "@/features/accounting/pages/SellerProfitLossPage";
 import SellerExpenseFormPage from "@/features/accounting/pages/SellerExpenseFormPage";
 import SellerExpensesPage from "@/features/accounting/pages/SellerExpensesPage";
 import SellerPendingApprovalsPage from "@/features/accounting/pages/SellerPendingApprovalsPage";
@@ -534,7 +535,7 @@ const AppRoutes = () => {
             />
             <Route
               path="accounting"
-              element={<Navigate to="overview" replace />}
+              element={<Navigate to="/seller/accounting/overview" replace />}
             />
             <Route
               path="accounting/overview"
@@ -543,6 +544,16 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.sellerAccounting}
                 >
                   <SellerAccountingOverviewPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/profit-loss"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerAccounting}
+                >
+                  <SellerProfitLossPage />
                 </ProtectedRoute>
               }
             />
@@ -744,6 +755,18 @@ const AppRoutes = () => {
                 </ProtectedRoute>
               }
             />
+            {/*
+            <Route
+              path="orders"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminOrders}
+                >
+                  <AdminOrderApprovalsPage />
+                </ProtectedRoute>
+              }
+            />
+            */}
             <Route
               path="shops"
               element={
