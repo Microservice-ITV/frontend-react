@@ -22,6 +22,7 @@ import type { CartItem } from '@/features/cart/types/cartTypes'
 import type { CheckoutShopShippingPayload } from '../api/checkoutApi'
 import type { CheckoutStatusResponse } from '../types/checkoutTypes'
 import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
+import { getDeliveryBlockReason } from '../utils/deliveryReadiness'
 
 let activeCartTaxRequest = 0
 
@@ -370,6 +371,9 @@ const CheckoutSummary = ({
       return
     }
 
+    // Runtime guard. `canPlaceOrder` disables the button for durable faults, but a
+    // click can still land while the quote is idle/loading (those states are not
+    // treated as faults), so keep catching them here.
     if (shippingCalculateStatus !== 'succeeded' || totalShippingFee == null) {
       dispatch(
         setCheckoutError(
@@ -377,6 +381,12 @@ const CheckoutSummary = ({
             'Delivery fee is not ready yet. Please wait for it to calculate, or check your delivery address.',
         ),
       )
+      return
+    }
+
+    // Service down, no usable fee, or a shop that cannot deliver to this address.
+    if (deliveryBlockReason) {
+      dispatch(setCheckoutError(deliveryBlockReason))
       return
     }
 
@@ -533,8 +543,27 @@ const CheckoutSummary = ({
 
   const effectivePaymentMethod = sessionPaymentMethod ?? paymentMethod
   const isPrepaid = effectivePaymentMethod === 'prepaid'
+
+  const deliveryFees = Object.values(feesByShopId)
+  const anyNotDeliverable = deliveryFees.some((fee) => fee.deliveryStatus === 'NOT_DELIVERABLE')
+
+  // An order must not be submittable when the delivery fee is genuinely unavailable
+  // (service down, no usable fee, or a shop that cannot deliver here). Previously
+  // the button stayed enabled in those states and handlePlaceOrder rejected the
+  // click afterwards, so the user got a dead button plus an error banner instead
+  // of an honest disabled button. A quote that is merely still loading is NOT
+  // treated as a fault — see getDeliveryBlockReason.
+  const deliveryBlockReason = getDeliveryBlockReason({
+    hasDeliveryAddress,
+    calculateStatus: shippingCalculateStatus,
+    totalShippingFee,
+    calculateError: shippingCalculateError,
+    deliveryStatuses: deliveryFees.map((fee) => fee.deliveryStatus),
+  })
+
   const canPlaceOrder =
     !!clientSecret &&
+    deliveryBlockReason === null &&
     !isPlacingOrder &&
     !isAwaitingFinalStatus &&
     !isTerminal &&
@@ -574,6 +603,9 @@ const CheckoutSummary = ({
         ? 'Waiting for payment confirmation...'
         : 'Confirming your Cash on Delivery order...'
     }
+    if (deliveryBlockReason) {
+      return deliveryBlockReason
+    }
     if (clientSecret) {
       return isPrepaid
         ? 'Payment ready. You can place your order.'
@@ -588,8 +620,6 @@ const CheckoutSummary = ({
     shippingDiscount,
     totalPayment,
   } = checkout
-  const deliveryFees = Object.values(feesByShopId)
-  const anyNotDeliverable = deliveryFees.some((fee) => fee.deliveryStatus === 'NOT_DELIVERABLE')
   const deliveryPriceText = (() => {
     if (!hasDeliveryAddress) return 'Add address'
     if (shippingCalculateStatus === 'loading') return 'Calculating…'

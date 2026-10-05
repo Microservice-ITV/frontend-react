@@ -21,7 +21,7 @@ import { fetchCheckoutStatus, fetchSagaStatus } from '../store/checkoutThunks'
 import { fetchCheckoutShippingCalculation } from '@/features/shipping/store/shippingThunks'
 import { clearShippingCalculate } from '@/features/shipping/store/shippingSlice'
 import { clearCheckout, setCurrentCheckout } from '../store/checkoutSlice'
-import { hasConfirmedStock } from '../utils/checkoutStatus'
+import { hasConfirmedStock, isStockReadinessConfirmed } from '../utils/checkoutStatus'
 
 const AuthCheckout = () => {
   const items = useAppSelector(selectSelectedItems)
@@ -175,7 +175,10 @@ const GuestCheckoutPayment = () => {
   const stockReadinessKey = currentCheckout?.checkout_id
     ? `${currentCheckout.checkout_id}|${currentCartKey}`
     : null
-  const isStockReady = hasConfirmedStock(paymentStatus) || stockConfirmedSessionKey === stockReadinessKey
+  const isStockReady = isStockReadinessConfirmed({
+    paymentStatus,
+    confirmedReadinessKey: stockConfirmedSessionKey,
+  })
 
   useEffect(() => {
     if (stockReadinessKey && hasConfirmedStock(paymentStatus)) {
