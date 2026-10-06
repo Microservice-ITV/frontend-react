@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { fetchHomeQuickActions } from '../store/homeThunks'
+import { isRequestSettled, useReportHomeSection } from '../homeScreenReady'
 import type { HomeFeature } from '../store/homeTypes'
 
 const DESKTOP_PAGE_SIZE = 5
@@ -19,6 +20,7 @@ const HomeQuickActions = () => {
   const dispatch = useAppDispatch()
   const { items, status, error } = useAppSelector((s) => s.homeQuickActions)
   const [page, setPage] = useState(0)
+  useReportHomeSection('quickActions', isRequestSettled(status))
 
   useEffect(() => {
     if (status === 'idle') {

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useReportHomeSection } from "@/features/home/homeScreenReady";
 import { heroBannerApi } from "@/features/heroBanners/api/heroBannerApi";
 import { promoCardApi } from "@/features/promoCards/api/promoCardApi";
 import { ChevronLeft, ChevronRight, ImageIcon } from "lucide-react";
@@ -39,6 +40,7 @@ const HomeBanner = () => {
   const [heroBanners, setHeroBanners] = useState<HeroBanner[]>([]);
   const [sideBanners, setSideBanners] = useState<PromoCard[]>([]);
   const [loading, setLoading] = useState(true);
+  useReportHomeSection("banner", !loading);
 
   useEffect(() => {
     const fetchBanners = async () => {
