@@ -475,6 +475,8 @@ const SellerRegisterPage = () => {
                     const originLng = toFiniteNumberOrNull(pickupAddr?.longitude)
                     const cityId =
                         pickupAddr?.city_id != null ? String(pickupAddr.city_id) : null
+                    const districtId =
+                        pickupAddr?.district_id != null ? String(pickupAddr.district_id) : null
 
                     const taxBlock =
                         tax.notes.trim().length > 0
@@ -489,6 +491,7 @@ const SellerRegisterPage = () => {
                         shop = await createSellerShopWithResilientSlug(shopInfo.shopName.trim(), {
                                     userName: user.name?.trim() || user.email,
                                     cityId,
+                                    districtId,
                                     originAddress: shopInfo.pickupAddress.trim() || null,
                                     originLat,
                                     originLng,

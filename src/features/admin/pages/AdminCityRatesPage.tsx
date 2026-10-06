@@ -4,13 +4,14 @@ import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { useGlobalModal } from "@/components/ui/GlobalModalProvider";
 import DataTablePagination from "@/components/ui/DataTablePagination";
 import RowActionMenu from "@/components/ui/RowActionMenu";
-import { Plus, RefreshCw, Pencil, Trash2, Route, Ban, CheckCircle2, Search } from "lucide-react";
+import { Plus, RefreshCw, Pencil, Trash2, Route, Ban, CheckCircle2 } from "lucide-react";
 import type {
   AdminDeliveryCityRateDto,
   DeliveryCityRateStatus,
 } from "../api/adminShippingApi";
 import { adminShippingApi } from "../api/adminShippingApi";
-import { loadAllCities, type CityOptionWithState } from "../api/locationOptions";
+import { loadAllDistricts, type DistrictOptionWithCity } from "../api/locationOptions";
+import CitySelectField from "../components/CitySelectField";
 import {
   deleteAdminDeliveryCityRate,
   fetchAdminDeliveryCityRates,
@@ -47,15 +48,15 @@ const AdminCityRatesPage = () => {
   const status = useAppSelector(selectAdminDeliveryCityRatesStatus);
   const error = useAppSelector(selectAdminDeliveryCityRatesError);
   const mutationError = useAppSelector(selectAdminDeliveryCityRatesMutationError);
-  const [cities, setCities] = useState<CityOptionWithState[]>([]);
-  const [fromCityFilter, setFromCityFilter] = useState("");
-  const [toCityFilter, setToCityFilter] = useState("");
+  const [districts, setDistricts] = useState<DistrictOptionWithCity[]>([]);
+  const [fromDistrictFilter, setFromDistrictFilter] = useState("");
+  const [toDistrictFilter, setToDistrictFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<"" | DeliveryCityRateStatus>("");
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
   useEffect(() => {
-    void loadAllCities().then(setCities).catch(() => setCities([]));
+    void loadAllDistricts().then(setDistricts).catch(() => setDistricts([]));
   }, []);
 
   useEffect(() => {
@@ -63,15 +64,22 @@ const AdminCityRatesPage = () => {
       fetchAdminDeliveryCityRates({
         page,
         pageSize: rowsPerPage,
-        fromCityId: fromCityFilter || undefined,
-        toCityId: toCityFilter || undefined,
+        fromDistrictId: fromDistrictFilter || undefined,
+        toDistrictId: toDistrictFilter || undefined,
         status: statusFilter || undefined,
       }),
     );
-  }, [dispatch, page, rowsPerPage, fromCityFilter, toCityFilter, statusFilter]);
+  }, [dispatch, page, rowsPerPage, fromDistrictFilter, toDistrictFilter, statusFilter]);
 
-  const cityName = (cityId: string): string =>
-    cities.find((city) => city.id === cityId)?.name ?? cityId;
+  const districtOptions = districts.map((district) => ({
+    id: district.id,
+    name: district.name,
+    stateId: 0,
+    stateName: district.cityName,
+  }));
+
+  const districtName = (districtId: string): string =>
+    districtOptions.find((district) => district.id === districtId)?.name ?? districtId;
 
   const totalPages = Math.max(1, Math.ceil(total / rowsPerPage));
 
@@ -80,8 +88,8 @@ const AdminCityRatesPage = () => {
       fetchAdminDeliveryCityRates({
         page,
         pageSize: rowsPerPage,
-        fromCityId: fromCityFilter || undefined,
-        toCityId: toCityFilter || undefined,
+        fromDistrictId: fromDistrictFilter || undefined,
+        toDistrictId: toDistrictFilter || undefined,
         status: statusFilter || undefined,
       }),
     );
@@ -110,8 +118,8 @@ const AdminCityRatesPage = () => {
       title: "Delete this route rate?",
       content: (
         <p>
-          This permanently removes the route rate for {cityName(rate.fromCityId)} →{" "}
-          {cityName(rate.toCityId)} ({formatMoney(rate.amount, rate.currency)}).
+          This permanently removes the route rate for {districtName(rate.fromDistrictId)} →{" "}
+          {districtName(rate.toDistrictId)} ({formatMoney(rate.amount, rate.currency)}).
         </p>
       ),
       primaryLabel: "Delete",
@@ -138,28 +146,16 @@ const AdminCityRatesPage = () => {
         <div>
           <h1 className="text-xl font-bold text-slate-900">Route Rates</h1>
           <p className="mt-0.5 text-sm text-slate-600">
-            Delivery fees between cities (from → to) used for route-based pricing.
+            Delivery fees between districts (from → to) used for route-based pricing.
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <button
-            type="button"
-            onClick={refresh}
-            disabled={status === "loading"}
-            title="Refresh"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60 cursor-pointer"
-          >
-            <RefreshCw size={16} className={status === "loading" ? "animate-spin" : ""} />
-            Refresh
-          </button>
-          <Link
+        <Link
             to="/super-admin/shipping/city-rates/new"
             className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
           >
             <Plus size={18} />
             New route rate
           </Link>
-        </div>
       </div>
 
       {mutationError && (
@@ -168,46 +164,34 @@ const AdminCityRatesPage = () => {
         </p>
       )}
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-        <div className="relative w-full lg:w-56">
-          <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <select
-            value={fromCityFilter}
-            onChange={(e) => {
-              setFromCityFilter(e.target.value);
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+        <div className="w-full sm:w-56">
+          <CitySelectField
+            id="route-rates-from-district"
+            label="From district"
+            value={fromDistrictFilter}
+            cities={districtOptions}
+            onChange={(districtId) => {
+              setFromDistrictFilter(districtId);
               setPage(1);
             }}
-            className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-700 outline-none focus:border-emerald-500"
-          >
-            <option value="">All from cities</option>
-            {[...new Map(cities.map((city) => [city.id, city])).values()]
-              .sort((a, b) => a.name.localeCompare(b.name))
-              .map((city) => (
-                <option key={city.id} value={city.id}>
-                  {city.name}
-                </option>
-              ))}
-          </select>
+            placeholder="Search from district"
+            clearLabel="All from districts"
+          />
         </div>
-        <div className="relative w-full lg:w-56">
-          <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <select
-            value={toCityFilter}
-            onChange={(e) => {
-              setToCityFilter(e.target.value);
+        <div className="w-full sm:w-56">
+          <CitySelectField
+            id="route-rates-to-district"
+            label="To district"
+            value={toDistrictFilter}
+            cities={districtOptions}
+            onChange={(districtId) => {
+              setToDistrictFilter(districtId);
               setPage(1);
             }}
-            className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-700 outline-none focus:border-emerald-500"
-          >
-            <option value="">All to cities</option>
-            {[...new Map(cities.map((city) => [city.id, city])).values()]
-              .sort((a, b) => a.name.localeCompare(b.name))
-              .map((city) => (
-                <option key={city.id} value={city.id}>
-                  {city.name}
-                </option>
-              ))}
-          </select>
+            placeholder="Search to district"
+            clearLabel="All to districts"
+          />
         </div>
         <select
           value={statusFilter}
@@ -215,7 +199,7 @@ const AdminCityRatesPage = () => {
             setStatusFilter(e.target.value as "" | DeliveryCityRateStatus);
             setPage(1);
           }}
-          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-emerald-500 lg:w-40"
+          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-emerald-500 sm:w-40"
         >
           <option value="">All statuses</option>
           <option value="ACTIVE">Active</option>
@@ -270,7 +254,7 @@ const AdminCityRatesPage = () => {
                     </div>
                     <p className="mt-3 text-sm font-medium text-slate-700">No route rates yet</p>
                     <p className="mt-1 text-xs text-slate-500">
-                      Add a route rate between two cities to start charging by route.
+                      Add a route rate between two districts to start charging by route.
                     </p>
                     <Link
                       to="/super-admin/shipping/city-rates/new"
@@ -296,7 +280,7 @@ const AdminCityRatesPage = () => {
                         </div>
                         <div>
                           <p className="text-xs font-semibold text-slate-900">
-                            {cityName(rate.fromCityId)} → {cityName(rate.toCityId)}
+                            {districtName(rate.fromDistrictId)} → {districtName(rate.toDistrictId)}
                           </p>
                           <p className="text-xs text-slate-500">{rate.currency}</p>
                         </div>

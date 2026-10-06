@@ -8,7 +8,7 @@ import {
   type DeliveryQuoteDto,
   type DeliveryQuoteStatus,
 } from '../api/adminShippingApi'
-import { loadAllCities, type CityOptionWithState } from '../api/locationOptions'
+import { loadAllDistricts, type DistrictOptionWithCity } from '../api/locationOptions'
 import { cancelAdminDeliveryQuote } from '../store/adminDeliveryQuotesThunks'
 
 const statusBadgeClass = (status: DeliveryQuoteStatus): string => {
@@ -60,15 +60,16 @@ const AdminDeliveryQuoteDetailPage = () => {
   const [loadError, setLoadError] = useState('')
   const [quote, setQuote] = useState<DeliveryQuoteDto | null>(null)
   const [actionError, setActionError] = useState('')
-  const [cities, setCities] = useState<CityOptionWithState[]>([])
+  const [districts, setDistricts] = useState<DistrictOptionWithCity[]>([])
 
   useEffect(() => {
-    void loadAllCities().then(setCities).catch(() => setCities([]))
+    void loadAllDistricts().then(setDistricts).catch(() => setDistricts([]))
   }, [])
 
-  const cityName = (cityId: string | null): string => {
-    if (!cityId) return '—'
-    return cities.find((city) => city.id === cityId)?.name ?? cityId
+  const districtName = (districtId: string | null): string => {
+    if (!districtId) return '—'
+    const district = districts.find((row) => row.id === districtId)
+    return district ? `${district.name}, ${district.cityName}` : districtId
   }
 
   const load = async () => {
@@ -238,8 +239,8 @@ const AdminDeliveryQuoteDetailPage = () => {
                 {quote.calculationMethod === 'CITY_ROUTE' ? (
                   <>
                     <DetailRow label="Method" value="City route" />
-                    <DetailRow label="From city" value={cityName(quote.fromCityId)} />
-                    <DetailRow label="To city" value={cityName(quote.toCityId)} />
+                    <DetailRow label="From district" value={districtName(quote.fromDistrictId)} />
+                    <DetailRow label="To district" value={districtName(quote.toDistrictId)} />
                   </>
                 ) : (
                   <>

@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { adminShippingApi, type AdminDeliveryCityRateDto } from "../api/adminShippingApi";
-import { loadAllCities, type CityOptionWithState } from "../api/locationOptions";
+import { loadAllDistricts, type DistrictOptionWithCity } from "../api/locationOptions";
 import CitySelectField from "../components/CitySelectField";
 
 type AdminCityRateFormPageProps = {
@@ -28,7 +28,7 @@ const AdminCityRateFormPage = ({ mode }: AdminCityRateFormPageProps) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const [cities, setCities] = useState<CityOptionWithState[]>([]);
+  const [districts, setDistricts] = useState<DistrictOptionWithCity[]>([]);
   const [citiesLoading, setCitiesLoading] = useState(true);
 
   const [loading, setLoading] = useState(mode === "edit");
@@ -36,17 +36,17 @@ const AdminCityRateFormPage = ({ mode }: AdminCityRateFormPageProps) => {
   const [submitError, setSubmitError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [fromCityId, setFromCityId] = useState("");
-  const [toCityId, setToCityId] = useState("");
+  const [fromDistrictId, setFromDistrictId] = useState("");
+  const [toDistrictId, setToDistrictId] = useState("");
   const [amount, setAmount] = useState("1000");
   const [currency, setCurrency] = useState("MMK");
   const [effectiveFrom, setEffectiveFrom] = useState(toDateTimeLocal(new Date().toISOString()));
   const [effectiveUntil, setEffectiveUntil] = useState("");
 
   useEffect(() => {
-    void loadAllCities()
-      .then(setCities)
-      .catch(() => setCities([]))
+    void loadAllDistricts()
+      .then(setDistricts)
+      .catch(() => setDistricts([]))
       .finally(() => setCitiesLoading(false));
   }, []);
 
@@ -65,8 +65,8 @@ const AdminCityRateFormPage = ({ mode }: AdminCityRateFormPageProps) => {
           return;
         }
         if (cancelled) return;
-        setFromCityId(rate.fromCityId);
-        setToCityId(rate.toCityId);
+        setFromDistrictId(rate.fromDistrictId);
+        setToDistrictId(rate.toDistrictId);
         setAmount(String(rate.amount));
         setCurrency(rate.currency);
         setEffectiveFrom(toDateTimeLocal(rate.effectiveFrom));
@@ -87,9 +87,9 @@ const AdminCityRateFormPage = ({ mode }: AdminCityRateFormPageProps) => {
   }, [mode, id]);
 
   const validate = (): string | null => {
-    if (!fromCityId) return "From city is required.";
-    if (!toCityId) return "To city is required.";
-    if (fromCityId === toCityId) return "From and to cities must be different.";
+    if (!fromDistrictId) return "From district is required.";
+    if (!toDistrictId) return "To district is required.";
+    if (fromDistrictId === toDistrictId) return "From and to districts must be different.";
     const parsedAmount = Number(amount);
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       return "Amount must be greater than zero.";
@@ -129,8 +129,8 @@ const AdminCityRateFormPage = ({ mode }: AdminCityRateFormPageProps) => {
       } else {
         await adminShippingApi.createDeliveryCityRate({
           ...payload,
-          fromCityId,
-          toCityId,
+          fromDistrictId,
+          toDistrictId,
         });
       }
       navigate("/super-admin/shipping/city-rates");
@@ -160,7 +160,7 @@ const AdminCityRateFormPage = ({ mode }: AdminCityRateFormPageProps) => {
       {citiesLoading && mode === "create" && (
         <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
           <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
-          Loading cities...
+          Loading districts...
         </div>
       )}
 
@@ -207,7 +207,7 @@ const AdminCityRateFormPage = ({ mode }: AdminCityRateFormPageProps) => {
                 {mode === "create" ? "New route rate" : "Edit route rate"}
               </h1>
               <p className="mt-0.5 text-sm text-slate-600">
-                Flat delivery fee charged between a from-city and a to-city.
+                Flat delivery fee charged between a from-district and a to-district.
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -238,25 +238,35 @@ const AdminCityRateFormPage = ({ mode }: AdminCityRateFormPageProps) => {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <CitySelectField
                 id="city-rate-from"
-                label="From city"
-                value={fromCityId}
-                cities={cities}
-                onChange={setFromCityId}
+                label="From district"
+                value={fromDistrictId}
+                cities={districts.map((district) => ({
+                  id: district.id,
+                  name: district.name,
+                  stateId: 0,
+                  stateName: district.cityName,
+                }))}
+                onChange={setFromDistrictId}
                 disabled={mode === "edit"}
-                placeholder="Select from city"
+                placeholder="Select from district"
               />
               <CitySelectField
                 id="city-rate-to"
-                label="To city"
-                value={toCityId}
-                cities={cities}
-                onChange={setToCityId}
+                label="To district"
+                value={toDistrictId}
+                cities={districts.map((district) => ({
+                  id: district.id,
+                  name: district.name,
+                  stateId: 0,
+                  stateName: district.cityName,
+                }))}
+                onChange={setToDistrictId}
                 disabled={mode === "edit"}
-                placeholder="Select to city"
+                placeholder="Select to district"
               />
               {mode === "edit" && (
                 <p className="text-xs text-slate-400 sm:col-span-2">
-                  From and to cities cannot be changed after creation.
+                  From and to districts cannot be changed after creation.
                 </p>
               )}
 

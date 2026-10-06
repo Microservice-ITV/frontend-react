@@ -226,8 +226,7 @@ const AdminPricingRuleFormPage = ({ mode }: PricingRuleFormPageProps) => {
                 {mode === 'create' ? 'New pricing rule' : 'Edit pricing rule'}
               </h1>
               <p className="mt-0.5 text-sm text-slate-600">
-                Base settings for this rule. Manage its weight rate and distance ranges from their
-                own screens.
+                Base settings for this rule. Manage its weight rate from the weight rates screen.
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">

@@ -34,3 +34,35 @@ export async function loadAllCities(): Promise<CityOptionWithState[]> {
 
   return perState.flat();
 }
+
+export type DistrictOptionWithCity = {
+  id: string;
+  name: string;
+  cityId: string;
+  cityName: string;
+};
+
+/**
+ * Loads every district under every city. District ids are the auth `districts.id`
+ * stored as text on `delivery_city_rates.from_district_id` / `to_district_id`.
+ */
+export async function loadAllDistricts(): Promise<DistrictOptionWithCity[]> {
+  const cities = await loadAllCities();
+  const perCity = await Promise.all(
+    cities.map(async (city) => {
+      try {
+        const res = await locationApi.getDistricts(Number(city.id));
+        return (res.data?.data?.districts ?? []).map((district) => ({
+          id: String(district.id),
+          name: district.name,
+          cityId: city.id,
+          cityName: city.name,
+        }));
+      } catch {
+        return [];
+      }
+    }),
+  );
+
+  return perCity.flat();
+}

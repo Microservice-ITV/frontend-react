@@ -22,10 +22,10 @@ export type ShopCalculatedShipping = {
     currency?: string
     /** Admin shipping setting used for this quote. */
     calculationMethod?: ShippingCalculationMethod
-    /** Shop city id when calculationMethod is CITY_ROUTE. */
-    fromCityId?: string | null
-    /** Customer city id when calculationMethod is CITY_ROUTE. */
-    toCityId?: string | null
+    /** Shop district id when calculationMethod is CITY_ROUTE. */
+    fromDistrictId?: string | null
+    /** Customer district id when calculationMethod is CITY_ROUTE. */
+    toDistrictId?: string | null
     methodLabel?: string
     etaHint?: string
     /** Business days from shipping service calculate API */

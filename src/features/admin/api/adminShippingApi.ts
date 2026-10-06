@@ -112,8 +112,8 @@ export type DeliveryQuoteDto = {
   durationMinutes: number;
   /** Snapshot of how this quote was priced. */
   calculationMethod: ShippingCalculationMethod;
-  fromCityId: string | null;
-  toCityId: string | null;
+  fromDistrictId: string | null;
+  toDistrictId: string | null;
   cityRateId: string | null;
   actualWeightKg: number;
   volumetricWeightKg: number;
@@ -238,8 +238,8 @@ export type DeliveryCityRateStatus = "ACTIVE" | "INACTIVE";
 
 export type AdminDeliveryCityRateDto = {
   id: string;
-  fromCityId: string;
-  toCityId: string;
+  fromDistrictId: string;
+  toDistrictId: string;
   amount: number;
   currency: string;
   effectiveFrom: string;
@@ -250,8 +250,8 @@ export type AdminDeliveryCityRateDto = {
 };
 
 export type CreateDeliveryCityRatePayload = {
-  fromCityId: string;
-  toCityId: string;
+  fromDistrictId: string;
+  toDistrictId: string;
   amount: number;
   currency: string;
   effectiveFrom: string;
@@ -259,7 +259,7 @@ export type CreateDeliveryCityRatePayload = {
 };
 
 export type UpdateDeliveryCityRatePayload = Partial<
-  Omit<CreateDeliveryCityRatePayload, "fromCityId" | "toCityId">
+  Omit<CreateDeliveryCityRatePayload, "fromDistrictId" | "toDistrictId">
 >;
 
 export type DeliveryCityRateListData = {
@@ -273,8 +273,8 @@ export type ListDeliveryCityRatesParams = {
   page?: number;
   pageSize?: number;
   status?: DeliveryCityRateStatus;
-  fromCityId?: string;
-  toCityId?: string;
+  fromDistrictId?: string;
+  toDistrictId?: string;
 };
 
 export type ShippingSettingsDto = {
@@ -417,6 +417,12 @@ export const adminShippingApi = {
     id: string,
   ): Promise<AxiosResponse<ApiEnvelope<DeliveryQuoteDto>>> {
     return shippingClient.post(`/admin/quotes/${id}/cancel`);
+  },
+
+  deleteDeliveryQuote(
+    id: string,
+  ): Promise<AxiosResponse<ApiEnvelope<{ deleted: boolean; id: string }>>> {
+    return shippingClient.delete(`/admin/quotes/${id}`);
   },
 
   listDeliveryCityRates(
