@@ -6,6 +6,8 @@ export interface Product {
   price: number
   images: string[]
   categoryId: string
+  /** Catalog list includes the owning shop id. Name is loaded from the product when adding to cart. */
+  shopId?: string
   tags?: string[]
 }
 
@@ -32,6 +34,18 @@ export interface ProductVariant {
   sizeCode: string
   /** Indices into `ProductDetail.images` for this SKU’s gallery */
   imageIndexes?: number[]
+}
+
+/** Live flash-deal row from ecommerce-read, keyed by product (and optional variant). */
+export interface ProductFlashDeal {
+  flashDealId: string
+  flashDealItemId: string
+  variantId: string | null
+  dealPrice: number
+  originalPrice: number
+  discount: number
+  startAt: string
+  endAt: string
 }
 
 // Product used in DETAILS page
@@ -69,6 +83,8 @@ export interface ProductDetail {
   primaryVariantId: string | null
   variants: ProductVariant[]
   tags?: string[]
+  /** Empty when this product is not in a live flash deal. */
+  flashDeals?: ProductFlashDeal[]
 }
 
 // Redux state

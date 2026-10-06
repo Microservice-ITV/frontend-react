@@ -32,14 +32,14 @@ const AccountLayout = () => {
           </div>
         )}
 
-        <div className="flex flex-col md:flex-row md:gap-4">
-          {/* Desktop sidebar */}
-          <div className="hidden md:block md:w-64 md:shrink-0">
+        <div className="flex flex-col md:flex-row md:items-start md:gap-4">
+          {/* Desktop sidebar stays in view while the order page scrolls */}
+          <div className="hidden md:sticky md:top-45 md:z-20 md:block md:w-64 md:shrink-0 md:self-start">
             <AccountSidebar />
           </div>
 
           {/* Right: content */}
-          <section className="flex-1 bg-white rounded-sm border border-gray-200 shadow-sm">
+          <section className="min-w-0 flex-1 bg-white rounded-sm border border-gray-200 shadow-sm">
             <Outlet />
           </section>
         </div>

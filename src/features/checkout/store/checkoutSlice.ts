@@ -7,6 +7,8 @@ import type {
 } from '../types/checkoutTypes'
 import type { SagaStatusResponse } from '../types/sagaTypes'
 
+import type { CheckoutLineTax } from '../api/checkoutApi'
+
 export type PaymentMethod = 'prepaid' | 'cod'
 
 interface CheckoutState {
@@ -21,6 +23,7 @@ interface CheckoutState {
     isAwaitingFinalStatus: boolean
     paymentMethod: PaymentMethod
     sessionPaymentMethod: PaymentMethod | null
+    itemTaxes: CheckoutLineTax[]
     loading: boolean
     error: string | null
 }
@@ -35,8 +38,9 @@ const initialState: CheckoutState = {
     clientSecret: null,
     isPlacingOrder: false,
     isAwaitingFinalStatus: false,
-    paymentMethod: 'prepaid',
+    paymentMethod: 'cod',
     sessionPaymentMethod: null,
+    itemTaxes: [],
     loading: false,
     error: null,
 }
@@ -57,12 +61,18 @@ const checkoutSlice = createSlice({
             state.paymentStatus = null
             state.clientSecret = null
             state.error = null
+            state.loading = false
             state.isPlacingOrder = false
             state.isAwaitingFinalStatus = false
             state.sessionPaymentMethod = null
+            state.itemTaxes = []
         },
         setPaymentMethod(state, action: { payload: PaymentMethod }) {
             state.paymentMethod = action.payload
+            state.sessionPaymentMethod = action.payload
+        },
+        setItemTaxes(state, action: { payload: CheckoutLineTax[] }) {
+            state.itemTaxes = action.payload
         },
         setCheckoutPlacingOrder(state, action: { payload: boolean }) {
             state.isPlacingOrder = action.payload
@@ -146,11 +156,11 @@ const checkoutSlice = createSlice({
                 state.loading = false
                 state.error = action.payload ?? 'Checkout failed'
             })
-            .addCase(fetchCheckoutStatus.pending, state => {
-                state.loading = true
+            .addCase(fetchCheckoutStatus.pending, () => {
+                // Polling must not set loading. That flag blocks a payment-method
+                // change and was snapping Cash on Delivery back to Prepaid.
             })
             .addCase(fetchCheckoutStatus.fulfilled, (state, action) => {
-                state.loading = false
                 state.currentStatus = action.payload
                 state.paymentStatus = action.payload.status
                 const secret = action.payload.client_secret ?? action.payload.payment?.client_secret
@@ -159,7 +169,7 @@ const checkoutSlice = createSlice({
                 }
                 if (typeof action.payload.payment_method === 'string') {
                     const pm = action.payload.payment_method as PaymentMethod
-                    if (pm === 'prepaid' || pm === 'cod') {
+                    if ((pm === 'prepaid' || pm === 'cod') && state.sessionPaymentMethod == null) {
                         state.sessionPaymentMethod = pm
                         state.paymentMethod = pm
                     }
@@ -169,7 +179,6 @@ const checkoutSlice = createSlice({
                 }
             })
             .addCase(fetchCheckoutStatus.rejected, (state, action) => {
-                state.loading = false
                 state.error = action.payload ?? 'Failed to fetch checkout status'
             })
             .addCase(completeCheckout.pending, state => {
@@ -184,35 +193,40 @@ const checkoutSlice = createSlice({
                 state.loading = false
                 state.error = action.payload ?? 'Failed to complete checkout'
             })
-            .addCase(fetchSagaStatus.pending, state => {
-                state.loading = true
+            // Read-only saga polls must NOT touch `loading`. That flag means
+            // "a checkout session is being created", and real user actions depend on
+            // it: CheckoutPage holds back checkoutCart() while it is set, and
+            // GuestCheckoutPage disables its Continue button. Toggling it every 5s
+            // from a background poll made that button flicker on/off, and because
+            // `loading` is a dependency of the checkout-status polling effect in
+            // CheckoutGatePage, each saga tick also tore that poller down and
+            // skipped a cycle of its refresh.
+            .addCase(fetchSagaStatus.pending, () => {
+                // no-op: a status poll is not checkout-loading state
             })
             .addCase(fetchSagaStatus.fulfilled, (state, action) => {
-                state.loading = false
                 state.sagaStatus = action.payload
             })
-            .addCase(fetchSagaStatus.rejected, (state) => {
-                state.loading = false
+            .addCase(fetchSagaStatus.rejected, () => {
+                // no-op: a failed status poll is not checkout-loading state
             })
-            .addCase(fetchSagaStatusByCheckout.pending, state => {
-                state.loading = true
+            .addCase(fetchSagaStatusByCheckout.pending, () => {
+                // no-op: a status poll is not checkout-loading state
             })
             .addCase(fetchSagaStatusByCheckout.fulfilled, (state, action) => {
-                state.loading = false
                 state.sagaStatus = action.payload
             })
-            .addCase(fetchSagaStatusByCheckout.rejected, (state) => {
-                state.loading = false
+            .addCase(fetchSagaStatusByCheckout.rejected, () => {
+                // no-op: a failed status poll is not checkout-loading state
             })
-            .addCase(fetchSagaStatistics.pending, state => {
-                state.loading = true
+            .addCase(fetchSagaStatistics.pending, () => {
+                // no-op: a statistics read is not checkout-loading state
             })
             .addCase(fetchSagaStatistics.fulfilled, (state, action) => {
-                state.loading = false
                 state.sagaStatistics = action.payload
             })
-            .addCase(fetchSagaStatistics.rejected, (state) => {
-                state.loading = false
+            .addCase(fetchSagaStatistics.rejected, () => {
+                // no-op: a failed statistics read is not checkout-loading state
             })
     },
 })
@@ -268,6 +282,7 @@ export const {
     setSagaId,
     setSagaStatistics,
     setPaymentMethod,
+    setItemTaxes,
 } = checkoutSlice.actions
 
 export default checkoutSlice.reducer

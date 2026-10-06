@@ -20,7 +20,7 @@ const AccountSidebar = ({ onNavigate }: AccountSidebarProps) => {
   const { user } = useAppSelector((s) => s.auth);
 
   const navItemClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm transition-all duration-150 ${
+    `flex items-center gap-3 px-3.5 py-2.5 rounded-sm text-sm transition-all duration-150 ${
       isActive
         ? "bg-[#e8f7f0] text-[#008f51] font-semibold"
         : "text-slate-600 hover:text-slate-900 hover:bg-slate-50 font-normal"

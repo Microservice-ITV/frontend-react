@@ -8,18 +8,20 @@ import { selectSelectedItems } from '@/features/cart/store/cartSelectors'
 import { Elements } from '@stripe/react-stripe-js'
 import { stripePromise } from '@/lib/stripe'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { calculateCheckout } from '../utils/checkoutCalculator'
 import CheckoutItems from '../components/CheckoutItems'
 import CheckoutAddress from '../components/CheckoutAddress'
 import GuestCheckoutAnnouncementBanner from '../components/GuestCheckoutAnnouncementBanner'
 import CheckoutPayment from '../components/CheckoutPayment'
 import CheckoutSummary from '../components/CheckoutSummary'
+import CheckoutSummarySkeleton from '../components/CheckoutSummarySkeleton'
 import { SagaStatusDisplay } from '../components/SagaStatusDisplay'
 import { fetchCheckoutStatus, fetchSagaStatus } from '../store/checkoutThunks'
 import { fetchCheckoutShippingCalculation } from '@/features/shipping/store/shippingThunks'
 import { clearShippingCalculate } from '@/features/shipping/store/shippingSlice'
 import { clearCheckout, setCurrentCheckout } from '../store/checkoutSlice'
+import { hasConfirmedStock, isStockReadinessConfirmed } from '../utils/checkoutStatus'
 
 const AuthCheckout = () => {
   const items = useAppSelector(selectSelectedItems)
@@ -37,6 +39,7 @@ const GuestCheckoutPayment = () => {
 
   const items = useAppSelector(selectSelectedItems)
   const { currentCheckout, loading, paymentStatus, sagaId, sagaStatus } = useAppSelector((state) => state.checkout)
+  const [stockConfirmedSessionKey, setStockConfirmedSessionKey] = useState<string | null>(null)
 
   // If nothing selected, checkout shouldn't be reachable.
   if (items.length === 0) {
@@ -169,6 +172,19 @@ const GuestCheckoutPayment = () => {
     [],
   )
   const terminalSagaStatuses = useMemo(() => new Set(['COMPLETED', 'FAILED', 'TIMEOUT']), [])
+  const stockReadinessKey = currentCheckout?.checkout_id
+    ? `${currentCheckout.checkout_id}|${currentCartKey}`
+    : null
+  const isStockReady = isStockReadinessConfirmed({
+    paymentStatus,
+    confirmedReadinessKey: stockConfirmedSessionKey,
+  })
+
+  useEffect(() => {
+    if (stockReadinessKey && hasConfirmedStock(paymentStatus)) {
+      setStockConfirmedSessionKey(stockReadinessKey)
+    }
+  }, [paymentStatus, stockReadinessKey])
 
   useEffect(() => {
     if (!currentCheckout?.checkout_id) return
@@ -220,13 +236,17 @@ const GuestCheckoutPayment = () => {
             <aside className="space-y-3 lg:sticky lg:top-4">
             <CheckoutPayment totalAmount={checkoutTotals.totalPayment} />
 
-              <CheckoutSummary
-                checkout={checkoutTotals}
-                hasDeliveryAddress={true}
-                onRequireAddress={goToGuestForm}
-                deliveryAddress={paymentDeliveryAddress}
-                cartItems={items}
-              />
+              {isStockReady ? (
+                <CheckoutSummary
+                  checkout={checkoutTotals}
+                  hasDeliveryAddress={true}
+                  onRequireAddress={goToGuestForm}
+                  deliveryAddress={paymentDeliveryAddress}
+                  cartItems={items}
+                />
+              ) : (
+                <CheckoutSummarySkeleton />
+              )}
             </aside>
           </div>
 
@@ -247,4 +267,3 @@ const CheckoutGatePage = () => {
 }
 
 export default CheckoutGatePage
-

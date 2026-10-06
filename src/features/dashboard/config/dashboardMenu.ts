@@ -119,6 +119,14 @@ withSearch({
       icon: Percent,
     }),
     withSearch({
+      key: "seller-flash-deals",
+      label: "Flash Deals",
+      to: "/seller/promotion-engine/flash-deals",
+      area: "seller",
+      requiredCapabilities: [CAPABILITIES.FLASH_DEALS_MANAGE],
+      icon: Clock3,
+    }),
+    withSearch({
       key: "seller-orders",
       label: "Orders",
       to: "/seller/orders",
@@ -144,27 +152,27 @@ withSearch({
     }),
     ],
   },
-  {
-    title: "FINANCE",
-    items: [
-      {
-        key: "seller-finance-overview",
-        label: "Finance Overview",
-        to: "/seller/finance",
-        area: "seller",
-        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
-        icon: DollarSign,
-      },
-      {
-        key: "seller-finance-transactions",
-        label: "Transactions",
-        to: "/seller/finance/transactions",
-        area: "seller",
-        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
-        icon: Receipt,
-      },
-    ],
-  },
+  // {
+  //   title: "FINANCE",
+  //   items: [
+  //     {
+  //       key: "seller-finance-overview",
+  //       label: "Finance Overview",
+  //       to: "/seller/finance",
+  //       area: "seller",
+  //       requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+  //       icon: DollarSign,
+  //     },
+  //     {
+  //       key: "seller-finance-transactions",
+  //       label: "Transactions",
+  //       to: "/seller/finance/transactions",
+  //       area: "seller",
+  //       requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+  //       icon: Receipt,
+  //     },
+  //   ],
+  // },
   {
     title: "ACCOUNTING",
     items: [
@@ -175,6 +183,22 @@ withSearch({
         area: "seller",
         requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
         icon: Calculator,
+      },
+      {
+        key: "seller-finance-transactions",
+        label: "Transactions",
+        to: "/seller/finance/transactions",
+        area: "seller",
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: Receipt,
+      },
+      {
+        key: "seller-accounting-profit-loss",
+        label: "Profit & Loss",
+        to: "/seller/accounting/profit-loss",
+        area: "seller",
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: Scale,
       },
       {
         key: "seller-accounting-income",
@@ -314,6 +338,14 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
         icon: BarChart3,
       },
+      {
+        key: "admin-orders",
+        label: "Order Approvals",
+        to: "/super-admin/orders",
+        area: "super_admin",
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: ShoppingCart,
+      },
     ],
   },
   {
@@ -367,6 +399,19 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
         icon: Network,
       }),
+    ],
+  },
+  {
+    title: 'TAX',
+    items: [
+      {
+        key: 'admin-tax',
+        label: 'Tax',
+        to: '/super-admin/tax',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: Receipt,
+      },
     ],
   },
   {
@@ -583,27 +628,27 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
       },
     ],
   },
-  {
-    title: 'FINANCE',
-    items: [
-      {
-        key: "admin-finance-overview",
-        label: "Finance Overview",
-        to: "/super-admin/finance",
-        area: "super_admin",
-        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
-        icon: DollarSign,
-      },
-      {
-        key: "admin-finance-transactions",
-        label: "Transactions",
-        to: "/super-admin/finance/transactions",
-        area: "super_admin",
-        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
-        icon: Receipt,
-      },
-    ],
-  },
+  // {
+  //   title: 'FINANCE',
+  //   items: [
+  //     {
+  //       key: "admin-finance-overview",
+  //       label: "Finance Overview",
+  //       to: "/super-admin/finance",
+  //       area: "super_admin",
+  //       requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+  //       icon: DollarSign,
+  //     },
+  //     {
+  //       key: "admin-finance-transactions",
+  //       label: "Transactions",
+  //       to: "/super-admin/finance/transactions",
+  //       area: "super_admin",
+  //       requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+  //       icon: Receipt,
+  //     },
+  //   ],
+  // },
   {
     title: "APPS",
     items: [

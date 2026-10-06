@@ -2,7 +2,7 @@ import { productServiceAssetUrl } from '@/lib/api/apiConfig'
 import { ecommerceReadRestClient } from '@/lib/api/ecommerceReadRestClient'
 import type { AxiosResponse } from 'axios'
 import { productClient } from '@/lib/api/productClient'
-import type { ProductVariant } from '@/features/products/types/productTypes'
+import type { ProductFlashDeal, ProductVariant } from '@/features/products/types/productTypes'
 import { normalizeTags } from '@/features/products/utils/tagNormalization'
 
 // API RESPONSE TYPES (RAW BACKEND)
@@ -48,6 +48,7 @@ interface ProductDetailApiResponse {
         brandName: string
         primaryVariantId: string | null
         variants: ProductVariant[]
+        flashDeals?: ProductFlashDeal[]
     }
 }
 
@@ -82,6 +83,7 @@ type CatalogProductGraphItem = {
     categoryId: string
     categoryName?: string
     parentCategoryName?: string
+    shopId?: string
 }
 
 type CatalogProductsGraphQLData = {
@@ -147,6 +149,18 @@ type CatalogProductDetailGraph = {
     imageUrl: string
     tags?: string[]
     variants: CatalogVariantGraph[]
+    activeFlashDeals?: CatalogFlashDealGraph[] | null
+}
+
+type CatalogFlashDealGraph = {
+    flashDealId: string
+    flashDealItemId: string
+    variantId?: string | null
+    dealPrice: number
+    originalPrice: number
+    discount: number
+    startAt: string
+    endAt: string
 }
 
 const CATALOG_PRODUCTS_BY_CATEGORY_QUERY = `
@@ -163,6 +177,7 @@ const CATALOG_PRODUCTS_BY_CATEGORY_QUERY = `
         categoryName
         categorySlug
         parentCategoryName
+        shopId
       }
       page
       limit
@@ -220,6 +235,16 @@ const CATALOG_PRODUCT_BY_ID_QUERY = `
         height
         weight
         imageIndexes
+      }
+      activeFlashDeals {
+        flashDealId
+        flashDealItemId
+        variantId
+        dealPrice
+        originalPrice
+        discount
+        startAt
+        endAt
       }
     }
   }
@@ -328,6 +353,26 @@ function normalizeImageIndexes(raw: unknown): number[] | undefined {
     return out.length > 0 ? out : undefined
 }
 
+function mapGraphFlashDeal(deal: CatalogFlashDealGraph): ProductFlashDeal | null {
+    const flashDealId = String(deal.flashDealId ?? '').trim()
+    const flashDealItemId = String(deal.flashDealItemId ?? '').trim()
+    if (!flashDealId || !flashDealItemId) return null
+    const dealPrice = Number(deal.dealPrice)
+    const originalPrice = Number(deal.originalPrice)
+    if (!Number.isFinite(dealPrice) || !Number.isFinite(originalPrice)) return null
+    const variantId = deal.variantId?.trim() ? deal.variantId.trim() : null
+    return {
+        flashDealId,
+        flashDealItemId,
+        variantId,
+        dealPrice,
+        originalPrice,
+        discount: Math.max(0, Math.round(Number(deal.discount) || 0)),
+        startAt: String(deal.startAt ?? ''),
+        endAt: String(deal.endAt ?? ''),
+    }
+}
+
 function mapGraphVariant(v: CatalogVariantGraph): ProductVariant {
     const price = Number(v.effectiveSellingPrice ?? v.price ?? 0)
     const listPrice = Number(v.listPrice ?? price)
@@ -401,6 +446,7 @@ export const productApi = {
         tags: normalizeTags(row.tags),
         images: buildCatalogListImages(row),
         categoryId: row.categoryId ?? "",
+        shopId: row.shopId?.trim() || undefined,
       })),
     };
 
@@ -453,6 +499,7 @@ export const productApi = {
         tags: normalizeTags(row.tags),
         images: buildCatalogListImages(row),
         categoryId: row.categoryId ?? "",
+        shopId: row.shopId?.trim() || undefined,
       })),
     };
 
@@ -546,6 +593,9 @@ export const productApi = {
           : null,
         variants,
         tags: normalizeTags(p.tags),
+        flashDeals: (p.activeFlashDeals ?? [])
+          .map(mapGraphFlashDeal)
+          .filter((deal): deal is ProductFlashDeal => deal != null),
       },
     };
 
@@ -558,3 +608,24 @@ export const productApi = {
     } as AxiosResponse<ProductDetailApiResponse>;
   },
 };
+
+/** Shop id and display name from product-service. Catalog cards do not include the shop name. */
+export async function resolveProductShop(
+  productId: string,
+): Promise<{ shopId: string; shopName: string } | null> {
+  const id = productId.trim();
+  if (!id) return null;
+  try {
+    const response = await productClient.get<{
+      success?: boolean;
+      data?: { shopId?: string; shop?: { id?: string; name?: string } };
+    }>(`/products/${id}`);
+    const data = response.data?.data;
+    const shopId = data?.shop?.id?.trim() || data?.shopId?.trim() || "";
+    const shopName = data?.shop?.name?.trim() || "";
+    if (!shopId || !shopName) return null;
+    return { shopId, shopName };
+  } catch {
+    return null;
+  }
+}

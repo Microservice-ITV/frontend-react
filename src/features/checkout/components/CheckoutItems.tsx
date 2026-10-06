@@ -3,6 +3,7 @@ import { useAppSelector } from '@/app/hooks'
 import { locationApi } from '@/features/account/api/locationApi'
 import type { ShopCalculatedShipping } from '@/features/shipping/types/shippingTypes'
 import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
+import { taxChargeForAmount } from '../api/checkoutApi'
 import { chatIcon, voucherIcon } from '@/assets/icons'
 import { CheckoutTotals } from '../utils/checkoutCalculator'
 import placeholderImage from '@/public/placeholder.svg'
@@ -20,15 +21,22 @@ function formatKg(value: number): string {
   return `${value.toFixed(2)} kg`
 }
 
+function formatIncludedKg(value: number): string {
+  const rounded = Math.round(value * 100) / 100
+  return Number.isInteger(rounded) ? `${rounded} kg` : `${rounded.toFixed(2)} kg`
+}
+
+function hasFee(value: number | null | undefined): value is number {
+  return value != null && Number.isFinite(value) && value > 0
+}
+
 const ShippingOptionCard = ({
   fee,
   calculateStatus,
-  calculateError,
   cityNames,
 }: {
   fee?: ShopCalculatedShipping
   calculateStatus: string
-  calculateError: string | null
   cityNames: Record<string, string>
 }) => {
   if (calculateStatus === 'loading' || calculateStatus === 'idle') {
@@ -41,8 +49,14 @@ const ShippingOptionCard = ({
 
   if (calculateStatus === 'failed' || !fee || fee.amount == null) {
     return (
-      <div className="rounded-sm border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-800">
-        {calculateError?.trim() || 'Delivery price is unavailable'}
+      <div className="rounded-sm border border-amber-200 bg-amber-50 px-3 py-3 text-[13px] leading-5 text-gray-700">
+        <div className="flex items-start justify-between gap-3 text-sm font-semibold text-gray-900">
+          <span>Standard shipping</span>
+          <span>Not available</span>
+        </div>
+        <p className="mt-2 text-xs text-amber-800">
+          Delivery is under maintenance and is not available right now.
+        </p>
       </div>
     )
   }
@@ -81,13 +95,23 @@ const ShippingOptionCard = ({
             {fee.chargeableWeightKg != null && (
               <p>Chargeable weight: {formatKg(fee.chargeableWeightKg)}</p>
             )}
-            {fee.baseFee != null && <p>Base fee: {formatKsPrice(fee.baseFee, currency)}</p>}
-            {fee.distanceFee != null && (
+            {hasFee(fee.baseFee) && (
+              <p>
+                Base weight fee
+                {fee.baseWeightKg != null && fee.baseWeightKg > 0
+                  ? ` (${formatIncludedKg(fee.baseWeightKg)})`
+                  : ''}
+                : {formatKsPrice(fee.baseFee, currency)}
+              </p>
+            )}
+            {hasFee(fee.distanceFee) && (
               <p>
                 {isCityRoute ? 'Route fee' : 'Distance fee'}: {formatKsPrice(fee.distanceFee, currency)}
               </p>
             )}
-            {fee.weightFee != null && <p>Weight fee: {formatKsPrice(fee.weightFee, currency)}</p>}
+            {hasFee(fee.weightFee) && (
+              <p>Additional weight fee: {formatKsPrice(fee.weightFee, currency)}</p>
+            )}
           </>
         )}
       </div>
@@ -95,12 +119,18 @@ const ShippingOptionCard = ({
   )
 }
 
+function formatLineTaxRate(rate: number | null | undefined): string {
+  if (rate == null || !Number.isFinite(rate)) return '—'
+  const rounded = Math.round(rate * 100) / 100
+  return `${Number.isInteger(rounded) ? rounded : rounded}%`
+}
+
 const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
   const { groupedByShop } = checkout
   const feesByShopId = useAppSelector(state => state.shipping.feesByShopId)
   const calculateStatus = useAppSelector(state => state.shipping.calculateStatus)
-  const calculateError = useAppSelector(state => state.shipping.calculateError)
   const [cityNames, setCityNames] = useState<Record<string, string>>({})
+  const itemTaxes = useAppSelector((state) => state.checkout.itemTaxes)
   const needsCityNames = Object.values(feesByShopId).some(
     (fee) => fee.calculationMethod === 'CITY_ROUTE' && (fee.fromCityId || fee.toCityId),
   )
@@ -127,17 +157,22 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
 
   return (
     <div className="space-y-3">
-      {calculateStatus === 'failed' && calculateError ? (
+
+      {/* {calculateStatus === 'failed' && calculateError ? (
         <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           Delivery fee could not be calculated: {calculateError}
         </div>
-      ) : null}
+      ) : null} */}
 
-      <div className="hidden items-center gap-3.5 rounded-sm border border-[var(--dni-cart-border)] bg-white px-3 py-2.5 text-sm text-gray-500 sm:px-4 md:grid md:grid-cols-[minmax(0,1fr)_7.5rem_5rem_8.5rem]">
+      <div className="hidden items-center gap-3.5 rounded-sm border border-[var(--dni-cart-border)] bg-white px-3 py-2.5 text-sm text-gray-500 sm:px-4 md:grid md:grid-cols-[minmax(0,1fr)_7.5rem_5rem_8.5rem_auto]">
         <span className="text-gray-900">Products Ordered</span>
         <span className="whitespace-nowrap text-right">Unit Price</span>
         <span className="text-center">Quantity</span>
         <span className="whitespace-nowrap text-right">Item Subtotal</span>
+        <div className="grid w-[13.875rem] grid-cols-[5.5rem_7.5rem] gap-3.5">
+          <span className="whitespace-nowrap text-right">Tax Rate</span>
+          <span className="whitespace-nowrap text-right">Tax</span>
+        </div>
       </div>
 
       {Object.entries(groupedByShop).map(([shopId, shopItems]) => {
@@ -181,10 +216,10 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
                 <span className="min-w-0 truncate text-sm font-medium text-gray-900 sm:text-[15px]">
                   {shopItems[0].shopName}
                 </span>
-                <button type="button" className="hidden shrink-0 items-center gap-1 text-sm text-emerald-600 sm:flex">
+                {/* <button type="button" className="hidden shrink-0 items-center gap-1 text-sm text-emerald-600 sm:flex">
                   <img src={chatIcon} alt="" className="h-4 w-4" />
                   Chat
-                </button>
+                </button> */}
               </div>
             </div>
 
@@ -192,11 +227,31 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
               {shopItems.map(item => {
                 const subtotal = item.price * item.quantity
                 const variation = item.variantLabel?.trim() || 'Standard'
+                const variantId = item.variantId ?? ''
+                const lineTax = itemTaxes.find(
+                  (tax) => tax.productId === item.productId && tax.variantId === variantId,
+                )
+                const noCategoryTax = Boolean(lineTax?.noCategoryTax)
+                const liveTaxAmount = lineTax && !noCategoryTax
+                  ? taxChargeForAmount(subtotal, lineTax.taxRate)
+                  : null
+                const taxRateLabel = !lineTax
+                  ? 'Calculating…'
+                  : noCategoryTax
+                    ? '0.00'
+                    : formatLineTaxRate(lineTax.taxRate)
+                const taxAmountLabel = !lineTax
+                  ? 'Calculating…'
+                  : noCategoryTax
+                    ? formatKsPrice(0)
+                    : liveTaxAmount != null
+                      ? formatKsPrice(liveTaxAmount)
+                      : formatKsPrice(lineTax.taxAmount)
 
                 return (
                   <li
                     key={`${item.productId}-${item.variantId ?? ''}-${item.shopId}`}
-                    className="flex flex-col gap-2 border-b border-[var(--dni-cart-border)] px-3 py-3 last:border-b-0 sm:px-4 md:grid md:grid-cols-[minmax(0,1fr)_7.5rem_5rem_8.5rem] md:items-center md:gap-3.5"
+                    className="flex flex-col gap-2 border-b border-[var(--dni-cart-border)] px-3 py-3 last:border-b-0 sm:px-4 md:grid md:grid-cols-[minmax(0,1fr)_7.5rem_5rem_8.5rem_auto] md:items-center md:gap-3.5"
                   >
                     <div className="flex min-w-0 items-center gap-3">
                       <img
@@ -215,6 +270,9 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
                         <p className="mt-1 whitespace-nowrap text-sm font-medium text-emerald-700 md:hidden">
                           {formatKsPrice(item.price)}
                         </p>
+                        <p className={`mt-0.5 md:hidden ${lineTax ? 'text-xs text-gray-500' : 'text-[11px] text-gray-400'}`}>
+                          {lineTax ? `Tax ${taxRateLabel} · ${taxAmountLabel}` : 'Calculating…'}
+                        </p>
                       </div>
                     </div>
 
@@ -227,6 +285,16 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
                       <p className="whitespace-nowrap text-sm font-semibold tabular-nums text-emerald-700 md:text-right md:text-[15px]">
                         {formatKsPrice(subtotal)}
                       </p>
+                      <div className="hidden w-[13.875rem] md:block">
+                        <div className="grid grid-cols-[5.5rem_7.5rem] gap-3.5">
+                          <p className={`whitespace-nowrap text-right ${lineTax ? 'text-sm tabular-nums text-gray-700' : 'text-xs text-gray-400'}`}>
+                            {taxRateLabel}
+                          </p>
+                          <p className={`whitespace-nowrap text-right ${lineTax ? 'text-sm font-medium tabular-nums text-gray-900' : 'text-xs text-gray-400'}`}>
+                            {taxAmountLabel}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </li>
                 )
@@ -243,7 +311,7 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 bg-[#fafdff] lg:grid-cols-2 lg:items-stretch">
+            <div className="border-t border-dashed border-black/10 grid grid-cols-1 bg-[#fafdff] lg:grid-cols-2 lg:items-stretch">
               <div className="px-3 py-3 sm:px-4 sm:py-4 lg:flex lg:border-r lg:border-dashed lg:border-black/10">
                 <div className="flex min-h-28 w-full flex-col gap-2 lg:h-full lg:min-h-0">
                   <span className="text-sm font-medium text-gray-900">Message for Seller</span>
@@ -270,20 +338,19 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
                   <ShippingOptionCard
                     fee={feesByShopId[shopId]}
                     calculateStatus={calculateStatus}
-                    calculateError={calculateError}
                     cityNames={cityNames}
                   />
                 </button>
               </div>
             </div>
 
-            <div className="border-t border-dashed border-black/10 bg-[#fafdff] px-3 py-3 text-sm sm:px-4">
-              <span className="font-medium text-gray-900">Guaranteed to get by 9 Feb</span>
+            <div className="border-t border-dashed border-black/10 bg-[#fafdff] px-3 py-0 text-sm sm:px-4">
+              {/* <span className="font-medium text-gray-900">Guaranteed to get by 9 Feb</span>
               <span className="ml-1 text-gray-500">with Collection Points</span>
-              <span className="ml-1 text-gray-400">›</span>
+              <span className="ml-1 text-gray-400">›</span> */}
             </div>
 
-            <div className="flex items-center justify-between gap-2 border-t border-dashed border-black/10 bg-[#fafdff] px-3 py-3 sm:px-4">
+            {/* <div className="flex items-center justify-between gap-2 border-t border-dashed border-black/10 bg-[#fafdff] px-3 py-3 sm:px-4">
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-700">Allow to leave at doorstep</span>
                 <span className="rounded bg-emerald-600 px-2 py-[1px] text-xs text-white">New</span>
@@ -291,7 +358,7 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
               <div className="relative h-5 w-10 cursor-pointer rounded-full bg-green-500">
                 <div className="absolute top-0.5 right-0.5 h-4 w-4 rounded-full bg-white" />
               </div>
-            </div>
+            </div> */}
 
             <div className="flex flex-wrap items-center justify-end gap-2 bg-[#fafdff] px-3 py-2.5 sm:px-4">
               <span className="text-sm text-gray-600">

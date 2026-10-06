@@ -15,6 +15,11 @@ export const ROUTE_ACCESS = {
   /** Super admin: full category CRUD */
   categoriesManage: [CAPABILITIES.CATEGORIES_MANAGE],
   promotionsView: [CAPABILITIES.PROMOTIONS_VIEW],
+  /** Flash deal management — super admin and sellers */
+  flashDealsView: [CAPABILITIES.FLASH_DEALS_MANAGE],
+  sellerFlashDealsView: [CAPABILITIES.FLASH_DEALS_MANAGE],
+  sellerFlashDealsNew: [CAPABILITIES.FLASH_DEALS_MANAGE],
+  sellerFlashDealsEdit: [CAPABILITIES.FLASH_DEALS_MANAGE],
   sellerProducts: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
   /** Seller dashboard: manage brand / color / size reference data */
   sellerCatalogRefs: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
@@ -31,6 +36,7 @@ export const ROUTE_ACCESS = {
   superAdminAnalytics: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   superAdminShops: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   superAdminShipping: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+  superAdminTax: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   superAdminUsers: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   superAdminInvoices: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   superAdminSystem: [CAPABILITIES.PLATFORM_ADMIN_VIEW],

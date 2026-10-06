@@ -15,4 +15,5 @@ export type Capability =
   | 'categories.view'
   | 'categories.manage'
   | 'promotions.view'
+  | 'flash.deals.manage'
   | '*'

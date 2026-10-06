@@ -1,16 +1,16 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
 import DataTablePagination from '@/components/ui/DataTablePagination'
+import RowActionMenu from '@/components/ui/RowActionMenu'
 import { fetchSellerOrdersByShop } from '../store'
-import { sellerOrderApi, canSellerShip, type SellerOrder } from '../api/sellerOrderApi'
+import { sellerOrderApi, canSellerShip, fetchCustomerAvatars, type SellerOrder } from '../api/sellerOrderApi'
+import CustomerAvatar from '../components/CustomerAvatar'
 import {
   Search,
-  MoreHorizontal,
   Eye,
   Truck,
-  X,
 } from 'lucide-react'
 
 type SellerOrderTab = 'all' | 'to-ship' | 'shipped' | 'completed' | 'cancelled'
@@ -61,16 +61,13 @@ const isOrderInTab = (order: SellerOrder, tab: SellerOrderTab): boolean => {
   return false
 }
 
-const formatMoney = (value: number, currency: string): string => {
-  try {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency || 'USD',
-      minimumFractionDigits: 2,
-    }).format(Number(value || 0))
-  } catch {
-    return `${currency} ${Number(value || 0).toFixed(2)}`
-  }
+const formatMoney = (value: number, _currency?: string): string => {
+  const amount = Number(value)
+  const safe = Number.isFinite(amount) ? amount : 0
+  return `Ks ${safe.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`
 }
 
 const formatDate = (value?: string | null): string => {
@@ -80,14 +77,6 @@ const formatDate = (value?: string | null): string => {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-const getInitials = (name: string): string => {
-  return name
-    .split(' ')
-    .map((w) => w[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2)
-}
 
 const SellerOrdersPage = () => {
   const dispatch = useAppDispatch()
@@ -105,20 +94,7 @@ const SellerOrdersPage = () => {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [rowsPerPage, setRowsPerPage] = useState(10)
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
-  const menuRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setOpenMenuId(null)
-      }
-    }
-    if (openMenuId) {
-      document.addEventListener('mousedown', handleClickOutside)
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [openMenuId])
+  const [avatars, setAvatars] = useState<Record<string, string | null>>({})
 
   useEffect(() => {
     if (!activeShopId && !authUserId) return
@@ -128,6 +104,20 @@ const SellerOrdersPage = () => {
   useEffect(() => {
     setPage(1)
   }, [activeShopId, orders.length])
+
+  useEffect(() => {
+    let cancelled = false
+    void fetchCustomerAvatars(orders.map((order) => order.customerId))
+      .then((next) => {
+        if (!cancelled) setAvatars(next)
+      })
+      .catch(() => {
+        if (!cancelled) setAvatars({})
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [orders])
 
   const missingShopContext = !activeShopId && !authUserId
   const isLoading = ordersStatus === 'loading'
@@ -324,8 +314,7 @@ const SellerOrdersPage = () => {
                   </td>
                 </tr>
               ) : (
-                paginatedOrders.map((order, index) => {
-                  const openUpward = index >= paginatedOrders.length - 2
+                paginatedOrders.map((order) => {
                   const statusUpper = (order.status || '').toUpperCase()
                   const customerName = order.deliveryAddress?.recipientName || order.customerId
                   const itemNames = order.items.map((i) => i.name).join(', ')
@@ -348,9 +337,10 @@ const SellerOrdersPage = () => {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-medium text-slate-600">
-                            {getInitials(customerName)}
-                          </div>
+                          <CustomerAvatar
+                            imageUrl={avatars[order.customerId]}
+                            alt={customerName}
+                          />
                           <div>
                             <p className="text-xs font-medium text-slate-900">
                               {customerName}
@@ -375,7 +365,7 @@ const SellerOrdersPage = () => {
                       </td>
                       
                       <td className="px-4 py-3 text-xs font-medium text-slate-900">
-                        <p title={isSharedOrder ? `Full order: ${formatMoney(order.totals.total, order.totals.currency)} (other shops' shares excluded)` : undefined}>
+                        <p className="whitespace-nowrap" title={isSharedOrder ? `Full order: ${formatMoney(order.totals.total, order.totals.currency)} (other shops' shares excluded)` : undefined}>
                           {formatMoney(shareTotal, order.totals.currency)}
                         </p>
                         {isSharedOrder && (
@@ -387,57 +377,27 @@ const SellerOrdersPage = () => {
                       <td className="px-4 py-3 text-xs text-slate-600">
                         {formatDate(order.placedAt || order.createdAt)}
                       </td>
-                      <td className="relative w-16 px-2 py-3">
-                        <div
-                          className="relative inline-block"
-                          ref={openMenuId === order.orderId ? menuRef : undefined}
-                        >
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setOpenMenuId((id) =>
-                                id === order.orderId ? null : order.orderId,
-                              )
-                            }
-                            className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
-                            aria-label="Actions"
-                            aria-expanded={openMenuId === order.orderId}
-                          >
-                            <MoreHorizontal size={18} />
-                          </button>
-                          {openMenuId === order.orderId && (
-                            <div
-                              className={`absolute right-0 z-50 min-w-[140px] rounded-lg border border-slate-200 bg-white py-1 shadow-lg ${
-                                openUpward ? 'bottom-full mb-1' : 'top-full mt-1'
-                              }`}
-                            >
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setOpenMenuId(null)
-                                  navigate(`/seller/orders/${order.orderId}`)
-                                }}
-                                className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
-                              >
-                                <Eye size={16} className="text-slate-500 shrink-0" />
-                                View
-                              </button>
-                              {canSellerShip(order) && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setOpenMenuId(null)
-                                    handleShipOrder(order)
-                                  }}
-                                  className="flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-emerald-700 hover:bg-slate-50 cursor-pointer"
-                                >
-                                  <Truck size={16} className="shrink-0" />
-                                  Ship
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </div>
+                      <td className="w-16 px-2 py-3">
+                        <RowActionMenu
+                          ariaLabel="Order actions"
+                          items={[
+                            {
+                              key: 'view',
+                              label: 'View',
+                              icon: <Eye size={16} className="text-slate-500" />,
+                              onClick: () => navigate(`/seller/orders/${order.orderId}`),
+                            },
+                            ...(canSellerShip(order)
+                              ? [{
+                                  key: 'ship',
+                                  label: 'Ship',
+                                  icon: <Truck size={16} className="text-emerald-700" />,
+                                  className: 'flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-emerald-700 hover:bg-slate-50 cursor-pointer',
+                                  onClick: () => handleShipOrder(order),
+                                }]
+                              : []),
+                          ]}
+                        />
                       </td>
                     </tr>
                   )

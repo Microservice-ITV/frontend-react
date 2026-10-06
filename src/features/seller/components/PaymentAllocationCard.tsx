@@ -1,15 +1,12 @@
 import type { PaymentAllocation } from '../api/sellerOrderApi'
 
-const formatMoney = (value: number, currency: string): string => {
-  try {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency || 'USD',
-      minimumFractionDigits: 2,
-    }).format(Number(value || 0))
-  } catch {
-    return `${currency} ${Number(value || 0).toFixed(2)}`
-  }
+const formatMoney = (value: number, _currency?: string): string => {
+  const amount = Number(value)
+  const safe = Number.isFinite(amount) ? amount : 0
+  return `Ks ${safe.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`
 }
 
 type Props = {

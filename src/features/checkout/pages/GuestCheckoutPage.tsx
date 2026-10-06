@@ -9,6 +9,12 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import { guestCheckoutCart } from '../store/checkoutThunks'
 import { clearCheckout, setCheckoutError } from '../store/checkoutSlice'
 import { locationApi, type CityOption } from '@/features/account/api/locationApi'
+import {
+  formatDisabledTaxAmount,
+  isTaxChargeEnabled,
+  resolveCartTax,
+} from '../api/checkoutApi'
+import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
 
 function getOrCreateGuestId(): string {
   try {
@@ -41,11 +47,6 @@ const GuestCheckoutPage = () => {
     }
   }, [])
 
-  // Protect manual URL access: guest form can only be reached via cart modal flow.
-  if (!entryOk || items.length === 0) {
-    return <Navigate to="/cart" replace />
-  }
-
   const [guestId] = useState<string>(() => getOrCreateGuestId())
   const [fullName, setFullName] = useState('')
   // Store digits only (no +95 prefix)
@@ -61,6 +62,45 @@ const GuestCheckoutPage = () => {
 
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [taxAmount, setTaxAmount] = useState(0)
+  const [taxEnabled, setTaxEnabled] = useState(true)
+  const [taxLoading, setTaxLoading] = useState(false)
+
+  const merchandiseSubtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const taxLinesKey = items
+    .map((item) => `${item.productId}:${item.quantity}:${item.price}:${item.categoryId ?? ''}`)
+    .join('|')
+
+  useEffect(() => {
+    if (items.length === 0) return
+    let cancelled = false
+    setTaxLoading(true)
+    void resolveCartTax(
+      items.map((item) => ({
+        productId: item.productId,
+        categoryId: item.categoryId,
+        price: item.price,
+        quantity: item.quantity,
+      })),
+    )
+      .then((resolved) => {
+        if (cancelled) return
+        setTaxAmount(resolved.taxAmount)
+        setTaxEnabled(isTaxChargeEnabled(resolved.quote))
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setTaxAmount(0)
+          setTaxEnabled(true)
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setTaxLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [taxLinesKey])
 
   const announcement = 'Guest checkout is available without registration, but discounts and member-only benefits won’t apply.'
 
@@ -218,6 +258,10 @@ const GuestCheckoutPage = () => {
     }
   }
 
+  if (!entryOk || items.length === 0) {
+    return <Navigate to="/cart" replace />
+  }
+
   return (
     <div className="bg-gray-50 px-4 pt-8 pb-12">
       <div className="mx-auto w-full max-w-3xl space-y-4">
@@ -306,6 +350,32 @@ const GuestCheckoutPage = () => {
               Required: {missingRequired.join(', ')}
             </div>
           )}
+
+          <div className="mt-4 rounded-sm border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-700">
+            <div className="flex justify-between gap-3">
+              <span>Merchandise Subtotal</span>
+              <span className="tabular-nums text-gray-900">{formatKsPrice(merchandiseSubtotal)}</span>
+            </div>
+            <div className="mt-2 flex justify-between gap-3">
+              <span>
+                Tax
+              </span>
+              <span className={taxLoading ? 'text-xs text-gray-400' : 'tabular-nums font-medium text-gray-900'}>
+                {taxLoading
+                  ? 'Calculating…'
+                  : taxEnabled
+                    ? formatKsPrice(taxAmount)
+                    : formatDisabledTaxAmount(taxAmount)}
+              </span>
+            </div>
+            <div className="mt-2 flex justify-between gap-3 border-t border-gray-200 pt-2 font-medium text-gray-900">
+              <span>Total</span>
+              <span className="tabular-nums text-emerald-600">
+                {formatKsPrice(merchandiseSubtotal + taxAmount)}
+              </span>
+            </div>
+            <p className="mt-2 text-xs text-gray-500">Delivery is added on the payment step.</p>
+          </div>
 
           <div className="mt-4">
             <Button

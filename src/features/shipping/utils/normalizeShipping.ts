@@ -158,6 +158,7 @@ export function normalizeCalculateResponse(data: unknown): {
             volumetricWeightKg: num(r.volumetricWeightKg),
             chargeableWeightKg: num(r.chargeableWeightKg),
             baseFee: num(r.baseFee),
+            baseWeightKg: num(r.baseWeightKg ?? r.base_weight_kg),
             distanceFee: num(r.distanceFee),
             weightFee: num(r.weightFee),
             raw: row,

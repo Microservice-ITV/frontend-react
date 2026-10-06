@@ -1,4 +1,5 @@
 import { orderClient } from '@/lib/api/orderClient'
+import { productClient } from '@/lib/api/productClient'
 import type { AxiosResponse } from 'axios'
 import type { CheckoutResponse, CheckoutStatusResponse } from '../types/checkoutTypes'
 import { promotionClient } from '@/lib/api/promotionClient'
@@ -30,6 +31,7 @@ export type CheckoutAddressPayload = {
   shop_shippings: CheckoutShopShippingPayload[]
   /** Optional one-time voucher / promo code */
   promo_code?: string | null
+  payment_method?: 'prepaid' | 'cod'
 }
 
 export type PromoCodeStatus =
@@ -46,9 +48,26 @@ export type PromotionQuoteResponse = {
   discount_total: number
   final_total: number
   promotion_ids: string[]
+  allocations?: Array<Record<string, unknown>>
   promo_code?: string | null
   promo_code_status?: PromoCodeStatus | null
   promo_code_message?: string | null
+}
+
+export type TaxPreviewResponse = {
+  tax_enabled: boolean
+  tax_amount: number
+  taxable_amount: number
+  reason?: string | null
+    lines?: Array<{
+    line_id?: string
+    product_id?: string | null
+    variant_id?: string | null
+    category_id?: string | null
+    tax_rate?: number | null
+    tax_amount?: number
+    reason?: string | null
+  }>
 }
 
 export const checkoutApi = {
@@ -72,6 +91,37 @@ export const checkoutApi = {
         : undefined,
     }
     const response = await promotionClient.post('/promotions/quote', body)
+    return response.data
+  },
+
+  async previewTax(
+    checkoutId: string,
+    payload: {
+      discount_total: number
+      allocations?: Array<Record<string, unknown>>
+      category_by_product?: Record<string, string>
+    },
+  ): Promise<TaxPreviewResponse> {
+    const response = await orderClient.post<TaxPreviewResponse>(
+      `/saga/orders/checkout/${checkoutId}/tax-preview`,
+      payload,
+    )
+    return response.data
+  },
+
+  async quoteTaxLines(items: Array<{
+    line_id: string
+    category_id: string
+    amount: number
+  }>): Promise<TaxPreviewResponse> {
+    const response = await orderClient.post<TaxPreviewResponse>('/saga/orders/tax-quote', { items })
+    return response.data
+  },
+
+  async updatePaymentMethod(checkoutId: string, paymentMethod: 'prepaid' | 'cod') {
+    const response = await orderClient.put(`/saga/orders/checkout/${checkoutId}/payment-method`, {
+      payment_method: paymentMethod,
+    })
     return response.data
   },
 
@@ -110,6 +160,9 @@ export const checkoutApi = {
     grand_total?: number
     shipping_total?: number
     promotion_discount_total?: number
+    tax_amount?: number
+    taxable_amount?: number
+    tax_enabled?: boolean
     promo_code?: string | null
     promo_code_status?: PromoCodeStatus | null
     promo_code_message?: string | null
@@ -151,4 +204,167 @@ export const checkoutApi = {
       throw error
     }
   },
+}
+
+export type CheckoutLineTax = {
+  productId: string
+  variantId: string
+  taxRate: number | null
+  taxAmount: number
+  noCategoryTax?: boolean
+}
+
+export function lineTaxesFromQuote(
+  quote: TaxPreviewResponse,
+  items: Array<{ productId: string; variantId?: string }>,
+): CheckoutLineTax[] {
+  const lines = quote.lines ?? []
+  return items.map((item) => {
+    const variantId = item.variantId ?? ''
+    const line = lines.find((candidate) => {
+      const lineVariant = candidate.variant_id ?? ''
+      if (candidate.product_id && candidate.product_id === item.productId && lineVariant === variantId) {
+        return true
+      }
+      return candidate.line_id === item.productId && variantId === ''
+    })
+    const rate = line?.tax_rate
+    return {
+      productId: item.productId,
+      variantId,
+      taxRate: rate == null || !Number.isFinite(Number(rate)) ? null : Number(rate),
+      taxAmount: Number(line?.tax_amount ?? 0),
+      noCategoryTax: line?.reason === 'NO_TAX_FOR_CATEGORY',
+    }
+  })
+}
+
+export type CartTaxLine = {
+  productId: string
+  categoryId?: string
+  price: number
+  quantity: number
+}
+
+/** Quote tax from product categories. Shipping is not included. */
+export async function resolveCartTax(
+  items: CartTaxLine[],
+  discountTotal = 0,
+): Promise<{
+  taxAmount: number
+  categoryByProduct: Record<string, string>
+  quote: TaxPreviewResponse
+}> {
+  const merchandise = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const lines = []
+  const categoryByProduct: Record<string, string> = {}
+
+  for (const item of items) {
+    let categoryId = item.categoryId?.trim() ?? ''
+    if (!categoryId) {
+      try {
+        const response = await productClient.get<{
+          success?: boolean
+          data?: { categoryId?: string }
+        }>(`/products/${item.productId}`)
+        categoryId = response.data.data?.categoryId?.trim() ?? ''
+      } catch {
+        categoryId = ''
+      }
+    }
+
+    if (categoryId) categoryByProduct[item.productId] = categoryId
+
+    const lineTotal = item.price * item.quantity
+    const share = merchandise > 0 ? (lineTotal / merchandise) * discountTotal : 0
+    lines.push({
+      line_id: item.productId,
+      category_id: categoryId,
+      amount: Math.max(0, Math.round((lineTotal - share) * 100) / 100),
+    })
+  }
+
+  const quote = await checkoutApi.quoteTaxLines(lines)
+  return {
+    taxAmount: Number(quote.tax_amount ?? 0),
+    categoryByProduct,
+    quote,
+  }
+}
+
+export async function quoteTaxForCartItems(
+  items: CartTaxLine[],
+  discountTotal = 0,
+): Promise<number> {
+  const quote = await resolveCartTax(items, discountTotal)
+  return quote.taxAmount
+}
+
+export function isTaxChargeEnabled(quote: {
+  tax_enabled?: boolean
+  reason?: string | null
+}): boolean {
+  return quote.tax_enabled !== false && quote.reason !== 'TAX_DISABLED'
+}
+
+export function taxRatesFromQuote(quote: {
+  tax_enabled?: boolean
+  reason?: string | null
+  lines?: Array<{ tax_rate?: number | null; reason?: string | null }>
+}): number[] {
+  if (!isTaxChargeEnabled(quote)) return []
+  const rates = new Set<number>()
+  for (const line of quote.lines ?? []) {
+    if (line.reason) continue
+    const rate = Number(line.tax_rate)
+    if (!Number.isFinite(rate) || rate <= 0) continue
+    rates.add(Math.round(rate * 100) / 100)
+  }
+  return [...rates].sort((left, right) => left - right)
+}
+
+export function formatTaxRateLabel(rates: number[]): string {
+  if (rates.length === 0) return ''
+  return rates
+    .map((rate) => `${Number.isInteger(rate) ? rate : rate}%`)
+    .join(', ')
+}
+
+/** Same cent rounding as order-service tax quotes. */
+export function taxChargeForAmount(amount: number, ratePercent: number | null): number | null {
+  if (ratePercent == null || !Number.isFinite(Number(ratePercent))) return null
+  const baseCents = Math.max(0, Math.round(amount * 100))
+  if (baseCents <= 0 || ratePercent <= 0) return 0
+  return Math.round((baseCents * ratePercent) / 100) / 100
+}
+
+/** Tax for the current cart using rates already quoted. Null until every line has a rate. */
+export function cartTaxFromKnownRates(
+  items: Array<{ productId: string; variantId?: string; price: number; quantity: number }>,
+  taxes: Array<{ productId: string; variantId: string; taxRate: number | null }>,
+  discountTotal = 0,
+): number | null {
+  if (items.length === 0) return null
+  const merchandise = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  let totalCents = 0
+  for (const item of items) {
+    const variantId = item.variantId ?? ''
+    const tax = taxes.find((row) => row.productId === item.productId && row.variantId === variantId)
+    if (!tax || tax.taxRate == null) return null
+    const lineTotal = item.price * item.quantity
+    const share = merchandise > 0 ? (lineTotal / merchandise) * discountTotal : 0
+    const base = Math.max(0, Math.round((lineTotal - share) * 100) / 100)
+    const charge = taxChargeForAmount(base, tax.taxRate)
+    if (charge == null) return null
+    totalCents += Math.round(charge * 100)
+  }
+  return totalCents / 100
+}
+
+export function formatDisabledTaxAmount(amount: number): string {
+  const value = Number(amount) || 0
+  return `Ks ${value.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`
 }
