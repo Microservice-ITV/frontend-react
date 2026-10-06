@@ -15,17 +15,38 @@ export type InvoiceDocument = {
   id: string
   invoiceNumber: string
   orderId: string
+  orderReference: string | null
   shopId: string
   shopName?: string | null
+  shopContactName: string | null
+  shopContactEmail: string | null
+  shopContactPhone: string | null
+  shopAddress: string | null
   customerId: string
   customerName?: string | null
   customerEmail?: string | null
+  customerPhone: string | null
+  billingAddress: Record<string, unknown> | null
+  shippingAddress: Record<string, unknown> | null
   lineItems: Array<{
+    orderItemId?: string
     name: string
+    sku?: string | null
+    imageUrl?: string | null
     quantity: number
     unitPrice: string
     total: string
   }> | null
+  items?: Array<{
+    orderItemId: string
+    productId: string
+    productSku: string | null
+    productName: string
+    imageUrl?: string | null
+    quantity: number
+    unitPrice: string
+    totalPrice: string
+  }>
   subtotal: string
   deliveryFee: string
   taxAmount: string
@@ -94,6 +115,12 @@ invoiceClient.interceptors.request.use(async (config) => {
   const user = store.getState().auth.user
   const url = config.url ?? ''
   const isMyInvoicesRequest = url.endsWith('/invoices/my-invoices')
+  const isCustomerInvoiceRequest = url.startsWith('/invoices/by-number/')
+    && config.headers.get('x-user-role') === 'customer'
+  const isCustomerPdfRequest = /^\/invoices\/[^/]+\/pdf$/.test(url)
+    && config.headers.get('x-user-role') === 'customer'
+  const isCustomerScopedRequest = isMyInvoicesRequest || isCustomerInvoiceRequest || isCustomerPdfRequest
+  const isAllShopInvoicesRequest = url.endsWith('/invoices/shop-invoices')
   const isAdminInvoiceRequest = url.includes('/invoices/admin/')
   const isSellerInvoiceRequest = url.includes('/invoices/shop-invoices') || url.includes('/invoices/manage')
   const role = {
@@ -103,7 +130,7 @@ invoiceClient.interceptors.request.use(async (config) => {
     USER: 'customer',
   }[extractRoleFromUser(user)]
 
-  if (isMyInvoicesRequest) {
+  if (isCustomerScopedRequest) {
     config.headers.set('x-user-role', 'customer')
     config.headers.delete('x-shop-id')
   } else if (isAdminInvoiceRequest) {
@@ -114,7 +141,7 @@ invoiceClient.interceptors.request.use(async (config) => {
     config.headers.set('x-user-role', role)
   }
 
-  if (!isMyInvoicesRequest && user?.active_shop_id) {
+  if (!isCustomerScopedRequest && user?.active_shop_id) {
     config.headers.set('x-shop-id', user.active_shop_id)
   }
   if (user?.id) {
@@ -133,7 +160,7 @@ export const getShopInvoices = async (
     { params: status ? { status } : undefined },
   )
 
-  return response.data.data
+  return response.data.data.map(normalizeInvoiceItems)
 }
 
 export const getMyInvoices = async (): Promise<InvoiceDocument[]> => {
@@ -141,7 +168,26 @@ export const getMyInvoices = async (): Promise<InvoiceDocument[]> => {
     '/invoices/my-invoices',
   )
 
-  return response.data.data
+  return response.data.data.map(normalizeInvoiceItems)
+}
+
+export const getCustomerInvoiceByNumber = async (
+  invoiceNumber: string,
+): Promise<InvoiceDocument> => {
+  const response = await invoiceClient.get<InvoiceApiResponse<InvoiceDocument>>(
+    `/invoices/by-number/${encodeURIComponent(invoiceNumber)}`,
+    { headers: { 'x-user-role': 'customer' } },
+  )
+  return normalizeInvoiceItems(response.data.data)
+}
+
+export const getInvoiceByNumber = async (
+  invoiceNumber: string,
+): Promise<InvoiceDocument> => {
+  const response = await invoiceClient.get<InvoiceApiResponse<InvoiceDocument>>(
+    `/invoices/by-number/${encodeURIComponent(invoiceNumber)}`,
+  )
+  return normalizeInvoiceItems(response.data.data)
 }
 
 export const createPartialInvoice = async (
@@ -252,4 +298,57 @@ export const refundInvoice = async (
   )
 
   return response.data.data
+}
+
+const normalizeInvoiceItems = (invoice: InvoiceDocument): InvoiceDocument => {
+  const storedItems = invoice.items ?? []
+  const lineItems = invoice.lineItems ?? []
+
+  return {
+    ...invoice,
+    lineItems: lineItems.length > 0
+      ? lineItems.map((item, index) => ({
+        ...item,
+        orderItemId: item.orderItemId ?? storedItems[index]?.orderItemId,
+      }))
+      : storedItems.map((item) => ({
+        orderItemId: item.orderItemId,
+        name: item.productName,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        total: item.totalPrice,
+        imageUrl: item.imageUrl,
+      })),
+  }
+}
+
+export const downloadInvoicePdf = async (
+  invoiceId: string,
+  options: { asCustomer?: boolean } = {},
+): Promise<Blob> => {
+  const response = await invoiceClient.get<Blob>(
+    `/invoices/${invoiceId}/pdf`,
+    {
+      responseType: 'blob',
+      ...(options.asCustomer ? { headers: { 'x-user-role': 'customer' } } : {}),
+    },
+  )
+  return response.data
+}
+
+/**
+ * Fetch an invoice for the print route using a short-lived, single-invoice print
+ * token issued by the invoice service (used by the headless PDF renderer).
+ * The token is verified server-side, including invoice ownership.
+ */
+export const getInvoiceForPrint = async (
+  invoiceNumber: string,
+  printToken: string,
+): Promise<InvoiceDocument> => {
+  const response = await invoiceClient.get<InvoiceApiResponse<InvoiceDocument>>(
+    `/invoices/print/${encodeURIComponent(invoiceNumber)}`,
+    { headers: { 'x-print-token': printToken } },
+  )
+
+  return normalizeInvoiceItems(response.data.data)
 }
