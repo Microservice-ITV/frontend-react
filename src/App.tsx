@@ -28,7 +28,9 @@ function App() {
     matchPath({ path: '/seller', end: true }, pathname) ||
     matchPath({ path: '/seller/*' }, pathname) ||
     matchPath({ path: '/super-admin', end: true }, pathname) ||
-    matchPath({ path: '/super-admin/*' }, pathname)
+    matchPath({ path: '/super-admin/*' }, pathname) ||
+    // Invoice print route renders only the invoice document.
+    matchPath({ path: '/account/invoices/:invoiceNumber/print', end: true }, pathname)
 
   /**
    * Bootstrap authentication on app load
@@ -70,8 +72,20 @@ function App() {
 
   /**
    * Prevent UI flicker during authentication bootstrap
+   *
+   * The invoice print route is exempt: it is rendered by the headless PDF
+   * renderer, which has no session, and its authorisation comes from the
+   * server-verified print token rather than the auth store. Waiting for the
+   * auth bootstrap there would stall the PDF render.
    */
-  if (isAuthBootstrapping) return <AuthBootstrapLoading fullScreen />
+  const isInvoicePrintRoute = matchPath(
+    { path: '/account/invoices/:invoiceNumber/print', end: true },
+    pathname,
+  );
+
+  if (isAuthBootstrapping && !isInvoicePrintRoute) {
+    return <AuthBootstrapLoading fullScreen />;
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-[#f5f5f5]">

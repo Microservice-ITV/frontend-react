@@ -61,6 +61,9 @@ import NotificationsCenterPage from "@/features/account/pages/NotificationsCente
 import OrdersPage from "@/features/account/pages/OrdersPage";
 import OrderTrackingPage from "@/features/account/pages/OrderTrackingPage";
 import CustomerInvoicesPage from "@/features/account/pages/CustomerInvoicesPage";
+import CustomerInvoiceDetailPage from "@/features/account/pages/CustomerInvoiceDetailPage";
+import CustomerInvoicePrintPage from "@/features/account/pages/CustomerInvoicePrintPage";
+import ScopedInvoiceDetailPage from "@/features/invoices/pages/ScopedInvoiceDetailPage";
 import VouchersPage from "@/features/account/pages/VouchersPage";
 import CoinsPage from "@/features/account/pages/CoinsPage";
 import { ROUTE_ACCESS } from "./routeAccessMap";
@@ -165,6 +168,11 @@ const AppRoutes = () => {
       {/* Unified checkout (guest + logged-in) */}
       <Route path="/checkout" element={<CheckoutGatePage />} />
 
+      <Route
+        path="/account/invoices/:invoiceNumber/print"
+        element={<CustomerInvoicePrintPage />}
+      />
+
       {/* Protected routes */}
       <Route element={<ProtectedRoute />}>
         <Route
@@ -214,6 +222,7 @@ const AppRoutes = () => {
               }
             />
             <Route path="invoices" element={<CustomerInvoicesPage />} />
+            <Route path="invoices/:invoiceNumber" element={<CustomerInvoiceDetailPage />} />
             <Route path="my-vouchers" element={<VouchersPage />} />
             <Route path="my-coins" element={<CoinsPage />} />
           </Route>
@@ -510,6 +519,16 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.sellerInvoices}
                 >
                   <SellerInvoicesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="invoices/:invoiceNumber"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerInvoices}
+                >
+                  <ScopedInvoiceDetailPage backTo="/seller/invoices" backLabel="Back to invoices" />
                 </ProtectedRoute>
               }
             />
@@ -1188,6 +1207,16 @@ const AppRoutes = () => {
               }
             />
             <Route
+              path="invoices/:invoiceNumber"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminInvoices}
+                >
+                  <ScopedInvoiceDetailPage backTo="/super-admin/invoices" backLabel="Back to invoices" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="system"
               element={
                 <ProtectedRoute
@@ -1484,6 +1513,18 @@ const AppRoutes = () => {
       </Route>
 
       {/* Public routes */}
+      {/*
+       * Print-only invoice route. Intentionally outside the session-guarded
+       * block above: the headless PDF renderer has no browser session, so
+       * authorisation comes from the short-lived, single-invoice print token
+       * that the invoice service verifies server-side (signature, expiry,
+       * scope, invoice number and ownership). Without a valid token the page
+       * renders no invoice data.
+       */}
+      <Route
+        path="/account/invoices/:invoiceNumber/print"
+        element={<CustomerInvoicePrintPage />}
+      />
       <Route path="/oauth-success" element={<OAuthSuccessPage />} />
       <Route path="/oauth-error" element={<OAuthErrorPage />} />
       <Route path="/forbidden" element={<ForbiddenPage />} />

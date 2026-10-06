@@ -19,6 +19,9 @@ import {
   X,
 } from 'lucide-react'
 import DataTablePagination from '@/components/ui/DataTablePagination'
+import InvoiceStatusBadge from '@/features/invoices/components/InvoiceStatusBadge'
+import InvoiceEmptyState from '@/features/invoices/components/InvoiceEmptyState'
+import InvoiceStatCard from '@/features/invoices/components/InvoiceStatCard'
 import AdminInvoiceActionModal from '../components/AdminInvoiceActionModal'
 import AdminInvoiceAuditDrawer from '../components/AdminInvoiceAuditDrawer'
 import AdminInvoiceBatchBar from '../components/AdminInvoiceBatchBar'
@@ -43,15 +46,6 @@ const STATUS_LABELS: Record<InvoiceStatus, string> = {
   REJECTED: 'Rejected',
   VOID: 'Void',
   REFUNDED: 'Refunded',
-}
-
-const STATUS_STYLES: Record<InvoiceStatus, string> = {
-  UNPAID: 'bg-slate-100 text-slate-700',
-  PENDING_VERIFICATION: 'border border-amber-200 bg-amber-50 text-amber-800',
-  PAID: 'border border-emerald-200 bg-emerald-50 text-emerald-700',
-  REJECTED: 'border border-red-200 bg-red-50 text-red-700',
-  VOID: 'border border-zinc-300 bg-zinc-100 text-zinc-700',
-  REFUNDED: 'border border-blue-200 bg-blue-50 text-blue-700',
 }
 
 const formatMoney = (invoice: InvoiceDocument) =>
@@ -255,39 +249,44 @@ const AdminInvoicesPage = () => {
 
   return (
     <div className="space-y-6">
-      <nav className="text-xs text-slate-500">
-        <Link to="/super-admin/overview" className="hover:text-slate-700">Dashboard</Link>
-        <span className="mx-1">/</span>
-        <span className="text-slate-900">Invoices</span>
+      <nav className="text-xs text-slate-400">
+        <Link to="/super-admin/overview" className="transition hover:text-slate-600">Dashboard</Link>
+        <span className="mx-1.5">/</span>
+        <span className="text-slate-600">Invoices</span>
       </nav>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="flex items-center gap-2 text-xl font-bold text-slate-900">
-            <FileText size={22} className="text-slate-400" />
-             Invoices
+        <div className="min-w-0">
+          <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight text-slate-900 md:text-2xl">
+            <FileText size={20} className="text-slate-400" />
+            Invoices
           </h1>
-          <p className="mt-0.5 text-sm text-slate-600">Monitor invoice activity and payment verification across every shop.</p>
+          <p className="mt-1 text-sm text-slate-500">Monitor invoice activity and payment verification across every shop.</p>
         </div>
         <button
           type="button"
           onClick={() => void loadInvoices()}
           disabled={isLoading}
-          className="inline-flex items-center gap-2 self-start rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          className="inline-flex shrink-0 items-center gap-2 self-start rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50"
         >
-          <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+          <RefreshCw size={15} className={isLoading ? 'animate-spin' : ''} />
           Refresh
         </button>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <SummaryCard icon={<FileText size={18} />} label="Total platform invoices" value={invoices.length.toLocaleString()} tone="indigo" />
-        <SummaryCard icon={<DollarSign size={18} />} label="Net revenue" value={`${revenueCurrency} ${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} tone="emerald" />
-        <SummaryCard icon={<Clock3 size={18} />} label="Global pending verifications" value={pendingCount.toLocaleString()} tone="amber" />
-        <SummaryCard icon={<AlertTriangle size={18} />} label="Voided / refunded count" value={refundedCount.toLocaleString()} tone="rose" />
+        <InvoiceStatCard label="Total platform invoices" value={invoices.length.toLocaleString()} icon={<FileText size={14} />} tone="slate" />
+        <InvoiceStatCard
+          label="Net revenue"
+          value={`${revenueCurrency} ${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          icon={<DollarSign size={14} />}
+          tone="emerald"
+        />
+        <InvoiceStatCard label="Global pending verifications" value={pendingCount.toLocaleString()} icon={<Clock3 size={14} />} tone="amber" />
+        <InvoiceStatCard label="Voided / refunded count" value={refundedCount.toLocaleString()} icon={<AlertTriangle size={14} />} tone="rose" />
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-4">
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="grid gap-3 lg:grid-cols-[minmax(240px,1.5fr)_1fr_1fr_1fr]">
           <label className="relative block">
             <span className="sr-only">Search invoice or order ID</span>
@@ -307,11 +306,11 @@ const AdminInvoicesPage = () => {
 
       {error && <div role="alert" className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"><span>{error}</span><button type="button" onClick={() => setError(null)} aria-label="Dismiss error"><X size={16} /></button></div>}
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-270">
-            <thead><tr className="border-b border-slate-200 bg-slate-50">
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-600"><input type="checkbox" aria-label="Select all invoices" checked={pageInvoices.length > 0 && pageInvoices.every((invoice) => selectedInvoiceIds.includes(invoice.id))} onChange={() => {
+          <table className="w-full min-w-[1080px]">
+            <thead><tr className="border-b border-slate-200 bg-slate-50/70">
+              <th className="w-12 px-5 py-3 text-left"><input type="checkbox" aria-label="Select all invoices" checked={pageInvoices.length > 0 && pageInvoices.every((invoice) => selectedInvoiceIds.includes(invoice.id))} onChange={() => {
                 const allSelected = pageInvoices.every((invoice) => selectedInvoiceIds.includes(invoice.id))
                 setSelectedInvoiceIds((current) => {
                   const next = new Set(current)
@@ -325,20 +324,20 @@ const AdminInvoicesPage = () => {
                   return [...next]
                 })
               }} className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" /></th>
-              {['Invoice #', 'Shop name / ID', 'Customer', 'Grand total', 'Payment status', 'Created at', 'Actions'].map((heading) => <th key={heading} className="px-4 py-3 text-left text-xs font-medium text-slate-600">{heading}</th>)}
+              {['Invoice #', 'Shop name / ID', 'Customer', 'Grand total', 'Payment status', 'Created at', 'Actions'].map((heading) => <th key={heading} className={`px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 ${heading === 'Grand total' ? 'text-right' : heading === 'Actions' ? 'text-right' : 'text-left'}`}>{heading}</th>)}
             </tr></thead>
             <tbody>
               {isLoading && <InvoiceSkeletonRows />}
-              {!isLoading && pageInvoices.length === 0 && <tr><td colSpan={8} className="px-4 py-12 text-center text-sm text-slate-500">No invoices found for the current filters.</td></tr>}
-              {!isLoading && pageInvoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-                <td className="px-4 py-4"><input type="checkbox" aria-label={`Select invoice ${invoice.invoiceNumber || invoice.id}`} checked={selectedInvoiceIds.includes(invoice.id)} onChange={() => toggleInvoiceSelection(invoice.id)} className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" /></td>
+              {!isLoading && pageInvoices.length === 0 && <tr><td colSpan={8}><InvoiceEmptyState compact icon={<FileText size={20} />} title="No invoices found" description="No invoices match the current filters." /></td></tr>}
+              {!isLoading && pageInvoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100 last:border-0 transition hover:bg-slate-50/70">
+                <td className="px-5 py-4"><input type="checkbox" aria-label={`Select invoice ${invoice.invoiceNumber || invoice.id}`} checked={selectedInvoiceIds.includes(invoice.id)} onChange={() => toggleInvoiceSelection(invoice.id)} className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" /></td>
                 <td className="px-4 py-4"><p className="font-mono text-xs font-semibold text-slate-900">{invoice.invoiceNumber || invoice.id}</p><p className="mt-1 text-[11px] text-slate-400">Order {invoice.orderId.slice(0, 12)}</p></td>
-                <td className="px-4 py-4"><div className="flex items-start gap-2"><Store size={15} className="mt-0.5 text-slate-400" /><div><p className="text-xs font-medium text-slate-800">{getDisplayValue(invoice.shopName, 'N/A')}</p><p className="mt-1 text-[11px] text-slate-400">{invoice.shopId}</p></div></div></td>
-                <td className="px-4 py-4"><div className="flex items-start gap-2"><ShieldCheck size={15} className="mt-0.5 text-slate-400" /><div><p className="text-xs font-medium text-slate-800">{getDisplayValue(invoice.customerName, 'N/A')}</p><p className="mt-1 text-[11px] text-slate-400">{getDisplayValue(invoice.customerEmail, 'N/A')}</p></div></div></td>
-                <td className="px-4 py-4 text-sm font-semibold text-slate-900">{formatMoney(invoice)}</td>
-                <td className="whitespace-nowrap px-4 py-4"><span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[11px] font-semibold leading-none ${STATUS_STYLES[invoice.status]}`}><span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />{STATUS_LABELS[invoice.status]}</span></td>
-                <td className="px-4 py-4 text-xs text-slate-600">{formatDate(invoice.createdAt)}</td>
-                <td className="px-4 py-4"><div className="relative" ref={openMenuId === invoice.id ? menuRef : undefined}><button type="button" aria-label={`Actions for ${invoice.invoiceNumber || invoice.id}`} onClick={() => setOpenMenuId(openMenuId === invoice.id ? null : invoice.id)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900"><MoreHorizontal size={18} /></button>{openMenuId === invoice.id && <div className="absolute right-0 z-20 mt-1 w-48 rounded-lg border border-slate-200 bg-white py-1 shadow-lg"><ActionButton icon={<Eye size={14} />} label="View audit details" onClick={() => openAction(invoice, 'audit')} />{invoice.pdfUrl && <ActionButton icon={<Download size={14} />} label="Download PDF" onClick={() => { window.open(invoice.pdfUrl as string, '_blank', 'noopener,noreferrer'); setOpenMenuId(null) }} />}<ActionButton icon={generatingPdfId === invoice.id ? <Loader2 size={14} className="animate-spin" /> : invoice.pdfUrl ? <RefreshCw size={14} /> : <FileText size={14} />} label={generatingPdfId === invoice.id ? 'Generating PDF...' : invoice.pdfUrl ? 'Re-generate PDF' : 'Generate PDF'} disabled={generatingPdfId !== null} onClick={() => void handleGeneratePdf(invoice)} /><ActionButton icon={<Ban size={14} />} label="Force void" disabled={invoice.status === 'VOID' || invoice.status === 'REFUNDED'} onClick={() => openAction(invoice, 'void')} /><ActionButton icon={<CreditCard size={14} />} label="Process refund" disabled={invoice.status !== 'PAID'} onClick={() => openAction(invoice, 'refund')} /></div>}</div></td>
+                <td className="px-4 py-4"><div className="flex items-start gap-2"><Store size={15} className="mt-0.5 shrink-0 text-slate-300" /><div className="min-w-0"><p className="truncate text-xs font-medium text-slate-800">{getDisplayValue(invoice.shopName, 'N/A')}</p><p className="mt-1 truncate text-[11px] text-slate-400">{invoice.shopId}</p></div></div></td>
+                <td className="px-4 py-4"><div className="flex items-start gap-2"><ShieldCheck size={15} className="mt-0.5 shrink-0 text-slate-300" /><div className="min-w-0"><p className="truncate text-xs font-medium text-slate-800">{getDisplayValue(invoice.customerName, 'N/A')}</p><p className="mt-1 truncate text-[11px] text-slate-400">{getDisplayValue(invoice.customerEmail, 'N/A')}</p></div></div></td>
+                <td className="whitespace-nowrap px-4 py-4 text-right text-sm font-semibold tabular-nums text-slate-900">{formatMoney(invoice)}</td>
+                <td className="whitespace-nowrap px-4 py-4"><InvoiceStatusBadge status={invoice.status} label={STATUS_LABELS[invoice.status]} size="sm" /></td>
+                <td className="whitespace-nowrap px-4 py-4 text-xs text-slate-500">{formatDate(invoice.createdAt)}</td>
+                <td className="px-4 py-4"><div className="relative" ref={openMenuId === invoice.id ? menuRef : undefined}><button type="button" aria-label={`Actions for ${invoice.invoiceNumber || invoice.id}`} onClick={() => setOpenMenuId(openMenuId === invoice.id ? null : invoice.id)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900"><MoreHorizontal size={18} /></button>{openMenuId === invoice.id && <div className="absolute right-0 z-20 mt-1 w-48 rounded-lg border border-slate-200 bg-white py-1 shadow-lg"><Link to={`/super-admin/invoices/${encodeURIComponent(invoice.invoiceNumber || invoice.id)}`} onClick={() => setOpenMenuId(null)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50"><Eye size={14} />Details</Link><ActionButton icon={<Eye size={14} />} label="View audit details" onClick={() => openAction(invoice, 'audit')} />{invoice.pdfUrl && <ActionButton icon={<Download size={14} />} label="Download PDF" onClick={() => { window.open(invoice.pdfUrl as string, '_blank', 'noopener,noreferrer'); setOpenMenuId(null) }} />}<ActionButton icon={generatingPdfId === invoice.id ? <Loader2 size={14} className="animate-spin" /> : invoice.pdfUrl ? <RefreshCw size={14} /> : <FileText size={14} />} label={generatingPdfId === invoice.id ? 'Generating PDF...' : invoice.pdfUrl ? 'Re-generate PDF' : 'Generate PDF'} disabled={generatingPdfId !== null} onClick={() => void handleGeneratePdf(invoice)} /><ActionButton icon={<Ban size={14} />} label="Force void" disabled={invoice.status === 'VOID' || invoice.status === 'REFUNDED'} onClick={() => openAction(invoice, 'void')} /><ActionButton icon={<CreditCard size={14} />} label="Process refund" disabled={invoice.status !== 'PAID'} onClick={() => openAction(invoice, 'refund')} /></div>}</div></td>
               </tr>)}
             </tbody>
           </table>
@@ -372,12 +371,7 @@ const AdminInvoicesPage = () => {
   )
 }
 
-const SummaryCard = ({ icon, label, value, tone }: { icon: ReactNode; label: string; value: string; tone: 'indigo' | 'emerald' | 'amber' | 'rose' }) => {
-  const styles = { indigo: 'bg-indigo-50 text-indigo-600', emerald: 'bg-emerald-50 text-emerald-600', amber: 'bg-amber-50 text-amber-600', rose: 'bg-rose-50 text-rose-600' }
-  return <div className="rounded-xl border border-slate-200 bg-white p-4"><div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-lg ${styles[tone]}`}>{icon}</div><p className="text-xs text-slate-500">{label}</p><p className="mt-1 truncate text-xl font-bold text-slate-900">{value}</p></div>
-}
-
-const FilterSelect = ({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: { value: string; label: string }[] }) => <label className="block"><span className="sr-only">Filter by {label}</span><select value={value} onChange={(event) => onChange(event.target.value)} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 outline-none focus:border-emerald-500 focus:bg-white">{options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+const FilterSelect = ({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: { value: string; label: string }[] }) => <label className="block"><span className="sr-only">Filter by {label}</span><select value={value} onChange={(event) => onChange(event.target.value)} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-slate-400 focus:bg-white">{options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
 
 const ActionButton = ({ icon, label, onClick, disabled = false }: { icon: ReactNode; label: string; onClick: () => void; disabled?: boolean }) => <button type="button" disabled={disabled} onClick={onClick} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">{icon}{label}</button>
 

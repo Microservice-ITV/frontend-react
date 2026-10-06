@@ -23,7 +23,7 @@ services:
       VITE_ECOMMERCE_READ_SERVICE_URL: ${VITE_ECOMMERCE_READ_SERVICE_URL:-http://localhost:5004}
       VITE_ECOMMERCE_READ_GRAPHQL_URL: ${VITE_ECOMMERCE_READ_GRAPHQL_URL:-http://localhost:5004/graphql}
       VITE_SHIPPING_SERVICE_URL: ${VITE_SHIPPING_SERVICE_URL:-http://localhost:5005/api/v1}
-      VITE_INVOICE_SERVICE_URL: ${VITE_INVOICE_SERVICE_URL:-http://localhost:5005/api/v1}
+      VITE_INVOICE_SERVICE_URL: ${VITE_INVOICE_SERVICE_URL:-http://localhost:5006/api/v1}
       VITE_BFF_SERVICE_URL: ${VITE_BFF_SERVICE_URL:-http://localhost:5008}
       VITE_STRIPE_PUBLIC_KEY: ${VITE_STRIPE_PUBLIC_KEY:-}
       VITE_RECAPTCHA_SITE_KEY: ${VITE_RECAPTCHA_SITE_KEY:-}
@@ -43,6 +43,7 @@ services:
       - ./src/types:${NODE_WORKING_DIR}/types
       - ./src/assets:${NODE_WORKING_DIR}/assets
       - ./src/public:${NODE_WORKING_DIR}/public
+      - ./public:/public
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:5173/"]
       interval: 30s

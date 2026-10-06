@@ -76,6 +76,8 @@ const PAGE_TITLE_RULES: PageTitleRule[] = [
   { path: '/account/orders', title: 'Orders' },
   { path: '/account/orders/:orderId', title: 'Order Details' },
   { path: '/account/invoices', title: 'Invoices' },
+  { path: '/account/invoices/:invoiceNumber', title: 'Invoice' },
+  { path: '/account/invoices/:invoiceNumber/print', title: 'Print invoice' },
   { path: '/account/my-vouchers', title: 'My Vouchers' },
   { path: '/account/my-coins', title: 'My Coins' },
 

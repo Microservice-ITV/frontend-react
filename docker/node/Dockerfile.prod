@@ -13,6 +13,10 @@ RUN npm ci
 
 COPY src/ .
 
+# Copy the repository-root public assets (e.g. logo.svg) into the app's public dir,
+# so Vite can serve /logo.svg from the built output.
+COPY public/ ./public
+
 # Build-time variables
 ARG VITE_AUTH_SERVICE_URL
 ARG VITE_PRODUCT_SERVICE_URL

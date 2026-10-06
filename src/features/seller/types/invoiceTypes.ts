@@ -3,7 +3,7 @@ export type InvoiceStatus = 'paid' | 'pending' | 'overdue' | 'rejected' | 'void'
 export type Invoice = {
   id: string
   customer: { name: string; email: string }
-  orderId: string
+  orderReference: string
   status: InvoiceStatus
   issued: string
   amount: string
