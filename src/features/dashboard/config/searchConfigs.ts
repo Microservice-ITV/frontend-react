@@ -367,6 +367,8 @@ export const searchConfigs: Record<string, SearchConfig> = {
     makeTo: () => `/seller/promotions`,
   },
   'seller-flash-deals': makeStaticSearch('/seller/promotion-engine/flash-deals'),
+  'seller-bundles': makeStaticSearch('/seller/promotion-engine/bundles'),
+  'admin-bundles': makeStaticSearch('/super-admin/promotion-engine/bundles'),
   'seller-overview': makeStaticSearch('/seller/overview'),
   'seller-analytics': makeStaticSearch('/seller/analytics'),
   'seller-finance-overview': makeStaticSearch('/seller/finance'),

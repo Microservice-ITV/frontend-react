@@ -17,6 +17,7 @@ export interface PurchasedOrderItem {
 export interface PurchasedOrderTotals {
   subtotal: number
   discount: number
+  bundleDiscount?: number
   shipping: number
   total: number
   currency: string
@@ -74,6 +75,7 @@ export interface PurchasedShopBreakdown {
   shopId: string
   subtotal: number
   discount: number
+  bundleDiscount?: number
   shipping: number
   total: number
   currency: string

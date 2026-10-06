@@ -1,3 +1,4 @@
+import { bundleApi } from '@/features/bundles/api/bundleApi'
 import { orderClient } from '@/lib/api/orderClient'
 import { productClient } from '@/lib/api/productClient'
 import type { AxiosResponse } from 'axios'
@@ -52,6 +53,13 @@ export type PromotionQuoteResponse = {
   promo_code?: string | null
   promo_code_status?: PromoCodeStatus | null
   promo_code_message?: string | null
+  bundle_savings?: Array<{
+    bundle_id: string
+    title: string
+    kind: 'FIXED' | 'CART_UPSELL'
+    amount: number
+    sets: number
+  }>
 }
 
 export type TaxPreviewResponse = {
@@ -68,6 +76,66 @@ export type TaxPreviewResponse = {
     tax_amount?: number
     reason?: string | null
   }>
+}
+
+async function includeCoveredBundles(
+  quote: PromotionQuoteResponse,
+  items: Array<{ product_id: string; shop_id: string; unit_price: number; quantity: number }>,
+): Promise<PromotionQuoteResponse> {
+  if (!items.length) return quote
+  try {
+    const match = await bundleApi.match(items.map((item) => ({ ...item, selected: true })))
+    const known = new Set((quote.bundle_savings ?? []).map((row) => row.bundle_id))
+    let room = Math.max(0, Number(quote.final_total) || 0)
+    const extra = (match.offers ?? []).flatMap((offer) => {
+      const covered = offer.items.length > 0 && offer.items.every((item) => item.in_cart)
+      const amount = Math.min(room, Math.max(0, offer.savings ?? 0))
+      if (!covered || amount <= 0 || known.has(offer.bundle_id)) return []
+      room = Math.round((room - amount) * 100) / 100
+      known.add(offer.bundle_id)
+      return [{
+        bundle_id: offer.bundle_id,
+        title: offer.title,
+        kind: 'FIXED' as const,
+        shop_id: offer.shop_id,
+        amount,
+        sets: 1,
+      }]
+    })
+    if (!extra.length) return quote
+    const added = extra.reduce((sum, row) => sum + row.amount, 0)
+    return {
+      ...quote,
+      discount_total: Math.round((Number(quote.discount_total) + added) * 100) / 100,
+      final_total: room,
+      promotion_ids: [...new Set([...(quote.promotion_ids ?? []), ...extra.map((row) => row.bundle_id)])],
+      bundle_savings: [
+        ...(quote.bundle_savings ?? []),
+        ...extra.map((row) => ({
+          bundle_id: row.bundle_id,
+          title: row.title,
+          kind: row.kind,
+          amount: row.amount,
+          sets: row.sets,
+        })),
+      ],
+      allocations: [
+        ...(quote.allocations ?? []),
+        ...extra.map((row) => ({
+          promotion_id: row.bundle_id,
+          promotion_name: row.title,
+          reward_id: row.bundle_id,
+          shop_id: row.shop_id,
+          discount_type: 'ITEM',
+          funded_by: 'SELLER',
+          amount: row.amount,
+          source: 'BUNDLE',
+        })),
+      ],
+    }
+  } catch {
+    return quote
+  }
 }
 
 export const checkoutApi = {
@@ -91,7 +159,7 @@ export const checkoutApi = {
         : undefined,
     }
     const response = await promotionClient.post('/promotions/quote', body)
-    return response.data
+    return includeCoveredBundles(response.data, body.items)
   },
 
   async previewTax(

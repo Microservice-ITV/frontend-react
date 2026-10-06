@@ -326,6 +326,7 @@ const SellerOrderDetailPage = () => {
       subtotal:
         row?.subtotal ?? Number(groupItems.reduce((c, i) => c + i.lineTotal, 0).toFixed(2)),
       discount: row?.discount ?? itemDiscount,
+      bundleDiscount: row?.bundleDiscount ?? 0,
       shipping: row?.shipping ?? null,
       total: row?.total ?? null,
       currency: row?.currency ?? order?.totals.currency ?? 'USD',
@@ -347,6 +348,7 @@ const SellerOrderDetailPage = () => {
       return {
         subtotal: sum((r) => r.subtotal),
         discount: sum((r) => r.discount),
+        bundleDiscount: sum((r) => r.bundleDiscount ?? 0),
         shipping: sum((r) => r.shipping) as number | null,
         total: sum((r) => r.total),
         currency: rows[0].currency || order.totals.currency,
@@ -362,6 +364,7 @@ const SellerOrderDetailPage = () => {
     return {
       subtotal,
       discount,
+      bundleDiscount: 0,
       shipping: null as number | null,
       total: Number(Math.max(0, subtotal - discount).toFixed(2)),
       currency: order.totals.currency,
@@ -590,6 +593,14 @@ const SellerOrderDetailPage = () => {
                                 {formatMoney(shopTotals.subtotal, shopTotals.currency)}
                               </span>
                             </span>
+                            {(shopTotals.bundleDiscount ?? 0) > 0 && (
+                              <span>
+                                Bundle{' '}
+                                <span className="font-semibold text-emerald-600">
+                                  −{formatMoney(shopTotals.bundleDiscount ?? 0, shopTotals.currency)}
+                                </span>
+                              </span>
+                            )}
                             {shopTotals.discount > 0 && (
                               <span>
                                 Discount{' '}
@@ -636,6 +647,14 @@ const SellerOrderDetailPage = () => {
                         {formatMoney(sellerTotals.subtotal, sellerTotals.currency)}
                       </span>
                     </div>
+                    {(sellerTotals.bundleDiscount ?? 0) > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-500">Bundle Discount</span>
+                        <span className="font-medium text-emerald-600">
+                          −{formatMoney(sellerTotals.bundleDiscount ?? 0, sellerTotals.currency)}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-sm">
                       <span className="text-slate-500">Total Discount</span>
                       <span

@@ -15,7 +15,6 @@ import {
   resolveCartTax,
 } from '../api/checkoutApi'
 import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
-
 function getOrCreateGuestId(): string {
   try {
     const key = 'dni.guest_id'
@@ -102,7 +101,7 @@ const GuestCheckoutPage = () => {
     }
   }, [taxLinesKey])
 
-  const announcement = 'Guest checkout is available without registration, but discounts and member-only benefits won’t apply.'
+  const announcement = 'Guest checkout is available without registration. You will not receive any promotion offer unless you register an account.'
 
   useEffect(() => {
     let cancelled = false
@@ -260,7 +259,7 @@ const GuestCheckoutPage = () => {
       <div className="mx-auto w-full max-w-3xl space-y-4">
         <Card className="p-6">
           <h1 className="text-lg font-semibold text-gray-900">Guest checkout</h1>
-          <p className="mt-2 text-sm text-gray-600">{announcement}</p>
+          <p className="mt-2 text-sm font-semibold text-amber-700">{announcement}</p>
 
           {items.length === 0 && (
             <div className="mt-4 rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">

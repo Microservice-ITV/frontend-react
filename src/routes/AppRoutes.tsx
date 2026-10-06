@@ -128,6 +128,8 @@ import PromotionEnginePage from "@/features/promotions/pages/PromotionEnginePage
 import AdminFlashDealsPage from "@/features/flash-deals/pages/AdminFlashDealsPage";
 import NewFlashDealPage from "@/features/flash-deals/pages/NewFlashDealPage";
 import EditFlashDealPage from "@/features/flash-deals/pages/EditFlashDealPage";
+import AdminBundlesPage from "@/features/bundles/pages/AdminBundlesPage";
+import BundleFormPage from "@/features/bundles/pages/BundleFormPage";
 import SellerFinanceOverviewPage from "@/features/finance/pages/SellerFinanceOverviewPage";
 import SellerFinanceTransactionsPage from "@/features/finance/pages/SellerFinanceTransactionsPage";
 import SellerAccountingOverviewPage from "@/features/accounting/pages/SellerAccountingOverviewPage";
@@ -530,6 +532,30 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.sellerFlashDealsEdit}
                 >
                   <EditFlashDealPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="promotion-engine/bundles"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerBundlesView}>
+                  <AdminBundlesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="promotion-engine/bundles/new"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerBundlesView}>
+                  <BundleFormPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="promotion-engine/bundles/:id/edit"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerBundlesView}>
+                  <BundleFormPage />
                 </ProtectedRoute>
               }
             />
@@ -1414,6 +1440,30 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.flashDealsView}
                 >
                   <EditFlashDealPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="promotion-engine/bundles"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.bundlesView}>
+                  <AdminBundlesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="promotion-engine/bundles/new"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.bundlesView}>
+                  <BundleFormPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="promotion-engine/bundles/:id/edit"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.bundlesView}>
+                  <BundleFormPage />
                 </ProtectedRoute>
               }
             />

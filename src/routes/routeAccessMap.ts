@@ -20,6 +20,8 @@ export const ROUTE_ACCESS = {
   sellerFlashDealsView: [CAPABILITIES.FLASH_DEALS_MANAGE],
   sellerFlashDealsNew: [CAPABILITIES.FLASH_DEALS_MANAGE],
   sellerFlashDealsEdit: [CAPABILITIES.FLASH_DEALS_MANAGE],
+  bundlesView: [CAPABILITIES.FLASH_DEALS_MANAGE],
+  sellerBundlesView: [CAPABILITIES.FLASH_DEALS_MANAGE],
   sellerProducts: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
   /** Seller dashboard: manage brand / color / size reference data */
   sellerCatalogRefs: [CAPABILITIES.SELLER_DASHBOARD_VIEW],

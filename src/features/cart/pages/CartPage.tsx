@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
+import CartBundleBanner from '@/features/bundles/components/CartBundleBanner'
+import type { BundleMatchResult } from '@/features/bundles/types/bundleTypes'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { fetchShopProfilesForCurrentCart } from '@/features/shipping/store/shippingThunks'
 import { selectCartItems, selectCartTotal, selectCartProductKey } from '@/features/cart/store/cartSelectors'
@@ -14,6 +16,7 @@ import RecommendationSection from '@/features/products/components/Recommendation
 const CartPage = () => {
     const dispatch = useAppDispatch()
     const [showGuestModal, setShowGuestModal] = useState(false)
+    const [bundleMatch, setBundleMatch] = useState<BundleMatchResult | null>(null)
     const items = useAppSelector(selectCartItems)
     const total = useAppSelector(selectCartTotal)
     const cartProductKey = useAppSelector(selectCartProductKey)
@@ -92,9 +95,16 @@ const CartPage = () => {
                 <h1 className="mb-3 text-lg font-semibold text-gray-900 sm:mb-4 sm:text-xl">Shopping cart</h1>
 
                 <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-5">
-                    <CartItemLists items={items} />
+                    <div className="space-y-3">
+                        <CartBundleBanner items={items} onMatch={setBundleMatch} />
+                        <CartItemLists items={items} />
+                    </div>
                     <aside className="max-lg:sticky max-lg:bottom-0 max-lg:z-20 lg:sticky lg:top-4">
-                        <CartSummary total={total} onGuestCheckout={() => setShowGuestModal(true)} />
+                        <CartSummary
+                            total={total}
+                            bundleSavings={bundleMatch?.discounts ?? []}
+                            onGuestCheckout={() => setShowGuestModal(true)}
+                        />
                     </aside>
                 </div>
 
@@ -102,6 +112,7 @@ const CartPage = () => {
                     <RecommendationSection
                         productId={firstProductId}
                         title="YOU MAY ALSO LIKE"
+                        description="Products often bought with the items in your cart, shown at their regular prices."
                         showSeeMore={true}
                         maxInitialProducts={10}
                         excludeProductIds={cartProductIds}

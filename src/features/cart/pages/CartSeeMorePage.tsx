@@ -21,6 +21,16 @@ import ProductGrid, {
 } from "@/features/products/components/ProductGrid";
 import Pagination from "@/components/ui/Pagination";
 
+const DESCRIPTION =
+  "Products often bought with the items in your cart, shown at their regular prices.";
+
+const SeeMoreHeading = ({ className }: { className: string }) => (
+  <div className="mb-6">
+    <h1 className={className}>You May Also Like</h1>
+    <p className="mt-1 text-sm text-gray-600">{DESCRIPTION}</p>
+  </div>
+);
+
 const CartSeeMorePage = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
@@ -95,9 +105,7 @@ const CartSeeMorePage = () => {
     return (
       <div className="min-h-screen bg-[#f5f5f5] py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <h1 className="mb-5 px-4 sm:px-6 text-base uppercase font-semibold text-gray-600">
-            You May Also Like
-          </h1>
+          <SeeMoreHeading className="text-base uppercase font-semibold text-gray-600" />
           <ProductGridSkeleton count={10} />
         </div>
       </div>
@@ -108,9 +116,7 @@ const CartSeeMorePage = () => {
     return (
       <div className="min-h-screen bg-[#f5f5f5] py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <h1 className="mb-5 px-4 sm:px-6 text-base uppercase font-semibold text-gray-600">
-            You May Also Like
-          </h1>{" "}
+          <SeeMoreHeading className="text-base uppercase font-semibold text-gray-600" />
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
             <p className="text-red-600">
               Unable to load recommendations. Please try again later.
@@ -131,7 +137,7 @@ const CartSeeMorePage = () => {
   return (
     <div className="min-h-screen bg-[#f5f5f5] py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <h1 className="text-2xl font-semibold text-gray-900 mb-6">You May Also Like</h1>
+        <SeeMoreHeading className="text-2xl font-semibold text-gray-900" />
 
         {allProducts.length > 0 ? (
           <>

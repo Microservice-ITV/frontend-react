@@ -25,6 +25,7 @@ const MY_ORDERS_QUERY = `
       totals {
         subtotal
         discount
+        bundleDiscount
         shipping
         total
         currency
