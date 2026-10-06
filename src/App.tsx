@@ -43,6 +43,10 @@ function App() {
     dispatch(bootstrapAuth())
   }, [dispatch])
 
+  useEffect(() => {
+    document.getElementById('app-splash')?.remove()
+  }, [])
+
   /**
    * Listen for OAuth success messages from popup windows
    */
