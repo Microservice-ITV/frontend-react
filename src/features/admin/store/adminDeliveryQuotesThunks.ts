@@ -24,6 +24,21 @@ export const fetchAdminDeliveryQuotes = createAsyncThunk<
   }
 })
 
+export const deleteAdminDeliveryQuotes = createAsyncThunk<
+  string[],
+  string[],
+  { rejectValue: string }
+>('adminDeliveryQuotes/delete', async (ids, { rejectWithValue }) => {
+  try {
+    await Promise.all(ids.map((id) => adminShippingApi.deleteDeliveryQuote(id)))
+    return ids
+  } catch (error: unknown) {
+    return rejectWithValue(
+      adminShippingApi.getApiErrorMessage(error, 'Could not delete delivery quotes. Try again.'),
+    )
+  }
+})
+
 export const cancelAdminDeliveryQuote = createAsyncThunk<
   DeliveryQuoteDto,
   string,

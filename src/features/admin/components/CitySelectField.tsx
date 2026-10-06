@@ -10,6 +10,8 @@ type CitySelectFieldProps = {
   onChange: (cityId: string) => void;
   disabled?: boolean;
   placeholder?: string;
+  /** When set, the list starts with this choice and selecting it clears the value. */
+  clearLabel?: string;
 };
 
 const CitySelectField = ({
@@ -20,13 +22,15 @@ const CitySelectField = ({
   onChange,
   disabled = false,
   placeholder = "Select a city",
+  clearLabel,
 }: CitySelectFieldProps) => {
-  const options = useMemo(
-    () => [...cities]
+  const options = useMemo(() => {
+    const citiesOptions = [...cities]
       .sort((a, b) => a.name.localeCompare(b.name))
-      .map((city) => ({ value: String(city.id), label: city.name })),
-    [cities],
-  );
+      .map((city) => ({ value: String(city.id), label: city.name }));
+    if (!clearLabel) return citiesOptions;
+    return [{ value: "", label: clearLabel }, ...citiesOptions];
+  }, [cities, clearLabel]);
 
   return (
     <div>

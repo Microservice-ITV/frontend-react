@@ -32,6 +32,7 @@ export type CreateSellerShopPayload = {
   userName: string;
   description?: string;
   cityId?: string | null;
+  districtId?: string | null;
   originAddress?: string | null;
   originLat?: number | null;
   originLng?: number | null;

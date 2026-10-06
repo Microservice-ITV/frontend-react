@@ -33,7 +33,6 @@ import {
   Receipt,
   Truck,
   Scale,
-  Route,
   MapPin,
 } from "lucide-react";
 import { CAPABILITIES } from "@/app/rbac/capabilities";
@@ -435,19 +434,11 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
       },
       {
         key: 'admin-route-rates',
-        label: 'Route Rates',
+        label: 'District Rates',
         to: '/super-admin/shipping/city-rates',
         area: 'super_admin',
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
         icon: MapPin,
-      },
-      {
-        key: 'admin-distance-ranges',
-        label: 'Distance Ranges',
-        to: '/super-admin/shipping/distance-ranges',
-        area: 'super_admin',
-        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
-        icon: Route,
       },
       {
         key: 'admin-delivery-quotes',

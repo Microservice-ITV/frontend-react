@@ -2,6 +2,7 @@ import { createSlice } from '@reduxjs/toolkit'
 import type { AdminDeliveryQuotesState } from '../types/shippingAdminTypes'
 import {
   cancelAdminDeliveryQuote,
+  deleteAdminDeliveryQuotes,
   fetchAdminDeliveryQuotes,
 } from './adminDeliveryQuotesThunks'
 
@@ -45,6 +46,21 @@ const adminDeliveryQuotesSlice = createSlice({
         state.error =
           (action.payload as string) ??
           'Unable to load delivery quotes right now. Please try again.'
+      })
+      .addCase(deleteAdminDeliveryQuotes.pending, (state) => {
+        state.mutationStatus = 'loading'
+        state.mutationError = null
+      })
+      .addCase(deleteAdminDeliveryQuotes.fulfilled, (state, action) => {
+        state.mutationStatus = 'succeeded'
+        const removed = new Set(action.payload)
+        state.items = state.items.filter((quote) => !removed.has(quote.id))
+        state.total = Math.max(0, state.total - action.payload.length)
+      })
+      .addCase(deleteAdminDeliveryQuotes.rejected, (state, action) => {
+        state.mutationStatus = 'failed'
+        state.mutationError =
+          (action.payload as string) ?? 'Could not delete delivery quotes. Try again.'
       })
       .addCase(cancelAdminDeliveryQuote.pending, (state) => {
         state.mutationStatus = 'loading'

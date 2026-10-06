@@ -11,7 +11,6 @@ import {
   Trash2,
   Power,
   Truck,
-  ArrowRight,
   RefreshCw,
   Eye,
 } from 'lucide-react'
@@ -209,9 +208,6 @@ const AdminPricingRulesPage = () => {
                   Weight rate
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
-                  Distance brackets
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
                   Effective
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Status</th>
@@ -223,14 +219,14 @@ const AdminPricingRulesPage = () => {
             <tbody>
               {rulesStatus === 'loading' && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-500">
+                  <td colSpan={5} className="px-4 py-10 text-center text-sm text-slate-500">
                     Loading pricing rules...
                   </td>
                 </tr>
               )}
               {rulesStatus === 'failed' && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center">
+                  <td colSpan={5} className="px-4 py-10 text-center">
                     <p className="text-sm text-red-600">
                       {rulesError ?? 'Unable to load pricing rules.'}
                     </p>
@@ -247,7 +243,7 @@ const AdminPricingRulesPage = () => {
               )}
               {rulesStatus !== 'loading' && rulesStatus !== 'failed' && rules.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center">
+                  <td colSpan={5} className="px-4 py-12 text-center">
                     <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
                       <Truck size={22} />
                     </div>
@@ -301,18 +297,6 @@ rules.map((rule) => (
                       ) : (
                         '—'
                       )}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-slate-600">
-                      <div className="flex flex-col gap-0.5">
-                        {rule.distanceRates.map((rate) => (
-                          <span key={rate.id ?? `${rate.minDistanceKm}-${rate.maxDistanceKm}`}>
-                            {rate.minDistanceKm}
-                            <ArrowRight size={10} className="mx-1 inline" />
-                            {rate.maxDistanceKm === null ? '∞' : rate.maxDistanceKm} km ·{' '}
-                            {formatMoney(rate.fee, rule.currency)}
-                          </span>
-                        ))}
-                      </div>
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-600">
                       {formatDate(rule.effectiveFrom)}

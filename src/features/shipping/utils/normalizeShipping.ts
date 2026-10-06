@@ -120,8 +120,8 @@ export function normalizeCalculateResponse(data: unknown): {
         const currency =
             typeof r.currency === 'string' && r.currency.trim() ? r.currency.trim() : undefined
         const calculationMethod = calculationMethodOf(r.calculationMethod) ?? rootMethod
-        const fromCityId = textOrNull(r.fromCityId ?? r.from_city_id)
-        const toCityId = textOrNull(r.toCityId ?? r.to_city_id)
+        const fromDistrictId = textOrNull(r.fromDistrictId ?? r.from_district_id)
+        const toDistrictId = textOrNull(r.toDistrictId ?? r.to_district_id)
         const estimatedDays = num(r.estimatedDays)
         const methodLabel =
             typeof r.method === 'string'
@@ -148,8 +148,8 @@ export function normalizeCalculateResponse(data: unknown): {
             deliveryStatus,
             currency,
             calculationMethod,
-            fromCityId,
-            toCityId,
+            fromDistrictId,
+            toDistrictId,
             methodLabel,
             etaHint,
             estimatedDays,

@@ -102,7 +102,6 @@ import AdminWeightRateFormPage from "@/features/admin/pages/AdminWeightRateFormP
 import AdminWeightRateDetailPage from "@/features/admin/pages/AdminWeightRateDetailPage";
 import AdminCityRatesPage from "@/features/admin/pages/AdminCityRatesPage";
 import AdminCityRateFormPage from "@/features/admin/pages/AdminCityRateFormPage";
-import AdminDistanceRangesPage from "@/features/admin/pages/AdminDistanceRangesPage";
 import AdminDistanceRangeFormPage from "@/features/admin/pages/AdminDistanceRangeFormPage";
 import AdminDistanceRangeDetailPage from "@/features/admin/pages/AdminDistanceRangeDetailPage";
 import AdminDeliveryQuotesPage from "@/features/admin/pages/AdminDeliveryQuotesPage";
@@ -1122,13 +1121,7 @@ const AppRoutes = () => {
             />
             <Route
               path="shipping/distance-ranges"
-              element={
-                <ProtectedRoute
-                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
-                >
-                  <AdminDistanceRangesPage />
-                </ProtectedRoute>
-              }
+              element={<Navigate to="/super-admin/shipping/pricing-rules" replace />}
             />
             <Route
               path="shipping/distance-ranges/:id"

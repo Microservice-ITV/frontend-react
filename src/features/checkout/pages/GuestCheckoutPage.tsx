@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { guestCheckoutCart } from '../store/checkoutThunks'
 import { clearCheckout, setCheckoutError } from '../store/checkoutSlice'
-import { locationApi, type CityOption } from '@/features/account/api/locationApi'
+import { loadAllDistricts, type DistrictOptionWithCity } from '@/features/admin/api/locationOptions'
 import {
   formatDisabledTaxAmount,
   isTaxChargeEnabled,
@@ -53,11 +53,11 @@ const GuestCheckoutPage = () => {
   const [phone, setPhone] = useState('')
   const [phoneTouched, setPhoneTouched] = useState(false)
   const [address, setAddress] = useState('')
-  const [cities, setCities] = useState<CityOption[]>([])
-  const [selectedCityId, setSelectedCityId] = useState<string>('')
-  const selectedCity = useMemo(
-    () => cities.find((c) => String(c.id) === selectedCityId) ?? null,
-    [cities, selectedCityId],
+  const [districts, setDistricts] = useState<DistrictOptionWithCity[]>([])
+  const [selectedDistrictId, setSelectedDistrictId] = useState<string>('')
+  const selectedDistrict = useMemo(
+    () => districts.find((d) => d.id === selectedDistrictId) ?? null,
+    [districts, selectedDistrictId],
   )
 
   const [submitting, setSubmitting] = useState(false)
@@ -106,20 +106,13 @@ const GuestCheckoutPage = () => {
 
   useEffect(() => {
     let cancelled = false
-    const load = async () => {
-      try {
-        const res = await locationApi.getAllCities()
-        const list =
-          (res as any)?.data?.data?.cities ??
-          (res as any)?.data?.cities ??
-          []
-        if (cancelled) return
-        setCities(Array.isArray(list) ? list : [])
-      } catch {
-        if (!cancelled) setCities([])
-      }
-    }
-    void load()
+    void loadAllDistricts()
+      .then((list) => {
+        if (!cancelled) setDistricts(list)
+      })
+      .catch(() => {
+        if (!cancelled) setDistricts([])
+      })
     return () => {
       cancelled = true
     }
@@ -144,19 +137,19 @@ const GuestCheckoutPage = () => {
       : null
 
   const deliveryAddress: UserAddress | null = useMemo(() => {
-    if (!fullName.trim() || !phoneE164 || !selectedCity || !address.trim()) return null
+    if (!fullName.trim() || !phoneE164 || !selectedDistrict || !address.trim()) return null
 
     return {
       address_id: `guest-${guestId}`,
       country_code: 'MM',
       country: 'Myanmar',
       state_id: null,
-      city_id: selectedCity.id,
-      district_id: null,
+      city_id: Number(selectedDistrict.cityId),
+      district_id: Number(selectedDistrict.id),
       ward_id: null,
       state: null,
-      city: selectedCity.name,
-      district: null,
+      city: selectedDistrict.cityName,
+      district: selectedDistrict.name,
       ward: null,
       address_line_1: address.trim(),
       address_line_2: null,
@@ -173,17 +166,17 @@ const GuestCheckoutPage = () => {
       is_shipping: true,
       is_billing: false,
     }
-  }, [fullName, phoneE164, selectedCity, address, guestId])
+  }, [fullName, phoneE164, selectedDistrict, address, guestId])
 
   const missingRequired = useMemo(() => {
     const missing: string[] = []
     if (!fullName.trim()) missing.push('Full name')
     if (!phoneE164) missing.push('Phone number')
-    if (!selectedCity) missing.push('City')
+    if (!selectedDistrict) missing.push('District')
     if (!address.trim()) missing.push('Address')
     if (items.length === 0) missing.push('Selected item(s)')
     return missing
-  }, [fullName, phoneE164, selectedCity, address, items.length])
+  }, [fullName, phoneE164, selectedDistrict, address, items.length])
 
   const canContinue =
     !!deliveryAddress &&
@@ -326,12 +319,12 @@ const GuestCheckoutPage = () => {
             </div>
             <div className="md:col-span-2">
               <SearchableSelect
-                placeholder="Search city..."
-                emptyLabel="Select City"
-                options={cities.map((c) => ({ value: String(c.id), label: c.name }))}
-                value={selectedCityId}
-                onChange={setSelectedCityId}
-                disabled={cities.length === 0}
+                placeholder="Search district..."
+                emptyLabel="Select District"
+                options={districts.map((d) => ({ value: d.id, label: d.name }))}
+                value={selectedDistrictId}
+                onChange={setSelectedDistrictId}
+                disabled={districts.length === 0}
               />
             </div>
             <div className="md:col-span-2">
