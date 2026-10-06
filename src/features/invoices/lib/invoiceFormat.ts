@@ -108,11 +108,32 @@ export const formatAmountInWords = (
   return `${words} and ${hundredths} hundredths only`
 }
 
+export const isCodPayment = (method: string | null | undefined): boolean => {
+  const value = (method ?? '').trim().toUpperCase().replace(/[_-]+/g, ' ')
+  return value === 'COD' || value === 'CASH ON DELIVERY'
+}
+
 export const formatPaymentMethodLabel = (method: string | null | undefined): string => {
   const value = (method ?? '').trim().toUpperCase()
-  if (value === 'COD') return 'Cash on delivery'
+  if (isCodPayment(method) || value === 'COD') return 'Cash on delivery'
   if (value === 'PREPAID' || value === 'CARD' || value === 'STRIPE') return 'Card / online'
   return (method ?? '').trim() || 'Not provided'
+}
+
+export const formatInvoiceStatusLabel = (
+  status: string | null | undefined,
+  paymentMethod?: string | null,
+): string => {
+  const value = (status ?? '').trim().toUpperCase()
+  if (isCodPayment(paymentMethod) && value === 'UNPAID') return 'Due on delivery'
+  if (isCodPayment(paymentMethod) && value === 'PAID') return 'Collected'
+  if (value === 'UNPAID') return 'Unpaid'
+  if (value === 'PENDING_VERIFICATION') return 'Pending verification'
+  if (value === 'PAID') return 'Paid'
+  if (value === 'REJECTED') return 'Rejected'
+  if (value === 'VOID') return 'Void'
+  if (value === 'REFUNDED') return 'Refunded'
+  return status?.trim() || 'Unknown'
 }
 
 export const formatInvoiceDate = (value: string | null | undefined): string => {
