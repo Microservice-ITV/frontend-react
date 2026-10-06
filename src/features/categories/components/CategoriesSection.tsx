@@ -7,6 +7,7 @@ import {
   selectCategoriesWithProducts,
 } from "@/features/categories/store/categorySelectors";
 import CategoryGrid, { type CategoryGridHandle } from "./CategoryGrid";
+import { isRequestSettled, useReportHomeSection } from "@/features/home/homeScreenReady";
 
 const CategoriesSection = () => {
   const dispatch = useAppDispatch();
@@ -14,6 +15,7 @@ const CategoriesSection = () => {
   const status = useAppSelector(selectCategoriesStatus);
   const gridRef = useRef<CategoryGridHandle>(null);
   const [showArrows, setShowArrows] = useState(false);
+  useReportHomeSection("categories", isRequestSettled(status));
 
   useEffect(() => {
     if (status === "idle") {

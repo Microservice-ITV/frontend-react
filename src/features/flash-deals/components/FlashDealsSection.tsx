@@ -11,6 +11,7 @@ import {
   FLASH_DEAL_STOREFRONT_REFRESH_MS,
   selectLiveFlashDeals,
 } from "../lib/flashDealStorefront";
+import { useReportHomeSection } from "@/features/home/homeScreenReady";
 
 const CARD_WIDTH_PX = 220;
 const GAP_PX = 16;
@@ -41,6 +42,7 @@ const FlashDealsSection = () => {
 
   const [refreshTick, setRefreshTick] = useState(0);
   const hasLoadedRef = useRef(false);
+  useReportHomeSection("flashDeals", !loading);
 
   useEffect(() => {
     const bump = () => setRefreshTick((tick) => tick + 1);

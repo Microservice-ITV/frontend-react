@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { matchPath, useLocation, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { bootstrapAuth, fetchMe } from '@/features/auth/store/authThunks'
@@ -12,7 +12,8 @@ import { setAccessToken, setHasSession } from './features/auth/store/authSlice'
 import { setSessionCookie } from '@/utils/session'
 import { extractRoleFromUser } from '@/app/rbac/normalizers'
 import { getDefaultLandingPathByRole } from '@/app/rbac/navigation'
-import AuthBootstrapLoading from '@/components/ui/AuthBootstrapLoading'
+import SpinPage from '@/components/spin/SpinPage'
+import { HomeScreenReadyProvider } from '@/features/home/homeScreenReady'
 import { AIAssistantWidget } from '@/components/ai/AIAssistantWidget'
 import { useNotificationRealtime } from '@/features/notifications/socket/useNotificationRealtime'
 
@@ -23,6 +24,10 @@ function App() {
   const { pathname } = useLocation()
   const userId = useAppSelector((state) => state.auth.user?.id ?? null)
   const accessToken = useAppSelector((state) => state.auth.accessToken)
+  const [isHomeScreenReady, setIsHomeScreenReady] = useState(false)
+  const handleHomeScreenReady = useCallback((ready: boolean) => {
+    if (ready) setIsHomeScreenReady(true)
+  }, [])
   useNotificationRealtime({ userId, accessToken })
   const hideGlobalChrome =
     matchPath({ path: '/seller', end: true }, pathname) ||
@@ -42,10 +47,6 @@ function App() {
   useEffect(() => {
     dispatch(bootstrapAuth())
   }, [dispatch])
-
-  useEffect(() => {
-    document.getElementById('app-splash')?.remove()
-  }, [])
 
   /**
    * Listen for OAuth success messages from popup windows
@@ -86,27 +87,35 @@ function App() {
     { path: '/account/invoices/:invoiceNumber/print', end: true },
     pathname,
   );
+  const isHome = Boolean(matchPath({ path: '/', end: true }, pathname))
+  const waitForHomeScreen = isHome && !isHomeScreenReady
 
   if (isAuthBootstrapping && !isInvoicePrintRoute) {
-    return <AuthBootstrapLoading fullScreen />;
+    return <SpinPage />;
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#f5f5f5]">
-      {!hideGlobalChrome && <Navbar />}
+    <HomeScreenReadyProvider onReadyChange={handleHomeScreenReady}>
+      {waitForHomeScreen && <SpinPage />}
+      <div
+        className="flex min-h-screen flex-col bg-[#f5f5f5]"
+        inert={waitForHomeScreen}
+      >
+        {!hideGlobalChrome && <Navbar />}
 
-      <ScrollToTop />
-      <GoogleAnalytics />
+        <ScrollToTop />
+        <GoogleAnalytics />
 
-      {/* Main Content */}
-      <main className="flex-1">
-        <AppRoutes />
-      </main>
+        {/* Main Content */}
+        <main className="flex-1">
+          <AppRoutes />
+        </main>
 
-      {!hideGlobalChrome && <Footer />}
+        {!hideGlobalChrome && <Footer />}
 
-      <AIAssistantWidget />
-    </div>
+        <AIAssistantWidget />
+      </div>
+    </HomeScreenReadyProvider>
   )
 }
 

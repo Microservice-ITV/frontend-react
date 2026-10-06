@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import TopOrderedProductCard from './TopOrderedProductCard'
 import { homeApi } from '../api/homeApi'
 import type { TopOrderedProduct, TopOrderedProductsStatus } from '../types/topOrderedProductTypes'
+import { useReportHomeSection } from '../homeScreenReady'
 
 const TopOrderedProductSkeleton = () => (
     <div className="w-[200px] snap-start overflow-hidden border border-gray-100 bg-white">
@@ -18,6 +19,7 @@ const TopOrderedProductSkeleton = () => (
 const TopOrderedProducts = () => {
     const [status, setStatus] = useState<TopOrderedProductsStatus>('loading')
     const [products, setProducts] = useState<TopOrderedProduct[]>([])
+    useReportHomeSection('topOrdered', status !== 'loading')
 
     useEffect(() => {
         let isActive = true

@@ -4,6 +4,7 @@ import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import ProductGrid from "@/features/products/components/ProductGrid";
 import { fetchRecentProducts } from "@/features/products/store/productThunks";
 import { ChevronRight } from "lucide-react";
+import { isRequestSettled, useReportHomeSection } from "@/features/home/homeScreenReady";
 
 const HOME_PREVIEW_COUNT = 10;
 
@@ -15,6 +16,7 @@ const RecentlyAddedSection = () => {
     recentProductsStatus,
     recentProductsError,
   } = useAppSelector((state) => state.products);
+  useReportHomeSection("recentlyAdded", isRequestSettled(recentProductsStatus));
 
   useEffect(() => {
     if (recentProductsStatus === "idle") {
