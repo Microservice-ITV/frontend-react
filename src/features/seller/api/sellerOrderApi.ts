@@ -22,6 +22,7 @@ export type SellerShopBreakdown = {
   shopId: string
   subtotal: number
   discount: number
+  bundleDiscount?: number
   shipping: number
   total: number
   currency: string
@@ -46,6 +47,7 @@ export type SellerOrderPromotion = {
 export type SellerOrderTotals = {
   subtotal: number
   discount: number
+  bundleDiscount: number
   shipping: number
   total: number
   currency: string
@@ -265,6 +267,7 @@ const SHOP_ORDERS_QUERY = `
       totals {
         subtotal
         discount
+        bundleDiscount
         shipping
         total
         currency
@@ -273,6 +276,7 @@ const SHOP_ORDERS_QUERY = `
       sellerTotals {
         subtotal
         discount
+        bundleDiscount
         shipping
         total
         currency
@@ -282,6 +286,7 @@ const SHOP_ORDERS_QUERY = `
         shopId
         subtotal
         discount
+        bundleDiscount
         shipping
         total
         currency

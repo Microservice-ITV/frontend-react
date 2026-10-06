@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
-import { ChevronDown, Loader2, Search } from 'lucide-react'
+import { ChevronDown, Loader2, Package, Search } from 'lucide-react'
 
 export type SearchableSelectOption = {
   value: string
   label: string
   disabled?: boolean
+  /** Resolved image URL. `null` shows a placeholder; omit it for text-only options. */
+  image?: string | null
 }
 
 /**
@@ -48,6 +50,25 @@ export type SearchableSelectProps = {
 }
 
 const defaultScrollClass = 'max-h-60 overflow-y-auto'
+
+const OptionThumb = ({ src }: { src: string | null }) => {
+  const [failed, setFailed] = useState(false)
+
+  return (
+    <span className="mr-2.5 flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-slate-100">
+      {src && !failed ? (
+        <img
+          src={src}
+          alt=""
+          className="h-full w-full object-cover"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <Package size={16} className="text-slate-400" aria-hidden="true" />
+      )}
+    </span>
+  )
+}
 
 export const SearchableSelect = ({
   id,
@@ -228,7 +249,8 @@ export const SearchableSelect = ({
                       opt.disabled && 'cursor-not-allowed opacity-50',
                     )}
                   >
-                    {opt.label}
+                    {opt.image !== undefined && <OptionThumb src={opt.image} />}
+                    <span className="min-w-0 flex-1 truncate">{opt.label}</span>
                   </button>
                 </li>
               )

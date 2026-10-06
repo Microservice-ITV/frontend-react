@@ -41,6 +41,7 @@ const ORDER_BY_ID_QUERY = `
       totals {
         subtotal
         discount
+        bundleDiscount
         shipping
         total
         currency
@@ -54,6 +55,7 @@ const ORDER_BY_ID_QUERY = `
         shopId
         subtotal
         discount
+        bundleDiscount
         shipping
         total
         currency
@@ -1073,6 +1075,14 @@ const OrderTrackingPage = () => {
                                 {formatMoney(row.subtotal, row.currency || orderTotals.currency)}
                               </span>
                             </div>
+                            {(row.bundleDiscount ?? 0) > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">Bundle discount</span>
+                                <span className="font-medium text-emerald-600">
+                                  −{formatMoney(row.bundleDiscount ?? 0, row.currency || orderTotals.currency)}
+                                </span>
+                              </div>
+                            )}
                             {row.discount > 0 && (
                               <div className="flex justify-between">
                                 <span className="flex items-center gap-1.5 text-gray-500">
@@ -1241,10 +1251,19 @@ const OrderPaymentSummary = ({ totals }: { totals: PurchasedOrderTotals }) => {
           <span className="text-gray-900">{formatMoney(shipping, currency)}</span>
         </div>
 
-        <div className="mb-3 flex justify-between">
+        <div className="mb-2 flex justify-between">
           <span className="text-gray-600">Promotion Discount</span>
           <span className="font-medium text-emerald-600">-{formatMoney(discount, currency)}</span>
         </div>
+
+        {(totals.bundleDiscount ?? 0) > 0 && (
+          <div className="mb-3 flex justify-between">
+            <span className="text-gray-600">Bundle Discount</span>
+            <span className="font-medium text-emerald-600">
+              -{formatMoney(totals.bundleDiscount ?? 0, currency)}
+            </span>
+          </div>
+        )}
 
         <div className="flex items-end justify-between border-t border-gray-100 pt-3">
           <span className="font-medium text-gray-900">Total Payment:</span>

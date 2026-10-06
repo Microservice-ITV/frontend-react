@@ -214,3 +214,61 @@ iframe[title="reCAPTCHA"] {
         content: none !important;
     }
 }
+
+@keyframes bundle-offer-in {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes bundle-offer-icon {
+    0%,
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+    50% {
+        opacity: 0.72;
+        transform: translateY(-1px) scale(1.08);
+    }
+}
+
+@keyframes bundle-offer-shine {
+    0%,
+    55% {
+        opacity: 0;
+        transform: translateX(-130%);
+    }
+    70% {
+        opacity: 0.7;
+    }
+    100% {
+        opacity: 0;
+        transform: translateX(240%);
+    }
+}
+
+@keyframes bundle-offer-fade {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes bundle-offer-pop {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

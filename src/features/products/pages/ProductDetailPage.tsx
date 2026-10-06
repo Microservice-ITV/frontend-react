@@ -10,6 +10,7 @@ import ProductBreadcrumb from '../components/ProductBreadcrumb'
 import ProductDescriptionSection from '../components/ProductDescriptionSection'
 import ProductGallery from '../components/ProductGallery'
 import ProductInfo from '../components/ProductInfo'
+import ProductBundleBanner from '@/features/bundles/components/ProductBundleBanner'
 import { pickDefaultVariant } from '../components/ProductVariantSelector'
 import { usePageTitle } from '@/components/routing/PageTitle'
 
@@ -88,6 +89,8 @@ const ProductDetailPage = () => {
           <ProductGallery images={galleryImages} />
           <ProductInfo product={selectedProduct} onSelectedVariantChange={onGalleryVariantChange} />
         </section>
+
+        <ProductBundleBanner productId={selectedProduct.id} />
 
         <ProductDescriptionSection product={selectedProduct} />
       </div>
