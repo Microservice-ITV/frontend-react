@@ -117,6 +117,16 @@ export function normalizeCalculateResponse(data: unknown): {
                   : amount != null
                     ? ('DELIVERABLE' as const)
                     : undefined
+        const reasonRaw =
+            typeof r.unavailableReason === 'string'
+                ? r.unavailableReason.trim().toUpperCase()
+                : typeof r.unavailable_reason === 'string'
+                  ? r.unavailable_reason.trim().toUpperCase()
+                  : ''
+        const unavailableReason =
+            reasonRaw === 'PROFILE_NOT_READY' || reasonRaw === 'ROUTE_NOT_AVAILABLE'
+                ? reasonRaw
+                : undefined
         const currency =
             typeof r.currency === 'string' && r.currency.trim() ? r.currency.trim() : undefined
         const calculationMethod = calculationMethodOf(r.calculationMethod) ?? rootMethod
@@ -146,6 +156,7 @@ export function normalizeCalculateResponse(data: unknown): {
             shopId,
             amount: deliveryStatus === 'NOT_DELIVERABLE' ? 0 : amount,
             deliveryStatus,
+            unavailableReason,
             currency,
             calculationMethod,
             fromDistrictId,

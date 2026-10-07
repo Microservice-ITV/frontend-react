@@ -20,7 +20,11 @@ export type ShopReadItem = {
   userName?: string | null
   sellerContactEmail?: string | null
   sellerContactPhone?: string | null
+  cityId?: string | null
+  districtId?: string | null
   originAddress?: string | null
+  originLat?: number | string | null
+  originLng?: number | string | null
   createdAt: string
   updatedAt: string
   _count?: {

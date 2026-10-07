@@ -4,6 +4,7 @@ import { loadAllDistricts } from '@/features/admin/api/locationOptions'
 import type { ShopCalculatedShipping } from '@/features/shipping/types/shippingTypes'
 import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
 import { taxChargeForAmount } from '../api/checkoutApi'
+import { deliveryUnavailableMessage } from '../utils/deliveryReadiness'
 import { chatIcon, voucherIcon } from '@/assets/icons'
 import { CheckoutTotals } from '../utils/checkoutCalculator'
 import placeholderImage from '@/public/placeholder.svg'
@@ -86,7 +87,7 @@ const ShippingOptionCard = ({
           <span>{fee.etaHint?.trim() || 'Delivery estimate unavailable'}</span>
         </p> */}
         {fee.deliveryStatus === 'NOT_DELIVERABLE' ? (
-          <p className="text-amber-800">Delivery is not available to this address.</p>
+          <p className="text-amber-800">{deliveryUnavailableMessage(fee.unavailableReason)}</p>
         ) : (
           <>
             {isCityRoute ? (

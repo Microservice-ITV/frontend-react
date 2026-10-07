@@ -1,8 +1,16 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { adminShopApi, type ShopReadItem } from '../api/adminShopApi'
+import ShopOriginFields, { emptyShopOrigin, type ShopOriginValue } from '../components/ShopOriginFields'
+import { loadAllCities } from '../api/locationOptions'
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+
+const parseCoordinate = (value: unknown): number | null => {
+  if (value == null || value === '') return null
+  const n = typeof value === 'number' ? value : Number(String(value).trim())
+  return Number.isFinite(n) ? n : null
+}
 
 const AdminShopEditPage = () => {
   const { shopId } = useParams<{ shopId: string }>()
@@ -17,7 +25,7 @@ const AdminShopEditPage = () => {
   const [userName, setUserName] = useState('')
   const [sellerContactEmail, setSellerContactEmail] = useState('')
   const [sellerContactPhone, setSellerContactPhone] = useState('')
-  const [originAddress, setOriginAddress] = useState('')
+  const [origin, setOrigin] = useState<ShopOriginValue>(emptyShopOrigin)
   const [isActive, setIsActive] = useState(true)
 
   useEffect(() => {
@@ -38,16 +46,34 @@ const AdminShopEditPage = () => {
           if (!cancelled) setLoadError('Shop not found.')
           return
         }
-        if (!cancelled) {
-          setName(s.name ?? '')
-          setDescription(s.description ?? '')
-          setSlug(s.slug ?? '')
-          setUserName(s.userName ?? '')
-          setSellerContactEmail(s.sellerContactEmail ?? '')
-          setSellerContactPhone(s.sellerContactPhone ?? '')
-          setOriginAddress(s.originAddress ?? '')
-          setIsActive(Boolean(s.isActive))
+        const cityId = s.cityId != null && String(s.cityId).trim() ? String(s.cityId) : ''
+        const districtId = s.districtId != null && String(s.districtId).trim() ? String(s.districtId) : ''
+        let stateId = ''
+        if (cityId) {
+          try {
+            const cities = await loadAllCities()
+            const match = cities.find((city) => city.id === cityId)
+            if (match) stateId = String(match.stateId)
+          } catch {
+            stateId = ''
+          }
         }
+        if (cancelled) return
+        setName(s.name ?? '')
+        setDescription(s.description ?? '')
+        setSlug(s.slug ?? '')
+        setUserName(s.userName ?? '')
+        setSellerContactEmail(s.sellerContactEmail ?? '')
+        setSellerContactPhone(s.sellerContactPhone ?? '')
+        setIsActive(Boolean(s.isActive))
+        setOrigin({
+          stateId,
+          cityId,
+          districtId,
+          originAddress: '',
+          originLat: parseCoordinate(s.originLat),
+          originLng: parseCoordinate(s.originLng),
+        })
       } catch (e: unknown) {
         if (!cancelled) setLoadError(adminShopApi.getApiErrorMessage(e, 'Failed to load shop.'))
       } finally {
@@ -79,6 +105,19 @@ const AdminShopEditPage = () => {
       setSubmitError('Display name (user name) is required.')
       return
     }
+    if (!origin.stateId || !origin.cityId || !origin.districtId || !origin.wardId) {
+      setSubmitError('Select the shop state, city, district, and ward.')
+      return
+    }
+    const originAddress = origin.originAddress.trim()
+    if (!originAddress) {
+      setSubmitError('Select the shop state, city, district, and ward.')
+      return
+    }
+    if (origin.originLat == null || origin.originLng == null) {
+      setSubmitError('Drop a map pin for the shop origin.')
+      return
+    }
 
     setIsSubmitting(true)
     try {
@@ -89,7 +128,11 @@ const AdminShopEditPage = () => {
         userName: uname,
         sellerContactEmail: sellerContactEmail.trim() || null,
         sellerContactPhone: sellerContactPhone.trim() || null,
-        originAddress: originAddress.trim() || null,
+        cityId: origin.cityId,
+        districtId: origin.districtId,
+        originAddress,
+        originLat: origin.originLat,
+        originLng: origin.originLng,
         isActive,
       })
       navigate(`/super-admin/shops/${shopId}`)
@@ -141,7 +184,7 @@ const AdminShopEditPage = () => {
 
           <form
             onSubmit={handleSubmit}
-            className="max-w-2xl space-y-5 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6"
+            className="max-w-3xl space-y-5 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6"
           >
             {submitError && (
               <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{submitError}</p>
@@ -226,18 +269,7 @@ const AdminShopEditPage = () => {
               </div>
             </div>
 
-            <div>
-              <label htmlFor="shop-origin" className="block text-xs font-medium text-slate-600">
-                Origin address
-              </label>
-              <textarea
-                id="shop-origin"
-                value={originAddress}
-                onChange={(ev) => setOriginAddress(ev.target.value)}
-                rows={2}
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-              />
-            </div>
+            <ShopOriginFields value={origin} onChange={setOrigin} />
 
             <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
               <input
