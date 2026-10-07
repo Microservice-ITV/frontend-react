@@ -88,10 +88,35 @@ html {
     }
 }
 
+@keyframes stepper-flow {
+    from {
+        transform: translateX(-120%);
+    }
+
+    to {
+        transform: translateX(280%);
+    }
+}
+
+.stepper-flow-line::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 45%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95), transparent);
+    animation: stepper-flow 1s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .loading-ui-typing-dot {
         animation: none !important;
         opacity: 1 !important;
+    }
+
+    .stepper-flow-line::after {
+        animation: none;
     }
 }
 

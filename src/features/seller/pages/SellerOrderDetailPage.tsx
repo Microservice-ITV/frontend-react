@@ -13,15 +13,16 @@ import {
 } from '../api/sellerOrderApi'
 import CustomerAvatar from '../components/CustomerAvatar'
 import OrderProductImage from '@/features/account/components/OrderProductImage'
-import { Truck, MapPin, Package, CreditCard, Mail, Store, Tag } from 'lucide-react'
+import { Truck, MapPin, Package, CreditCard, Mail, Store, Tag, Check, Home, type LucideIcon } from 'lucide-react'
+import { StepConnector } from '@/components/ui/StepConnector'
 import PaymentAllocationCard from '../components/PaymentAllocationCard'
 
-const STATUS_STEPS = [
-  { key: 'READY_FOR_FULFILLMENT', label: 'Ready to Ship' },
-  { key: 'SHIPPED', label: 'Shipped' },
-  { key: 'IN_TRANSIT', label: 'In Transit' },
-  { key: 'DELIVERED', label: 'Delivered' },
-] as const
+const STATUS_STEPS: { key: 'READY_FOR_FULFILLMENT' | 'SHIPPED' | 'IN_TRANSIT' | 'DELIVERED'; label: string; icon: LucideIcon }[] = [
+  { key: 'READY_FOR_FULFILLMENT', label: 'Ready to Ship', icon: Package },
+  { key: 'SHIPPED', label: 'Shipped', icon: Truck },
+  { key: 'IN_TRANSIT', label: 'In Transit', icon: MapPin },
+  { key: 'DELIVERED', label: 'Delivered', icon: Home },
+]
 
 const STATUS_ORDER = STATUS_STEPS.map((s) => s.key)
 
@@ -258,6 +259,7 @@ const SellerOrderDetailPage = () => {
 
   const statusUpper = (order?.status || '').toUpperCase()
   const currentStep = order ? getStepIndex(order.status) : -1
+  const orderComplete = ['DELIVERED', 'COMPLETED'].includes(statusUpper)
   const isCancelled = ['CANCELLED', 'FAILED', 'FAILED_PAYMENT', 'EXPIRED'].includes(statusUpper)
   // Shops with at least one shipment already on their way (fallback signal
   // when per-shop status rows are missing, e.g. orders projected before
@@ -430,40 +432,63 @@ const SellerOrderDetailPage = () => {
           {!isCancelled && (
             <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
               <h2 className="text-base font-bold text-slate-900">Order Progress</h2>
-              <div className="flex items-center gap-0 mt-5">
-                {STATUS_STEPS.map((step, i) => {
-                  const isActive = i <= currentStep
-                  const isCurrent = i === currentStep
+              <div className="relative mt-8 flex w-full items-start justify-between">
+                <StepConnector
+                  stepCount={STATUS_STEPS.length}
+                  reach={orderComplete ? 1 : Math.max(currentStep, 0) / (STATUS_STEPS.length - 1)}
+                  flowing={!orderComplete && currentStep > 0}
+                  colorClass="bg-emerald-600"
+                />
+
+                {STATUS_STEPS.map((step, index) => {
+                  const state = orderComplete || index < currentStep
+                    ? 'completed'
+                    : index === currentStep
+                      ? 'active'
+                      : 'pending'
+                  const Icon = step.icon
+                  const emphasized = state === 'completed' || state === 'active'
+
                   return (
-                    <div key={step.key} className="flex-1 flex flex-col items-center relative">
-                      {i > 0 && (
-                        <div
-                          className="absolute top-[11px] right-1/2 w-full h-0.5 -z-10"
-                          style={{ background: i <= currentStep ? '#059669' : '#e2e8f0' }}
-                        />
-                      )}
+                    <div key={step.key} className="relative flex flex-1 flex-col items-center">
                       <div
-                        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium border-2 transition-all ${
-                          isCurrent
-                            ? 'border-emerald-600 bg-emerald-600 text-white scale-110'
-                            : isActive
-                              ? 'border-emerald-600 bg-emerald-600 text-white'
-                              : 'border-slate-300 bg-white text-slate-400'
+                        className={`relative z-10 flex h-9 w-9 items-center justify-center shadow-sm transition-all duration-300 ${
+                          state === 'active'
+                            ? 'scale-105 rounded-full bg-emerald-600 text-white'
+                            : state === 'completed'
+                              ? 'rounded-full bg-emerald-600 text-white'
+                              : 'rounded-lg bg-gray-100 text-gray-400'
                         }`}
                       >
-                        {isActive && !isCurrent && (
-                          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="3">
-                            <path d="M5 13l4 4L19 7" />
-                          </svg>
+                        {state === 'completed' ? (
+                          <Check className="h-5 w-5" strokeWidth={2.5} />
+                        ) : (
+                          <Icon className="h-5 w-5" />
                         )}
-                        {isCurrent && <span className="w-2 h-2 bg-white rounded-full" />}
-                        {!isActive && <span>{i + 1}</span>}
                       </div>
-                      <span className={`mt-2 text-xs text-center leading-tight ${
-                        isActive ? 'text-emerald-700 font-medium' : 'text-slate-400'
-                      }`}>
-                        {step.label}
-                      </span>
+
+                      <div className="mt-3 select-none space-y-1 px-1 text-center">
+                        <p
+                          className={`text-xs font-medium leading-tight transition-colors duration-300 sm:text-sm ${
+                            emphasized ? 'font-semibold text-gray-900' : 'text-gray-400'
+                          }`}
+                        >
+                          {step.label}
+                        </p>
+                        <p
+                          className={`inline-flex items-center justify-center gap-1 text-[11px] font-medium transition-colors duration-300 sm:text-xs ${
+                            state === 'pending' ? 'text-gray-400' : 'text-emerald-700'
+                          }`}
+                        >
+                          {state === 'active' && (
+                            <span
+                              className="h-3 w-3 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent"
+                              aria-hidden="true"
+                            />
+                          )}
+                          {state === 'completed' ? 'Completed' : state === 'active' ? 'Processing' : 'Pending'}
+                        </p>
+                      </div>
                     </div>
                   )
                 })}
