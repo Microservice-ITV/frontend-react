@@ -93,6 +93,24 @@ describe('getDeliveryBlockReason', () => {
         ).toMatch(/cannot deliver/i)
     })
 
+    it('names a missing shop profile separately from a missing route', () => {
+        expect(
+            getDeliveryBlockReason({
+                ...ready,
+                deliveryStatuses: ['NOT_DELIVERABLE'],
+                unavailableReasons: ['PROFILE_NOT_READY'],
+            }),
+        ).toBe('This shop cannot deliver yet.')
+
+        expect(
+            getDeliveryBlockReason({
+                ...ready,
+                deliveryStatuses: ['NOT_DELIVERABLE'],
+                unavailableReasons: ['ROUTE_NOT_AVAILABLE'],
+            }),
+        ).toBe('We cannot deliver this shop on this route.')
+    })
+
     it('ignores a single NOT_DELIVERABLE among deliverable shops', () => {
         expect(
             getDeliveryBlockReason({

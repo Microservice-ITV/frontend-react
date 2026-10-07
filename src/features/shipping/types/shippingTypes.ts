@@ -13,11 +13,16 @@ export type ShopShippingProfileRow = {
     raw?: unknown
 }
 
+/** Why checkout cannot price this shop. */
+export type DeliveryUnavailableReason = 'PROFILE_NOT_READY' | 'ROUTE_NOT_AVAILABLE'
+
 /** Per-shop fee after calculate API (checkout). */
 export type ShopCalculatedShipping = {
     shopId: string
     amount: number | null
     deliveryStatus?: 'DELIVERABLE' | 'NOT_DELIVERABLE'
+    /** Set when deliveryStatus is NOT_DELIVERABLE. */
+    unavailableReason?: DeliveryUnavailableReason
     /** ISO currency code from the calculate API (e.g. MMK). */
     currency?: string
     /** Admin shipping setting used for this quote. */

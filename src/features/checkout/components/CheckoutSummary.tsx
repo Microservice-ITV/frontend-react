@@ -559,6 +559,7 @@ const CheckoutSummary = ({
     totalShippingFee,
     calculateError: shippingCalculateError,
     deliveryStatuses: deliveryFees.map((fee) => fee.deliveryStatus),
+    unavailableReasons: deliveryFees.map((fee) => fee.unavailableReason),
   })
 
   const canPlaceOrder =

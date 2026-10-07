@@ -1,5 +1,15 @@
+import type { DeliveryUnavailableReason } from '@/features/shipping/types/shippingTypes'
+
 /** Mirrors `ShippingState['calculateStatus']` in features/shipping/store/shippingSlice. */
 export type ShippingCalculateStatus = 'idle' | 'loading' | 'succeeded' | 'failed'
+
+export function deliveryUnavailableMessage(
+    reason: DeliveryUnavailableReason | undefined,
+): string {
+    if (reason === 'PROFILE_NOT_READY') return 'This shop cannot deliver yet.'
+    if (reason === 'ROUTE_NOT_AVAILABLE') return 'We cannot deliver this shop on this route.'
+    return 'Delivery is not available to this address.'
+}
 
 export type DeliveryReadinessInput = {
     /** A delivery address has been chosen for this checkout. */
@@ -12,6 +22,8 @@ export type DeliveryReadinessInput = {
     calculateError?: string | null
     /** Per-shop `deliveryStatus === 'NOT_DELIVERABLE'` flags from the quote. */
     deliveryStatuses?: ReadonlyArray<string | undefined>
+    /** Per-shop reason, aligned with `deliveryStatuses` when present. */
+    unavailableReasons?: ReadonlyArray<DeliveryUnavailableReason | undefined>
 }
 
 /**
@@ -27,6 +39,7 @@ export const getDeliveryBlockReason = ({
     totalShippingFee,
     calculateError,
     deliveryStatuses = [],
+    unavailableReasons = [],
 }: DeliveryReadinessInput): string | null => {
     if (!hasDeliveryAddress) return null
 
@@ -51,6 +64,14 @@ export const getDeliveryBlockReason = ({
     }
 
     if (deliveryStatuses.includes('NOT_DELIVERABLE')) {
+        const messages = [
+            ...new Set(
+                unavailableReasons
+                    .filter((reason): reason is DeliveryUnavailableReason => reason != null)
+                    .map((reason) => deliveryUnavailableMessage(reason)),
+            ),
+        ]
+        if (messages.length > 0) return messages.join(' ')
         return 'One or more shops cannot deliver to your address. Please remove those items or choose another address.'
     }
 
