@@ -4,6 +4,7 @@ import { productClient } from "@/lib/api/productClient";
 import ProductGrid from "@/features/products/components/ProductGrid";
 import Pagination from "@/components/ui/Pagination";
 import { usePageTitle } from "@/components/routing/PageTitle";
+import { Typing } from "@/components/loading-ui/typing";
 import type { Product } from "@/features/products/types/productTypes";
 
 const PAGE_SIZE = 10;
@@ -89,8 +90,8 @@ const ShopPage = () => {
     <div className="bg-[#f5f5f5] pt-4 sm:pt-5 pb-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         {status === "loading" && (
-          <div className="py-20 text-center text-sm text-gray-500 font-medium">
-            Loading shop...
+          <div className="flex min-h-[50vh] items-center justify-center">
+            <Typing className="w-8" />
           </div>
         )}
 

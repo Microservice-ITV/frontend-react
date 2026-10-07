@@ -12,9 +12,10 @@ const formatCartPrice = (amount: number) => formatProductPrice(amount).replace('
 
 interface CartItemListProps {
   items: CartItem[]
+  bundleMinimumQty?: ReadonlyMap<string, number>
 }
 
-const CartItemLists = ({ items }: CartItemListProps) => {
+const CartItemLists = ({ items, bundleMinimumQty }: CartItemListProps) => {
   const dispatch = useAppDispatch()
   const shopSelectionMap = useAppSelector(selectShopSelectionMap)
 
@@ -113,7 +114,10 @@ const CartItemLists = ({ items }: CartItemListProps) => {
 
                 <div className="flex items-center justify-between gap-2 pl-7 md:contents">
                   <div className="md:flex md:justify-center">
-                    <CartQuantityInput item={item} />
+                    <CartQuantityInput
+                      item={item}
+                      minimumQuantity={bundleMinimumQty?.get(item.productId)}
+                    />
                   </div>
                   <p className="shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums text-emerald-700 md:w-full md:text-right md:text-[15px]">
                     {formatCartPrice(item.price * item.quantity)}

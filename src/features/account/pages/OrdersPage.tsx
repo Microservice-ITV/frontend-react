@@ -5,6 +5,7 @@ import { ordersApi } from '../api/ordersApi'
 import OrderProductImage from '../components/OrderProductImage'
 import DataTablePagination from '@/components/ui/DataTablePagination'
 import type { PurchasedOrder } from '../types/orderTypes'
+import { Typing } from '@/components/loading-ui/typing'
 
 // Customer order list is always paginated 5 per page.
 const ORDERS_PER_PAGE = 5
@@ -151,8 +152,8 @@ const OrdersPage = () => {
         )}
 
         {loading && (
-          <div className="bg-white border border-gray-200 rounded-sm px-4 py-6 text-sm text-gray-600">
-            Loading purchased orders...
+          <div className="flex min-h-[40vh] items-center justify-center">
+            <Typing className="w-8" />
           </div>
         )}
 

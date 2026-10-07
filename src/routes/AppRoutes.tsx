@@ -248,16 +248,15 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/seller"
-          element={
-            <ProtectedRoute
-              requiredCapabilities={ROUTE_ACCESS.sellerDashboard}
-              allowedRoles={["SHOP_OWNER", "SHOP_ADMIN"]}
-            />
-          }
-        >
-          <Route element={<DashboardLayout area="seller" />}>
+        <Route path="/seller" element={<DashboardLayout area="seller" />}>
+          <Route
+            element={
+              <ProtectedRoute
+                requiredCapabilities={ROUTE_ACCESS.sellerDashboard}
+                allowedRoles={["SHOP_OWNER", "SHOP_ADMIN"]}
+              />
+            }
+          >
             <Route index element={<Navigate to="overview" replace />} />
             <Route
               path="overview"
@@ -798,16 +797,15 @@ const AppRoutes = () => {
             />
           </Route>
         </Route>
-        <Route
-          path="/super-admin"
-          element={
-            <ProtectedRoute
-              requiredCapabilities={ROUTE_ACCESS.superAdminDashboard}
-              allowedRoles={["SUPER_ADMIN"]}
-            />
-          }
-        >
-          <Route element={<DashboardLayout area="super_admin" />}>
+        <Route path="/super-admin" element={<DashboardLayout area="super_admin" />}>
+          <Route
+            element={
+              <ProtectedRoute
+                requiredCapabilities={ROUTE_ACCESS.superAdminDashboard}
+                allowedRoles={["SUPER_ADMIN"]}
+              />
+            }
+          >
             <Route index element={<Navigate to="overview" replace />} />
             <Route
               path="overview"

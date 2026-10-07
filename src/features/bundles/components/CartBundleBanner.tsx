@@ -76,6 +76,7 @@ const CartBundleBanner = ({ items, onMatch, allowAdd = true }: CartBundleBannerP
         }))
       onMatch?.({
         ...result,
+        offers: nextOffers,
         discounts,
         discount_total: discounts.reduce((sum, row) => sum + row.amount, 0),
       })
