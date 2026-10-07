@@ -2,6 +2,7 @@ import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import CheckoutAddress from '../components/CheckoutAddress'
 import { CheckoutAddressSelectorModal } from '../components/CheckoutAddressSelectorModal'
 import CheckoutItems from '../components/CheckoutItems'
+import CartBundleBanner from '@/features/bundles/components/CartBundleBanner'
 import CheckoutPayment from '../components/CheckoutPayment'
 import CheckoutSummary from '../components/CheckoutSummary'
 import CheckoutSummarySkeleton from '../components/CheckoutSummarySkeleton'
@@ -485,6 +486,7 @@ const CheckoutPage = () => {
                                 loading={addressesLoading}
                                 onChangeAddress={openAddressSelectionModal}
                             />
+                            <CartBundleBanner items={items} allowAdd />
                             <CheckoutItems checkout={checkout} />
                         </div>
 

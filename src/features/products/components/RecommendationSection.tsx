@@ -1,5 +1,6 @@
 import ProductGrid, { ProductGridSkeleton } from '@/features/products/components/ProductGrid'
 import { Link } from 'react-router-dom'
+import { CircleArrowRight } from 'lucide-react'
 import { memo, useMemo } from 'react'
 import { useAppSelector } from '@/app/hooks'
 import { selectRecommendationsStatus, selectRecommendationsError } from '@/features/products/store/recommendationsSlice'
@@ -8,6 +9,7 @@ import { selectRelatedProducts, selectBroughtTogetherProducts } from '@/features
 interface RecommendationSectionProps {
     productId: string
     title: string
+    description?: string
     showSeeMore?: boolean
     maxInitialProducts?: number
     excludeProductIds?: string[]
@@ -15,7 +17,8 @@ interface RecommendationSectionProps {
 
 const RecommendationSection = ({ 
     productId, 
-    title, 
+    title,
+    description,
     showSeeMore = true, 
     maxInitialProducts = 10,
     excludeProductIds = []
@@ -54,15 +57,21 @@ const RecommendationSection = ({
     const hasError = status === 'failed' && error && allRecommendations.length === 0
 
     const header = (
-        <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="mb-4">
             <h2 className="text-lg font-semibold text-gray-800">{title}</h2>
-            {canSeeMore && (
-                <Link
-                    to="/cart/see-more"
-                    className="shrink-0 text-sm font-medium text-[var(--dni-primary)] hover:underline"
-                >
-                    See more
-                </Link>
+            {(description || canSeeMore) && (
+                <div className="mt-1 flex items-center justify-between gap-3">
+                    <p className="min-w-0 text-sm text-gray-600">{description}</p>
+                    {canSeeMore && (
+                        <Link
+                            to="/cart/see-more"
+                            className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-[var(--dni-primary)] hover:underline"
+                        >
+                            See more
+                            <CircleArrowRight className="h-4 w-4" aria-hidden="true" />
+                        </Link>
+                    )}
+                </div>
             )}
         </div>
     )
@@ -70,9 +79,7 @@ const RecommendationSection = ({
     if (isInitialLoading) {
         return (
             <div className="py-6">
-                <div className="mb-4 flex items-center justify-between gap-3">
-                    <h2 className="text-lg font-semibold text-gray-800">{title}</h2>
-                </div>
+                {header}
                 <ProductGridSkeleton count={maxInitialProducts} />
             </div>
         )

@@ -7,6 +7,7 @@ import { createPartialInvoice } from '@/lib/api/invoiceClient'
 import DataTablePagination from '@/components/ui/DataTablePagination'
 import { Package, Store, Copy, Check } from 'lucide-react'
 import OrderProductImage from '../components/OrderProductImage'
+import { Typing } from '@/components/loading-ui/typing'
 import type {
   PurchasedOrder,
   PurchasedOrderDelivery,
@@ -41,6 +42,7 @@ const ORDER_BY_ID_QUERY = `
       totals {
         subtotal
         discount
+        bundleDiscount
         shipping
         total
         currency
@@ -54,6 +56,7 @@ const ORDER_BY_ID_QUERY = `
         shopId
         subtotal
         discount
+        bundleDiscount
         shipping
         total
         currency
@@ -794,8 +797,8 @@ const OrderTrackingPage = () => {
       </div>
 
       {loading && (
-        <div className="bg-white border border-gray-200 rounded-sm px-4 py-10 text-sm text-gray-600 text-center">
-          Loading order details...
+        <div className="flex min-h-[40vh] items-center justify-center">
+          <Typing className="w-8" />
         </div>
       )}
 
@@ -1073,6 +1076,14 @@ const OrderTrackingPage = () => {
                                 {formatMoney(row.subtotal, row.currency || orderTotals.currency)}
                               </span>
                             </div>
+                            {(row.bundleDiscount ?? 0) > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">Bundle discount</span>
+                                <span className="font-medium text-emerald-600">
+                                  −{formatMoney(row.bundleDiscount ?? 0, row.currency || orderTotals.currency)}
+                                </span>
+                              </div>
+                            )}
                             {row.discount > 0 && (
                               <div className="flex justify-between">
                                 <span className="flex items-center gap-1.5 text-gray-500">
@@ -1241,10 +1252,19 @@ const OrderPaymentSummary = ({ totals }: { totals: PurchasedOrderTotals }) => {
           <span className="text-gray-900">{formatMoney(shipping, currency)}</span>
         </div>
 
-        <div className="mb-3 flex justify-between">
+        <div className="mb-2 flex justify-between">
           <span className="text-gray-600">Promotion Discount</span>
           <span className="font-medium text-emerald-600">-{formatMoney(discount, currency)}</span>
         </div>
+
+        {(totals.bundleDiscount ?? 0) > 0 && (
+          <div className="mb-3 flex justify-between">
+            <span className="text-gray-600">Bundle Discount</span>
+            <span className="font-medium text-emerald-600">
+              -{formatMoney(totals.bundleDiscount ?? 0, currency)}
+            </span>
+          </div>
+        )}
 
         <div className="flex items-end justify-between border-t border-gray-100 pt-3">
           <span className="font-medium text-gray-900">Total Payment:</span>

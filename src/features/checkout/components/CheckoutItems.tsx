@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useAppSelector } from '@/app/hooks'
-import { locationApi } from '@/features/account/api/locationApi'
+import { loadAllDistricts } from '@/features/admin/api/locationOptions'
 import type { ShopCalculatedShipping } from '@/features/shipping/types/shippingTypes'
 import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
 import { taxChargeForAmount } from '../api/checkoutApi'
+import { deliveryUnavailableMessage } from '../utils/deliveryReadiness'
 import { chatIcon, voucherIcon } from '@/assets/icons'
 import { CheckoutTotals } from '../utils/checkoutCalculator'
 import placeholderImage from '@/public/placeholder.svg'
@@ -63,9 +64,11 @@ const ShippingOptionCard = ({
 
   const currency = fee.currency
   const isCityRoute = fee.calculationMethod === 'CITY_ROUTE'
-  const fromCity = fee.fromCityId ? cityNames[fee.fromCityId] : undefined
-  const toCity = fee.toCityId ? cityNames[fee.toCityId] : undefined
-  const routeLabel = [fromCity, toCity].filter(Boolean).join(' → ')
+  const baseWeightFee =
+    (hasFee(fee.baseFee) ? fee.baseFee : 0) + (hasFee(fee.distanceFee) ? fee.distanceFee : 0)
+  const fromDistrict = fee.fromDistrictId ? cityNames[fee.fromDistrictId] : undefined
+  const toDistrict = fee.toDistrictId ? cityNames[fee.toDistrictId] : undefined
+  const routeLabel = [fromDistrict, toDistrict].filter(Boolean).join(' → ')
 
   return (
     <div className="rounded-sm border border-emerald-200 bg-[#f3faf6] px-3 py-3 text-[13px] leading-5 text-gray-700">
@@ -84,7 +87,7 @@ const ShippingOptionCard = ({
           <span>{fee.etaHint?.trim() || 'Delivery estimate unavailable'}</span>
         </p> */}
         {fee.deliveryStatus === 'NOT_DELIVERABLE' ? (
-          <p className="text-amber-800">Delivery is not available to this address.</p>
+          <p className="text-amber-800">{deliveryUnavailableMessage(fee.unavailableReason)}</p>
         ) : (
           <>
             {isCityRoute ? (
@@ -95,18 +98,13 @@ const ShippingOptionCard = ({
             {fee.chargeableWeightKg != null && (
               <p>Chargeable weight: {formatKg(fee.chargeableWeightKg)}</p>
             )}
-            {hasFee(fee.baseFee) && (
+            {baseWeightFee > 0 && (
               <p>
                 Base weight fee
                 {fee.baseWeightKg != null && fee.baseWeightKg > 0
                   ? ` (${formatIncludedKg(fee.baseWeightKg)})`
                   : ''}
-                : {formatKsPrice(fee.baseFee, currency)}
-              </p>
-            )}
-            {hasFee(fee.distanceFee) && (
-              <p>
-                {isCityRoute ? 'Route fee' : 'Distance fee'}: {formatKsPrice(fee.distanceFee, currency)}
+                : {formatKsPrice(baseWeightFee, currency)}
               </p>
             )}
             {hasFee(fee.weightFee) && (
@@ -132,18 +130,18 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
   const [cityNames, setCityNames] = useState<Record<string, string>>({})
   const itemTaxes = useAppSelector((state) => state.checkout.itemTaxes)
   const needsCityNames = Object.values(feesByShopId).some(
-    (fee) => fee.calculationMethod === 'CITY_ROUTE' && (fee.fromCityId || fee.toCityId),
+    (fee) => fee.calculationMethod === 'CITY_ROUTE' && (fee.fromDistrictId || fee.toDistrictId),
   )
 
   useEffect(() => {
     if (!needsCityNames) return
     let cancelled = false
-    void locationApi.getAllCities()
-      .then((res) => {
+    void loadAllDistricts()
+      .then((districts) => {
         if (cancelled) return
         const next: Record<string, string> = {}
-        for (const city of res.data?.data?.cities ?? []) {
-          next[String(city.id)] = city.name
+        for (const district of districts) {
+          next[district.id] = district.name
         }
         setCityNames(next)
       })

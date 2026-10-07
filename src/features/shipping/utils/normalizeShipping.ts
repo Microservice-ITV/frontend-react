@@ -117,11 +117,21 @@ export function normalizeCalculateResponse(data: unknown): {
                   : amount != null
                     ? ('DELIVERABLE' as const)
                     : undefined
+        const reasonRaw =
+            typeof r.unavailableReason === 'string'
+                ? r.unavailableReason.trim().toUpperCase()
+                : typeof r.unavailable_reason === 'string'
+                  ? r.unavailable_reason.trim().toUpperCase()
+                  : ''
+        const unavailableReason =
+            reasonRaw === 'PROFILE_NOT_READY' || reasonRaw === 'ROUTE_NOT_AVAILABLE'
+                ? reasonRaw
+                : undefined
         const currency =
             typeof r.currency === 'string' && r.currency.trim() ? r.currency.trim() : undefined
         const calculationMethod = calculationMethodOf(r.calculationMethod) ?? rootMethod
-        const fromCityId = textOrNull(r.fromCityId ?? r.from_city_id)
-        const toCityId = textOrNull(r.toCityId ?? r.to_city_id)
+        const fromDistrictId = textOrNull(r.fromDistrictId ?? r.from_district_id)
+        const toDistrictId = textOrNull(r.toDistrictId ?? r.to_district_id)
         const estimatedDays = num(r.estimatedDays)
         const methodLabel =
             typeof r.method === 'string'
@@ -146,10 +156,11 @@ export function normalizeCalculateResponse(data: unknown): {
             shopId,
             amount: deliveryStatus === 'NOT_DELIVERABLE' ? 0 : amount,
             deliveryStatus,
+            unavailableReason,
             currency,
             calculationMethod,
-            fromCityId,
-            toCityId,
+            fromDistrictId,
+            toDistrictId,
             methodLabel,
             etaHint,
             estimatedDays,

@@ -36,6 +36,7 @@ export type CalculateShippingRequest = {
     deliveryAddress: {
         city: string
         cityId?: string
+        districtId?: string
         district: string
         lat: number
         lng: number
@@ -132,12 +133,17 @@ export function buildCalculatePayload(
         address.city_id != null && Number.isFinite(Number(address.city_id))
             ? String(address.city_id)
             : undefined
+    const districtId =
+        address.district_id != null && Number.isFinite(Number(address.district_id))
+            ? String(address.district_id)
+            : undefined
 
     return {
         deliveryAddress: {
             city: address.city ?? '',
             ...(cityId ? { cityId } : {}),
             district: address.district ?? '',
+            ...(districtId ? { districtId } : {}),
             lat: coords.lat,
             lng: coords.lng,
         },

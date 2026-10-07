@@ -4,6 +4,8 @@ import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import ProductGrid from "@/features/products/components/ProductGrid";
 import { fetchRecentProducts } from "@/features/products/store/productThunks";
 import { ChevronRight } from "lucide-react";
+import { isRequestSettled, useReportHomeSection } from "@/features/home/homeScreenReady";
+import { Typing } from "@/components/loading-ui/typing";
 
 const HOME_PREVIEW_COUNT = 10;
 
@@ -15,6 +17,7 @@ const RecentlyAddedSection = () => {
     recentProductsStatus,
     recentProductsError,
   } = useAppSelector((state) => state.products);
+  useReportHomeSection("recentlyAdded", isRequestSettled(recentProductsStatus));
 
   useEffect(() => {
     if (recentProductsStatus === "idle") {
@@ -51,8 +54,8 @@ const RecentlyAddedSection = () => {
       </div>
 
       {recentProductsStatus === "loading" && recentProducts.length === 0 && (
-        <div className="text-sm text-gray-500" role="status">
-          Loading products...
+        <div className="flex min-h-40 items-center justify-center" role="status">
+          <Typing className="w-8" />
         </div>
       )}
 

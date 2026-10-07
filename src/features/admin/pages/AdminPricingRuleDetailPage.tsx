@@ -249,36 +249,6 @@ const AdminPricingRuleDetailPage = () => {
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                <h2 className="text-sm font-bold text-slate-900">Distance ranges</h2>
-                {rule.distanceRates.length > 0 ? (
-                  <div className="mt-3 space-y-2">
-                    {rule.distanceRates.map((rate) => (
-                      <div
-                        key={rate.id ?? `${rate.minDistanceKm}-${rate.maxDistanceKm}`}
-                        className="flex items-center justify-between text-xs text-slate-600"
-                      >
-                        <span>
-                          {rate.minDistanceKm} – {rate.maxDistanceKm === null ? '∞' : rate.maxDistanceKm} km
-                        </span>
-                        <span className="font-medium text-slate-900">
-                          {formatMoney(rate.fee, rule.currency)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="mt-3 text-xs text-slate-500">No distance ranges configured.</p>
-                )}
-                <Link
-                  to="/super-admin/shipping/distance-ranges"
-                  className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:text-emerald-800"
-                >
-                  Manage distance ranges
-                  <ArrowRight size={12} />
-                </Link>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-white p-5">
                 <div className="flex items-center gap-3">
                   <Power size={18} className="text-slate-400" />
                   <p className="text-xs text-slate-500">

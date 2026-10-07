@@ -11,6 +11,7 @@ import {
 } from '../store/accountSelectors'
 import { fetchUserAddresses, deleteUserAddress, setDefaultUserAddress } from '../store/accountThunks'
 import type { UserAddress } from '../types/addressTypes'
+import { Typing } from '@/components/loading-ui/typing'
 
 const AddressesPage = () => {
   const dispatch = useAppDispatch()
@@ -142,7 +143,9 @@ const AddressesPage = () => {
 
           <div className="divide-y divide-gray-200 text-sm">
             {loading && (
-              <div className="px-5 py-3 text-gray-500 text-sm">Loading addresses...</div>
+              <div className="flex min-h-40 items-center justify-center">
+                <Typing className="w-8" />
+              </div>
             )}
             {!loading && addresses.length === 0 && (
               <div className="px-5 py-3 text-gray-500 text-sm">

@@ -7,6 +7,8 @@ import {
   selectCategoriesWithProducts,
 } from "@/features/categories/store/categorySelectors";
 import CategoryGrid, { type CategoryGridHandle } from "./CategoryGrid";
+import { isRequestSettled, useReportHomeSection } from "@/features/home/homeScreenReady";
+import { Typing } from "@/components/loading-ui/typing";
 
 const CategoriesSection = () => {
   const dispatch = useAppDispatch();
@@ -14,6 +16,7 @@ const CategoriesSection = () => {
   const status = useAppSelector(selectCategoriesStatus);
   const gridRef = useRef<CategoryGridHandle>(null);
   const [showArrows, setShowArrows] = useState(false);
+  useReportHomeSection("categories", isRequestSettled(status));
 
   useEffect(() => {
     if (status === "idle") {
@@ -69,7 +72,9 @@ const CategoriesSection = () => {
       </div>
 
       {status === "loading" && (
-        <div className="text-sm text-gray-500">Loading categories...</div>
+        <div className="flex min-h-40 items-center justify-center">
+          <Typing className="w-8" />
+        </div>
       )}
 
       {status === "failed" && (

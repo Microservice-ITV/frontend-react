@@ -4,7 +4,7 @@ import { Link, Navigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { extractRoleFromUser } from '@/app/rbac/normalizers'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
-import AuthBootstrapLoading from '@/components/ui/AuthBootstrapLoading'
+import { Typing } from '@/components/loading-ui/typing'
 import { NewAddressModal } from '@/features/account/components/NewAddressModal'
 import { fetchUserAddresses } from '@/features/account/store/accountThunks'
 import { selectAccountAddresses } from '@/features/account/store/accountSelectors'
@@ -347,7 +347,11 @@ const SellerRegisterPage = () => {
     }
 
     if (user?.id && existingShopsLoadState === 'loading') {
-        return <AuthBootstrapLoading />
+        return (
+            <div className="flex min-h-[200px] items-center justify-center">
+                <Typing className="w-8" />
+            </div>
+        )
     }
 
     const pendingShop = existingShops?.find((s) => s.shopStatusId === SHOP_STATUS_PENDING)
@@ -475,6 +479,8 @@ const SellerRegisterPage = () => {
                     const originLng = toFiniteNumberOrNull(pickupAddr?.longitude)
                     const cityId =
                         pickupAddr?.city_id != null ? String(pickupAddr.city_id) : null
+                    const districtId =
+                        pickupAddr?.district_id != null ? String(pickupAddr.district_id) : null
 
                     const taxBlock =
                         tax.notes.trim().length > 0
@@ -489,6 +495,7 @@ const SellerRegisterPage = () => {
                         shop = await createSellerShopWithResilientSlug(shopInfo.shopName.trim(), {
                                     userName: user.name?.trim() || user.email,
                                     cityId,
+                                    districtId,
                                     originAddress: shopInfo.pickupAddress.trim() || null,
                                     originLat,
                                     originLng,

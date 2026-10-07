@@ -5,12 +5,14 @@ import { removeSelectedItems, toggleAllSelection } from '../store/cartSlice'
 import { useNavigate } from 'react-router-dom'
 import { selectIsAuthenticated } from '@/features/auth/store/authSelectors'
 import { formatProductPrice } from '@/features/products/utils/formatProductPrice'
+import type { BundleMatchDiscount } from '@/features/bundles/types/bundleTypes'
 import { X } from 'lucide-react'
 
 const formatCartPrice = (amount: number) => formatProductPrice(amount).replace('MMK', 'Ks')
 
 interface CartSummaryProps {
   total: number
+  bundleSavings?: BundleMatchDiscount[]
   selectedCount?: number
   onGuestCheckout?: () => void
 }
@@ -74,7 +76,7 @@ export const GuestCheckoutModal = ({ onClose }: { onClose: () => void }) => {
   )
 }
 
-const CartSummary = ({ total, onGuestCheckout }: CartSummaryProps) => {
+const CartSummary = ({ total, bundleSavings = [], onGuestCheckout }: CartSummaryProps) => {
   const dispatch = useAppDispatch()
   const isAllSelected = useAppSelector(selectIsAllSelected)
   const selectedCount = useAppSelector(selectSelectedItems).length
@@ -82,6 +84,8 @@ const CartSummary = ({ total, onGuestCheckout }: CartSummaryProps) => {
   const isAuthenticated = useAppSelector(selectIsAuthenticated)
   const isCheckoutDisabled = selectedCount === 0
   const navigate = useNavigate()
+  const savings = bundleSavings.reduce((sum, row) => sum + row.amount, 0)
+  const payable = Math.max(0, Math.round((total - savings) * 100) / 100)
 
   const onCheckoutClick = () => {
     if (isCheckoutDisabled) return
@@ -137,15 +141,25 @@ const CartSummary = ({ total, onGuestCheckout }: CartSummaryProps) => {
           </button>
         </div>
 
+        {bundleSavings.map((row) => (
+          <div key={row.bundle_id} className="flex items-center justify-between gap-3 text-sm text-emerald-800">
+            <span className="min-w-0 truncate">{row.title}</span>
+            <span className="whitespace-nowrap tabular-nums">-{formatCartPrice(row.amount)}</span>
+          </div>
+        ))}
+
         <div className="flex items-end justify-between gap-3">
           <span className="shrink-0 text-sm text-gray-500 sm:text-[15px]">
             Total ({selectedCount} {itemLabel})
           </span>
           <span className="whitespace-nowrap text-right text-xl font-semibold tabular-nums text-emerald-700 sm:text-2xl">
-            {formatCartPrice(total)}
+            {formatCartPrice(payable)}
           </span>
         </div>
-        <p className="text-xs text-gray-500">Shipping fees are estimated at checkout.</p>
+        <p className="text-xs text-gray-500">
+          {savings > 0 ? 'Bundle savings are confirmed again at checkout. ' : ''}
+          Shipping fees are estimated at checkout.
+        </p>
 
         <button
           type="button"

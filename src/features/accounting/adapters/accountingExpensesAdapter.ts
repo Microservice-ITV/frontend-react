@@ -1,4 +1,5 @@
 import { accountingClient } from '@/lib/api/accountingClient'
+import { ecommerceReadRestClient } from '@/lib/api/ecommerceReadRestClient'
 import type {
   AccountingExpense,
   AccountingJournalEntry,
@@ -128,7 +129,7 @@ export const accountingExpensesAdapter = {
   },
 
   async listJournalEntries(): Promise<AccountingJournalEntry[]> {
-    const response = await accountingClient.get<AccountingJournalEntry[]>('/entries')
+    const response = await ecommerceReadRestClient.get<AccountingJournalEntry[]>('/accounting/entries')
     return response.data ?? []
   },
 }

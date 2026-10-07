@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
-import { Check, Loader2, PackagePlus, Search, Trash2, X } from "lucide-react";
+import { Check, Loader2, PackagePlus, Trash2 } from "lucide-react";
 
 import { useAppSelector } from "@/app/hooks";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
+import { formatKsPrice } from "@/features/products/utils/formatProductPrice";
 import { productServiceAssetUrl } from "@/lib/api/apiConfig";
 import { flashDealAdminApi } from "../api/flashDealAdminApi";
 import { useFlashDealPaths } from "../config/flashDealPaths";
@@ -131,6 +132,18 @@ const buildDurationLabel = (
   return parts.length > 0 ? parts.join(" ") : "";
 };
 
+const openNativePicker = (event: React.MouseEvent<HTMLInputElement>) => {
+  const input = event.currentTarget
+  if (input.disabled || typeof input.showPicker !== 'function') return
+  // The calendar or clock icon already opens the picker. Calling showPicker again closes it.
+  if (event.nativeEvent.offsetX > input.clientWidth - 32) return
+  try {
+    input.showPicker()
+  } catch {
+    // The browser opened the picker itself.
+  }
+}
+
 const formatScheduleTime = (iso: string): string => {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
@@ -142,49 +155,6 @@ const formatScheduleTime = (iso: string): string => {
     minute: "2-digit",
     hour12: true,
   }).format(date);
-};
-
-const SEARCH_DROPDOWN_MAX_HEIGHT = 320;
-const SEARCH_DROPDOWN_GAP = 4;
-const SEARCH_DROPDOWN_VIEWPORT_MARGIN = 8;
-/** Two result cards per row, so the panel is widened past the input's own width. */
-const SEARCH_DROPDOWN_MIN_WIDTH = 520;
-const SEARCH_DROPDOWN_TWO_COLUMN_MIN_WIDTH = 380;
-
-type SearchDropdownPosition = {
-  top: number;
-  left: number;
-  width: number;
-  maxHeight: number;
-};
-
-const resolveSearchDropdownPosition = (
-  anchor: HTMLDivElement,
-): SearchDropdownPosition => {
-  const rect = anchor.getBoundingClientRect();
-  const spaceBelow = window.innerHeight - rect.bottom - SEARCH_DROPDOWN_GAP;
-  const flipUp = spaceBelow < SEARCH_DROPDOWN_MAX_HEIGHT / 2 && rect.top > spaceBelow;
-  const maxHeight = Math.max(
-    96,
-    Math.min(
-      SEARCH_DROPDOWN_MAX_HEIGHT,
-      flipUp ? rect.top - SEARCH_DROPDOWN_GAP : spaceBelow,
-    ),
-  );
-  const available = window.innerWidth - SEARCH_DROPDOWN_VIEWPORT_MARGIN * 2;
-  const width = Math.min(Math.max(rect.width, SEARCH_DROPDOWN_MIN_WIDTH), available);
-
-  return {
-    top: flipUp
-      ? Math.max(SEARCH_DROPDOWN_VIEWPORT_MARGIN, rect.top - maxHeight - SEARCH_DROPDOWN_GAP)
-      : rect.bottom + SEARCH_DROPDOWN_GAP,
-    left: Math.max(
-      SEARCH_DROPDOWN_VIEWPORT_MARGIN,
-      Math.min(rect.left, window.innerWidth - width - SEARCH_DROPDOWN_VIEWPORT_MARGIN),
-    ),
-    width,
-    maxHeight,
-  };
 };
 
 const FlashDealForm = ({
@@ -216,20 +186,10 @@ const FlashDealForm = ({
   const [items, setItems] = useState<FlashDealItemRow[]>(initialItems);
   const [errors, setErrors] = useState<FlashDealFormErrors>({});
 
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
   const [searching, setSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState<ProductCatalogOption[]>(
-    [],
-  );
-  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const searchSeqRef = useRef(0);
-  const pickerRef = useRef<HTMLDivElement>(null);
-  const searchAnchorRef = useRef<HTMLDivElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const [searchDropdownPosition, setSearchDropdownPosition] =
-    useState<SearchDropdownPosition | null>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [searchResults, setSearchResults] = useState<ProductCatalogOption[]>([]);
+  const knownProducts = useRef(new Map<string, ProductCatalogOption>());
+  const searchRequest = useRef(0);
   const addedFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
@@ -263,104 +223,51 @@ const FlashDealForm = ({
   }, [prefillItems]);
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as Node;
-      // The results list is rendered in a portal on document.body, so it is
-      // never inside pickerRef. Without this the mousedown would close the
-      // dropdown before the click landed and the product would never be added.
-      const isInsidePicker = pickerRef.current?.contains(target) ?? false;
-      const isInsideDropdown = dropdownRef.current?.contains(target) ?? false;
-      if (!isInsidePicker && !isInsideDropdown) {
-        setSearchOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    if (!searchOpen) {
-      setSearchDropdownPosition(null);
-      return;
-    }
-
-    const syncPosition = () => {
-      const anchor = searchAnchorRef.current;
-      if (!anchor) return;
-      setSearchDropdownPosition(resolveSearchDropdownPosition(anchor));
-    };
-
-    syncPosition();
-    window.addEventListener("resize", syncPosition);
-    window.addEventListener("scroll", syncPosition, true);
-    return () => {
-      window.removeEventListener("resize", syncPosition);
-      window.removeEventListener("scroll", syncPosition, true);
-    };
-  }, [searchOpen, searchResults, searching]);
-
-  useEffect(() => {
     const timer = addedFeedbackTimerRef.current;
     return () => {
       if (timer) clearTimeout(timer);
     };
   }, []);
 
-  const runSearch = async (query: string) => {
-    // Requests are debounced, but a slow response for an older query must not
-    // overwrite the results of the query the user actually typed.
-    const seq = ++searchSeqRef.current;
+  const loadProducts = (search?: string) => {
+    if (missingShopScope) return;
+    const requestId = ++searchRequest.current;
     setSearching(true);
-    try {
-      const response = await flashDealAdminApi.searchProducts({
-        search: query.trim() || undefined,
-        limit: 24,
+    void flashDealAdminApi
+      .searchProducts({
+        search: search?.trim() || undefined,
+        limit: 50,
         shopId: shopScopeId ?? undefined,
+      })
+      .then((response) => {
+        if (requestId !== searchRequest.current) return;
+        for (const product of response.data) knownProducts.current.set(product.id, product);
+        setSearchResults(response.data);
+      })
+      .catch(() => {
+        if (requestId === searchRequest.current) setSearchResults([]);
+      })
+      .finally(() => {
+        if (requestId === searchRequest.current) setSearching(false);
       });
-      if (seq !== searchSeqRef.current) return;
-      setSearchResults(response.data);
-    } catch {
-      if (seq !== searchSeqRef.current) return;
-      setSearchResults([]);
-    } finally {
-      if (seq === searchSeqRef.current) setSearching(false);
-    }
   };
 
-  /** Explicit trigger: the Search button and Enter both go through here. */
-  const submitSearch = () => {
-    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
-    if (missingShopScope) {
-      setSearchResults([]);
-      setSearchOpen(true);
-      setSearchDropdownPosition(
-        searchAnchorRef.current
-          ? resolveSearchDropdownPosition(searchAnchorRef.current)
-          : null,
-      );
-      return;
-    }
-    void runSearch(searchQuery);
-  };
+  useEffect(() => {
+    if (missingShopScope) return;
+    const timer = window.setTimeout(() => loadProducts(), 0);
+    return () => window.clearTimeout(timer);
+  }, [missingShopScope, shopScopeId]);
 
-  const onSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key !== "Enter") return;
-    e.preventDefault();
-    submitSearch();
-  };
-
-  const searchOptions = useMemo(() => {
-    const seen = new Set<string>();
-    const out: ProductCatalogOption[] = [];
-    for (const product of searchResults) {
-      if (!product.id) continue;
-      if (items.some((item) => item.productId === product.id)) continue;
-      if (seen.has(product.id)) continue;
-      seen.add(product.id);
-      out.push(product);
-    }
-    return out;
-  }, [searchResults, items]);
+  const selectOptions = useMemo(
+    () =>
+      searchResults.map((product) => ({
+        value: product.id,
+        label: `${product.name} · ${formatKsPrice(product.price)}`,
+        image: product.image ? productServiceAssetUrl(product.image) : null,
+        disabled: items.some((item) => item.productId === product.id),
+      })),
+    [searchResults, items],
+  );
 
   const onScheduleChange = (campaignDate: string, startTime: string, endTime: string) => {
     setValues((prev) => {
@@ -389,23 +296,11 @@ const FlashDealForm = ({
     }));
   };
 
-  const onSearchChange = (query: string) => {
-    setSearchQuery(query);
-    setSearchOpen(true);
-    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
-    searchTimerRef.current = setTimeout(() => {
-      void runSearch(query);
-    }, 300);
-  };
-
-  const addProduct = (product: ProductCatalogOption) => {
-    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
-    const alreadyAdded = items.some((item) => item.productId === product.id);
-    if (alreadyAdded) {
-      setSearchOpen(false);
-      setSearchQuery("");
-      return;
-    }
+  const addProduct = (productId: string) => {
+    const product =
+      knownProducts.current.get(productId) ??
+      searchResults.find((row) => row.id === productId);
+    if (!product || items.some((item) => item.productId === product.id)) return;
     const nextSort = items.length;
     setItems((prev) => [
       ...prev,
@@ -423,11 +318,9 @@ const FlashDealForm = ({
         sortOrder: nextSort,
       },
     ]);
-    setSearchOpen(false);
-    setSearchQuery("");
     setErrors((prev) => ({ ...prev, items: undefined }));
     showAddedFeedback(product.name);
-    searchInputRef.current?.focus();
+    loadProducts();
   };
 
   const updateItem = (key: string, patch: Partial<FlashDealItemRow>) => {
@@ -558,7 +451,7 @@ const FlashDealForm = ({
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="flex flex-col gap-6">
         <div className="rounded-xl border border-[var(--dni-border)] bg-white p-6">
           <h2 className="text-sm font-semibold text-slate-900">
             Campaign Metadata
@@ -568,6 +461,7 @@ const FlashDealForm = ({
           </p>
 
           <div className="mt-5 space-y-4">
+            <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-700">
                 Flash Deal Name
@@ -596,16 +490,18 @@ const FlashDealForm = ({
                 type="date"
                 value={values.campaignDate}
                 disabled={disabled}
+                onClick={openNativePicker}
                 onChange={(e) =>
                   onScheduleChange(e.target.value, values.startTime, values.endTime)
                 }
-                className="w-full rounded-lg border border-[var(--dni-border)] px-3 py-2 text-sm text-slate-900 outline-none focus:border-[var(--dni-primary)] disabled:bg-slate-50 disabled:text-slate-400"
+                className="w-full cursor-pointer rounded-lg border border-[var(--dni-border)] px-3 py-2 text-sm text-slate-900 outline-none focus:border-[var(--dni-primary)] disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
               />
               {errors.campaignDate && (
                 <p className="mt-1 text-xs text-red-600">
                   {errors.campaignDate}
                 </p>
               )}
+            </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
@@ -622,10 +518,11 @@ const FlashDealForm = ({
                 type="time"
                 value={values.startTime}
                 disabled={disabled}
+                onClick={openNativePicker}
                 onChange={(e) =>
                   onScheduleChange(values.campaignDate, e.target.value, values.endTime)
                 }
-                className="w-full rounded-lg border border-[var(--dni-border)] px-3 py-2 text-sm text-slate-900 outline-none focus:border-[var(--dni-primary)] disabled:bg-slate-50 disabled:text-slate-400"
+                className="w-full cursor-pointer rounded-lg border border-[var(--dni-border)] px-3 py-2 text-sm text-slate-900 outline-none focus:border-[var(--dni-primary)] disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
               />
               {errors.startTime && (
                 <p className="mt-1 text-xs text-red-600">{errors.startTime}</p>
@@ -639,10 +536,11 @@ const FlashDealForm = ({
                 type="time"
                 value={values.endTime}
                 disabled={disabled}
+                onClick={openNativePicker}
                 onChange={(e) =>
                   onScheduleChange(values.campaignDate, values.startTime, e.target.value)
                 }
-                className="w-full rounded-lg border border-[var(--dni-border)] px-3 py-2 text-sm text-slate-900 outline-none focus:border-[var(--dni-primary)] disabled:bg-slate-50 disabled:text-slate-400"
+                className="w-full cursor-pointer rounded-lg border border-[var(--dni-border)] px-3 py-2 text-sm text-slate-900 outline-none focus:border-[var(--dni-primary)] disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
               />
               {errors.endTime && (
                 <p className="mt-1 text-xs text-red-600">{errors.endTime}</p>
@@ -710,153 +608,34 @@ const FlashDealForm = ({
               </p>
             </div>
           ) : (
-            <div ref={pickerRef} className="relative mt-5">
-              <div ref={searchAnchorRef} className="flex items-stretch gap-2">
-                <div className="relative min-w-0 flex-1">
-                  <Search
-                    size={16}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                  />
-                  <input
-                    ref={searchInputRef}
-                    type="text"
-                    value={searchQuery}
-                    disabled={disabled}
-                    onChange={(e) => onSearchChange(e.target.value)}
-                    onFocus={() => setSearchOpen(true)}
-                    onKeyDown={onSearchKeyDown}
-                    placeholder="Search your products by name..."
-                    className="w-full rounded-lg border border-[var(--dni-border)] bg-white py-2 pl-9 pr-8 text-sm outline-none placeholder:text-slate-400 focus:border-[var(--dni-primary)] disabled:bg-slate-50 disabled:text-slate-400"
-                  />
-                  {searchQuery && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (searchTimerRef.current) {
-                          clearTimeout(searchTimerRef.current);
-                        }
-                        setSearchQuery("");
-                        setSearchResults([]);
-                        setSearchOpen(false);
-                      }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-600 cursor-pointer"
-                      aria-label="Clear search"
-                    >
-                      <X size={14} />
-                    </button>
-                  )}
+            <div className="mt-5">
+              {missingShopScope ? (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                  <p className="text-xs text-amber-700">{searchScopeError}</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={submitSearch}
-                  disabled={disabled || searching}
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[var(--dni-primary)] px-4 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {searching ? (
-                    <Loader2 size={15} className="animate-spin" />
-                  ) : (
-                    <Search size={15} />
-                  )}
-                  Search
-                </button>
-              </div>
-              <p className="mt-1.5 text-[11px] text-slate-500">
-                {isSellerArea
-                  ? "Only products from your shop are listed."
-                  : "Products from every shop are listed."}{" "}
-                Type a product name, then press Search or Enter.
-              </p>
+              ) : (
+                <>
+                  <SearchableSelect
+                    value=""
+                    onChange={addProduct}
+                    options={selectOptions}
+                    mode="search-and-scroll"
+                    emptyLabel="Select product"
+                    placeholder="Search products…"
+                    onQueryChange={loadProducts}
+                    loading={searching}
+                    filterLocally={false}
+                    disabled={disabled}
+                  />
+                  <p className="mt-1.5 text-[11px] text-slate-500">
+                    {isSellerArea
+                      ? "Only products from your shop are listed."
+                      : "Products from every shop are listed."}
+                  </p>
+                </>
+              )}
             </div>
           )}
-
-          {!isItemPickerLocked &&
-            searchOpen &&
-            searchDropdownPosition &&
-            createPortal(
-              <div
-                ref={dropdownRef}
-                style={{
-                  top: searchDropdownPosition.top,
-                  left: searchDropdownPosition.left,
-                  width: searchDropdownPosition.width,
-                  maxHeight: searchDropdownPosition.maxHeight,
-                }}
-                className="fixed z-[200] overflow-y-auto overscroll-contain rounded-lg border border-[var(--dni-border)] bg-white shadow-xl"
-              >
-                {searching ? (
-                  <div className="flex items-center gap-2 px-4 py-3 text-xs text-slate-500">
-                    <Loader2 size={14} className="animate-spin" />
-                    Searching products...
-                  </div>
-                ) : searchScopeError ? (
-                  <p className="px-4 py-3 text-xs text-amber-700">
-                    {searchScopeError}
-                  </p>
-                ) : searchResults.length === 0 ? (
-                  <p className="px-4 py-3 text-xs text-slate-500">
-                    No products found.
-                  </p>
-                ) : searchOptions.length === 0 ? (
-                  <p className="px-4 py-3 text-xs text-slate-500">
-                    All matching products are already added.
-                  </p>
-                ) : (
-                  <div
-                    className={
-                      searchDropdownPosition.width >=
-                      SEARCH_DROPDOWN_TWO_COLUMN_MIN_WIDTH
-                        ? "grid grid-cols-2 gap-1 p-1"
-                        : "flex flex-col gap-1 p-1"
-                    }
-                  >
-                    {searchOptions.map((product) => (
-                      <button
-                        key={product.id}
-                        type="button"
-                        disabled={disabled}
-                        onClick={() => addProduct(product)}
-                        className="flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left hover:bg-slate-50 cursor-pointer"
-                      >
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded bg-slate-100">
-                          {product.image ? (
-                            <img
-                              src={productServiceAssetUrl(product.image)}
-                              alt=""
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <PackagePlus size={15} className="text-slate-400" />
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-xs font-medium text-slate-900">
-                            {product.name}
-                          </p>
-                          <p className="truncate text-[11px] text-slate-500">
-                            ${Number(product.price).toFixed(2)}
-                            {Number.isFinite(product.stock)
-                              ? ` · Stock ${product.stock}`
-                              : ""}
-                            {product.categoryName
-                              ? ` · ${product.categoryName}`
-                              : ""}
-                          </p>
-                          {!isSellerArea && product.shopName && (
-                            <p className="truncate text-[11px] text-slate-400">
-                              {product.shopName}
-                            </p>
-                          )}
-                        </div>
-                        <span className="shrink-0 text-xs font-medium text-[var(--dni-primary)]">
-                          + Add
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>,
-              document.body,
-            )}
 
           {addedFeedback && (
             <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold text-emerald-700">

@@ -1,5 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Outlet } from "react-router-dom";
+import { useAppSelector } from "@/app/hooks";
+import { Typing } from "@/components/loading-ui/typing";
+import {
+  selectAuthUser,
+  selectIsAuthenticated,
+  selectIsAuthBootstrapping,
+} from "@/features/auth/store/authSelectors";
 import DashboardSidebar from "./DashboardSidebar";
 import DashboardTopbar from "./DashboardTopbar";
 import type { DashboardArea } from "../../types/dashboardTypes";
@@ -11,14 +19,20 @@ type DashboardLayoutProps = {
 const DashboardLayout = ({ area }: DashboardLayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const isAuthBootstrapping = useAppSelector(selectIsAuthBootstrapping);
+  const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const authUser = useAppSelector(selectAuthUser);
+  const showContentLoading = isAuthBootstrapping || (isAuthenticated && !authUser);
   const rootRef = useRef<HTMLDivElement>(null);
+  const sidebarWidth = isSidebarCollapsed ? "76px" : "256px";
+  const contentLeft =
+    typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches
+      ? sidebarWidth
+      : "0px";
 
-  useEffect(() => {
-    document.documentElement.style.setProperty(
-      "--sidebar-width",
-      isSidebarCollapsed ? "76px" : "256px",
-    );
-  }, [isSidebarCollapsed]);
+  useLayoutEffect(() => {
+    document.documentElement.style.setProperty("--sidebar-width", sidebarWidth);
+  }, [sidebarWidth]);
 
   // Mobile: convert dashboard tables into expandable/collapsible row cards
   useEffect(() => {
@@ -69,16 +83,42 @@ const DashboardLayout = ({ area }: DashboardLayoutProps) => {
         onClose={closeSidebar}
       />
 
-      <div className="min-w-0 transition-[margin] duration-200 ease-out lg:ml-[var(--sidebar-width,16rem)]">
+      <div
+        className={`flex min-h-screen min-w-0 flex-col lg:ml-[var(--sidebar-width,16rem)] ${
+          showContentLoading ? "" : "transition-[margin] duration-200 ease-out"
+        }`}
+      >
         <DashboardTopbar
           area={area}
           onMenuClick={openSidebar}
           isSidebarCollapsed={isSidebarCollapsed}
           onToggleSidebar={toggleSidebarCollapse}
         />
-        <main className="p-4 sm:p-6">
-          <Outlet />
+        <main className="flex flex-1 flex-col">
+          <div className={showContentLoading ? "hidden" : "p-4 sm:p-6"}>
+            <Outlet />
+          </div>
         </main>
+        {showContentLoading &&
+          createPortal(
+            <div
+              style={{
+                position: "fixed",
+                top: "3.5rem",
+                right: 0,
+                bottom: 0,
+                left: contentLeft,
+                zIndex: 20,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "#f8fafc",
+              }}
+            >
+              <Typing className="w-8" />
+            </div>,
+            document.body,
+          )}
       </div>
     </div>
   );

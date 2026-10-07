@@ -105,7 +105,6 @@ import AdminWeightRateFormPage from "@/features/admin/pages/AdminWeightRateFormP
 import AdminWeightRateDetailPage from "@/features/admin/pages/AdminWeightRateDetailPage";
 import AdminCityRatesPage from "@/features/admin/pages/AdminCityRatesPage";
 import AdminCityRateFormPage from "@/features/admin/pages/AdminCityRateFormPage";
-import AdminDistanceRangesPage from "@/features/admin/pages/AdminDistanceRangesPage";
 import AdminDistanceRangeFormPage from "@/features/admin/pages/AdminDistanceRangeFormPage";
 import AdminDistanceRangeDetailPage from "@/features/admin/pages/AdminDistanceRangeDetailPage";
 import AdminDeliveryQuotesPage from "@/features/admin/pages/AdminDeliveryQuotesPage";
@@ -129,6 +128,8 @@ import PromotionEnginePage from "@/features/promotions/pages/PromotionEnginePage
 import AdminFlashDealsPage from "@/features/flash-deals/pages/AdminFlashDealsPage";
 import NewFlashDealPage from "@/features/flash-deals/pages/NewFlashDealPage";
 import EditFlashDealPage from "@/features/flash-deals/pages/EditFlashDealPage";
+import AdminBundlesPage from "@/features/bundles/pages/AdminBundlesPage";
+import BundleFormPage from "@/features/bundles/pages/BundleFormPage";
 import SellerFinanceOverviewPage from "@/features/finance/pages/SellerFinanceOverviewPage";
 import SellerFinanceTransactionsPage from "@/features/finance/pages/SellerFinanceTransactionsPage";
 import SellerAccountingOverviewPage from "@/features/accounting/pages/SellerAccountingOverviewPage";
@@ -247,16 +248,15 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/seller"
-          element={
-            <ProtectedRoute
-              requiredCapabilities={ROUTE_ACCESS.sellerDashboard}
-              allowedRoles={["SHOP_OWNER", "SHOP_ADMIN"]}
-            />
-          }
-        >
-          <Route element={<DashboardLayout area="seller" />}>
+        <Route path="/seller" element={<DashboardLayout area="seller" />}>
+          <Route
+            element={
+              <ProtectedRoute
+                requiredCapabilities={ROUTE_ACCESS.sellerDashboard}
+                allowedRoles={["SHOP_OWNER", "SHOP_ADMIN"]}
+              />
+            }
+          >
             <Route index element={<Navigate to="overview" replace />} />
             <Route
               path="overview"
@@ -535,6 +535,30 @@ const AppRoutes = () => {
               }
             />
             <Route
+              path="promotion-engine/bundles"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerBundlesView}>
+                  <AdminBundlesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="promotion-engine/bundles/new"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerBundlesView}>
+                  <BundleFormPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="promotion-engine/bundles/:id/edit"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerBundlesView}>
+                  <BundleFormPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="users"
               element={
                 <ProtectedRoute
@@ -773,16 +797,15 @@ const AppRoutes = () => {
             />
           </Route>
         </Route>
-        <Route
-          path="/super-admin"
-          element={
-            <ProtectedRoute
-              requiredCapabilities={ROUTE_ACCESS.superAdminDashboard}
-              allowedRoles={["SUPER_ADMIN"]}
-            />
-          }
-        >
-          <Route element={<DashboardLayout area="super_admin" />}>
+        <Route path="/super-admin" element={<DashboardLayout area="super_admin" />}>
+          <Route
+            element={
+              <ProtectedRoute
+                requiredCapabilities={ROUTE_ACCESS.superAdminDashboard}
+                allowedRoles={["SUPER_ADMIN"]}
+              />
+            }
+          >
             <Route index element={<Navigate to="overview" replace />} />
             <Route
               path="overview"
@@ -1141,13 +1164,7 @@ const AppRoutes = () => {
             />
             <Route
               path="shipping/distance-ranges"
-              element={
-                <ProtectedRoute
-                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
-                >
-                  <AdminDistanceRangesPage />
-                </ProtectedRoute>
-              }
+              element={<Navigate to="/super-admin/shipping/pricing-rules" replace />}
             />
             <Route
               path="shipping/distance-ranges/:id"
@@ -1421,6 +1438,30 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.flashDealsView}
                 >
                   <EditFlashDealPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="promotion-engine/bundles"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.bundlesView}>
+                  <AdminBundlesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="promotion-engine/bundles/new"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.bundlesView}>
+                  <BundleFormPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="promotion-engine/bundles/:id/edit"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.bundlesView}>
+                  <BundleFormPage />
                 </ProtectedRoute>
               }
             />

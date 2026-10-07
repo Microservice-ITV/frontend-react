@@ -9,6 +9,7 @@ import {
   isTaxChargeEnabled,
   resolveCartTax,
   type PromoCodeStatus,
+  type PromotionQuoteResponse,
 } from '../api/checkoutApi'
 import {
   setAwaitingFinalStatus,
@@ -136,6 +137,7 @@ const CheckoutSummary = ({
   const shippingCalculateStatus = useAppSelector(state => state.shipping.calculateStatus)
   const shippingCalculateError = useAppSelector(state => state.shipping.calculateError)
   const [promotionDiscount, setPromotionDiscount] = useState(0)
+  const [bundleSavings, setBundleSavings] = useState<NonNullable<PromotionQuoteResponse['bundle_savings']>>([])
   const [taxAmount, setTaxAmount] = useState(0)
   const [taxEnabled, setTaxEnabled] = useState(true)
   const [taxLoading, setTaxLoading] = useState(false)
@@ -184,10 +186,26 @@ const CheckoutSummary = ({
 
   const applyQuotedTotals = (quote: Awaited<ReturnType<typeof requestPromotionQuote>>) => {
     if (!quote) return
-    const discount = Number(quote.discount_total ?? 0)
-    setPromotionDiscount(discount)
-    promotionAllocationsRef.current = Array.isArray(quote.allocations) ? quote.allocations : []
-    setPromotionFinal(Number(quote.final_total ?? checkout.totalPayment))
+    const rawBundles = Array.isArray(quote.bundle_savings) ? quote.bundle_savings : []
+    let excess = 0
+    const bundles = rawBundles.map((row) => {
+      const sets = Math.max(1, Number(row.sets) || 1)
+      if (sets <= 1) return row
+      const amount = Math.round((Number(row.amount) / sets) * 100) / 100
+      excess += Number(row.amount) - amount
+      return { ...row, amount, sets: 1 }
+    })
+    const allocations = (Array.isArray(quote.allocations) ? quote.allocations : []).map((row) => {
+      const id = String(row.promotion_id ?? row.reward_id ?? '')
+      const original = rawBundles.find((bundle) => bundle.bundle_id === id)
+      const sets = Math.max(1, Number(original?.sets) || 1)
+      if (!original || sets <= 1) return row
+      return { ...row, amount: Math.round((Number(row.amount) / sets) * 100) / 100 }
+    })
+    setPromotionDiscount(Math.max(0, Number(quote.discount_total ?? 0) - excess))
+    setBundleSavings(bundles)
+    promotionAllocationsRef.current = allocations
+    setPromotionFinal(Number(quote.final_total ?? checkout.totalPayment) + excess)
   }
 
   useEffect(() => {
@@ -559,6 +577,7 @@ const CheckoutSummary = ({
     totalShippingFee,
     calculateError: shippingCalculateError,
     deliveryStatuses: deliveryFees.map((fee) => fee.deliveryStatus),
+    unavailableReasons: deliveryFees.map((fee) => fee.unavailableReason),
   })
 
   const canPlaceOrder =
@@ -644,6 +663,12 @@ const CheckoutSummary = ({
           <span className="shrink-0 text-gray-600">Merchandise Subtotal</span>
           <span className="whitespace-nowrap tabular-nums text-gray-900">{formatKsPrice(merchandiseSubtotal)}</span>
         </div>
+        {bundleSavings.map((row) => (
+          <div key={row.bundle_id} className="mb-2.5 flex justify-between gap-3 text-emerald-800">
+            <span className="min-w-0 truncate">{row.title}</span>
+            <span className="whitespace-nowrap tabular-nums">-{formatKsPrice(row.amount)}</span>
+          </div>
+        ))}
         <div className="mb-2.5 flex justify-between gap-3">
           <span className="shrink-0 text-gray-600">
             Tax

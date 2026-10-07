@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { fetchNotificationPreferences, updateNotificationPreferences } from '@/features/notifications/store/notificationSlice'
+import { Typing } from '@/components/loading-ui/typing'
 
 const NotificationsPage = () => {
   const dispatch = useAppDispatch()
@@ -45,7 +46,9 @@ const NotificationsPage = () => {
             ))}
           </>
         ) : (
-          <div className="text-sm text-slate-500">Loading your notification preferences…</div>
+          <div className="flex min-h-[40vh] items-center justify-center">
+            <Typing className="w-8" />
+          </div>
         )}
       </div>
     </div>
