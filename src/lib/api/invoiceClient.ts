@@ -53,7 +53,11 @@ export type InvoiceDocument = {
   discountAmount: string
   grandTotal: string
   currency: string
-  paymentMethod: string
+  otherCharges?: Array<{
+    label: string
+    amount: string | number | null
+  }> | null
+  paymentMethod: string | null
   paymentGatewayRef: string | null
   paymentSlipUrl: string | null
   status: InvoiceStatus

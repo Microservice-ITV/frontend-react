@@ -342,20 +342,95 @@ const CustomerInvoicesPage = () => {
             </div>
             <span className="text-xs font-medium text-slate-400">{invoices.length} total</span>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[680px] text-left">
+          <div className="space-y-3 p-3 xl:hidden">
+            {invoices.length === 0 ? (
+              <InvoiceEmptyState
+                icon={<FileText size={20} />}
+                title="No invoices found"
+                description="Your invoices will appear here once they are created."
+              />
+            ) : (
+              invoices.map((invoice) => (
+                <article key={invoice.id} className="min-w-0 rounded-lg border border-slate-200 bg-white p-4">
+                  <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <Link
+                        to={`/account/invoices/${encodeURIComponent(invoice.invoiceNumber || invoice.id)}`}
+                        className="break-all font-mono text-[13px] font-semibold text-slate-900 hover:text-emerald-700"
+                      >
+                        {invoice.invoiceNumber}
+                      </Link>
+                      <p className="mt-1 break-words text-xs text-slate-500">
+                        Order {invoice.orderReference || 'Unavailable'}
+                      </p>
+                    </div>
+                    <InvoiceStatusBadge status={invoice.status} label={STATUS_LABELS[invoice.status]} size="sm" />
+                  </div>
+
+                  <dl className="mt-4 grid grid-cols-2 gap-x-3 gap-y-3 border-t border-slate-100 pt-3 text-xs">
+                    <div className="min-w-0">
+                      <dt className="text-slate-400">Shop</dt>
+                      <dd className="mt-1 break-words font-medium text-slate-700">{invoice.shopName || 'N/A'}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-slate-400">Date</dt>
+                      <dd className="mt-1 text-slate-600">{formatDate(invoice.createdAt)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-slate-400">Amount</dt>
+                      <dd className="mt-1 font-semibold tabular-nums text-slate-900">
+                        {formatAmount(invoice.grandTotal)}
+                      </dd>
+                    </div>
+                  </dl>
+
+                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+                    <Link
+                      to={`/account/invoices/${encodeURIComponent(invoice.invoiceNumber || invoice.id)}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                    >
+                      <Eye size={14} /> View
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadPdf(invoice)}
+                      disabled={downloadingInvoiceId !== null}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
+                    >
+                      {downloadingInvoiceId === invoice.id
+                        ? <Loader2 size={14} className="animate-spin" />
+                        : <Download size={14} />}
+                      Download
+                    </button>
+                    {(invoice.status === 'UNPAID' || invoice.status === 'REJECTED') && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedInvoice(invoice)
+                          setSelectedFile(null)
+                          setPreviewUrl(null)
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+                      >
+                        <UploadCloud size={13} /> Submit slip
+                      </button>
+                    )}
+                  </div>
+                </article>
+              ))
+            )}
+          </div>
+          <div className="hidden xl:block">
+            <table className="w-full table-fixed text-left">
               <thead className="border-b border-slate-100 bg-slate-50/70">
                 <tr>
-                  {['Invoice #', 'Order reference', 'Shop', 'Date', 'Amount', 'Status', 'Actions'].map((header) => (
-                    <th
-                      key={header}
-                      className={`px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 ${
-                        header === 'Amount' || header === 'Actions' ? 'text-right' : ''
-                      }`}
-                    >
-                      {header}
-                    </th>
-                  ))}
+                  <th className="w-[18%] px-3 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Invoice #</th>
+                  <th className="w-[16%] px-2 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Order reference</th>
+                  <th className="w-[10%] px-2 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Shop</th>
+                  <th className="w-[10%] px-2 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Date</th>
+                  <th className="w-[12%] px-2 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Amount</th>
+                  <th className="w-[12%] px-2 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Status</th>
+                  <th className="w-[22%] px-2 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Actions</th>
                 </tr>
               </thead>
 
@@ -373,7 +448,7 @@ const CustomerInvoicesPage = () => {
                 ) : (
                   invoices.map((invoice) => (
                     <tr key={invoice.id} className="border-t border-slate-100 transition hover:bg-slate-50/70">
-                      <td className="whitespace-nowrap px-5 py-4">
+                      <td className="min-w-0 px-3 py-4">
                         <div className="flex items-center gap-3">
                           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
                             <FileText size={15} />
@@ -381,7 +456,7 @@ const CustomerInvoicesPage = () => {
                           <div className="min-w-0">
                             <Link
                               to={`/account/invoices/${encodeURIComponent(invoice.invoiceNumber || invoice.id)}`}
-                              className="font-mono text-[13px] font-semibold text-slate-900 hover:text-emerald-700"
+                              className="break-all font-mono text-[13px] font-semibold text-slate-900 hover:text-emerald-700"
                             >
                               {invoice.invoiceNumber}
                             </Link>
@@ -389,17 +464,17 @@ const CustomerInvoicesPage = () => {
                           </div>
                         </div>
                       </td>
-                      <td className="whitespace-nowrap px-5 py-4 text-xs font-medium text-slate-700">{invoice.orderReference || 'Unavailable'}</td>
-                      <td className="whitespace-nowrap px-5 py-4 text-sm text-slate-600">{invoice.shopName || 'N/A'}</td>
-                      <td className="whitespace-nowrap px-5 py-4 text-sm text-slate-500">{formatDate(invoice.createdAt)}</td>
-                      <td className="whitespace-nowrap px-5 py-4 text-right text-sm font-semibold tabular-nums text-slate-900">
+                      <td className="break-all px-2 py-4 text-xs font-medium text-slate-700">{invoice.orderReference || 'Unavailable'}</td>
+                      <td className="break-words px-2 py-4 text-sm text-slate-600">{invoice.shopName || 'N/A'}</td>
+                      <td className="px-2 py-4 text-sm text-slate-500">{formatDate(invoice.createdAt)}</td>
+                      <td className="px-2 py-4 text-right text-sm font-semibold tabular-nums text-slate-900">
                         {formatAmount(invoice.grandTotal)}
                       </td>
-                      <td className="whitespace-nowrap px-5 py-4">
+                      <td className="px-2 py-4">
                         <InvoiceStatusBadge status={invoice.status} label={STATUS_LABELS[invoice.status]} size="sm" />
                       </td>
-                      <td className="whitespace-nowrap px-5 py-4 text-right">
-                        <div className="inline-flex items-center justify-end gap-1.5">
+                      <td className="px-2 py-4 text-right">
+                        <div className="flex flex-wrap items-center justify-end gap-1.5">
                           <Link
                             to={`/account/invoices/${encodeURIComponent(invoice.invoiceNumber || invoice.id)}`}
                             title="View invoice details"
@@ -430,7 +505,7 @@ const CustomerInvoicesPage = () => {
                               className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-2.5 py-1.5 text-[11px] font-semibold text-white transition hover:bg-slate-800"
                             >
                               <UploadCloud size={12} />
-                              Submit Payment Slip
+                              Submit slip
                             </button>
                           )}
                         </div>

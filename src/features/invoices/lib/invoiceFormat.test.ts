@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { addressToLines, formatAmountInWords, formatCurrency, formatInvoiceStatusLabel } from './invoiceFormat'
+import {
+  addressToLines,
+  formatAmountInWords,
+  formatCurrency,
+  formatInvoiceStatusLabel,
+  formatPaymentMethodLabel,
+} from './invoiceFormat'
 
 describe('addressToLines', () => {
   it('removes empty values and repeated township/city components while preserving order', () => {
@@ -49,6 +55,12 @@ describe('formatCurrency', () => {
     expect(formatCurrency('11660.26', 'MMK').replace(/\s/g, ' ')).toBe('MMK 11,660.26')
     expect(formatCurrency('160', 'MMK')).toBe('MMK 160')
   })
+
+  it('preserves zero and does not invent a currency or amount when values are unavailable', () => {
+    expect(formatCurrency('0', 'MMK')).toBe('MMK 0')
+    expect(formatCurrency(null, 'MMK')).toBe('—')
+    expect(formatCurrency('1250.5', null)).toBe('1,250.5')
+  })
 })
 
 describe('formatInvoiceStatusLabel', () => {
@@ -56,5 +68,10 @@ describe('formatInvoiceStatusLabel', () => {
     expect(formatInvoiceStatusLabel('UNPAID', 'COD')).toBe('Due on delivery')
     expect(formatInvoiceStatusLabel('PAID', 'cod')).toBe('Collected')
     expect(formatInvoiceStatusLabel('PAID', 'CARD')).toBe('Paid')
+  })
+
+  it('labels Stripe while preserving unrecognized backend payment methods', () => {
+    expect(formatPaymentMethodLabel('STRIPE')).toBe('Stripe / Card')
+    expect(formatPaymentMethodLabel('regional_gateway')).toBe('regional_gateway')
   })
 })
