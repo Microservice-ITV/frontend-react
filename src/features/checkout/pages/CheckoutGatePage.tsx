@@ -18,7 +18,8 @@ import CheckoutSummary from '../components/CheckoutSummary'
 import CheckoutSummarySkeleton from '../components/CheckoutSummarySkeleton'
 import { SagaStatusDisplay } from '../components/SagaStatusDisplay'
 import { fetchCheckoutStatus, fetchSagaStatus } from '../store/checkoutThunks'
-import { fetchCheckoutShippingCalculation } from '@/features/shipping/store/shippingThunks'
+import { fetchCheckoutShippingCalculation, fetchShopProfilesForCurrentCart } from '@/features/shipping/store/shippingThunks'
+import { useCheckoutDeliveryCompany } from '@/features/shipping/hooks/useCheckoutDeliveryCompany'
 import { clearShippingCalculate } from '@/features/shipping/store/shippingSlice'
 import { clearCheckout, setCurrentCheckout } from '../store/checkoutSlice'
 import { hasConfirmedStock, isStockReadinessConfirmed } from '../utils/checkoutStatus'
@@ -98,14 +99,41 @@ const GuestCheckoutPayment = () => {
     [items, shippingCalculateStatus, feesByShopId, totalShippingFee],
   )
 
+  const shopIds = useMemo(
+    () => [...new Set(items.map((item) => item.shopId).filter(Boolean))],
+    [items],
+  )
+  const profilesByShopId = useAppSelector((state) => state.shipping.profilesByShopId)
+  const shopRoutes = useMemo(
+    () => shopIds.map((shopId) => ({
+      shopId,
+      fromDistrictId: profilesByShopId[shopId]?.districtId?.trim() ?? '',
+      toDistrictId: paymentDeliveryAddress?.district_id != null
+        ? String(paymentDeliveryAddress.district_id)
+        : '',
+    })),
+    [paymentDeliveryAddress?.district_id, profilesByShopId, shopIds],
+  )
+  const deliveryCompany = useCheckoutDeliveryCompany(shopIds, shopRoutes)
+  useEffect(() => {
+    if (shopIds.length === 0) return
+    void dispatch(fetchShopProfilesForCurrentCart())
+  }, [dispatch, shopIds])
+  const companySelectionKey = useMemo(
+    () => shopIds.map((shopId) => `${shopId}:${deliveryCompany.companyByShopId[shopId] ?? ''}`).sort().join('|'),
+    [shopIds, deliveryCompany.companyByShopId],
+  )
+  const hasCompanyForEveryShop =
+    shopIds.length > 0 && shopIds.every((shopId) => Boolean(deliveryCompany.companyByShopId[shopId]))
+
   const shippingCalculateCacheKey = useMemo(() => {
-    if (!paymentDeliveryAddress?.address_id) return ''
+    if (!paymentDeliveryAddress?.address_id || !hasCompanyForEveryShop) return ''
     const fingerprint = items
       .map((item) => `${item.productId}:${item.variantId ?? ''}:${item.quantity}`)
       .sort()
       .join('|')
-    return `${paymentDeliveryAddress.address_id}|${fingerprint}`
-  }, [paymentDeliveryAddress?.address_id, items])
+    return `${companySelectionKey}|${paymentDeliveryAddress.address_id}|${fingerprint}`
+  }, [paymentDeliveryAddress?.address_id, items, companySelectionKey, hasCompanyForEveryShop])
 
   const goToGuestForm = () => {
     try {
@@ -148,7 +176,7 @@ const GuestCheckoutPayment = () => {
   }, [currentCheckout?.checkout_id])
 
   useEffect(() => {
-    if (!paymentDeliveryAddress) {
+    if (!paymentDeliveryAddress || !hasCompanyForEveryShop || !deliveryCompany.routesReady) {
       dispatch(clearShippingCalculate())
       return
     }
@@ -158,6 +186,7 @@ const GuestCheckoutPayment = () => {
       fetchCheckoutShippingCalculation({
         address: paymentDeliveryAddress,
         items,
+        companyByShopId: deliveryCompany.companyByShopId,
         cacheKey: shippingCalculateCacheKey,
         customer: {
           id: paymentDeliveryAddress.address_id,
@@ -165,7 +194,7 @@ const GuestCheckoutPayment = () => {
         },
       }),
     )
-  }, [dispatch, paymentDeliveryAddress, items, shippingCalculateCacheKey])
+  }, [dispatch, paymentDeliveryAddress, items, shippingCalculateCacheKey, hasCompanyForEveryShop, deliveryCompany.routesReady, deliveryCompany.companyByShopId])
 
   const terminalCheckoutStatuses = useMemo(
     () => new Set(['PAID', 'COMPLETED', 'FAILED', 'FAILED_PAYMENT', 'EXPIRED']),
@@ -230,7 +259,17 @@ const GuestCheckoutPayment = () => {
                 loading={false}
                 onChangeAddress={goToGuestForm}
               />
-              <CheckoutItems checkout={checkoutTotals} />
+              <CheckoutItems
+                checkout={checkoutTotals}
+                deliveryCompany={{
+                  companies: deliveryCompany.companies,
+                  selectedByShopId: deliveryCompany.selectedByShopId,
+                  unavailableCompanyIdsByShop: deliveryCompany.unavailableCompanyIdsByShop,
+                  loading: deliveryCompany.loading,
+                  error: deliveryCompany.error,
+                  onSelect: deliveryCompany.selectCompany,
+                }}
+              />
             </div>
 
             <aside className="space-y-3 lg:sticky lg:top-4">

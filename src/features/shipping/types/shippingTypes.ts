@@ -4,6 +4,8 @@ export type ShippingCalculationMethod = 'REAL_ROUTE' | 'CITY_ROUTE'
 /** Normalized row for cart UI (batch shop-profiles). */
 export type ShopShippingProfileRow = {
     shopId: string
+    /** Shop origin district used for district-route pricing. */
+    districtId?: string | null
     /** Display / promo line */
     hint?: string
     /** Suggested default fee if API exposes it */

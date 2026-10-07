@@ -1,14 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
 import DataTablePagination from '@/components/ui/DataTablePagination'
 import RowActionMenu from '@/components/ui/RowActionMenu'
+import SearchableSelect from '@/components/ui/SearchableSelect'
 import { Search, Plus, Pencil, Trash2, Scale, RefreshCw, Eye } from 'lucide-react'
 import {
   adminShippingApi,
   type AdminWeightRateDto,
-  type PricingRuleSummaryDto,
+  type DeliveryPricingRuleDto,
 } from '../api/adminShippingApi'
 import { deleteAdminWeightRate, fetchAdminWeightRates } from '../store/adminWeightRatesThunks'
 import {
@@ -38,7 +39,8 @@ const AdminWeightRatesPage = () => {
   const status = useAppSelector(selectAdminWeightRatesStatus)
   const error = useAppSelector(selectAdminWeightRatesError)
   const mutationError = useAppSelector(selectAdminWeightRatesMutationError)
-  const [rules, setRules] = useState<PricingRuleSummaryDto[]>([])
+  const [rules, setRules] = useState<DeliveryPricingRuleDto[]>([])
+  const [companyNames, setCompanyNames] = useState<Record<string, string>>({})
   const [ruleFilter, setRuleFilter] = useState('')
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -55,6 +57,16 @@ const AdminWeightRatesPage = () => {
       .listPricingRules({ pageSize: 100 })
       .then((res) => setRules(res.data.data.rules))
       .catch(() => setRules([]))
+    void adminShippingApi
+      .listDeliveryCompanies({ page: 1, pageSize: 100 })
+      .then((res) => {
+        const names: Record<string, string> = {}
+        for (const company of res.data.data.companies ?? []) {
+          names[company.id] = company.name
+        }
+        setCompanyNames(names)
+      })
+      .catch(() => setCompanyNames({}))
   }, [])
 
   useEffect(() => {
@@ -99,6 +111,20 @@ const AdminWeightRatesPage = () => {
       },
     })
   }
+
+  const pricingRuleOptions = useMemo(
+    () => [
+      { value: '', label: 'All pricing rules' },
+      ...rules.map((rule) => {
+        const companyName = companyNames[rule.deliveryCompanyId]
+        const label = companyName
+          ? `${companyName} — ${rule.name} (v${rule.version})`
+          : `${rule.name} (v${rule.version})`
+        return { value: rule.id, label }
+      }),
+    ],
+    [companyNames, rules],
+  )
 
   return (
     <div className="space-y-6">
@@ -145,21 +171,20 @@ const AdminWeightRatesPage = () => {
       )}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <select
-          value={ruleFilter}
-          onChange={(e) => {
-            setRuleFilter(e.target.value)
-            setPage(1)
-          }}
-          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-emerald-500 sm:w-64"
-        >
-          <option value="">All pricing rules</option>
-          {rules.map((rule) => (
-            <option key={rule.id} value={rule.id}>
-              {rule.name} (v{rule.version})
-            </option>
-          ))}
-        </select>
+        <div className="w-full sm:w-72">
+          <SearchableSelect
+            id="weight-rates-rule-filter"
+            placeholder="Search pricing rules"
+            emptyLabel="All pricing rules"
+            options={pricingRuleOptions}
+            value={ruleFilter}
+            onChange={(ruleId) => {
+              setRuleFilter(ruleId)
+              setPage(1)
+            }}
+            searchAriaLabel="Search pricing rule"
+          />
+        </div>
 
         <div className="relative w-full max-w-md">
           <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -237,7 +262,13 @@ const AdminWeightRatesPage = () => {
               )}
               {status !== 'loading' &&
                 status !== 'failed' &&
-                rates.map((rate) => (
+                rates.map((rate) => {
+                  const companyName =
+                    companyNames[
+                      rules.find((rule) => rule.id === rate.pricingRuleId)?.deliveryCompanyId ?? ''
+                    ]
+                  const ruleName = rate.pricingRule?.name ?? 'Unknown rule'
+                  return (
                   <tr
                     key={rate.id}
                     className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
@@ -249,7 +280,7 @@ const AdminWeightRatesPage = () => {
                         </div>
                         <div>
                           <p className="text-xs font-semibold text-slate-900">
-                            {rate.pricingRule?.name ?? 'Unknown rule'}
+                            {companyName ? `${companyName} — ${ruleName}` : ruleName}
                           </p>
                           <p className="text-xs text-slate-500">
                             v{rate.pricingRule?.version ?? '—'} ·{' '}
@@ -296,7 +327,8 @@ const AdminWeightRatesPage = () => {
                       />
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
             </tbody>
           </table>
         </div>

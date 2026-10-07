@@ -33,6 +33,7 @@ export type CalculateShippingCustomer = {
 }
 
 export type CalculateShippingRequest = {
+    deliveryCompanyId: string
     deliveryAddress: {
         city: string
         cityId?: string
@@ -105,7 +106,8 @@ export function buildCalculatePayload(
     address: UserAddress,
     items: CartItem[],
     coords: LatLng,
-    customer?: CalculateShippingCustomer,
+    customer: CalculateShippingCustomer | undefined,
+    deliveryCompanyId: string,
 ): CalculateShippingRequest {
     const byShop = new Map<string, CartItem[]>()
     for (const item of items) {
@@ -139,6 +141,7 @@ export function buildCalculatePayload(
             : undefined
 
     return {
+        deliveryCompanyId,
         deliveryAddress: {
             city: address.city ?? '',
             ...(cityId ? { cityId } : {}),
@@ -203,5 +206,18 @@ export const shippingApi = {
 
     calculateShipping(payload: CalculateShippingRequest) {
         return shippingClient.post<unknown>('/shipping/calculate', payload)
+    },
+
+    listActiveDeliveryCompanies() {
+        return shippingClient.get<unknown>('/shipping/delivery-companies')
+    },
+
+    districtRouteAvailability(fromDistrictId: string, toDistrictId: string) {
+        return shippingClient.get<unknown>('/shipping/delivery-companies/route-availability', {
+            params: {
+                ...(fromDistrictId ? { fromDistrictId } : {}),
+                ...(toDistrictId ? { toDistrictId } : {}),
+            },
+        })
     },
 }

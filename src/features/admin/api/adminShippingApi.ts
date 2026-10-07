@@ -21,6 +21,7 @@ export type DistanceRateDto = {
 
 export type DeliveryPricingRuleDto = {
   id: string;
+  deliveryCompanyId: string;
   name: string;
   serviceType: DeliveryServiceType;
   dimensionalDivisor: number;
@@ -46,6 +47,7 @@ export type PricingRuleDistanceRateInput = {
 };
 
 export type CreatePricingRulePayload = {
+  deliveryCompanyId: string;
   name: string;
   serviceType: DeliveryServiceType;
   dimensionalDivisor: number;
@@ -75,6 +77,7 @@ export type ListPricingRulesParams = {
   pageSize?: number;
   status?: PricingRuleStatus;
   serviceType?: DeliveryServiceType;
+  deliveryCompanyId?: string;
   search?: string;
 };
 
@@ -127,6 +130,8 @@ export type DeliveryQuoteDto = {
   pricingRuleId: string;
   pricingVersion: number;
   pricingRule: DeliveryQuotePricingRuleSummary;
+  deliveryCompanyId: string;
+  deliveryCompanyName: string | null;
   status: DeliveryQuoteStatus;
   expiresAt: string;
   createdAt: string;
@@ -238,6 +243,7 @@ export type DeliveryCityRateStatus = "ACTIVE" | "INACTIVE";
 
 export type AdminDeliveryCityRateDto = {
   id: string;
+  deliveryCompanyId: string;
   fromDistrictId: string;
   toDistrictId: string;
   amount: number;
@@ -250,6 +256,7 @@ export type AdminDeliveryCityRateDto = {
 };
 
 export type CreateDeliveryCityRatePayload = {
+  deliveryCompanyId: string;
   fromDistrictId: string;
   toDistrictId: string;
   amount: number;
@@ -273,6 +280,7 @@ export type ListDeliveryCityRatesParams = {
   page?: number;
   pageSize?: number;
   status?: DeliveryCityRateStatus;
+  deliveryCompanyId?: string;
   fromDistrictId?: string;
   toDistrictId?: string;
 };
@@ -282,6 +290,42 @@ export type ShippingSettingsDto = {
   calculationMethod: ShippingCalculationMethod;
   createdAt: string;
   updatedAt: string;
+};
+
+export type DeliveryCompanyStatus = "ACTIVE" | "INACTIVE";
+
+export type DeliveryCompanyDto = {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  logoUrl: string | null;
+  status: DeliveryCompanyStatus;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CreateDeliveryCompanyPayload = {
+  code: string;
+  name: string;
+  description?: string | null;
+  logoUrl?: string | null;
+};
+
+export type UpdateDeliveryCompanyPayload = Partial<CreateDeliveryCompanyPayload>;
+
+export type DeliveryCompanyListData = {
+  total: number;
+  page: number;
+  pageSize: number;
+  companies: DeliveryCompanyDto[];
+};
+
+export type ListDeliveryCompaniesParams = {
+  page?: number;
+  pageSize?: number;
+  status?: DeliveryCompanyStatus;
+  search?: string;
 };
 
 const getApiErrorMessage = (error: unknown, fallback: string): string => {
@@ -473,6 +517,44 @@ export const adminShippingApi = {
     calculationMethod: ShippingCalculationMethod;
   }): Promise<AxiosResponse<ApiEnvelope<ShippingSettingsDto>>> {
     return shippingClient.put("/admin/shipping-settings", payload);
+  },
+
+  listDeliveryCompanies(
+    params: ListDeliveryCompaniesParams = {},
+  ): Promise<AxiosResponse<ApiEnvelope<DeliveryCompanyListData>>> {
+    return shippingClient.get("/admin/delivery-companies", { params });
+  },
+
+  getDeliveryCompany(
+    id: string,
+  ): Promise<AxiosResponse<ApiEnvelope<DeliveryCompanyDto>>> {
+    return shippingClient.get(`/admin/delivery-companies/${id}`);
+  },
+
+  createDeliveryCompany(
+    payload: CreateDeliveryCompanyPayload,
+  ): Promise<AxiosResponse<ApiEnvelope<DeliveryCompanyDto>>> {
+    return shippingClient.post("/admin/delivery-companies", payload);
+  },
+
+  updateDeliveryCompany(
+    id: string,
+    payload: UpdateDeliveryCompanyPayload,
+  ): Promise<AxiosResponse<ApiEnvelope<DeliveryCompanyDto>>> {
+    return shippingClient.patch(`/admin/delivery-companies/${id}`, payload);
+  },
+
+  updateDeliveryCompanyStatus(
+    id: string,
+    status: DeliveryCompanyStatus,
+  ): Promise<AxiosResponse<ApiEnvelope<DeliveryCompanyDto>>> {
+    return shippingClient.patch(`/admin/delivery-companies/${id}/status`, { status });
+  },
+
+  deleteDeliveryCompany(
+    id: string,
+  ): Promise<AxiosResponse<ApiEnvelope<{ deleted: boolean; id: string }>>> {
+    return shippingClient.delete(`/admin/delivery-companies/${id}`);
   },
 
   getApiErrorMessage,

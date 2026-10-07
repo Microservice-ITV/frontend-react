@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useAppSelector } from '@/app/hooks'
 import { loadAllDistricts } from '@/features/admin/api/locationOptions'
+import type { CheckoutDeliveryCompany } from '@/features/shipping/hooks/useCheckoutDeliveryCompany'
 import type { ShopCalculatedShipping } from '@/features/shipping/types/shippingTypes'
 import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
 import { taxChargeForAmount } from '../api/checkoutApi'
@@ -9,9 +10,20 @@ import { chatIcon, voucherIcon } from '@/assets/icons'
 import { CheckoutTotals } from '../utils/checkoutCalculator'
 import placeholderImage from '@/public/placeholder.svg'
 import { Truck } from 'lucide-react'
+import CheckoutDeliveryCompanySelect from './CheckoutDeliveryCompanySelect'
+
+export type CheckoutDeliveryCompanySelection = {
+  companies: CheckoutDeliveryCompany[]
+  selectedByShopId: Record<string, string>
+  unavailableCompanyIdsByShop: Record<string, string[]>
+  loading: boolean
+  error: string
+  onSelect: (shopId: string, companyId: string) => void
+}
 
 interface CheckoutItemsProps {
   checkout: CheckoutTotals
+  deliveryCompany: CheckoutDeliveryCompanySelection
 }
 
 function formatKm(value: number): string {
@@ -123,7 +135,7 @@ function formatLineTaxRate(rate: number | null | undefined): string {
   return `${Number.isInteger(rounded) ? rounded : rounded}%`
 }
 
-const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
+const CheckoutItems = ({ checkout, deliveryCompany }: CheckoutItemsProps) => {
   const { groupedByShop } = checkout
   const feesByShopId = useAppSelector(state => state.shipping.feesByShopId)
   const calculateStatus = useAppSelector(state => state.shipping.calculateStatus)
@@ -309,6 +321,21 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
               </button>
             </div>
 
+            <div className="border-t border-dashed border-black/10 bg-[#fafdff] px-3 py-3 sm:px-4">
+              <div className="mb-2 flex items-center gap-2 text-sm font-medium text-gray-900">
+                <Truck className="h-4 w-4 shrink-0 text-emerald-600" aria-hidden />
+                <span>Delivery Method</span>
+              </div>
+              <CheckoutDeliveryCompanySelect
+                companies={deliveryCompany.companies}
+                selectedId={deliveryCompany.selectedByShopId[shopId] ?? ''}
+                disabledCompanyIds={deliveryCompany.unavailableCompanyIdsByShop[shopId] ?? []}
+                loading={deliveryCompany.loading}
+                error={deliveryCompany.error}
+                onSelect={(companyId) => deliveryCompany.onSelect(shopId, companyId)}
+              />
+            </div>
+
             <div className="border-t border-dashed border-black/10 grid grid-cols-1 bg-[#fafdff] lg:grid-cols-2 lg:items-stretch">
               <div className="px-3 py-3 sm:px-4 sm:py-4 lg:flex lg:border-r lg:border-dashed lg:border-black/10">
                 <div className="flex min-h-28 w-full flex-col gap-2 lg:h-full lg:min-h-0">
@@ -322,12 +349,7 @@ const CheckoutItems = ({ checkout }: CheckoutItemsProps) => {
               </div>
 
               <div className="border-t border-dashed border-black/10 px-3 py-3 sm:px-4 sm:py-4 lg:border-t-0">
-                <div className="mb-2 flex items-center justify-between">
-                  <div className="text-sm font-medium text-gray-900">Shipping Option</div>
-                  {/* <button type="button" className="flex cursor-pointer items-center gap-1 text-sm text-[#0055aa]">
-                    View All <span>›</span>
-                  </button> */}
-                </div>
+                <div className="mb-2 text-sm font-medium text-gray-900">Shipping Option</div>
 
                 <button
                   type="button"

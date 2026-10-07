@@ -26,7 +26,8 @@ import { fetchUserAddresses } from '@/features/account/store/accountThunks'
 import { NewAddressModal } from '@/features/account/components/NewAddressModal'
 import type { UserAddress } from '@/features/account/types/addressTypes'
 import { clearShippingCalculate } from '@/features/shipping/store/shippingSlice'
-import { fetchCheckoutShippingCalculation } from '@/features/shipping/store/shippingThunks'
+import { fetchCheckoutShippingCalculation, fetchShopProfilesForCurrentCart } from '@/features/shipping/store/shippingThunks'
+import { useCheckoutDeliveryCompany } from '@/features/shipping/hooks/useCheckoutDeliveryCompany'
 import { hasConfirmedStock, isStockReadinessConfirmed } from '../utils/checkoutStatus'
 
 type StoredCheckoutSession = {
@@ -84,11 +85,37 @@ const CheckoutPage = () => {
         return selected ?? defaultAddress ?? null
     }, [addresses, selectedAddressId, defaultAddress])
     const hasDeliveryAddress = !!selectedDeliveryAddress
+    const shopIds = useMemo(
+        () => [...new Set(items.map((item) => item.shopId).filter(Boolean))],
+        [items],
+    )
+    const profilesByShopId = useAppSelector((state) => state.shipping.profilesByShopId)
+    const shopRoutes = useMemo(
+        () => shopIds.map((shopId) => ({
+            shopId,
+            fromDistrictId: profilesByShopId[shopId]?.districtId?.trim() ?? '',
+            toDistrictId: selectedDeliveryAddress?.district_id != null
+                ? String(selectedDeliveryAddress.district_id)
+                : '',
+        })),
+        [profilesByShopId, selectedDeliveryAddress?.district_id, shopIds],
+    )
+    const deliveryCompany = useCheckoutDeliveryCompany(shopIds, shopRoutes)
+    useEffect(() => {
+        if (shopIds.length === 0) return
+        void dispatch(fetchShopProfilesForCurrentCart())
+    }, [dispatch, shopIds])
+    const companySelectionKey = useMemo(
+        () => shopIds.map((shopId) => `${shopId}:${deliveryCompany.companyByShopId[shopId] ?? ''}`).sort().join('|'),
+        [shopIds, deliveryCompany.companyByShopId],
+    )
+    const hasCompanyForEveryShop =
+        shopIds.length > 0 && shopIds.every((shopId) => Boolean(deliveryCompany.companyByShopId[shopId]))
 
     const shippingCalculateCacheKey = useMemo(() => {
-        if (!selectedDeliveryAddress?.address_id) return ''
-        return `${selectedDeliveryAddress.address_id}|${selectedItemsFingerprint}`
-    }, [selectedDeliveryAddress?.address_id, selectedItemsFingerprint])
+        if (!selectedDeliveryAddress?.address_id || !hasCompanyForEveryShop) return ''
+        return `${companySelectionKey}|${selectedDeliveryAddress.address_id}|${selectedItemsFingerprint}`
+    }, [companySelectionKey, hasCompanyForEveryShop, selectedDeliveryAddress?.address_id, selectedItemsFingerprint])
 
     const { currentCheckout, loading, paymentStatus, clientSecret, isAwaitingFinalStatus, paymentMethod, sessionPaymentMethod, error: checkoutError } = useAppSelector(
         state => state.checkout
@@ -216,7 +243,7 @@ const CheckoutPage = () => {
     }, [addresses, selectedAddressId])
 
     useEffect(() => {
-        if (!hasDeliveryAddress || !selectedDeliveryAddress || items.length === 0) {
+        if (!hasDeliveryAddress || !selectedDeliveryAddress || items.length === 0 || !hasCompanyForEveryShop || !deliveryCompany.routesReady) {
             dispatch(clearShippingCalculate())
             return
         }
@@ -226,6 +253,7 @@ const CheckoutPage = () => {
             fetchCheckoutShippingCalculation({
                 address: selectedDeliveryAddress,
                 items,
+                companyByShopId: deliveryCompany.companyByShopId,
                 cacheKey: shippingCalculateCacheKey,
                 customer: { id: authUser?.id, name: authUser?.name },
             }),
@@ -236,6 +264,9 @@ const CheckoutPage = () => {
         selectedDeliveryAddress,
         items,
         shippingCalculateCacheKey,
+        hasCompanyForEveryShop,
+        deliveryCompany.routesReady,
+        deliveryCompany.companyByShopId,
         authUser?.id,
         authUser?.name,
     ])
@@ -487,7 +518,17 @@ const CheckoutPage = () => {
                                 onChangeAddress={openAddressSelectionModal}
                             />
                             <CartBundleBanner items={items} allowAdd />
-                            <CheckoutItems checkout={checkout} />
+                            <CheckoutItems
+                                checkout={checkout}
+                                deliveryCompany={{
+                                    companies: deliveryCompany.companies,
+                                    selectedByShopId: deliveryCompany.selectedByShopId,
+                                    unavailableCompanyIdsByShop: deliveryCompany.unavailableCompanyIdsByShop,
+                                    loading: deliveryCompany.loading,
+                                    error: deliveryCompany.error,
+                                    onSelect: deliveryCompany.selectCompany,
+                                }}
+                            />
                         </div>
 
                         <aside className="space-y-3 lg:sticky lg:top-4">
