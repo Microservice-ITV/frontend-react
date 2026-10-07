@@ -1,10 +1,11 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
+import SearchableSelect from '@/components/ui/SearchableSelect'
 import {
   adminShippingApi,
   type AdminWeightRateDto,
-  type PricingRuleSummaryDto,
+  type DeliveryPricingRuleDto,
 } from '../api/adminShippingApi'
 
 type WeightRateFormPageProps = {
@@ -24,7 +25,8 @@ const AdminWeightRateFormPage = ({ mode }: WeightRateFormPageProps) => {
   const [submitError, setSubmitError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const [rules, setRules] = useState<PricingRuleSummaryDto[]>([])
+  const [rules, setRules] = useState<DeliveryPricingRuleDto[]>([])
+  const [companyNames, setCompanyNames] = useState<Record<string, string>>({})
   const [pricingRuleId, setPricingRuleId] = useState('')
   const [baseWeightKg, setBaseWeightKg] = useState('1')
   const [baseFee, setBaseFee] = useState('1000')
@@ -37,6 +39,16 @@ const AdminWeightRateFormPage = ({ mode }: WeightRateFormPageProps) => {
       .listPricingRules({ pageSize: 100 })
       .then((res) => setRules(res.data.data.rules))
       .catch(() => setRules([]))
+    void adminShippingApi
+      .listDeliveryCompanies({ page: 1, pageSize: 100 })
+      .then((res) => {
+        const names: Record<string, string> = {}
+        for (const company of res.data.data.companies ?? []) {
+          names[company.id] = company.name
+        }
+        setCompanyNames(names)
+      })
+      .catch(() => setCompanyNames({}))
   }, [])
 
   useEffect(() => {
@@ -80,6 +92,20 @@ const AdminWeightRateFormPage = ({ mode }: WeightRateFormPageProps) => {
     const selected = rules.find((rule) => rule.id === pricingRuleId)
     if (selected?.currency) setCurrency(selected.currency)
   }, [mode, pricingRuleId, rules])
+
+  const pricingRuleOptions = useMemo(
+    () => [
+      { value: '', label: 'Select a pricing rule' },
+      ...rules.map((rule) => {
+        const companyName = companyNames[rule.deliveryCompanyId]
+        const label = companyName
+          ? `${companyName} — ${rule.name} (v${rule.version} · ${rule.status})`
+          : `${rule.name} (v${rule.version} · ${rule.status})`
+        return { value: rule.id, label }
+      }),
+    ],
+    [companyNames, rules],
+  )
 
   const validate = (): string | null => {
     if (!pricingRuleId) return 'Pricing rule is required.'
@@ -223,21 +249,17 @@ const AdminWeightRateFormPage = ({ mode }: WeightRateFormPageProps) => {
                 <label htmlFor="weight-rate-rule" className={labelClass}>
                   Pricing rule
                 </label>
-                <select
+                <SearchableSelect
                   id="weight-rate-rule"
+                  className="mt-1"
+                  placeholder="Select a pricing rule"
+                  emptyLabel="Select a pricing rule"
+                  options={pricingRuleOptions}
                   value={pricingRuleId}
-                  onChange={(e) => setPricingRuleId(e.target.value)}
-                  className={inputClass}
+                  onChange={setPricingRuleId}
                   disabled={mode === 'edit'}
-                  required
-                >
-                  <option value="">Select a pricing rule</option>
-                  {rules.map((rule) => (
-                    <option key={rule.id} value={rule.id}>
-                      {rule.name} (v{rule.version} · {rule.status})
-                    </option>
-                  ))}
-                </select>
+                  searchAriaLabel="Search pricing rule"
+                />
                 {mode === 'edit' && (
                   <p className="mt-1 text-xs text-slate-400">
                     The pricing rule cannot be changed after creation.

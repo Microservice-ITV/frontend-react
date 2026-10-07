@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
+import SearchableSelect from '@/components/ui/SearchableSelect'
 import {
   adminShippingApi,
   type CreatePricingRulePayload,
@@ -9,6 +10,7 @@ import {
   type UpdatePricingRulePayload,
   type WeightRoundingMethod,
 } from '../api/adminShippingApi'
+import DeliveryCompanyField from '../components/DeliveryCompanyField'
 
 type PricingRuleFormPageProps = {
   mode: 'create' | 'edit'
@@ -43,6 +45,7 @@ const AdminPricingRuleFormPage = ({ mode }: PricingRuleFormPageProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const [name, setName] = useState('')
+  const [deliveryCompanyId, setDeliveryCompanyId] = useState('')
   const [currency, setCurrency] = useState('MMK')
   const [status, setStatus] = useState<PricingRuleStatus>('ACTIVE')
   const [minimumFee, setMinimumFee] = useState('0')
@@ -70,6 +73,7 @@ const AdminPricingRuleFormPage = ({ mode }: PricingRuleFormPageProps) => {
         }
         if (cancelled) return
         setName(rule.name)
+        setDeliveryCompanyId(rule.deliveryCompanyId)
         setCurrency(rule.currency)
         setStatus(rule.status)
         setMinimumFee(String(rule.minimumFee))
@@ -96,6 +100,7 @@ const AdminPricingRuleFormPage = ({ mode }: PricingRuleFormPageProps) => {
 
   const validate = (): string | null => {
     if (!name.trim()) return 'Name is required.'
+    if (!deliveryCompanyId) return 'Delivery company is required.'
     const currencyCode = currency.trim().toUpperCase()
     if (currencyCode.length !== 3) return 'Currency must be a 3-letter code (e.g. MMK).'
 
@@ -122,6 +127,7 @@ const AdminPricingRuleFormPage = ({ mode }: PricingRuleFormPageProps) => {
   }
 
   const buildPayload = (): CreatePricingRulePayload => ({
+    deliveryCompanyId,
     name: name.trim(),
     serviceType: 'STANDARD',
     dimensionalDivisor: Number(dimensionalDivisor),
@@ -260,10 +266,18 @@ const AdminPricingRuleFormPage = ({ mode }: PricingRuleFormPageProps) => {
           <section className={sectionClass}>
             <h2 className={sectionTitleClass}>Basic details</h2>
             <p className={sectionHintClass}>
-              Name, currency, status, and fee bounds for this rule. Active rules of the same service
-              type cannot have overlapping effective dates.
+              Name, currency, status, and fee bounds for this company. Active rules for the same
+              company and service type cannot have overlapping effective dates.
             </p>
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <DeliveryCompanyField
+                  id="rule-company"
+                  value={deliveryCompanyId}
+                  onChange={setDeliveryCompanyId}
+                  disabled={mode === 'edit'}
+                />
+              </div>
               <div className="sm:col-span-2">
                 <label htmlFor="rule-name" className={labelClass}>
                   Name
@@ -297,15 +311,18 @@ const AdminPricingRuleFormPage = ({ mode }: PricingRuleFormPageProps) => {
                 <label htmlFor="rule-status" className={labelClass}>
                   Status
                 </label>
-                <select
+                <SearchableSelect
                   id="rule-status"
+                  className="mt-1"
+                  mode="scroll-only"
+                  emptyLabel="Select status"
+                  options={[
+                    { value: 'ACTIVE', label: 'Active' },
+                    { value: 'INACTIVE', label: 'Inactive' },
+                  ]}
                   value={status}
-                  onChange={(e) => setStatus(e.target.value as PricingRuleStatus)}
-                  className={inputClass}
-                >
-                  <option value="ACTIVE">Active</option>
-                  <option value="INACTIVE">Inactive</option>
-                </select>
+                  onChange={(next) => setStatus(next as PricingRuleStatus)}
+                />
               </div>
 
               <div>
@@ -399,18 +416,15 @@ const AdminPricingRuleFormPage = ({ mode }: PricingRuleFormPageProps) => {
                 <label htmlFor="rule-rounding-method" className={labelClass}>
                   Rounding method
                 </label>
-                <select
+                <SearchableSelect
                   id="rule-rounding-method"
+                  className="mt-1"
+                  mode="scroll-only"
+                  emptyLabel="Select rounding method"
+                  options={ROUNDING_OPTIONS}
                   value={weightRoundingMethod}
-                  onChange={(e) => setWeightRoundingMethod(e.target.value as WeightRoundingMethod)}
-                  className={inputClass}
-                >
-                  {ROUNDING_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(next) => setWeightRoundingMethod(next as WeightRoundingMethod)}
+                />
               </div>
 
               <div>

@@ -330,6 +330,10 @@ const AdminDeliveryQuoteDetailPage = () => {
                   }
                 />
                 <DetailRow
+                  label="Delivery company"
+                  value={quote.deliveryCompanyName ?? quote.deliveryCompanyId}
+                />
+                <DetailRow
                   label="Pricing rule"
                   value={
                     <Link

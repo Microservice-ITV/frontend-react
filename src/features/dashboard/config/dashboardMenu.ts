@@ -436,6 +436,14 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
     title: 'SHIPPING',
     items: [
       {
+        key: 'admin-delivery-companies',
+        label: 'Delivery Companies',
+        to: '/super-admin/shipping/delivery-companies',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: Building2,
+      },
+      {
         key: 'admin-delivery-pricing',
         label: 'Delivery Pricing',
         to: '/super-admin/shipping/pricing-rules',

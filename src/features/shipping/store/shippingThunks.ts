@@ -9,6 +9,7 @@ import {
 import { normalizeBatchShopProfiles, normalizeCalculateResponse } from '../utils/normalizeShipping'
 import type { UserAddress } from '@/features/account/types/addressTypes'
 import type { CartItem } from '@/features/cart/types/cartTypes'
+import type { ShopCalculatedShipping } from '../types/shippingTypes'
 
 function cartShopIdsKey(items: { shopId: string }[]): string {
     return [...new Set(items.map((i) => i.shopId).filter(Boolean))].sort().join(',')
@@ -105,7 +106,11 @@ export const fetchShopProfilesForCurrentCart = createAsyncThunk(
             const key = cartShopIdsKey(items)
             if (!key) return false
             if (state.shipping.batchKey === key && state.shipping.batchStatus === 'succeeded') {
-                return false
+                const staleDistrict = key.split(',').filter(Boolean).some((shopId) => {
+                    const profile = state.shipping.profilesByShopId[shopId]
+                    return profile != null && !('districtId' in profile)
+                })
+                if (!staleDistrict) return false
             }
             return true
         },
@@ -115,37 +120,87 @@ export const fetchShopProfilesForCurrentCart = createAsyncThunk(
 export type FetchCalculateArgs = {
     address: UserAddress
     items: CartItem[]
-    /** Dedupe key: address id + cart fingerprint */
+    /** Delivery company chosen for each shop. */
+    companyByShopId: Record<string, string>
+    /** Dedupe key: per-shop companies + address id + cart fingerprint */
     cacheKey: string
     customer?: CalculateShippingCustomer
 }
 
-export const fetchCheckoutShippingCalculation = createAsyncThunk(
+export const fetchCheckoutShippingCalculation = createAsyncThunk<
+    {
+        byShopId: Record<string, ShopCalculatedShipping>
+        totalShippingFee: number | null
+        cacheKey: string
+        raw: unknown
+    },
+    FetchCalculateArgs,
+    { rejectValue: string }
+>(
     'shipping/calculate',
-    async ({ address, items, cacheKey, customer }: FetchCalculateArgs, { rejectWithValue }) => {
+    async ({ address, items, cacheKey, customer, companyByShopId }, { rejectWithValue }) => {
         try {
             if (items.length === 0) {
                 return { byShopId: {}, totalShippingFee: null, cacheKey, raw: null as unknown }
             }
+
+            const itemsByCompany = new Map<string, CartItem[]>()
+            for (const item of items) {
+                const companyId = companyByShopId[item.shopId]?.trim()
+                if (!companyId) {
+                    return rejectWithValue('Select a delivery company to calculate shipping.')
+                }
+                const group = itemsByCompany.get(companyId) ?? []
+                group.push(item)
+                itemsByCompany.set(companyId, group)
+            }
+
             const coords = await resolveDeliveryCoordinates(address)
             if (!coords) {
                 return rejectWithValue(
                     'We could not locate this delivery address on the map. Add a map pin to your address and try again.',
                 )
             }
-            const payload = buildCalculatePayload(address, items, coords, customer)
-            const res = await shippingApi.calculateShipping(payload)
-            const body = res.data as Record<string, unknown> | unknown
-            const inner =
-                body &&
-                typeof body === 'object' &&
-                'data' in (body as Record<string, unknown>) &&
-                (body as Record<string, unknown>).data !== undefined
-                    ? (body as Record<string, unknown>).data
-                    : body
 
-            const { byShopId, totalShippingFee, raw } = normalizeCalculateResponse(inner)
-            return { byShopId, totalShippingFee, cacheKey, raw }
+            const responses = await Promise.all(
+                [...itemsByCompany.entries()].map(async ([deliveryCompanyId, shopItems]) => {
+                    const payload = buildCalculatePayload(
+                        address,
+                        shopItems,
+                        coords,
+                        customer,
+                        deliveryCompanyId,
+                    )
+                    const res = await shippingApi.calculateShipping(payload)
+                    const body = res.data as Record<string, unknown> | unknown
+                    const inner =
+                        body &&
+                        typeof body === 'object' &&
+                        'data' in (body as Record<string, unknown>) &&
+                        (body as Record<string, unknown>).data !== undefined
+                            ? (body as Record<string, unknown>).data
+                            : body
+                    return normalizeCalculateResponse(inner)
+                }),
+            )
+
+            const byShopId: Record<string, ShopCalculatedShipping> = {}
+            let totalShippingFee = 0
+            let hasFee = false
+            for (const response of responses) {
+                Object.assign(byShopId, response.byShopId)
+                if (response.totalShippingFee != null) {
+                    totalShippingFee += response.totalShippingFee
+                    hasFee = true
+                }
+            }
+
+            return {
+                byShopId,
+                totalShippingFee: hasFee ? totalShippingFee : null,
+                cacheKey,
+                raw: responses.map((response) => response.raw),
+            }
         } catch (e: unknown) {
             const rawMessage = extractApiErrorMessage(e, 'Failed to calculate shipping')
             return rejectWithValue(humanizeShippingCalculateError(rawMessage))

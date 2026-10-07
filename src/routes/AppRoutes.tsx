@@ -104,6 +104,8 @@ import AdminWeightRatesPage from "@/features/admin/pages/AdminWeightRatesPage";
 import AdminWeightRateFormPage from "@/features/admin/pages/AdminWeightRateFormPage";
 import AdminWeightRateDetailPage from "@/features/admin/pages/AdminWeightRateDetailPage";
 import AdminCityRatesPage from "@/features/admin/pages/AdminCityRatesPage";
+import AdminDeliveryCompaniesPage from "@/features/admin/pages/AdminDeliveryCompaniesPage";
+import AdminDeliveryCompanyFormPage from "@/features/admin/pages/AdminDeliveryCompanyFormPage";
 import AdminCityRateFormPage from "@/features/admin/pages/AdminCityRateFormPage";
 import AdminDistanceRangeFormPage from "@/features/admin/pages/AdminDistanceRangeFormPage";
 import AdminDistanceRangeDetailPage from "@/features/admin/pages/AdminDistanceRangeDetailPage";
@@ -1035,6 +1037,36 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.superAdminShops}
                 >
                   <AdminShopDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/delivery-companies/new"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminDeliveryCompanyFormPage mode="create" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/delivery-companies/:id/edit"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminDeliveryCompanyFormPage mode="edit" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shipping/delivery-companies"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
+                >
+                  <AdminDeliveryCompaniesPage />
                 </ProtectedRoute>
               }
             />

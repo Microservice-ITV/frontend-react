@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { adminShippingApi, type AdminDeliveryCityRateDto } from "../api/adminShippingApi";
 import { loadAllDistricts, type DistrictOptionWithCity } from "../api/locationOptions";
 import CitySelectField from "../components/CitySelectField";
+import DeliveryCompanyField from "../components/DeliveryCompanyField";
 
 type AdminCityRateFormPageProps = {
   mode: "create" | "edit";
@@ -37,6 +38,7 @@ const AdminCityRateFormPage = ({ mode }: AdminCityRateFormPageProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [fromDistrictId, setFromDistrictId] = useState("");
+  const [deliveryCompanyId, setDeliveryCompanyId] = useState("");
   const [toDistrictId, setToDistrictId] = useState("");
   const [amount, setAmount] = useState("1000");
   const [currency, setCurrency] = useState("MMK");
@@ -66,6 +68,7 @@ const AdminCityRateFormPage = ({ mode }: AdminCityRateFormPageProps) => {
         }
         if (cancelled) return;
         setFromDistrictId(rate.fromDistrictId);
+        setDeliveryCompanyId(rate.deliveryCompanyId);
         setToDistrictId(rate.toDistrictId);
         setAmount(String(rate.amount));
         setCurrency(rate.currency);
@@ -88,6 +91,7 @@ const AdminCityRateFormPage = ({ mode }: AdminCityRateFormPageProps) => {
 
   const validate = (): string | null => {
     if (!fromDistrictId) return "From district is required.";
+    if (!deliveryCompanyId) return "Delivery company is required.";
     if (!toDistrictId) return "To district is required.";
     if (fromDistrictId === toDistrictId) return "From and to districts must be different.";
     const parsedAmount = Number(amount);
@@ -129,6 +133,7 @@ const AdminCityRateFormPage = ({ mode }: AdminCityRateFormPageProps) => {
       } else {
         await adminShippingApi.createDeliveryCityRate({
           ...payload,
+          deliveryCompanyId,
           fromDistrictId,
           toDistrictId,
         });
@@ -236,6 +241,14 @@ const AdminCityRateFormPage = ({ mode }: AdminCityRateFormPageProps) => {
 
           <section className={sectionClass}>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <DeliveryCompanyField
+                  id="city-rate-company"
+                  value={deliveryCompanyId}
+                  onChange={setDeliveryCompanyId}
+                  disabled={mode === "edit"}
+                />
+              </div>
               <CitySelectField
                 id="city-rate-from"
                 label="From district"

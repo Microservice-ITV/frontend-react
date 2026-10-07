@@ -15,6 +15,7 @@ import {
   Eye,
 } from 'lucide-react'
 import type { DeliveryPricingRuleDto, PricingRuleStatus } from '../api/adminShippingApi'
+import { adminShippingApi } from '../api/adminShippingApi'
 import {
   deleteAdminPricingRule,
   fetchAdminPricingRules,
@@ -59,6 +60,20 @@ const AdminPricingRulesPage = () => {
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
   const [rowsPerPage, setRowsPerPage] = useState(10)
+  const [companyNames, setCompanyNames] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    void adminShippingApi
+      .listDeliveryCompanies({ page: 1, pageSize: 100 })
+      .then((res) => {
+        const names: Record<string, string> = {}
+        for (const company of res.data.data.companies ?? []) {
+          names[company.id] = company.name
+        }
+        setCompanyNames(names)
+      })
+      .catch(() => setCompanyNames({}))
+  }, [])
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300)
@@ -276,7 +291,7 @@ rules.map((rule) => (
                         <div>
                           <p className="text-xs font-semibold text-slate-900">{rule.name}</p>
                           <p className="text-xs text-slate-500">
-                            v{rule.version} · {rule.serviceType} · {rule.currency}
+                            {companyNames[rule.deliveryCompanyId] ?? "Company"} · v{rule.version} · {rule.serviceType} · {rule.currency}
                           </p>
                         </div>
                       </div>

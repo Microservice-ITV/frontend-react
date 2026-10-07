@@ -4,6 +4,7 @@ import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { useGlobalModal } from "@/components/ui/GlobalModalProvider";
 import DataTablePagination from "@/components/ui/DataTablePagination";
 import RowActionMenu from "@/components/ui/RowActionMenu";
+import SearchableSelect from "@/components/ui/SearchableSelect";
 import { Plus, RefreshCw, Pencil, Trash2, Route, Ban, CheckCircle2 } from "lucide-react";
 import type {
   AdminDeliveryCityRateDto,
@@ -54,6 +55,20 @@ const AdminCityRatesPage = () => {
   const [statusFilter, setStatusFilter] = useState<"" | DeliveryCityRateStatus>("");
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [companyNames, setCompanyNames] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    void adminShippingApi
+      .listDeliveryCompanies({ page: 1, pageSize: 100 })
+      .then((res) => {
+        const names: Record<string, string> = {};
+        for (const company of res.data.data.companies ?? []) {
+          names[company.id] = company.name;
+        }
+        setCompanyNames(names);
+      })
+      .catch(() => setCompanyNames({}));
+  }, []);
 
   useEffect(() => {
     void loadAllDistricts().then(setDistricts).catch(() => setDistricts([]));
@@ -193,18 +208,23 @@ const AdminCityRatesPage = () => {
             clearLabel="All to districts"
           />
         </div>
-        <select
-          value={statusFilter}
-          onChange={(e) => {
-            setStatusFilter(e.target.value as "" | DeliveryCityRateStatus);
-            setPage(1);
-          }}
-          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-emerald-500 sm:w-40"
-        >
-          <option value="">All statuses</option>
-          <option value="ACTIVE">Active</option>
-          <option value="INACTIVE">Inactive</option>
-        </select>
+        <div className="w-full sm:w-44">
+          <SearchableSelect
+            id="route-rates-status"
+            mode="scroll-only"
+            emptyLabel="All statuses"
+            options={[
+              { value: "", label: "All statuses" },
+              { value: "ACTIVE", label: "Active" },
+              { value: "INACTIVE", label: "Inactive" },
+            ]}
+            value={statusFilter}
+            onChange={(status) => {
+              setStatusFilter(status as "" | DeliveryCityRateStatus);
+              setPage(1);
+            }}
+          />
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
@@ -282,7 +302,9 @@ const AdminCityRatesPage = () => {
                           <p className="text-xs font-semibold text-slate-900">
                             {districtName(rate.fromDistrictId)} → {districtName(rate.toDistrictId)}
                           </p>
-                          <p className="text-xs text-slate-500">{rate.currency}</p>
+                          <p className="text-xs text-slate-500">
+                            {companyNames[rate.deliveryCompanyId] ?? "Company"} · {rate.currency}
+                          </p>
                         </div>
                       </div>
                     </td>
