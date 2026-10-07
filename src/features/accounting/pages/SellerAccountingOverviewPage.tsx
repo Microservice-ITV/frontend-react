@@ -4,12 +4,12 @@ import {
   ArrowDownRight,
   BookOpen,
   CircleDollarSign,
-  Clock3,
   Plus,
   ReceiptText,
   Scale,
   Search,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import DataTablePagination from "@/components/ui/DataTablePagination";
 import { authClient } from "@/lib/api/authClient";
 import { accountingClient } from "@/lib/api/accountingClient";
@@ -25,6 +25,21 @@ export const getPostedExpenseTotal = (expenses: AccountingExpense[]) =>
     (sum, expense) => expense.status === "APPROVED" ? sum + Number(expense.amount) : sum,
     0,
   );
+export const getDeliveryFeeTotals = (
+  lines: Pick<AccountingIncomeLine, "direction" | "amount" | "memo" | "account" | "currency">[],
+) =>
+  lines.reduce<Record<string, number>>((totals, line) => {
+    if (
+      line.direction !== "CREDIT" ||
+      line.account.code !== "2000" ||
+      !/^Delivery fee payable(?:\s|$)/i.test(line.memo ?? "")
+    ) {
+      return totals;
+    }
+    const currency = line.currency?.toUpperCase() ?? line.memo?.match(/\(([A-Z]{3})\)/i)?.[1]?.toUpperCase() ?? "UNKNOWN";
+    totals[currency] = (totals[currency] ?? 0) + Number(line.amount);
+    return totals;
+  }, {});
 const errorMessage = (error: unknown) => {
   if (error && typeof error === "object" && "response" in error) {
     const response = (error as { response?: { data?: { error?: unknown } } })
@@ -77,6 +92,7 @@ type ActivityRow = {
 const SellerAccountingOverviewPage = () => {
   const [expenses, setExpenses] = useState<AccountingExpense[]>([]);
   const [incomeLines, setIncomeLines] = useState<AccountingIncomeLine[]>([]);
+  const [deliveryFeeLines, setDeliveryFeeLines] = useState<AccountingIncomeLine[]>([]);
   const [status, setStatus] = useState<"loading" | "succeeded" | "failed">(
     "loading",
   );
@@ -100,13 +116,25 @@ const SellerAccountingOverviewPage = () => {
           (accessContextResponse.data.data?.access_context?.shops ?? [])
             .flatMap((shop) => (shop.shop_id ? [normalizeShopId(shop.shop_id)] : [])),
         );
-        const safeIncomeLines = (incomeResponse.data.entries ?? []).filter((line) => {
-          if (line.direction !== "CREDIT" || line.account.type !== "INCOME") return false;
+        const isInAuthorizedShop = (line: AccountingIncomeLine) => {
           const shopId = extractShopIdFromMemo(line.memo ?? line.journalEntry.narration);
           return allowedShopIds.size === 0 || (shopId ? allowedShopIds.has(shopId) : allowedShopIds.size === 1);
-        });
+        };
+        const reportLines = incomeResponse.data.entries ?? [];
+        const safeIncomeLines = reportLines.filter((line) =>
+          line.direction === "CREDIT" &&
+          line.account.type === "INCOME" &&
+          isInAuthorizedShop(line),
+        );
+        const safeDeliveryFeeLines = reportLines.filter((line) =>
+          line.direction === "CREDIT" &&
+          line.account.code === "2000" &&
+          /^Delivery fee payable(?:\s|$)/i.test(line.memo ?? "") &&
+          isInAuthorizedShop(line),
+        );
         setExpenses(loadedExpenses);
         setIncomeLines(safeIncomeLines);
+        setDeliveryFeeLines(safeDeliveryFeeLines);
         setStatus("succeeded");
       })
       .catch((cause) => {
@@ -124,9 +152,11 @@ const SellerAccountingOverviewPage = () => {
     (sum, line) => sum + Number(line.amount),
     0,
   );
-  const pendingTotal = expenses
-    .filter((expense) => expense.status === "PENDING_APPROVAL")
-    .reduce((sum, expense) => sum + Number(expense.amount), 0);
+  const deliveryFeeTotals = getDeliveryFeeTotals(deliveryFeeLines);
+  const deliveryFeeTotalLabel = Object.entries(deliveryFeeTotals)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([currency, amount]) => money(amount, currency))
+    .join(" · ") || money(0);
   const activities = useMemo<ActivityRow[]>(() => [
     ...incomeLines.map((line) => ({
       id: `income-${line.id}`,
@@ -236,9 +266,9 @@ const SellerAccountingOverviewPage = () => {
           tone="bg-red-50 text-red-600"
         />
         <SummaryCard
-          label="Pending total"
-          value={status === "loading" ? "..." : money(pendingTotal)}
-          icon={Clock3}
+          label="Shipping fee total"
+          value={status === "loading" ? "..." : deliveryFeeTotalLabel}
+          icon={CircleDollarSign}
           tone="bg-amber-50 text-amber-600"
         />
         <SummaryCard
@@ -327,7 +357,7 @@ const SummaryCard = ({
 }: {
   label: string;
   value: string;
-  icon: typeof ReceiptText;
+  icon: LucideIcon;
   tone: string;
 }) => (
   <div className="rounded-xl border border-slate-200 bg-white p-4">

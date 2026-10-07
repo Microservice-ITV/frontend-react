@@ -10,6 +10,7 @@ export type AccountingIncomeLine = {
   id: string
   direction: string
   amount: number | string
+  currency?: string
   memo: string | null
   account: AccountingAccount
   journalEntry: {
