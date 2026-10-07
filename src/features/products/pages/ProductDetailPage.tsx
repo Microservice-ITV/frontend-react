@@ -6,6 +6,7 @@ import { clearSelectedProduct } from '@/features/products/store/productSlice'
 import type { ProductVariant } from '@/features/products/types/productTypes'
 import { getGalleryImagesForVariant } from '@/features/products/utils/variantGallery'
 
+import { Typing } from '@/components/loading-ui/typing'
 import ProductBreadcrumb from '../components/ProductBreadcrumb'
 import ProductDescriptionSection from '../components/ProductDescriptionSection'
 import ProductGallery from '../components/ProductGallery'
@@ -74,8 +75,8 @@ const ProductDetailPage = () => {
 
   if (loading) {
     return (
-      <div className="bg-[#f5f5f5] min-h-screen p-6">
-        <p className="text-sm text-gray-600">Loading product…</p>
+      <div className="flex min-h-[50vh] items-center justify-center bg-[#f5f5f5]">
+        <Typing className="w-8" />
       </div>
     )
   }

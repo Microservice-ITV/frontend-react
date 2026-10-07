@@ -9,6 +9,7 @@ import ProductGrid from '../components/ProductGrid'
 import Pagination from '@/components/ui/Pagination'
 import { normalizeProductSort, type ProductSortKey } from '../utils/productSort'
 import { usePageTitle } from '@/components/routing/PageTitle'
+import { Typing } from '@/components/loading-ui/typing'
 
 const PAGE_SIZE = 12
 
@@ -83,8 +84,8 @@ const ProductListPage = () => {
               <ProductSortBar sort={sort} onSortChange={handleSortChange} />
 
             {status === "loading" && (
-              <div className="py-10 text-center text-sm text-gray-500">
-                Loading products...
+              <div className="flex flex-1 items-center justify-center">
+                <Typing className="w-8" />
               </div>
             )}
 

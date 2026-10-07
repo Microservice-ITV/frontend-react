@@ -7,6 +7,7 @@ import { createPartialInvoice } from '@/lib/api/invoiceClient'
 import DataTablePagination from '@/components/ui/DataTablePagination'
 import { Package, Store, Copy, Check } from 'lucide-react'
 import OrderProductImage from '../components/OrderProductImage'
+import { Typing } from '@/components/loading-ui/typing'
 import type {
   PurchasedOrder,
   PurchasedOrderDelivery,
@@ -796,8 +797,8 @@ const OrderTrackingPage = () => {
       </div>
 
       {loading && (
-        <div className="bg-white border border-gray-200 rounded-sm px-4 py-10 text-sm text-gray-600 text-center">
-          Loading order details...
+        <div className="flex min-h-[40vh] items-center justify-center">
+          <Typing className="w-8" />
         </div>
       )}
 

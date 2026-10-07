@@ -75,6 +75,26 @@ html {
     font-family: var(--font-sans);
 }
 
+@keyframes loading-ui-typing {
+    0%,
+    100% {
+        transform: translateY(0);
+        opacity: 0.5;
+    }
+
+    50% {
+        transform: translateY(-50%);
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .loading-ui-typing-dot {
+        animation: none !important;
+        opacity: 1 !important;
+    }
+}
+
 /* Prevent horizontal overflow */
 html,
 body {

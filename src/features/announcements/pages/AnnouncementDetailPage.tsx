@@ -4,6 +4,7 @@ import noMoreAnnouncementsIcon from "@/assets/announcement/no_more_announcements
 import { announcementApi } from "@/features/announcements/api/announcementApi";
 import type { Announcement } from "@/features/announcements/types/announcementTypes";
 import { usePageTitle } from "@/components/routing/PageTitle";
+import { Typing } from "@/components/loading-ui/typing";
 
 const accentClasses: Record<string, string> = {
   FREE_SHIPPING: "from-emerald-600 via-emerald-500 to-green-400",
@@ -158,12 +159,8 @@ const AnnouncementDetailPage = () => {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
-        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-600">
-            Loading announcement
-          </p>
-        </div>
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <Typing className="w-8" />
       </div>
     );
   }

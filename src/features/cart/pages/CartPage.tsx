@@ -30,6 +30,24 @@ const CartPage = () => {
         [cartProductKey],
     )
     const firstProductId = cartProductIds[0]
+    const bundleMinimumQty = useMemo(() => {
+        const required = new Map<string, number>()
+        const bundles = new Map<string, number>()
+        for (const offer of bundleMatch?.offers ?? []) {
+            if (!offer.complete || (offer.savings ?? 0) <= 0) continue
+            const seen = new Set<string>()
+            for (const row of offer.items) {
+                if (!row.in_cart || seen.has(row.product_id)) continue
+                seen.add(row.product_id)
+                const need = Math.max(1, row.quantity || 1)
+                required.set(row.product_id, (required.get(row.product_id) ?? 0) + need)
+                bundles.set(row.product_id, (bundles.get(row.product_id) ?? 0) + 1)
+            }
+        }
+        return new Map(
+            [...required.entries()].filter(([productId]) => (bundles.get(productId) ?? 0) > 1),
+        )
+    }, [bundleMatch])
 
     const staleShopKey = useMemo(
         () =>
@@ -97,7 +115,7 @@ const CartPage = () => {
                 <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-5">
                     <div className="space-y-3">
                         <CartBundleBanner items={items} onMatch={setBundleMatch} />
-                        <CartItemLists items={items} />
+                        <CartItemLists items={items} bundleMinimumQty={bundleMinimumQty} />
                     </div>
                     <aside className="max-lg:sticky max-lg:bottom-0 max-lg:z-20 lg:sticky lg:top-4">
                         <CartSummary

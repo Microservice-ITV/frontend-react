@@ -7,7 +7,13 @@ import { canAny } from '@/app/rbac/selectors'
 import { extractRoleFromUser } from '@/app/rbac/normalizers'
 import { getDefaultLandingPathByRole, resolvePostLoginPath } from '@/app/rbac/navigation'
 import type { ReactNode } from 'react'
-import AuthBootstrapLoading from '@/components/ui/AuthBootstrapLoading'
+import { Typing } from '@/components/loading-ui/typing'
+
+const ContentLoading = () => (
+  <div className="flex min-h-[50vh] w-full flex-1 items-center justify-center">
+    <Typing className="w-8" />
+  </div>
+)
 
 // ================= GuestRoute =================
 export const GuestRoute = () => {
@@ -21,7 +27,7 @@ export const GuestRoute = () => {
   // settles; its own request/verify flow determines whether a session is created.
   if (isPhoneAuthRoute) return <Outlet />
 
-  if (isAuthBootstrapping) return <AuthBootstrapLoading />
+  if (isAuthBootstrapping) return <ContentLoading />
 
   // Keep users on guest pages until profile is loaded; this avoids redirecting
   // to "/" before role resolution is available right after login.
@@ -63,7 +69,7 @@ export const ProtectedRoute = ({
   const hasRequiredCapabilities = useAppSelector((state) => canAny(state, requiredCapabilities))
   const location = useLocation()
 
-  if (isAuthBootstrapping) return <AuthBootstrapLoading />
+  if (isAuthBootstrapping) return <ContentLoading />
 
   if (!isAuthenticated) {
     return (
@@ -77,9 +83,7 @@ export const ProtectedRoute = ({
 
   // Access token present (e.g. after refresh) but /me not loaded yet — avoid rendering
   // protected pages while the navbar still shows Login/Register.
-  if (!authUser) {
-    return <AuthBootstrapLoading />
-  }
+  if (!authUser) return <ContentLoading />
 
   if (requiredCapabilities.length > 0 && !hasRequiredCapabilities) {
     return <Navigate to={unauthorizedRedirectTo} replace />
@@ -109,7 +113,7 @@ export const BuyerHomeRoute = ({ children }: BuyerHomeRouteProps) => {
   const isAuthenticated = useAppSelector(selectIsAuthenticated)
   const authUser = useAppSelector(selectAuthUser)
 
-  if (isAuthBootstrapping) return <AuthBootstrapLoading />
+  if (isAuthBootstrapping) return <ContentLoading />
 
   if (!isAuthenticated || !authUser) {
     return <>{children}</>

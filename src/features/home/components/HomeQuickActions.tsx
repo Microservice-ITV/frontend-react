@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { fetchHomeQuickActions } from '../store/homeThunks'
 import { isRequestSettled, useReportHomeSection } from '../homeScreenReady'
+import { Typing } from '@/components/loading-ui/typing'
 import type { HomeFeature } from '../store/homeTypes'
 
 const DESKTOP_PAGE_SIZE = 5
@@ -78,7 +79,9 @@ const HomeQuickActions = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="py-4">
           {status === 'loading' && visibleFeatures.length === 0 ? (
-            <div className="py-2 text-sm text-gray-500">Loading quick actions...</div>
+            <div className="flex min-h-24 items-center justify-center">
+              <Typing className="w-8" />
+            </div>
           ) : null}
 
           {status === 'failed' && visibleFeatures.length === 0 ? (
