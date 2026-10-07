@@ -5,7 +5,6 @@ import {
   Download,
   Heart,
   ImageOff,
-  Info,
   Mail,
   MapPin,
   PackageCheck,
@@ -21,14 +20,27 @@ import {
   formatCurrency,
   formatInvoiceDate,
   formatInvoiceNumber,
+  formatOrderReference,
   formatPaymentMethodLabel,
   lineItemImage,
   textToLines,
 } from '../lib/invoiceFormat'
 import { INVOICE_DOCUMENT_STYLES, INVOICE_PRINT_STYLES } from '../lib/invoicePrintStyles'
 
+type InvoiceDocumentView = Omit<
+  InvoiceDocument,
+  'subtotal' | 'deliveryFee' | 'taxAmount' | 'discountAmount' | 'grandTotal' | 'currency'
+> & {
+  subtotal: string | null
+  deliveryFee: string | null
+  taxAmount: string | null
+  discountAmount: string | null
+  grandTotal: string | null
+  currency: string | null
+}
+
 type InvoiceDocumentSheetProps = {
-  invoice: InvoiceDocument
+  invoice: InvoiceDocumentView
   onDownload?: () => void
   isDownloading?: boolean
   /** Set false when the host page renders its own action bar. */
@@ -38,8 +50,6 @@ type InvoiceDocumentSheetProps = {
   /** `print` renders the document alone, for the print/PDF route. */
   mode?: 'screen' | 'print'
 }
-
-const CUSTOMER_NOTE = 'You may want to check the parcel before accepting.Thank you for shopping with us.'
 
 const SectionLabel = ({ children }: { children: string }) => (
   <h2 className="text-[10px] font-bold uppercase tracking-[0.13em] invoice-accent-text">{children}</h2>
@@ -80,11 +90,15 @@ const InvoiceDocumentSheet = ({
 }: InvoiceDocumentSheetProps) => {
   const lineItems = invoice.lineItems ?? []
   const isPrint = mode === 'print'
-  const currency = invoice.currency || 'MMK'
-  const discountAmount = Number(invoice.discountAmount || 0)
-  const taxAmount = Number(invoice.taxAmount || 0)
+  const currency = invoice.currency
+  const hasNonZeroAmount = (value: string | null) => {
+    if (value === null || value.trim() === '') return false
+    const amount = Number(value)
+    return Number.isFinite(amount) && amount !== 0
+  }
 
   const invoiceNumber = formatInvoiceNumber(invoice.invoiceNumber || invoice.id)
+  const orderReference = formatOrderReference(invoice.orderReference)
   const billingLines = addressToLines(invoice.billingAddress)
   const shippingLines = addressToLines(invoice.shippingAddress)
 
@@ -98,8 +112,13 @@ const InvoiceDocumentSheet = ({
   const buyerLines = [invoice.customerName, invoice.customerEmail, invoice.customerPhone]
     .filter((line): line is string => Boolean(line?.trim()))
 
-  const notes = textToLines(invoice.verificationNote)
+  const notes = [
+    ...textToLines(invoice.verificationNote),
+    ...textToLines(invoice.rejectionReason),
+    ...textToLines(invoice.refundReason),
+  ]
   const paymentReference = invoice.paymentGatewayRef?.trim() || ''
+  const otherCharges = invoice.otherCharges?.filter((charge) => charge.label.trim()) ?? []
   return (
     <article
       data-invoice-root={isPrint ? 'print' : 'screen'}
@@ -107,40 +126,47 @@ const InvoiceDocumentSheet = ({
     >
       <style>{`${INVOICE_DOCUMENT_STYLES}${INVOICE_PRINT_STYLES}`}</style>
 
-      <header className="px-5 pt-6 sm:px-8 sm:pt-8">
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+      <header className="invoice-header print-color-adjust-exact px-5 py-4 sm:px-8 sm:py-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-4">
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#FFFFFF] shadow-sm">
-              <img src="/logo.svg" alt="Daily Need Items" className="h-full w-full object-contain p-1.5" />
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border invoice-border bg-white p-1">
+              <img src="/logo.svg" alt="Daily Need Items" className="invoice-logo h-full w-full object-contain" />
             </span>
             <div className="min-w-0">
               <p className="break-words text-lg font-bold tracking-tight invoice-ink sm:text-xl">
                 Daily Need Items
               </p>
-              <p className="mt-0.5 text-xs invoice-muted">Quality Products for everyday needs</p>
             </div>
           </div>
 
-          <div className="flex items-center justify-between gap-4 rounded-xl border invoice-border invoice-soft px-4 py-3 sm:min-w-[310px] sm:justify-start sm:px-5">
+          <div className="flex items-center justify-between gap-4 rounded-xl border invoice-border bg-white px-4 py-2.5 sm:min-w-[310px] sm:justify-start sm:px-5">
             <CalendarDays size={18} className="shrink-0 invoice-accent-text" aria-hidden="true" />
             <div className="min-w-0 flex-1">
               <p className="text-[10px] font-bold uppercase tracking-[0.16em] invoice-accent-text">Invoice</p>
-              <p className="whitespace-nowrap text-[14px] font-bold invoice-ink">{invoiceNumber}</p>
-              <p className="mt-1 text-xs invoice-muted">{formatInvoiceDate(invoice.createdAt)}</p>
+              <p className="whitespace-nowrap text-[14px] font-bold invoice-ink">{invoiceNumber || '—'}</p>
+              <p className="invoice-header-muted mt-1 text-xs">Issue date: {formatInvoiceDate(invoice.createdAt)}</p>
+              {orderReference && (
+                <p className="invoice-header-muted mt-1 text-xs">Order reference: {orderReference}</p>
+              )}
             </div>
           </div>
         </div>
 
-        <h1 className="mt-6 text-3xl font-bold tracking-tight invoice-ink sm:text-[34px]">Invoice</h1>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t invoice-border pt-3">
+          <h1 className="text-3xl font-bold tracking-tight invoice-ink sm:text-[34px]">Invoice</h1>
+          <div className="invoice-payment-status rounded-full border px-3 py-1.5 text-xs font-bold uppercase tracking-[0.1em]" aria-label={`Payment Status: ${invoice.status}`}>
+            Payment Status: {invoice.status}
+          </div>
+        </div>
       </header>
 
-      <section className="mx-5 mt-5 grid items-start gap-4 sm:mx-8 sm:grid-cols-2" data-print-keep-together>
-        <div className="rounded-xl border invoice-border bg-white p-4 sm:p-5">
+      <section className="mx-5 mt-3 grid items-start gap-4 sm:mx-8 sm:grid-cols-2" data-print-keep-together>
+        <div className="rounded-xl border invoice-border bg-white p-3 sm:p-4">
           <div className="flex items-center gap-2">
             <UserRound size={17} className="invoice-accent-text" aria-hidden="true" />
             <SectionLabel>Bill to</SectionLabel>
           </div>
-          <div className="mt-3 space-y-1 text-[13px] leading-relaxed invoice-muted">
+          <div className="mt-2 space-y-1 text-[13px] leading-relaxed invoice-muted">
             {buyerLines.length === 0 ? (
               <p className="invoice-faint">Buyer information unavailable</p>
             ) : (
@@ -157,12 +183,12 @@ const InvoiceDocumentSheet = ({
               ))
             )}
             {billingLines.length > 0 && (
-              <div className="border-t invoice-border mt-3 pt-3">
+              <div className="border-t invoice-border mt-2 pt-2">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.1em] invoice-faint">Billing address</p>
                 <p className="mt-1 break-words text-[13px] invoice-ink">{billingLines.join(', ')}</p>
               </div>
             )}
-            <div className="border-t invoice-border mt-3 pt-3">
+            <div className="border-t invoice-border mt-2 pt-2">
               <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.1em] invoice-accent-text">
                 <MapPin size={14} aria-hidden="true" /> Shipping address
               </p>
@@ -173,12 +199,12 @@ const InvoiceDocumentSheet = ({
           </div>
         </div>
 
-        <div className="rounded-xl border invoice-border bg-white p-4 sm:p-5">
+        <div className="rounded-xl border invoice-border bg-white p-3 sm:p-4">
           <div className="flex items-center gap-2">
             <Store size={17} className="invoice-accent-text" aria-hidden="true" />
             <SectionLabel>From</SectionLabel>
           </div>
-          <div className="mt-3 space-y-1 text-[13px] leading-relaxed invoice-muted">
+          <div className="mt-2 space-y-1 text-[13px] leading-relaxed invoice-muted">
             <p className="break-words font-semibold invoice-ink">{invoice.shopName || 'Seller information unavailable'}</p>
             {sellerLines.map((line, index) => (
               <p key={`seller-${index}`} className="break-words">{line}</p>
@@ -292,12 +318,16 @@ const InvoiceDocumentSheet = ({
                   {formatPaymentMethodLabel(invoice.paymentMethod)}
                 </dd>
               </div>
-              <div>
-                <dt className="text-xs invoice-muted">Reference</dt>
-                <dd className="mt-1 min-w-0 break-all text-[12px] font-medium invoice-ink">
-                  {paymentReference || '—'}
-                </dd>
+              <div className="invoice-status-badge rounded-lg border px-3 py-2">
+                <dt className="text-xs font-medium">Payment Status</dt>
+                <dd className="mt-1 text-sm font-bold uppercase tracking-wide">{invoice.status}</dd>
               </div>
+              {paymentReference && <div>
+                <dt className="text-xs invoice-muted">Payment / reference ID</dt>
+                <dd className="mt-1 min-w-0 break-all text-[12px] font-medium invoice-ink">
+                  {paymentReference}
+                </dd>
+              </div>}
             </dl>
           </div>
         )}
@@ -316,7 +346,7 @@ const InvoiceDocumentSheet = ({
                 {formatCurrency(invoice.deliveryFee, currency)}
               </dd>
             </div>
-            {discountAmount !== 0 && (
+            {hasNonZeroAmount(invoice.discountAmount) && (
               <div className="flex justify-between gap-6">
                 <dt className="invoice-muted">Discount</dt>
                 <dd className="tabular-nums invoice-ink">
@@ -324,7 +354,7 @@ const InvoiceDocumentSheet = ({
                 </dd>
               </div>
             )}
-            {taxAmount !== 0 && (
+            {hasNonZeroAmount(invoice.taxAmount) && (
               <div className="flex justify-between gap-6">
                 <dt className="invoice-muted">Tax</dt>
                 <dd className="tabular-nums invoice-ink">
@@ -332,6 +362,12 @@ const InvoiceDocumentSheet = ({
                 </dd>
               </div>
             )}
+            {otherCharges.map((charge, index) => (
+              <div className="flex justify-between gap-6" key={`${charge.label}-${index}`}>
+                <dt className="invoice-muted">{charge.label}</dt>
+                <dd className="tabular-nums invoice-ink">{formatCurrency(charge.amount, currency)}</dd>
+              </div>
+            ))}
           </dl>
 
           <div className="invoice-total-box mt-3 flex items-center justify-between gap-4 rounded-lg border px-3 py-3 print-color-adjust-exact sm:px-4">
@@ -342,12 +378,16 @@ const InvoiceDocumentSheet = ({
               {formatCurrency(invoice.grandTotal, currency)}
             </span>
           </div>
-          <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.1em] invoice-muted">
-            Amount in words
-          </p>
-          <p className="mt-1 text-[11px] leading-relaxed invoice-muted">
-            {formatAmountInWords(invoice.grandTotal, currency)}
-          </p>
+          {formatAmountInWords(invoice.grandTotal, currency) && (
+            <>
+              <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.1em] invoice-muted">
+                Amount in words
+              </p>
+              <p className="mt-1 text-[11px] leading-relaxed invoice-muted">
+                {formatAmountInWords(invoice.grandTotal, currency)}
+              </p>
+            </>
+          )}
         </div>
       </section>
 
@@ -359,13 +399,6 @@ const InvoiceDocumentSheet = ({
           </div>
         </section>
       )}
-
-      <aside className="invoice-note invoice-note-box mx-5 mt-5 flex items-center gap-4 rounded-xl border px-4 py-4 sm:mx-8 sm:px-5" data-print-keep-together>
-        <Info size={22} className="shrink-0 invoice-accent-text" aria-hidden="true" />
-        <span className="h-9 w-px shrink-0 invoice-note-divider" aria-hidden="true" />
-        <p className="whitespace-pre-line text-[12px] font-medium leading-relaxed invoice-accent-text">{CUSTOMER_NOTE}</p>
-        <PackageCheck size={26} className="ml-auto hidden shrink-0 invoice-accent-text sm:block" aria-hidden="true" />
-      </aside>
 
       <footer className="mt-5 flex items-center justify-between gap-4 border-t invoice-border px-5 py-5 sm:px-8">
         <p className="flex items-center gap-2 text-sm font-semibold italic invoice-accent-text">

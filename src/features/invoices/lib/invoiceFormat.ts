@@ -31,18 +31,27 @@ export const formatOrderReference = (raw: string | null | undefined): string =>
   withDniPrefix(raw, 'ORD')
 
 /** Formats an amount using the invoice's own currency. No conversion is performed. */
-export const formatCurrency = (value: string | number, currency: string): string => {
-  const amount = Number(value || 0)
-  const code = currency || 'MMK'
+export const formatCurrency = (
+  value: string | number | null | undefined,
+  currency: string | null | undefined,
+): string => {
+  if (value === null || value === undefined || (typeof value === 'string' && value.trim() === '')) {
+    return '—'
+  }
+
+  const amount = Number(value)
+  if (!Number.isFinite(amount)) return '—'
 
   try {
     const formattedAmount = new Intl.NumberFormat('en-US', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
-    }).format(Number.isFinite(amount) ? amount : 0)
-    return `${code} ${formattedAmount}`
+    }).format(amount)
+    const code = currency?.trim()
+    return code ? `${code} ${formattedAmount}` : formattedAmount
   } catch {
-    return `${code} ${(Number.isFinite(amount) ? amount : 0).toFixed(2)}`
+    const code = currency?.trim()
+    return `${code ? `${code} ` : ''}${amount.toFixed(2)}`
   }
 }
 
@@ -86,22 +95,26 @@ const integerToWords = (input: number): string => {
 }
 
 /**
- * Presentational "amount in words" for MMK.
+ * Presentational amount-in-words display using the invoice's own currency.
  * The invoice schema has no amount-in-words field, so this is display-only.
  */
 export const formatAmountInWords = (
-  value: string | number,
-  currency: string,
+  value: string | number | null | undefined,
+  currency: string | null | undefined,
 ): string => {
-  const code = (currency || 'MMK').toUpperCase()
-  const amount = Number(value || 0)
+  if (value === null || value === undefined || (typeof value === 'string' && value.trim() === '')) {
+    return ''
+  }
+
+  const code = currency?.trim().toUpperCase() ?? ''
+  const amount = Number(value)
   if (!Number.isFinite(amount)) return ''
 
   const rounded = Math.round(amount * 100) / 100
   const whole = Math.floor(Math.abs(rounded))
   const fraction = Math.round((Math.abs(rounded) - whole) * 100)
 
-  const words = `${integerToWords(whole) || 'Zero'} ${code}`
+  const words = [integerToWords(whole) || 'Zero', code].filter(Boolean).join(' ')
   if (fraction === 0) return `${words} only`
 
   const hundredths = fraction.toString().padStart(2, '0')
@@ -116,7 +129,8 @@ export const isCodPayment = (method: string | null | undefined): boolean => {
 export const formatPaymentMethodLabel = (method: string | null | undefined): string => {
   const value = (method ?? '').trim().toUpperCase()
   if (isCodPayment(method) || value === 'COD') return 'Cash on delivery'
-  if (value === 'PREPAID' || value === 'CARD' || value === 'STRIPE') return 'Card / online'
+  if (value === 'STRIPE') return 'Stripe / Card'
+  if (value === 'PREPAID' || value === 'CARD') return 'Card / online'
   return (method ?? '').trim() || 'Not provided'
 }
 

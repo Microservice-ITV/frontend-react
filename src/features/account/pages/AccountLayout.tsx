@@ -32,14 +32,13 @@ const AccountLayout = () => {
           </div>
         )}
 
-        <div className="flex flex-col md:flex-row md:items-start md:gap-4">
-          {/* Desktop sidebar stays in view while the order page scrolls */}
-          <div className="hidden md:sticky md:top-45 md:z-20 md:block md:w-64 md:shrink-0 md:self-start">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-[16rem_minmax(0,1fr)] md:items-start">
+          <div className="hidden md:block md:w-64 md:self-start">
             <AccountSidebar />
           </div>
 
           {/* Right: content */}
-          <section className="min-w-0 flex-1 bg-white rounded-sm border border-gray-200 shadow-sm">
+          <section className="min-w-0 bg-white rounded-sm border border-gray-200 shadow-sm">
             <Outlet />
           </section>
         </div>
@@ -49,4 +48,3 @@ const AccountLayout = () => {
 }
 
 export default AccountLayout
-
