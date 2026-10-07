@@ -6,6 +6,11 @@ import InvoiceStatCard from '@/features/invoices/components/InvoiceStatCard'
 import InvoiceStatusBadge from '@/features/invoices/components/InvoiceStatusBadge'
 import InvoiceEmptyState from '@/features/invoices/components/InvoiceEmptyState'
 import InvoiceTableSkeleton from '@/features/invoices/components/InvoiceTableSkeleton'
+import {
+  formatInvoiceStatusLabel,
+  formatPaymentMethodLabel,
+  isCodPayment,
+} from '@/features/invoices/lib/invoiceFormat'
 import { useAppSelector } from '@/app/hooks'
 import { selectIsAuthenticated } from '@/features/auth/store/authSelectors'
 
@@ -47,6 +52,15 @@ const formatDate = (value: string | Date): string => {
     day: 'numeric',
   })
 }
+
+const canSubmitPaymentSlip = (invoice: InvoiceDocument): boolean =>
+  (invoice.status === 'UNPAID' || invoice.status === 'REJECTED') &&
+  !isCodPayment(invoice.paymentMethod)
+
+const getInvoiceStatusLabel = (invoice: InvoiceDocument): string =>
+  isCodPayment(invoice.paymentMethod)
+    ? formatInvoiceStatusLabel(invoice.status, invoice.paymentMethod)
+    : STATUS_LABELS[invoice.status]
 
 const CustomerInvoicesPage = () => {
   const isAuthenticated = useAppSelector(selectIsAuthenticated)
@@ -155,7 +169,7 @@ const CustomerInvoicesPage = () => {
   }
 
   const submitPaymentSlip = async () => {
-    if (!selectedInvoice || !selectedFile) return
+    if (!selectedInvoice || !selectedFile || isCodPayment(selectedInvoice.paymentMethod)) return
 
     setIsSubmittingSlip(true)
 
@@ -364,7 +378,11 @@ const CustomerInvoicesPage = () => {
                         Order {invoice.orderReference || 'Unavailable'}
                       </p>
                     </div>
-                    <InvoiceStatusBadge status={invoice.status} label={STATUS_LABELS[invoice.status]} size="sm" />
+                    <InvoiceStatusBadge
+                      status={invoice.status}
+                      label={getInvoiceStatusLabel(invoice)}
+                      size="sm"
+                    />
                   </div>
 
                   <dl className="mt-4 grid grid-cols-2 gap-x-3 gap-y-3 border-t border-slate-100 pt-3 text-xs">
@@ -382,6 +400,14 @@ const CustomerInvoicesPage = () => {
                         {formatAmount(invoice.grandTotal)}
                       </dd>
                     </div>
+                    {invoice.paymentMethod && (
+                      <div>
+                        <dt className="text-slate-400">Payment method</dt>
+                        <dd className="mt-1 font-medium text-slate-700">
+                          {formatPaymentMethodLabel(invoice.paymentMethod)}
+                        </dd>
+                      </div>
+                    )}
                   </dl>
 
                   <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
@@ -402,7 +428,7 @@ const CustomerInvoicesPage = () => {
                         : <Download size={14} />}
                       Download
                     </button>
-                    {(invoice.status === 'UNPAID' || invoice.status === 'REJECTED') && (
+                    {canSubmitPaymentSlip(invoice) && (
                       <button
                         type="button"
                         onClick={() => {
@@ -471,7 +497,16 @@ const CustomerInvoicesPage = () => {
                         {formatAmount(invoice.grandTotal)}
                       </td>
                       <td className="px-2 py-4">
-                        <InvoiceStatusBadge status={invoice.status} label={STATUS_LABELS[invoice.status]} size="sm" />
+                        <InvoiceStatusBadge
+                          status={invoice.status}
+                          label={getInvoiceStatusLabel(invoice)}
+                          size="sm"
+                        />
+                        {invoice.paymentMethod && (
+                          <p className="mt-1 text-[10px] text-slate-500">
+                            {formatPaymentMethodLabel(invoice.paymentMethod)}
+                          </p>
+                        )}
                       </td>
                       <td className="px-2 py-4 text-right">
                         <div className="flex flex-wrap items-center justify-end gap-1.5">
@@ -494,7 +529,7 @@ const CustomerInvoicesPage = () => {
                             {downloadingInvoiceId === invoice.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
                           </button>
 
-                          {(invoice.status === 'UNPAID' || invoice.status === 'REJECTED') && (
+                          {canSubmitPaymentSlip(invoice) && (
                             <button
                               type="button"
                               onClick={() => {
