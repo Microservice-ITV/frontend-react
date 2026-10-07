@@ -110,6 +110,7 @@ const PAGE_TITLE_RULES: PageTitleRule[] = [
   { path: '/seller/accounting', title: 'Accounting Overview' },
   { path: '/seller/accounting/overview', title: 'Accounting Overview' },
   { path: '/seller/accounting/income', title: 'Income' },
+  { path: '/seller/accounting/profit-loss', title: 'Profit & Loss' },
   { path: '/seller/accounting/expenses', title: 'Expenses' },
   { path: '/seller/accounting/expenses/new', title: 'New Expense' },
   { path: '/seller/accounting/expenses/:expenseId', title: 'Expense' },

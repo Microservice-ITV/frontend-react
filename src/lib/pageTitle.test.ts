@@ -23,6 +23,7 @@ describe('resolvePageTitle', () => {
   it('prefers a static path over a param path', () => {
     expect(resolvePageTitle('/seller/products/new')).toBe('New Product')
     expect(resolvePageTitle('/seller/products/abc')).toBe('Product')
+    expect(resolvePageTitle('/seller/accounting/profit-loss')).toBe('Profit & Loss')
     expect(resolvePageTitle('/super-admin/shipping/pricing-rules/new')).toBe('New Pricing Rule')
     expect(resolvePageTitle('/super-admin/accounting/overview')).toBe('Accounting Overview')
   })
