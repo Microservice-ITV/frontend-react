@@ -29,8 +29,10 @@ const CheckoutDeliveryCompanySelect = ({
     return <p className="text-sm text-gray-600">No delivery company is available right now.</p>
   }
 
+  const imageOnly = companies.length > 4
+
   return (
-    <div className="flex flex-nowrap gap-2">
+    <div className={`flex flex-nowrap items-center ${imageOnly ? 'w-full justify-between' : 'gap-2'}`}>
       {companies.map((company) => {
         const selected = company.id === selectedId
         const disabled = disabledCompanyIds.includes(company.id)
@@ -41,26 +43,30 @@ const CheckoutDeliveryCompanySelect = ({
             disabled={disabled}
             onClick={() => onSelect(company.id)}
             aria-pressed={selected}
-            title={disabled ? 'No district route for this company' : undefined}
-            className={`relative flex min-w-0 flex-1 items-center gap-3 rounded-md border px-3 py-2.5 pr-8 text-left transition ${
+            aria-label={company.name}
+            title={disabled ? `${company.name}: no district route for this company` : company.name}
+            className={`relative flex items-center overflow-hidden rounded-sm border text-left transition ${
+              imageOnly ? 'w-fit shrink-0 gap-2 p-1.5' : 'min-w-0 flex-1 gap-3 px-3 py-2.5'
+            } ${
               disabled
-                ? 'cursor-not-allowed border-gray-200 bg-gray-50 opacity-50'
+                ? 'cursor-not-allowed border-amber-300 bg-amber-50'
                 : selected
                   ? 'cursor-pointer border-emerald-600 bg-[#f0faf7]'
                   : 'cursor-pointer border-gray-200 bg-white hover:border-gray-300'
             }`}
           >
-            <span
-              className={`absolute right-2 top-2 inline-flex h-4 w-4 items-center justify-center rounded-full border ${
-                selected ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-gray-300 bg-white'
-              }`}
-            >
-              {selected && (
-                <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
-                  <path d="M3.5 8.5 6.5 11.5 12.5 4.5" strokeLinecap="round" strokeLinejoin="round" />
+            {disabled && (
+              <span className="absolute inset-0 z-10 flex items-center justify-center bg-amber-50/90 px-1 text-center text-[11px] font-medium leading-tight text-amber-800">
+                Not available
+              </span>
+            )}
+            {selected && !disabled && (
+              <span className="absolute bottom-0 right-0 flex h-3.5 w-3.5 items-center justify-center bg-[#3d8c73]">
+                <svg viewBox="0 0 12 12" className="h-3 w-3 fill-white" aria-hidden="true">
+                  <path d="M5.2 10.9L.3 7c-.4-.4-.5-1-.1-1.4s1-.5 1.4-.1l3.4 3 5.1-7c.3-.4 1-.5 1.4-.2s.5 1 .2 1.4l-5.7 7.9z" />
                 </svg>
-              )}
-            </span>
+              </span>
+            )}
             {company.logoUrl ? (
               <img
                 src={company.logoUrl}
@@ -68,12 +74,16 @@ const CheckoutDeliveryCompanySelect = ({
                 className="h-16 w-16 shrink-0 rounded-sm border border-gray-200 bg-white object-contain md:h-14 md:w-14"
               />
             ) : null}
-            <span className="min-w-0">
-              <span className="block truncate text-sm text-gray-900 sm:text-[15px]">{company.name}</span>
-              {company.description && (
-                <span className="mt-0.5 block truncate text-xs text-gray-500">{company.description}</span>
-              )}
-            </span>
+            {imageOnly ? (
+              <span className="block max-w-16 truncate text-xs text-gray-900">{company.name}</span>
+            ) : (
+              <span className="min-w-0">
+                <span className="block truncate text-sm text-gray-900 sm:text-[15px]">{company.name}</span>
+                {company.description && (
+                  <span className="mt-0.5 block truncate text-xs text-gray-500">{company.description}</span>
+                )}
+              </span>
+            )}
           </button>
         )
       })}

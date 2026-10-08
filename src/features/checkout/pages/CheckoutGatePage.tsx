@@ -119,21 +119,27 @@ const GuestCheckoutPayment = () => {
     if (shopIds.length === 0) return
     void dispatch(fetchShopProfilesForCurrentCart())
   }, [dispatch, shopIds])
-  const companySelectionKey = useMemo(
-    () => shopIds.map((shopId) => `${shopId}:${deliveryCompany.companyByShopId[shopId] ?? ''}`).sort().join('|'),
-    [shopIds, deliveryCompany.companyByShopId],
-  )
-  const hasCompanyForEveryShop =
-    shopIds.length > 0 && shopIds.every((shopId) => Boolean(deliveryCompany.companyByShopId[shopId]))
+  const quotableCompanyByShopId = useMemo(() => {
+    const next: Record<string, string> = {}
+    for (const shopId of shopIds) {
+      const companyId = deliveryCompany.companyByShopId[shopId]
+      if (!companyId) continue
+      if ((deliveryCompany.unavailableCompanyIdsByShop[shopId] ?? []).includes(companyId)) continue
+      next[shopId] = companyId
+    }
+    return next
+  }, [deliveryCompany.companyByShopId, deliveryCompany.unavailableCompanyIdsByShop, shopIds])
+  const hasQuotableCompany = Object.keys(quotableCompanyByShopId).length > 0
 
   const shippingCalculateCacheKey = useMemo(() => {
-    if (!paymentDeliveryAddress?.address_id || !hasCompanyForEveryShop) return ''
+    if (!paymentDeliveryAddress?.address_id || !hasQuotableCompany) return ''
     const fingerprint = items
       .map((item) => `${item.productId}:${item.variantId ?? ''}:${item.quantity}`)
       .sort()
       .join('|')
-    return `${companySelectionKey}|${paymentDeliveryAddress.address_id}|${fingerprint}`
-  }, [paymentDeliveryAddress?.address_id, items, companySelectionKey, hasCompanyForEveryShop])
+    const quoteKey = Object.entries(quotableCompanyByShopId).map(([shopId, companyId]) => `${shopId}:${companyId}`).sort().join('|')
+    return `${quoteKey}|${paymentDeliveryAddress.address_id}|${fingerprint}`
+  }, [paymentDeliveryAddress?.address_id, items, hasQuotableCompany, quotableCompanyByShopId])
 
   const goToGuestForm = () => {
     try {
@@ -176,7 +182,7 @@ const GuestCheckoutPayment = () => {
   }, [currentCheckout?.checkout_id])
 
   useEffect(() => {
-    if (!paymentDeliveryAddress || !hasCompanyForEveryShop || !deliveryCompany.routesReady) {
+    if (!paymentDeliveryAddress || !hasQuotableCompany || !deliveryCompany.routesReady) {
       dispatch(clearShippingCalculate())
       return
     }
@@ -186,7 +192,7 @@ const GuestCheckoutPayment = () => {
       fetchCheckoutShippingCalculation({
         address: paymentDeliveryAddress,
         items,
-        companyByShopId: deliveryCompany.companyByShopId,
+        companyByShopId: quotableCompanyByShopId,
         cacheKey: shippingCalculateCacheKey,
         customer: {
           id: paymentDeliveryAddress.address_id,
@@ -194,7 +200,7 @@ const GuestCheckoutPayment = () => {
         },
       }),
     )
-  }, [dispatch, paymentDeliveryAddress, items, shippingCalculateCacheKey, hasCompanyForEveryShop, deliveryCompany.routesReady, deliveryCompany.companyByShopId])
+  }, [dispatch, paymentDeliveryAddress, items, shippingCalculateCacheKey, hasQuotableCompany, deliveryCompany.routesReady, quotableCompanyByShopId])
 
   const terminalCheckoutStatuses = useMemo(
     () => new Set(['PAID', 'COMPLETED', 'FAILED', 'FAILED_PAYMENT', 'EXPIRED']),
