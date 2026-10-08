@@ -24,6 +24,8 @@ const MY_ORDERS_QUERY = `
 `
 
 const terminalSagaStatuses = new Set(['COMPLETED', 'FAILED', 'TIMEOUT'])
+const orderLookupIntervalMs = 3000
+const maxOrderLookupAttempts = 30
 
 const CheckoutSuccessPage = () => {
   const dispatch = useAppDispatch()
@@ -32,6 +34,7 @@ const CheckoutSuccessPage = () => {
 
   const [matchedOrder, setMatchedOrder] = useState<PurchasedOrder | null>(null)
   const [orderLoading, setOrderLoading] = useState(!!checkoutId)
+  const [orderLookupError, setOrderLookupError] = useState<string | null>(null)
   const sagaStatus = useAppSelector(selectSagaStatus)
 
   const sagaPollingActive = !!checkoutId && !terminalSagaStatuses.has(sagaStatus?.status ?? '')
@@ -54,9 +57,17 @@ const CheckoutSuccessPage = () => {
   }, [dispatch, checkoutId, sagaPollingActive])
 
   useEffect(() => {
-    if (!checkoutId) return
+    if (!checkoutId) {
+      setOrderLoading(false)
+      return
+    }
 
     let cancelled = false
+    let timeoutId: number | undefined
+    let attempts = 0
+
+    setOrderLoading(true)
+    setOrderLookupError(null)
 
     const fetchOrder = async () => {
       try {
@@ -67,18 +78,44 @@ const CheckoutSuccessPage = () => {
 
         if (cancelled) return
 
+        const errors = response.data.errors ?? []
+        if (errors.length > 0) {
+          setOrderLookupError(
+            errors.map((error) => error.message).filter(Boolean).join('; ') ||
+              'Unable to load order details.',
+          )
+          setOrderLoading(false)
+          return
+        }
+
         const orders = response.data.data?.myOrders ?? []
         const match = orders.find((o) => o.checkoutId === checkoutId)
-        if (match && !cancelled) setMatchedOrder(match)
+        if (match) {
+          setMatchedOrder(match)
+          setOrderLoading(false)
+          return
+        }
       } catch {
-        // silently fail — user can still navigate to orders page manually
-      } finally {
-        if (!cancelled) setOrderLoading(false)
+        if (cancelled) return
+        // Retry transient read-service/network failures while the order projection catches up.
       }
+
+      if (cancelled) return
+      attempts += 1
+      if (attempts >= maxOrderLookupAttempts) {
+        setOrderLookupError('Order details are still syncing. You can find the order in My Orders.')
+        setOrderLoading(false)
+        return
+      }
+
+      timeoutId = window.setTimeout(() => void fetchOrder(), orderLookupIntervalMs)
     }
 
     void fetchOrder()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId)
+    }
   }, [checkoutId])
 
   return (
@@ -102,6 +139,9 @@ const CheckoutSuccessPage = () => {
           <div className="mt-4 text-sm text-gray-700">
             Order ID: <span className="font-medium text-gray-900">{matchedOrder.orderId}</span>
           </div>
+        )}
+        {orderLookupError && (
+          <p className="mt-3 text-sm text-amber-700">{orderLookupError}</p>
         )}
 
         <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">

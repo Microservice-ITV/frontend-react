@@ -547,6 +547,7 @@ const CheckoutPage = () => {
                                     onRequireAddress={openAddressSelectionModal}
                                     deliveryAddress={selectedDeliveryAddress}
                                     cartItems={items}
+                                    providerIdByShopId={deliveryCompany.providerIdByShopId}
                                 />
                             ) : checkoutError ? (
                                 <div role="alert" className="rounded-sm border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">

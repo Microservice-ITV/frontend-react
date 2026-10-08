@@ -199,8 +199,37 @@ const SellerOrderDetailPage = () => {
     return () => { cancelled = true }
   }, [id, activeShopId, authUserId])
 
-  const handleShipOrder = (shopId?: string, shopName?: string) => {
+  const handleShipOrder = async (shopId?: string, shopName?: string) => {
     if (!order) return
+
+    let providers: Awaited<ReturnType<typeof sellerOrderApi.listDeliveryProviders>>
+    try {
+      providers = await sellerOrderApi.listDeliveryProviders()
+    } catch (error) {
+      openModal({
+        title: 'Delivery Providers Unavailable',
+        content: (
+          <p className="text-sm text-red-600">
+            {error instanceof Error ? error.message : 'Unable to load configured delivery providers.'}
+          </p>
+        ),
+        primaryLabel: 'OK',
+        primaryVariant: 'success',
+      })
+      return
+    }
+
+    if (providers.length === 0) {
+      openModal({
+        title: 'No Delivery Providers Available',
+        content: <p className="text-sm text-slate-700">No active delivery provider with a configured fee is available.</p>,
+        primaryLabel: 'OK',
+        primaryVariant: 'success',
+      })
+      return
+    }
+
+    let selectedProviderCode = providers[0].code
 
     openModal({
       title: 'Ship Order',
@@ -218,6 +247,20 @@ const SellerOrderDetailPage = () => {
               </>
             )}
           </p>
+          <label className="block space-y-1">
+            <span className="text-xs font-medium text-slate-700">Delivery provider</span>
+            <select
+              defaultValue={providers[0].code}
+              onChange={(event) => { selectedProviderCode = event.currentTarget.value }}
+              className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm"
+            >
+              {providers.map((provider) => (
+                <option key={provider.code} value={provider.code}>
+                  {provider.name} ({provider.code})
+                </option>
+              ))}
+            </select>
+          </label>
           <p className="text-xs text-slate-500">
             {shopId
               ? 'Only this shop&apos;s items will be shipped — other shops ship separately with their own tracking numbers.'
@@ -229,10 +272,15 @@ const SellerOrderDetailPage = () => {
       primaryVariant: 'success',
       secondaryLabel: 'Cancel',
       onPrimary: async () => {
+        const selectedProvider = providers.find((provider) => provider.code === selectedProviderCode)
+        if (!selectedProvider) {
+          throw new Error('Select a configured delivery provider before creating the shipment.')
+        }
+
         try {
           await sellerOrderApi.createShipment(order.orderId, {
-            courier_code: 'STANDARD',
-            courier_name: 'Standard Shipping',
+            courier_code: selectedProvider.code,
+            courier_name: selectedProvider.name,
             courier_phone: 'N/A',
             ...(shopId ? { shop_id: shopId } : {}),
           })

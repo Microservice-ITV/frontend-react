@@ -1,7 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, X } from "lucide-react";
-import { adminShippingApi } from "../api/adminShippingApi";
+import {
+  adminShippingApi,
+  type DeliveryProviderOption,
+} from "../api/adminShippingApi";
 
 type AdminDeliveryCompanyFormPageProps = {
   mode: "create" | "edit";
@@ -59,11 +62,37 @@ const AdminDeliveryCompanyFormPage = ({ mode }: AdminDeliveryCompanyFormPageProp
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
+  const [providerId, setProviderId] = useState("");
+  const [providers, setProviders] = useState<DeliveryProviderOption[]>([]);
+  const [providersLoading, setProvidersLoading] = useState(true);
+  const [providersError, setProvidersError] = useState("");
   const [description, setDescription] = useState("");
   const [savedLogoUrl, setSavedLogoUrl] = useState<string | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [removeLogo, setRemoveLogo] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadProviders = async () => {
+      setProvidersLoading(true);
+      setProvidersError("");
+      try {
+        const rows = await adminShippingApi.listDeliveryProviders();
+        if (!cancelled) setProviders(rows);
+      } catch (error: unknown) {
+        if (!cancelled) {
+          setProvidersError(adminShippingApi.getApiErrorMessage(error, "Could not load Delivery Service providers."));
+        }
+      } finally {
+        if (!cancelled) setProvidersLoading(false);
+      }
+    };
+    void loadProviders();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!logoFile) {
@@ -91,6 +120,7 @@ const AdminDeliveryCompanyFormPage = ({ mode }: AdminDeliveryCompanyFormPageProp
         if (cancelled) return;
         setCode(company.code);
         setName(company.name);
+        setProviderId(company.providerId ?? "");
         setDescription(company.description ?? "");
         setSavedLogoUrl(company.logoUrl);
       } catch (error: unknown) {
@@ -114,6 +144,10 @@ const AdminDeliveryCompanyFormPage = ({ mode }: AdminDeliveryCompanyFormPageProp
       setSubmitError("Code and name are required.");
       return;
     }
+    if (!providerId || !providers.some((provider) => provider.id === providerId && provider.active)) {
+      setSubmitError("Select an active Delivery Service provider.");
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -127,6 +161,7 @@ const AdminDeliveryCompanyFormPage = ({ mode }: AdminDeliveryCompanyFormPageProp
       const payload = {
         code: code.trim(),
         name: name.trim(),
+        providerId,
         description: description.trim() || null,
         ...(logoUrl !== undefined ? { logoUrl } : {}),
       };
@@ -248,6 +283,30 @@ const AdminDeliveryCompanyFormPage = ({ mode }: AdminDeliveryCompanyFormPageProp
               <div>
                 <label htmlFor="company-name" className={labelClass}>Name</label>
                 <input id="company-name" value={name} onChange={(e) => setName(e.target.value)} className={inputClass} placeholder="DNI Express" required />
+              </div>
+              <div className="sm:col-span-2">
+                <label htmlFor="company-provider" className={labelClass}>Delivery Service provider</label>
+                <select
+                  id="company-provider"
+                  value={providerId}
+                  onChange={(event) => setProviderId(event.target.value)}
+                  className={inputClass}
+                  required
+                  disabled={providersLoading || Boolean(providersError)}
+                >
+                  <option value="" disabled>
+                    {providersLoading ? "Loading providers..." : "Select provider"}
+                  </option>
+                  {providers.map((provider) => (
+                    <option key={provider.id} value={provider.id} disabled={!provider.active}>
+                      {provider.name} ({provider.code}){provider.active ? "" : " — inactive"}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-slate-500">
+                  Provider identity is owned by Delivery Service and is used for shipment expense attribution.
+                </p>
+                {providersError && <p role="alert" className="mt-1 text-xs text-red-700">{providersError}</p>}
               </div>
               <div className="sm:col-span-2">
                 <label htmlFor="company-description" className={labelClass}>Description</label>

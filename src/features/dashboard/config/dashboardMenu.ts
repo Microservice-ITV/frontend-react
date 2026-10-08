@@ -444,6 +444,14 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         icon: Building2,
       },
       {
+        key: 'admin-delivery-providers',
+        label: 'Delivery Providers',
+        to: '/super-admin/shipping/delivery-providers',
+        area: 'super_admin',
+        requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+        icon: Truck,
+      },
+      {
         key: 'admin-delivery-pricing',
         label: 'Delivery Pricing',
         to: '/super-admin/shipping/pricing-rules',
@@ -625,6 +633,13 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
             key: "admin-accounting-expense-categories",
             label: "Expense Categories",
             to: "/super-admin/accounting/expense-categories",
+            area: "super_admin",
+            requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+          },
+          {
+            key: "admin-accounting-delivery-provider-fees",
+            label: "Delivery Provider Fees",
+            to: "/super-admin/accounting/delivery-provider-fees",
             area: "super_admin",
             requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
           },
