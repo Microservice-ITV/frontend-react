@@ -496,14 +496,6 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         requiredCapabilities: [CAPABILITIES.PROMOTIONS_VIEW],
         icon: Percent,
       }),
-      withSearch({
-        key: "admin-bundles",
-        label: "Bundles Offer",
-        to: "/super-admin/promotion-engine/bundles",
-        area: "super_admin",
-        requiredCapabilities: [CAPABILITIES.FLASH_DEALS_MANAGE],
-        icon: Boxes,
-      }),
       {
         key: "admin-hero-banners",
         label: "Hero Banners",
