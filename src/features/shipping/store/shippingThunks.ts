@@ -147,12 +147,14 @@ export const fetchCheckoutShippingCalculation = createAsyncThunk<
             const itemsByCompany = new Map<string, CartItem[]>()
             for (const item of items) {
                 const companyId = companyByShopId[item.shopId]?.trim()
-                if (!companyId) {
-                    return rejectWithValue('Select a delivery company to calculate shipping.')
-                }
+                if (!companyId) continue
                 const group = itemsByCompany.get(companyId) ?? []
                 group.push(item)
                 itemsByCompany.set(companyId, group)
+            }
+
+            if (itemsByCompany.size === 0) {
+                return { byShopId: {}, totalShippingFee: null, cacheKey, raw: null as unknown }
             }
 
             const coords = await resolveDeliveryCoordinates(address)

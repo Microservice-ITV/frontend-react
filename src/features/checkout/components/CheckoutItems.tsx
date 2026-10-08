@@ -43,6 +43,24 @@ function hasFee(value: number | null | undefined): value is number {
   return value != null && Number.isFinite(value) && value > 0
 }
 
+type ShippingNoticeKind = 'service' | 'route' | 'company'
+
+const SHIPPING_NOTICE: Record<ShippingNoticeKind, string> = {
+  service: 'Delivery is under maintenance and is not available right now.',
+  route: 'Your address cannot be delivered yet.',
+  company: 'No delivery company is available right now.',
+}
+
+const ShippingUnavailableNotice = ({ kind }: { kind: ShippingNoticeKind }) => (
+  <div className="rounded-sm border border-amber-200 bg-amber-50 px-3 py-3 text-[13px] leading-5 text-gray-700">
+    <div className="flex items-start justify-between gap-3 text-sm font-semibold text-gray-900">
+      <span>Standard shipping</span>
+      <span>Not available</span>
+    </div>
+    <p className="mt-2 text-xs text-amber-800">{SHIPPING_NOTICE[kind]}</p>
+  </div>
+)
+
 const ShippingOptionCard = ({
   fee,
   calculateStatus,
@@ -60,18 +78,14 @@ const ShippingOptionCard = ({
     )
   }
 
-  if (calculateStatus === 'failed' || !fee || fee.amount == null) {
-    return (
-      <div className="rounded-sm border border-amber-200 bg-amber-50 px-3 py-3 text-[13px] leading-5 text-gray-700">
-        <div className="flex items-start justify-between gap-3 text-sm font-semibold text-gray-900">
-          <span>Standard shipping</span>
-          <span>Not available</span>
-        </div>
-        <p className="mt-2 text-xs text-amber-800">
-          Delivery is under maintenance and is not available right now.
-        </p>
-      </div>
-    )
+  if (calculateStatus === 'failed') {
+    return <ShippingUnavailableNotice kind="service" />
+  }
+
+  if (!fee || fee.amount == null) {
+    const routeMissing =
+      fee?.deliveryStatus === 'NOT_DELIVERABLE' || fee?.unavailableReason === 'ROUTE_NOT_AVAILABLE'
+    return <ShippingUnavailableNotice kind={routeMissing ? 'route' : 'service'} />
   }
 
   const currency = fee.currency
@@ -99,7 +113,11 @@ const ShippingOptionCard = ({
           <span>{fee.etaHint?.trim() || 'Delivery estimate unavailable'}</span>
         </p> */}
         {fee.deliveryStatus === 'NOT_DELIVERABLE' ? (
-          <p className="text-amber-800">{deliveryUnavailableMessage(fee.unavailableReason)}</p>
+          <p className="text-amber-800">
+            {fee.unavailableReason === 'ROUTE_NOT_AVAILABLE'
+              ? SHIPPING_NOTICE.route
+              : deliveryUnavailableMessage(fee.unavailableReason)}
+          </p>
         ) : (
           <>
             {isCityRoute ? (
@@ -195,6 +213,21 @@ const CheckoutItems = ({ checkout, deliveryCompany }: CheckoutItemsProps) => {
           0
         )
         const feeRow = feesByShopId[shopId]
+        const unavailableIds = deliveryCompany.unavailableCompanyIdsByShop[shopId] ?? []
+        const companyLoadFailed = !deliveryCompany.loading && Boolean(deliveryCompany.error)
+        const noDeliveryCompany =
+          !deliveryCompany.loading && !companyLoadFailed && deliveryCompany.companies.length === 0
+        const noDeliveryRoute =
+          deliveryCompany.companies.length > 0 &&
+          unavailableIds.length >= deliveryCompany.companies.length
+        const serviceUnavailable = companyLoadFailed || calculateStatus === 'failed'
+        const shippingNoticeKind: ShippingNoticeKind | null = noDeliveryRoute
+          ? 'route'
+          : noDeliveryCompany
+            ? 'company'
+            : serviceUnavailable
+              ? 'service'
+              : null
         const isNotDeliverable = feeRow?.deliveryStatus === 'NOT_DELIVERABLE'
         const hasFee =
           calculateStatus === 'succeeded' &&
@@ -351,16 +384,20 @@ const CheckoutItems = ({ checkout, deliveryCompany }: CheckoutItemsProps) => {
               <div className="border-t border-dashed border-black/10 px-3 py-3 sm:px-4 sm:py-4 lg:border-t-0">
                 <div className="mb-2 text-sm font-medium text-gray-900">Shipping Option</div>
 
-                <button
-                  type="button"
-                  className="w-full cursor-pointer rounded-md border border-[#b7e3d5] bg-[#f0faf7] p-3 text-left transition hover:border-emerald-600 focus:outline-none"
-                >
-                  <ShippingOptionCard
-                    fee={feesByShopId[shopId]}
-                    calculateStatus={calculateStatus}
-                    cityNames={cityNames}
-                  />
-                </button>
+                {shippingNoticeKind ? (
+                  <ShippingUnavailableNotice kind={shippingNoticeKind} />
+                ) : (
+                  <button
+                    type="button"
+                    className="w-full cursor-pointer rounded-md border border-[#b7e3d5] bg-[#f0faf7] p-3 text-left transition hover:border-emerald-600 focus:outline-none"
+                  >
+                    <ShippingOptionCard
+                      fee={feesByShopId[shopId]}
+                      calculateStatus={calculateStatus}
+                      cityNames={cityNames}
+                    />
+                  </button>
+                )}
               </div>
             </div>
 

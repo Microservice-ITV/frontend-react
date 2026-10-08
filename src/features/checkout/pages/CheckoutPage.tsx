@@ -105,17 +105,23 @@ const CheckoutPage = () => {
         if (shopIds.length === 0) return
         void dispatch(fetchShopProfilesForCurrentCart())
     }, [dispatch, shopIds])
-    const companySelectionKey = useMemo(
-        () => shopIds.map((shopId) => `${shopId}:${deliveryCompany.companyByShopId[shopId] ?? ''}`).sort().join('|'),
-        [shopIds, deliveryCompany.companyByShopId],
-    )
-    const hasCompanyForEveryShop =
-        shopIds.length > 0 && shopIds.every((shopId) => Boolean(deliveryCompany.companyByShopId[shopId]))
+    const quotableCompanyByShopId = useMemo(() => {
+        const next: Record<string, string> = {}
+        for (const shopId of shopIds) {
+            const companyId = deliveryCompany.companyByShopId[shopId]
+            if (!companyId) continue
+            if ((deliveryCompany.unavailableCompanyIdsByShop[shopId] ?? []).includes(companyId)) continue
+            next[shopId] = companyId
+        }
+        return next
+    }, [deliveryCompany.companyByShopId, deliveryCompany.unavailableCompanyIdsByShop, shopIds])
+    const hasQuotableCompany = Object.keys(quotableCompanyByShopId).length > 0
 
     const shippingCalculateCacheKey = useMemo(() => {
-        if (!selectedDeliveryAddress?.address_id || !hasCompanyForEveryShop) return ''
-        return `${companySelectionKey}|${selectedDeliveryAddress.address_id}|${selectedItemsFingerprint}`
-    }, [companySelectionKey, hasCompanyForEveryShop, selectedDeliveryAddress?.address_id, selectedItemsFingerprint])
+        if (!selectedDeliveryAddress?.address_id || !hasQuotableCompany) return ''
+        const quoteKey = Object.entries(quotableCompanyByShopId).map(([shopId, companyId]) => `${shopId}:${companyId}`).sort().join('|')
+        return `${quoteKey}|${selectedDeliveryAddress.address_id}|${selectedItemsFingerprint}`
+    }, [hasQuotableCompany, quotableCompanyByShopId, selectedDeliveryAddress?.address_id, selectedItemsFingerprint])
 
     const { currentCheckout, loading, paymentStatus, clientSecret, isAwaitingFinalStatus, paymentMethod, sessionPaymentMethod, error: checkoutError } = useAppSelector(
         state => state.checkout
@@ -243,7 +249,7 @@ const CheckoutPage = () => {
     }, [addresses, selectedAddressId])
 
     useEffect(() => {
-        if (!hasDeliveryAddress || !selectedDeliveryAddress || items.length === 0 || !hasCompanyForEveryShop || !deliveryCompany.routesReady) {
+        if (!hasDeliveryAddress || !selectedDeliveryAddress || items.length === 0 || !hasQuotableCompany || !deliveryCompany.routesReady) {
             dispatch(clearShippingCalculate())
             return
         }
@@ -253,7 +259,7 @@ const CheckoutPage = () => {
             fetchCheckoutShippingCalculation({
                 address: selectedDeliveryAddress,
                 items,
-                companyByShopId: deliveryCompany.companyByShopId,
+                companyByShopId: quotableCompanyByShopId,
                 cacheKey: shippingCalculateCacheKey,
                 customer: { id: authUser?.id, name: authUser?.name },
             }),
@@ -264,9 +270,9 @@ const CheckoutPage = () => {
         selectedDeliveryAddress,
         items,
         shippingCalculateCacheKey,
-        hasCompanyForEveryShop,
+        hasQuotableCompany,
         deliveryCompany.routesReady,
-        deliveryCompany.companyByShopId,
+        quotableCompanyByShopId,
         authUser?.id,
         authUser?.name,
     ])
