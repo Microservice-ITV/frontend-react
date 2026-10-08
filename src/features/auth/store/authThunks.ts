@@ -153,25 +153,18 @@ export const logout = createAsyncThunk(
     'auth/logout',
     async () => {
         clearSessionCookie()
-        try {
-            await axios.post(
-                `${AUTH_SERVICE_BASE_URL}/logout`,
-                {},
-                {
-                    withCredentials: true,
-                    validateStatus: (status) => status === 200 || status === 401,
-                }
-            )
-        } catch {
-        }
 
-        // Always return user to homepage after logout.
+        // Leave the current page in place until the browser loads home.
+        // Waiting for the request, or clearing auth first, lets protected
+        // routes paint /login before this navigation finishes.
         if (typeof window !== 'undefined') {
-            try {
-                window.location.replace('/')
-            } catch {
-                // ignore
-            }
+            void fetch(`${AUTH_SERVICE_BASE_URL}/logout`, {
+                method: 'POST',
+                credentials: 'include',
+                keepalive: true,
+            }).catch(() => {})
+            window.location.replace('/')
+            return
         }
     }
 )

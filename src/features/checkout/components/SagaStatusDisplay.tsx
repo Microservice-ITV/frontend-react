@@ -221,7 +221,7 @@ export const SagaStatusDisplay = ({ sagaId, checkoutId }: { sagaId?: string; che
                   </p>
                   <p
                     className={clsx(
-                      'inline-flex items-center justify-center gap-1 text-[11px] font-medium transition-colors duration-300 sm:text-xs',
+                      'text-[11px] font-medium transition-colors duration-300 sm:text-xs',
                       state === 'completed' && 'text-emerald-700',
                       state === 'active' && !compensating && 'text-emerald-700',
                       state === 'active' && compensating && 'text-amber-700',
@@ -229,12 +229,6 @@ export const SagaStatusDisplay = ({ sagaId, checkoutId }: { sagaId?: string; che
                       state === 'pending' && 'text-gray-400',
                     )}
                   >
-                    {state === 'active' && !compensating && (
-                      <span
-                        className="h-3 w-3 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent"
-                        aria-hidden="true"
-                      />
-                    )}
                     {statusWord(state, compensating)}
                   </p>
                 </div>
