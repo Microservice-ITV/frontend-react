@@ -1,5 +1,6 @@
 import axios, { AxiosResponse } from "axios";
 import { shippingClient } from "@/lib/api/shippingClient";
+import { deliveryClient } from "@/lib/api/deliveryClient";
 
 export type PricingRuleStatus = "ACTIVE" | "INACTIVE";
 export type WeightRoundingMethod = "ROUND_UP" | "ROUND_DOWN" | "ROUND_NEAREST";
@@ -298,6 +299,7 @@ export type DeliveryCompanyDto = {
   id: string;
   code: string;
   name: string;
+  providerId: string | null;
   description: string | null;
   logoUrl: string | null;
   status: DeliveryCompanyStatus;
@@ -308,11 +310,19 @@ export type DeliveryCompanyDto = {
 export type CreateDeliveryCompanyPayload = {
   code: string;
   name: string;
+  providerId: string;
   description?: string | null;
   logoUrl?: string | null;
 };
 
 export type UpdateDeliveryCompanyPayload = Partial<CreateDeliveryCompanyPayload>;
+
+export type DeliveryProviderOption = {
+  id: string;
+  code: string;
+  name: string;
+  active: boolean;
+};
 
 export type DeliveryCompanyListData = {
   total: number;
@@ -529,6 +539,11 @@ export const adminShippingApi = {
     id: string,
   ): Promise<AxiosResponse<ApiEnvelope<DeliveryCompanyDto>>> {
     return shippingClient.get(`/admin/delivery-companies/${id}`);
+  },
+
+  async listDeliveryProviders(): Promise<DeliveryProviderOption[]> {
+    const response = await deliveryClient.get<{ providers: DeliveryProviderOption[] }>("/delivery-providers");
+    return response.data.providers;
   },
 
   createDeliveryCompany(

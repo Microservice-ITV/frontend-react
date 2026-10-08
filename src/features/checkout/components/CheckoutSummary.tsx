@@ -34,6 +34,7 @@ interface CheckoutSummaryProps {
   deliveryAddress: UserAddress | null
   cartItems: CartItem[]
   checkoutSessionItems?: CheckoutStatusResponse['items']
+  providerIdByShopId: Record<string, string>
 }
 
 const promoStatusLabel = (status: PromoCodeStatus | null | undefined, message?: string | null): string => {
@@ -66,6 +67,7 @@ const buildShopShippings = (
   checkoutSessionItems: CheckoutStatusResponse['items'] | undefined,
   feesByShopId: Record<string, { amount?: number | null }>,
   shippingCalculateStatus: string,
+  providerIdByShopId: Record<string, string>,
 ): CheckoutShopShippingPayload[] => {
   const shopCountFromCart = Object.keys(checkout.groupedByShop).length
   const perShopFallback = shopCountFromCart > 0 ? checkout.shippingSubtotal / shopCountFromCart : 0
@@ -112,6 +114,9 @@ const buildShopShippings = (
     return {
       shop_id: shopId,
       shipping_fee: fromApi ?? perShopFallbackForIds,
+      ...(cartShopId && providerIdByShopId[cartShopId]
+        ? { provider_id: providerIdByShopId[cartShopId] }
+        : {}),
     }
   })
 }
@@ -123,6 +128,7 @@ const CheckoutSummary = ({
   deliveryAddress,
   cartItems,
   checkoutSessionItems,
+  providerIdByShopId,
 }: CheckoutSummaryProps) => {
   const dispatch = useAppDispatch()
   const stripe = useStripe()
@@ -352,6 +358,7 @@ const CheckoutSummary = ({
       checkoutSessionItems ?? currentStatus?.items,
       feesByShopId,
       shippingCalculateStatus,
+      providerIdByShopId,
     )
 
     return {
@@ -399,6 +406,13 @@ const CheckoutSummary = ({
             'Delivery fee is not ready yet. Please wait for it to calculate, or check your delivery address.',
         ),
       )
+      return
+    }
+
+    const missingProviderShop = [...new Set(cartItems.map((item) => item.shopId))]
+      .find((shopId) => !providerIdByShopId[shopId]?.trim())
+    if (missingProviderShop) {
+      dispatch(setCheckoutError('A selected delivery company is missing its Delivery Service provider mapping. Please contact support.'))
       return
     }
 

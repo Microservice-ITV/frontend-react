@@ -117,6 +117,8 @@ import AdminInvoicesPage from "@/features/admin/pages/AdminInvoicesPage";
 import AdminIncomePage from "@/features/admin/pages/AdminIncomePage";
 import AdminExpensePage from "@/features/admin/pages/AdminExpensePage";
 import AdminExpenseCategoriesPage from "@/features/admin/pages/AdminExpenseCategoriesPage";
+import AdminDeliveryProviderFeesPage from "@/features/admin/pages/AdminDeliveryProviderFeesPage";
+import AdminDeliveryProvidersPage from "@/features/admin/pages/AdminDeliveryProvidersPage";
 import CommonNotificationsPage from "@/features/common/pages/CommonNotificationsPage";
 import CommonChatPage from "@/features/common/pages/CommonChatPage";
 import CommonHelpSupportPage from "@/features/common/pages/CommonHelpSupportPage";
@@ -1071,6 +1073,14 @@ const AppRoutes = () => {
               }
             />
             <Route
+              path="shipping/delivery-providers"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminShipping}>
+                  <AdminDeliveryProvidersPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="shipping/pricing-rules/new"
               element={
                 <ProtectedRoute
@@ -1602,6 +1612,14 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.superAdminAccounting}
                 >
                   <AdminExpenseCategoriesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/delivery-provider-fees"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminAccounting}>
+                  <AdminDeliveryProviderFeesPage />
                 </ProtectedRoute>
               }
             />

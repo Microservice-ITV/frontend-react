@@ -282,6 +282,7 @@ const GuestCheckoutPayment = () => {
                   onRequireAddress={goToGuestForm}
                   deliveryAddress={paymentDeliveryAddress}
                   cartItems={items}
+                  providerIdByShopId={deliveryCompany.providerIdByShopId}
                 />
               ) : (
                 <CheckoutSummarySkeleton />
