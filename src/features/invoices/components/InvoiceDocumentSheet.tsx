@@ -14,6 +14,7 @@ import {
   Wallet,
 } from 'lucide-react'
 import type { InvoiceDocument } from '@/lib/api/invoiceClient'
+import { productServiceAssetUrl } from '@/lib/api/apiConfig'
 import {
   addressToLines,
   formatAmountInWords,
@@ -72,7 +73,7 @@ const ProductThumbnail = ({ src, name }: { src: string; name: string }) => {
 
   return (
     <img
-      src={src}
+      src={productServiceAssetUrl(src)}
       alt={name}
       onError={() => setHasError(true)}
       className="h-14 w-14 shrink-0 rounded-lg border invoice-border bg-white object-contain p-1"
@@ -217,11 +218,10 @@ const InvoiceDocumentSheet = ({
         <table className="w-full table-fixed border-collapse text-left">
           <thead>
             <tr className="border-y invoice-border invoice-table-heading">
-              <th className="w-[43%] px-3 py-3.5 text-[10px] font-bold uppercase tracking-[0.11em] invoice-accent-text">Product</th>
-              <th className="w-[17%] px-2 py-3.5 text-[10px] font-bold uppercase tracking-[0.11em] invoice-accent-text">SKU</th>
-              <th className="w-[8%] px-2 py-3.5 text-right text-[10px] font-bold uppercase tracking-[0.11em] invoice-accent-text">Qty</th>
-              <th className="w-[16%] px-2 py-3.5 text-right text-[10px] font-bold uppercase tracking-[0.11em] invoice-accent-text">Unit price</th>
-              <th className="w-[16%] px-3 py-3.5 text-right text-[10px] font-bold uppercase tracking-[0.11em] invoice-accent-text">Amount</th>
+              <th className="w-[45%] px-3 py-3.5 text-[10px] font-bold uppercase tracking-[0.11em] invoice-accent-text">Product</th>
+              <th className="w-[9%] px-2 py-3.5 text-right text-[10px] font-bold uppercase tracking-[0.11em] invoice-accent-text">Qty</th>
+              <th className="w-[21%] px-2 py-3.5 text-right text-[10px] font-bold uppercase tracking-[0.11em] invoice-accent-text">Unit price</th>
+              <th className="w-[25%] px-3 py-3.5 text-right text-[10px] font-bold uppercase tracking-[0.11em] invoice-accent-text">Amount</th>
             </tr>
           </thead>
           <tbody>
@@ -241,23 +241,20 @@ const InvoiceDocumentSheet = ({
                     </div>
                   </div>
                 </td>
-                <td className="break-all px-2 py-3 text-[11px] invoice-muted">
-                  {item.sku || '—'}
-                </td>
                 <td className="whitespace-nowrap px-2 py-3 text-right text-[13px] tabular-nums invoice-muted">
                   {item.quantity}
                 </td>
-                <td className="whitespace-nowrap px-2 py-3 text-right text-[13px] tabular-nums invoice-muted">
+                <td className="whitespace-normal break-words px-2 py-3 text-right text-[13px] tabular-nums invoice-muted">
                   {formatCurrency(item.unitPrice, currency)}
                 </td>
-                <td className="whitespace-nowrap px-3 py-3 text-right text-[13px] font-medium tabular-nums invoice-ink">
+                <td className="whitespace-normal break-words px-3 py-3 text-right text-[13px] font-medium tabular-nums invoice-ink">
                   {formatCurrency(item.total, currency)}
                 </td>
               </tr>
             ))}
             {lineItems.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-3 py-6 text-center text-[13px] invoice-faint">
+                <td colSpan={4} className="px-3 py-6 text-center text-[13px] invoice-faint">
                   Item details unavailable
                 </td>
               </tr>
@@ -282,13 +279,12 @@ const InvoiceDocumentSheet = ({
                 <p className="break-words text-sm font-medium invoice-ink">
                   {item.name || 'Product information unavailable'}
                 </p>
-                <p className="mt-1 break-all text-xs invoice-muted">SKU: {item.sku || '—'}</p>
                 <p className="mt-1 text-xs invoice-muted">Quantity: {item.quantity}</p>
               </div>
             </div>
-            <div className="mt-3 flex flex-wrap justify-between gap-2 text-xs">
-              <span className="invoice-muted">Unit price {formatCurrency(item.unitPrice, currency)}</span>
-              <span className="font-medium tabular-nums invoice-ink">
+            <div className="mt-3 grid grid-cols-2 gap-3 border-t invoice-border pt-3 text-xs">
+              <span className="min-w-0 break-words invoice-muted">Unit price {formatCurrency(item.unitPrice, currency)}</span>
+              <span className="min-w-0 break-words text-right font-medium tabular-nums invoice-ink">
                 Amount {formatCurrency(item.total, currency)}
               </span>
             </div>

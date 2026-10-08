@@ -3,6 +3,7 @@ import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import InvoiceDocumentSheet from './InvoiceDocumentSheet'
 import type { InvoiceDocument } from '@/lib/api/invoiceClient'
+import { productServiceAssetUrl } from '@/lib/api/apiConfig'
 import { INVOICE_DOCUMENT_STYLES } from '../lib/invoicePrintStyles'
 
 type InvoiceDocumentFixture = Omit<
@@ -116,6 +117,27 @@ describe('InvoiceDocumentSheet', () => {
     expect(screen.getByText('-MMK 5,000')).toBeTruthy()
     expect(screen.getByText('MMK 10,000')).toBeTruthy()
     expect(screen.getByText('MMK 107,000')).toBeTruthy()
+  })
+
+  it('renders product images and complete amounts without SKU in both item layouts', () => {
+    renderInvoice(createInvoice({
+      lineItems: [{
+        orderItemId: 'order-item-1',
+        name: 'Test product',
+        sku: 'SKU-1',
+        imageUrl: '/uploads/products/test-product.webp',
+        quantity: 1,
+        unitPrice: '123456789.00',
+        total: '123456789.00',
+      }],
+    }))
+
+    const images = screen.getAllByRole('img', { name: 'Test product' }) as HTMLImageElement[]
+    expect(images).toHaveLength(2)
+    expect(images[0].getAttribute('src')).toBe(productServiceAssetUrl('/uploads/products/test-product.webp'))
+    expect(images[1].getAttribute('src')).toBe(productServiceAssetUrl('/uploads/products/test-product.webp'))
+    expect(screen.queryByText(/SKU/)).toBeNull()
+    expect(screen.getAllByText('MMK 123,456,789')).toHaveLength(2)
   })
 
   it('renders zero values without treating missing amounts as zero', () => {

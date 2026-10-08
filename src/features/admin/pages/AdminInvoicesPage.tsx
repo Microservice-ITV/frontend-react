@@ -4,6 +4,8 @@ import {
   AlertTriangle,
   Ban,
   CalendarDays,
+  ChevronDown,
+  ChevronUp,
   Clock3,
   CreditCard,
   Download,
@@ -12,6 +14,7 @@ import {
   FileText,
   Loader2,
   MoreHorizontal,
+  Play,
   RefreshCw,
   Search,
   ShieldCheck,
@@ -28,8 +31,10 @@ import AdminInvoiceBatchBar from '../components/AdminInvoiceBatchBar'
 import {
   getAllAdminInvoices,
   generateInvoicePdf,
+  replayInvoices,
   voidInvoice,
   type InvoiceDocument,
+  type InvoiceReplaySummary,
   type InvoiceStatus,
 } from '@/lib/api/invoiceClient'
 
@@ -81,6 +86,11 @@ const AdminInvoicesPage = () => {
   const [voidReason, setVoidReason] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [generatingPdfId, setGeneratingPdfId] = useState<string | null>(null)
+  const [replayOrderIds, setReplayOrderIds] = useState('')
+  const [isReplayExpanded, setIsReplayExpanded] = useState(false)
+  const [isReplaying, setIsReplaying] = useState(false)
+  const [replayError, setReplayError] = useState<string | null>(null)
+  const [replaySummary, setReplaySummary] = useState<InvoiceReplaySummary | null>(null)
   const [toast, setToast] = useState<{ tone: 'success' | 'error'; message: string } | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -247,6 +257,34 @@ const AdminInvoicesPage = () => {
     }
   }
 
+  const handleReplayInvoices = async () => {
+    const orderIds = [...new Set(replayOrderIds.split(/[\s,;]+/).map((id) => id.trim()).filter(Boolean))]
+    if (orderIds.length === 0) {
+      setReplayError('Enter at least one existing order ID.')
+      return
+    }
+    if (orderIds.length > 50) {
+      setReplayError('A maximum of 50 order IDs can be replayed at once.')
+      return
+    }
+
+    setIsReplaying(true)
+    setReplayError(null)
+    setReplaySummary(null)
+    try {
+      const summary = await replayInvoices(orderIds)
+      setReplaySummary(summary)
+      await loadInvoices()
+    } catch (requestError: unknown) {
+      const message = (
+        requestError as { response?: { data?: { message?: string } } }
+      ).response?.data?.message ?? 'Unable to replay invoices.'
+      setReplayError(message)
+    } finally {
+      setIsReplaying(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <nav className="text-xs text-slate-400">
@@ -255,19 +293,34 @@ const AdminInvoicesPage = () => {
         <span className="text-slate-600">Invoices</span>
       </nav>
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+        <div className="shrink-0">
           <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight text-slate-900 md:text-2xl">
             <FileText size={20} className="text-slate-400" />
             Invoices
           </h1>
-          <p className="mt-1 text-sm text-slate-500">Monitor invoice activity and payment verification across every shop.</p>
+          <Link
+              to="/super-admin/invoices/missing"
+              className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-red-700 transition hover:text-red-800"
+            >
+              <AlertTriangle size={13} />
+              Missing invoices
+            </Link>
         </div>
+        <AdminInvoiceBatchBar
+          selectedInvoiceIds={selectedInvoiceIds}
+          selectedInvoices={invoices.filter((invoice) => selectedInvoiceIds.includes(invoice.id))}
+          onClearSelection={clearSelectedInvoices}
+          onBatchComplete={() => {
+            clearSelectedInvoices()
+            void loadInvoices()
+          }}
+        />
         <button
           type="button"
           onClick={() => void loadInvoices()}
           disabled={isLoading}
-          className="inline-flex shrink-0 items-center gap-2 self-start rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50"
+          className="inline-flex shrink-0 items-center gap-2 self-start rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50 lg:ml-auto lg:self-center"
         >
           <RefreshCw size={15} className={isLoading ? 'animate-spin' : ''} />
           Refresh
@@ -345,6 +398,86 @@ const AdminInvoicesPage = () => {
         {!isLoading && <DataTablePagination page={page} totalPages={totalPages} rowsPerPage={rowsPerPage} totalItems={filteredInvoices.length} onPageChange={setPage} onRowsPerPageChange={(value) => { setRowsPerPage(value); setPage(1) }} itemLabel="invoices" />}
       </div>
 
+      <section className="rounded-xl border border-slate-200 bg-white shadow-sm" aria-labelledby="invoice-replay-title">
+        <div className="flex items-center justify-between gap-3 px-4 py-3">
+          <div className="min-w-0">
+            <h2 id="invoice-replay-title" className="text-sm font-semibold text-slate-900">Replay Historical Invoice</h2>
+            <p className="mt-0.5 text-xs text-slate-500">Manually replay existing orders using their Order Service snapshot.</p>
+          </div>
+          <button
+            type="button"
+            aria-expanded={isReplayExpanded}
+            aria-controls="invoice-replay-content"
+            onClick={() => setIsReplayExpanded((expanded) => !expanded)}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+          >
+            {isReplayExpanded ? 'Collapse' : 'Expand'}
+            {isReplayExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+        </div>
+        {isReplayExpanded && (
+          <div id="invoice-replay-content" className="border-t border-slate-100 px-4 py-4">
+            <div className="max-w-3xl">
+              <p className="text-xs leading-5 text-slate-500">
+                Paste real order IDs, one per line or comma-separated. Replay applies the existing order-paid eligibility policy; it does not discover or create order IDs.
+              </p>
+              <label htmlFor="invoice-replay-order-ids" className="sr-only">Existing order IDs</label>
+              <textarea
+                id="invoice-replay-order-ids"
+                value={replayOrderIds}
+                onChange={(event) => setReplayOrderIds(event.target.value)}
+                rows={2}
+                placeholder="Paste existing order IDs"
+                disabled={isReplaying}
+                className="mt-3 w-full resize-y rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-800 outline-none transition focus:border-emerald-500 focus:bg-white disabled:opacity-60"
+              />
+              <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs text-slate-400">Up to 50 unique order IDs per request.</p>
+                <button
+                  type="button"
+                  onClick={() => void handleReplayInvoices()}
+                  disabled={isReplaying}
+                  className="inline-flex items-center justify-center gap-2 self-start rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isReplaying ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
+                  {isReplaying ? 'Replaying...' : 'Start replay'}
+                </button>
+              </div>
+            </div>
+            {replayError && <p role="alert" className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{replayError}</p>}
+            {replaySummary && (
+              <div className="mt-4 border-t border-slate-100 pt-4">
+                <dl className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                  {[
+                    ['Total', replaySummary.total],
+                    ['Created', replaySummary.created],
+                    ['Already existed', replaySummary.skipped_existing],
+                    ['Ineligible', replaySummary.skipped_ineligible],
+                    ['Failed', replaySummary.failed],
+                  ].map(([label, value]) => (
+                    <div key={label} className="rounded-lg bg-slate-50 px-3 py-2">
+                      <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</dt>
+                      <dd className="mt-1 text-lg font-semibold tabular-nums text-slate-900">{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+                <ul className="mt-3 max-h-48 divide-y divide-slate-100 overflow-y-auto rounded-lg border border-slate-100">
+                  {replaySummary.results.map((result) => (
+                    <li key={result.orderId} className="flex flex-col gap-1 px-3 py-2 text-xs sm:flex-row sm:items-start sm:justify-between">
+                      <span className="break-all font-mono text-slate-700">{result.orderId}</span>
+                      <span className={`shrink-0 font-semibold ${result.status === 'FAILED' ? 'text-red-700' : 'text-slate-600'}`}>
+                        {result.status.replaceAll('_', ' ')}
+                        {result.reason ? ` — ${result.reason}` : ''}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
       <AdminInvoiceAuditDrawer
         invoice={actionInvoice}
         isOpen={Boolean(actionInvoice && activeAction === 'audit')}
@@ -356,15 +489,6 @@ const AdminInvoicesPage = () => {
         isOpen={Boolean(actionInvoice && (activeAction === 'void' || activeAction === 'refund'))}
         onClose={closeAction}
         onSuccess={() => void loadInvoices()}
-      />
-      <AdminInvoiceBatchBar
-        selectedInvoiceIds={selectedInvoiceIds}
-        selectedInvoices={invoices.filter((invoice) => selectedInvoiceIds.includes(invoice.id))}
-        onClearSelection={clearSelectedInvoices}
-        onBatchComplete={() => {
-          clearSelectedInvoices()
-          void loadInvoices()
-        }}
       />
       {toast && <div role="status" className={`fixed bottom-5 right-5 z-70 rounded-lg px-4 py-3 text-sm font-semibold text-white shadow-lg ${toast.tone === 'success' ? 'bg-emerald-600' : 'bg-red-600'}`}>{toast.message}</div>}
     </div>
