@@ -1,5 +1,4 @@
 import { authClient } from '@/lib/api/authClient'
-import { accountingClient } from '@/lib/api/accountingClient'
 import { ecommerceReadClient } from '@/lib/api/ecommerceReadClient'
 import { orderClient } from '@/lib/api/orderClient'
 import { productClient } from '@/lib/api/productClient'
@@ -363,11 +362,6 @@ export type OwnedShop = {
   name?: string
 }
 
-export type SellerDeliveryProvider = {
-  code: string
-  name: string
-}
-
 /**
  * Fetch all orders across every shop owned by the seller, merged and deduped.
  * Falls back to activeShopId when ownership lookup is unavailable.
@@ -418,16 +412,6 @@ export async function fetchOrdersAcrossOwnedShops(
 }
 
 export const sellerOrderApi = {
-  async listDeliveryProviders(): Promise<SellerDeliveryProvider[]> {
-    const response = await accountingClient.get<{ providers?: SellerDeliveryProvider[] }>(
-      '/delivery-providers',
-    )
-    if (!Array.isArray(response.data.providers)) {
-      throw new Error('Accounting Service returned an invalid delivery provider list.')
-    }
-    return response.data.providers
-  },
-
   async listShopsByUser(userId: string): Promise<OwnedShop[]> {
     const response = await productClient.get<{ success?: boolean; data?: OwnedShop[] }>(
       `/shops/user/${userId}`,
@@ -464,9 +448,9 @@ export const sellerOrderApi = {
   async createShipment(
     orderId: string,
     payload: {
-      courier_code: string
-      courier_name: string
-      courier_phone: string
+      courier_code?: string
+      courier_name?: string
+      courier_phone?: string
       tracking_number?: string
       tracking_url?: string
       /** Ship only this shop's portion (multi-owner order, per-shop fulfillment). */

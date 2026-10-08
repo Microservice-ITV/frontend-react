@@ -34,7 +34,7 @@ interface CheckoutSummaryProps {
   deliveryAddress: UserAddress | null
   cartItems: CartItem[]
   checkoutSessionItems?: CheckoutStatusResponse['items']
-  providerIdByShopId: Record<string, string>
+  deliveryCompanyIdByShopId: Record<string, string>
 }
 
 const promoStatusLabel = (status: PromoCodeStatus | null | undefined, message?: string | null): string => {
@@ -67,7 +67,7 @@ const buildShopShippings = (
   checkoutSessionItems: CheckoutStatusResponse['items'] | undefined,
   feesByShopId: Record<string, { amount?: number | null }>,
   shippingCalculateStatus: string,
-  providerIdByShopId: Record<string, string>,
+  deliveryCompanyIdByShopId: Record<string, string>,
 ): CheckoutShopShippingPayload[] => {
   const shopCountFromCart = Object.keys(checkout.groupedByShop).length
   const perShopFallback = shopCountFromCart > 0 ? checkout.shippingSubtotal / shopCountFromCart : 0
@@ -114,9 +114,9 @@ const buildShopShippings = (
     return {
       shop_id: shopId,
       shipping_fee: fromApi ?? perShopFallbackForIds,
-      ...(cartShopId && providerIdByShopId[cartShopId]
-        ? { provider_id: providerIdByShopId[cartShopId] }
-        : {}),
+      delivery_company_id: cartShopId
+        ? deliveryCompanyIdByShopId[cartShopId] ?? ''
+        : '',
     }
   })
 }
@@ -128,7 +128,7 @@ const CheckoutSummary = ({
   deliveryAddress,
   cartItems,
   checkoutSessionItems,
-  providerIdByShopId,
+  deliveryCompanyIdByShopId,
 }: CheckoutSummaryProps) => {
   const dispatch = useAppDispatch()
   const stripe = useStripe()
@@ -358,7 +358,7 @@ const CheckoutSummary = ({
       checkoutSessionItems ?? currentStatus?.items,
       feesByShopId,
       shippingCalculateStatus,
-      providerIdByShopId,
+      deliveryCompanyIdByShopId,
     )
 
     return {
@@ -409,10 +409,10 @@ const CheckoutSummary = ({
       return
     }
 
-    const missingProviderShop = [...new Set(cartItems.map((item) => item.shopId))]
-      .find((shopId) => !providerIdByShopId[shopId]?.trim())
-    if (missingProviderShop) {
-      dispatch(setCheckoutError('A selected delivery company is missing its Delivery Service provider mapping. Please contact support.'))
+    const missingCompanyShop = [...new Set(cartItems.map((item) => item.shopId))]
+      .find((shopId) => !deliveryCompanyIdByShopId[shopId]?.trim())
+    if (missingCompanyShop) {
+      dispatch(setCheckoutError('A delivery company is not configured for one or more shops. Please contact the shop owner.'))
       return
     }
 

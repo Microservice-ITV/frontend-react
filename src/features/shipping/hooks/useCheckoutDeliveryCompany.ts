@@ -5,7 +5,6 @@ export type CheckoutDeliveryCompany = {
   id: string
   code: string
   name: string
-  providerId: string
   description: string | null
   logoUrl: string | null
   status: 'ACTIVE' | 'INACTIVE'
@@ -95,12 +94,8 @@ export function useCheckoutDeliveryCompany(shopIds: string[], routes: ShopDistri
         const res = await shippingApi.listActiveDeliveryCompanies()
         const body = res.data as { data?: { companies?: CheckoutDeliveryCompany[] } }
         const rows = body.data?.companies ?? []
-        const mappedRows = rows.filter((company) => typeof company.providerId === 'string' && company.providerId.trim())
         if (!cancelled) {
-          setCompanies(mappedRows)
-          if (rows.length > 0 && mappedRows.length === 0) {
-            setError('Delivery companies are not configured with Delivery Service providers yet.')
-          }
+          setCompanies(rows)
         }
       } catch {
         if (!cancelled) setError('Delivery companies could not be loaded.')
@@ -239,21 +234,10 @@ export function useCheckoutDeliveryCompany(shopIds: string[], routes: ShopDistri
     return next
   }, [selectedByShopId, shopIds])
 
-  const providerIdByShopId = useMemo(() => {
-    const next: Record<string, string> = {}
-    for (const shopId of shopIds) {
-      const companyId = selectedByShopId[shopId]
-      const providerId = companies.find((company) => company.id === companyId)?.providerId
-      if (providerId) next[shopId] = providerId
-    }
-    return next
-  }, [companies, selectedByShopId, shopIds])
-
   return {
     companies,
     selectedByShopId,
     companyByShopId,
-    providerIdByShopId,
     unavailableCompanyIdsByShop,
     routesReady: routesReady && selectionSettled,
     loading,
