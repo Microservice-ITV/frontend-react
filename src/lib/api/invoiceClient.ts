@@ -78,6 +78,72 @@ type InvoiceListResponse = {
   data: InvoiceDocument[]
 }
 
+export type InvoiceReplayResult = {
+  orderId: string
+  status: 'CREATED' | 'ALREADY_EXISTS' | 'INELIGIBLE' | 'FAILED'
+  reason?: string
+}
+
+export type InvoiceReplaySummary = {
+  total: number
+  created: number
+  skipped_existing: number
+  skipped_ineligible: number
+  failed: number
+  results: InvoiceReplayResult[]
+}
+
+export type MissingInvoiceShop = {
+  shopId: string
+  shopName: string | null
+  expectedInvoiceStatus: 'PAID' | 'UNPAID'
+  subtotal: string
+  deliveryFee: string
+  discountAmount: string
+  grandTotal: string
+  reason: 'NO_INVOICE_FOR_SHOP'
+}
+
+export type MissingInvoiceOrder = {
+  orderId: string
+  customerId: string
+  customerName: string | null
+  paymentStatus: string
+  paymentMethod: string | null
+  currency: string | null
+  createdAt: string
+  missingShops: MissingInvoiceShop[]
+}
+
+export type MissingInvoicePage = {
+  data: MissingInvoiceOrder[]
+  nextCursor: string | null
+  hasMore: boolean
+}
+
+export type MissingInvoiceReplayResult = {
+  orderId: string
+  shopId: string
+  status: 'CREATED' | 'ALREADY_EXISTS' | 'INELIGIBLE' | 'FAILED'
+  reason?: string
+}
+
+export type MissingInvoiceReplaySummary = {
+  total: number
+  created: number
+  skipped_existing: number
+  skipped_ineligible: number
+  failed: number
+  hasMore: boolean
+  nextCursor: string | null
+  results: MissingInvoiceReplayResult[]
+}
+
+type InvoiceReplayResponse = {
+  success: boolean
+  data: InvoiceReplaySummary
+}
+
 type InvoiceApiResponse<T> = {
   success: boolean
   data: T
@@ -125,7 +191,7 @@ invoiceClient.interceptors.request.use(async (config) => {
     && config.headers.get('x-user-role') === 'customer'
   const isCustomerScopedRequest = isMyInvoicesRequest || isCustomerInvoiceRequest || isCustomerPdfRequest
   const isAllShopInvoicesRequest = url.endsWith('/invoices/shop-invoices')
-  const isAdminInvoiceRequest = url.includes('/invoices/admin/')
+  const isAdminInvoiceRequest = url.includes('/invoices/admin/') || url.startsWith('/admin/invoices/')
   const isSellerInvoiceRequest = url.includes('/invoices/shop-invoices') || url.includes('/invoices/manage')
   const role = {
     SUPER_ADMIN: 'admin',
@@ -277,6 +343,46 @@ export const getAllAdminInvoices = async (
     { params },
   )
 
+  return response.data.data
+}
+
+export const replayInvoices = async (orderIds: string[]): Promise<InvoiceReplaySummary> => {
+  const response = await invoiceClient.post<InvoiceReplayResponse>(
+    '/admin/invoices/replay',
+    { orderIds },
+  )
+
+  return response.data.data
+}
+
+export const getMissingInvoices = async (
+  params: { limit?: number; cursor?: string | null } = {},
+): Promise<MissingInvoicePage> => {
+  const response = await invoiceClient.get<InvoiceApiResponse<MissingInvoicePage>>(
+    '/admin/invoices/missing',
+    { params },
+  )
+  return response.data.data
+}
+
+export const replayMissingInvoice = async (
+  orderId: string,
+  shopId: string,
+): Promise<MissingInvoiceReplayResult> => {
+  const response = await invoiceClient.post<InvoiceApiResponse<MissingInvoiceReplayResult>>(
+    '/admin/invoices/missing/replay',
+    { orderId, shopId },
+  )
+  return response.data.data
+}
+
+export const replayAllMissingInvoices = async (
+  cursor?: string | null,
+): Promise<MissingInvoiceReplaySummary> => {
+  const response = await invoiceClient.post<InvoiceApiResponse<MissingInvoiceReplaySummary>>(
+    '/admin/invoices/missing/replay-all',
+    cursor ? { cursor } : {},
+  )
   return response.data.data
 }
 

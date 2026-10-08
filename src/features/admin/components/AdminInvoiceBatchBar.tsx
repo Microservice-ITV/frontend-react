@@ -121,40 +121,40 @@ export const AdminInvoiceBatchBar = ({
   if (selectedCount === 0) return null
 
   return (
-    <div className="sticky bottom-4 z-40 px-4">
-      <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-slate-950 px-4 py-3 text-white shadow-2xl">
-        <div className="flex items-center gap-3">
-          <div className="rounded-lg bg-emerald-500/20 px-2 py-1 text-xs font-bold text-emerald-200">
+    <div className="w-fit max-w-full">
+      <div className="flex flex-col justify-start gap-3 rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm sm:flex-row sm:items-center sm:gap-4">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <div className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 ring-1 ring-inset ring-emerald-200">
             {selectedCount} selected
           </div>
-          <span className="text-sm text-slate-200">Bulk admin actions</span>
+          <span className="truncate text-sm font-semibold text-slate-800">Bulk admin actions</span>
         </div>
 
-        <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => void handleBulkDownload()}
             disabled={isBusy}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isDownloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-            Bulk Download PDFs
+            Download PDFs
           </button>
 
           <button
             type="button"
             onClick={exportAuditCsv}
             disabled={isBusy}
-            className="inline-flex items-center gap-2 rounded-lg border border-sky-700 bg-sky-700/20 px-3 py-2 text-xs font-semibold text-sky-100 transition hover:bg-sky-700/30 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isExporting ? <Loader2 size={14} className="animate-spin" /> : <FileSpreadsheet size={14} />}
-            Export Audit Log (CSV)
+            Export CSV
           </button>
 
           <button
             type="button"
             onClick={onClearSelection}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-800"
+            className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
           >
             <X size={14} />
             Clear
@@ -163,7 +163,7 @@ export const AdminInvoiceBatchBar = ({
       </div>
 
       {error && (
-        <div className="mx-auto mt-2 max-w-5xl rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+        <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
           {error}
         </div>
       )}
