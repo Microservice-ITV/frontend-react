@@ -91,7 +91,7 @@ const AdminDeliveryCompaniesPage = () => {
         <div>
           <h1 className="text-xl font-bold text-slate-900">Delivery Companies</h1>
           <p className="mt-0.5 text-sm text-slate-600">
-            Companies customers can choose at checkout. Each company has its own pricing.
+            Manage the global company catalog. Sellers configure delivery expense fees separately for each shop.
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">

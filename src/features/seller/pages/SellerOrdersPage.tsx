@@ -142,42 +142,14 @@ const SellerOrdersPage = () => {
   )
 
   const handleShipOrder = async (order: SellerOrder) => {
-    let providers: Awaited<ReturnType<typeof sellerOrderApi.listDeliveryProviders>>
-    try {
-      providers = await sellerOrderApi.listDeliveryProviders()
-    } catch (error) {
-      openModal({
-        title: 'Delivery Providers Unavailable',
-        content: (
-          <p className="text-sm text-red-600">
-            {error instanceof Error ? error.message : 'Unable to load configured delivery providers.'}
-          </p>
-        ),
-        primaryLabel: 'OK',
-        primaryVariant: 'success',
-      })
-      return
-    }
-
-    if (providers.length === 0) {
-      openModal({
-        title: 'No Delivery Providers Available',
-        content: <p className="text-sm text-slate-700">No active delivery provider with a configured fee is available.</p>,
-        primaryLabel: 'OK',
-        primaryVariant: 'success',
-      })
-      return
-    }
-
     // Multi-shop orders: ship each of this seller's own ready shops
-    // separately (per-shop fulfillment). Legacy single-shipment fallback
-    // when per-shop rows are unavailable.
+    // Ship each ready shop separately; its Delivery Company was selected at
+    // checkout and is already stored on the shop order. Keep a legacy
+    // single-shipment fallback for orders without per-shop rows.
     const readyShopIds = (order.shopBreakdown ?? [])
       .filter((row) => (row.status || '').toUpperCase() === 'READY_FOR_FULFILLMENT')
       .map((row) => row.shopId)
       .filter(Boolean)
-    let selectedProviderCode = providers[0].code
-
     openModal({
       title: 'Ship Order',
       content: (
@@ -185,24 +157,10 @@ const SellerOrdersPage = () => {
           <p>
             Create a shipment for order <strong className="text-slate-900">{order.orderId}</strong>?
           </p>
-          <label className="block space-y-1">
-            <span className="text-xs font-medium text-slate-700">Delivery provider</span>
-            <select
-              defaultValue={providers[0].code}
-              onChange={(event) => { selectedProviderCode = event.currentTarget.value }}
-              className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm"
-            >
-              {providers.map((provider) => (
-                <option key={provider.code} value={provider.code}>
-                  {provider.name} ({provider.code})
-                </option>
-              ))}
-            </select>
-          </label>
           <p className="text-xs text-slate-500">
             {readyShopIds.length > 1
-              ? `${readyShopIds.length} of your shops are ready — each gets its own tracking number.`
-              : 'A tracking number will be automatically generated.'}
+              ? `${readyShopIds.length} of your shops are ready — each uses its configured Delivery Company and gets its own tracking number.`
+              : 'The shop’s configured Delivery Company will be used. A tracking number will be automatically generated.'}
           </p>
         </div>
       ),
@@ -210,19 +168,11 @@ const SellerOrdersPage = () => {
       primaryVariant: 'success',
       secondaryLabel: 'Cancel',
       onPrimary: async () => {
-        const selectedProvider = providers.find((provider) => provider.code === selectedProviderCode)
-        if (!selectedProvider) {
-          throw new Error('Select a configured delivery provider before creating the shipment.')
-        }
-
         try {
           const targets = readyShopIds.length > 0 ? readyShopIds : [undefined]
           const results = await Promise.allSettled(
             targets.map((shopId) =>
               sellerOrderApi.createShipment(order.orderId, {
-                courier_code: selectedProvider.code,
-                courier_name: selectedProvider.name,
-                courier_phone: 'N/A',
                 ...(shopId ? { shop_id: shopId } : {}),
               }),
             ),

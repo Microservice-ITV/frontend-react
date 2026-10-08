@@ -8,7 +8,7 @@ import { promotionClient } from '@/lib/api/promotionClient'
 export type CheckoutShopShippingPayload = {
   shop_id: string
   shipping_fee: number
-  provider_id?: string
+  delivery_company_id: string
 }
 
 export type CheckoutAddressPayload = {

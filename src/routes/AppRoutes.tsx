@@ -118,8 +118,7 @@ import AdminMissingInvoicesPage from "@/features/admin/pages/AdminMissingInvoice
 import AdminIncomePage from "@/features/admin/pages/AdminIncomePage";
 import AdminExpensePage from "@/features/admin/pages/AdminExpensePage";
 import AdminExpenseCategoriesPage from "@/features/admin/pages/AdminExpenseCategoriesPage";
-import AdminDeliveryProviderFeesPage from "@/features/admin/pages/AdminDeliveryProviderFeesPage";
-import AdminDeliveryProvidersPage from "@/features/admin/pages/AdminDeliveryProvidersPage";
+import SellerDeliveryCompanyFeesPage from "@/features/seller/pages/SellerDeliveryCompanyFeesPage";
 import CommonNotificationsPage from "@/features/common/pages/CommonNotificationsPage";
 import CommonChatPage from "@/features/common/pages/CommonChatPage";
 import CommonHelpSupportPage from "@/features/common/pages/CommonHelpSupportPage";
@@ -629,6 +628,14 @@ const AppRoutes = () => {
               }
             />
             <Route
+              path="accounting/delivery-company-fees"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerAccounting}>
+                  <SellerDeliveryCompanyFeesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="accounting/profit-loss"
               element={
                 <ProtectedRoute
@@ -1070,14 +1077,6 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.superAdminShipping}
                 >
                   <AdminDeliveryCompaniesPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="shipping/delivery-providers"
-              element={
-                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminShipping}>
-                  <AdminDeliveryProvidersPage />
                 </ProtectedRoute>
               }
             />
@@ -1623,14 +1622,6 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.superAdminAccounting}
                 >
                   <AdminExpenseCategoriesPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="accounting/delivery-provider-fees"
-              element={
-                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminAccounting}>
-                  <AdminDeliveryProviderFeesPage />
                 </ProtectedRoute>
               }
             />

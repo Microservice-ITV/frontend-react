@@ -62,5 +62,30 @@ describe('DASHBOARD_MENU_SELLER accounting items', () => {
         to: '/super-admin/orders',
       })
     })
+
+    it('links sellers to shop-specific Delivery Company expense configuration', () => {
+      const deliveryExpenses = findSellerAccountingItems().find(
+        (item) => item.key === 'seller-accounting-delivery-company-fees',
+      )
+
+      expect(deliveryExpenses).toMatchObject({
+        key: 'seller-accounting-delivery-company-fees',
+        label: 'Delivery Expense Fees',
+        to: '/seller/accounting/delivery-company-fees',
+      })
+    })
+  })
+
+  describe('DASHBOARD_MENU_ADMIN delivery company items', () => {
+    it('exposes the global Delivery Company catalog without provider-master navigation', () => {
+      const items = DASHBOARD_MENU_ADMIN.flatMap((section) => section.items)
+
+      expect(items).toContainEqual(expect.objectContaining({
+        key: 'admin-delivery-companies',
+        label: 'Delivery Companies',
+        to: '/super-admin/shipping/delivery-companies',
+      }))
+      expect(items.some((item) => item.label?.includes('Delivery Provider'))).toBe(false)
+    })
   })
 })
