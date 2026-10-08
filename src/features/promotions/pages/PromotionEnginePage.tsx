@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppSelector } from '@/app/hooks'
+import { SearchableSelect } from '@/components/ui/SearchableSelect'
 import AdminFlashDealsPage from '@/features/flash-deals/pages/AdminFlashDealsPage'
 import { useFlashDealPaths } from '@/features/flash-deals/config/flashDealPaths'
 import { useAuthRole } from '@/app/rbac/hooks'
@@ -8,9 +9,12 @@ import {
   promotionApi,
   type PromotionAssetKind,
   type PromotionConditionRecord,
+  type PromotionCodeRecord,
   type PromotionRecord,
   type PromotionRewardRecord,
   type PromotionTargetRecord,
+  type PromotionTargetCatalogProduct,
+  type PromotionUsageLimitRecord,
 } from '../api/promotionApi'
 import {
   ArrowUpRight,
@@ -33,11 +37,13 @@ import {
 
 type PromotionStatus = 'ACTIVE' | 'DRAFT' | 'PAUSED' | 'EXPIRED'
 type RewardType = 'PERCENTAGE' | 'FIXED_AMOUNT' | 'FREE_SHIPPING'
-type ManagementTab = 'rewards' | 'conditions' | 'targets'
+type ManagementTab = 'rewards' | 'conditions' | 'targets' | 'codes' | 'usageLimits'
 type OwnerType = 'PLATFORM' | 'SELLER'
 type PromotionScope = 'PRODUCT' | 'CATEGORY' | 'SHOP' | 'ORDER' | 'SHIPPING'
 type PromotionType = 'PERCENTAGE' | 'FIXED_AMOUNT' | 'BUY_X_GET_Y' | 'FREE_SHIPPING' | 'BUNDLE'
 type TargetType = 'PRODUCT' | 'CATEGORY' | 'BRAND' | 'SHOP'
+type PromotionCodeStatus = PromotionCodeRecord['status']
+type UsageLimitType = PromotionUsageLimitRecord['limit_type']
 type AssetMode = 'create' | 'edit'
 
 type PromotionCreatePayload = {
@@ -80,9 +86,21 @@ type PromotionAsset = {
   maxDiscount?: string
   conditionType?: string
   operator?: string
+  conditionAmount?: string
+  conditionUserId?: string
+  conditionShopId?: string
   value?: string
   targetType?: TargetType
   targetId?: string
+  code?: string
+  codeStatus?: PromotionCodeStatus
+  reservedByUserId?: string
+  expiresAt?: string
+  used?: boolean
+  limitType?: UsageLimitType
+  maxCount?: string
+  maxAmount?: string
+  shopId?: string
 }
 
 type AssetFormState = {
@@ -93,9 +111,20 @@ type AssetFormState = {
   maxDiscount: string
   conditionType: string
   operator: string
+  conditionAmount: string
+  conditionUserId: string
+  conditionShopId: string
   value: string
   targetType: TargetType
   targetId: string
+  code: string
+  codeStatus: PromotionCodeStatus
+  reservedByUserId: string
+  expiresAt: string
+  limitType: UsageLimitType
+  maxCount: string
+  maxAmount: string
+  shopId: string
 }
 
 const STATUS_STYLES: Record<PromotionStatus, string> = {
@@ -115,14 +144,25 @@ const STATUS_ACCENTS: Record<PromotionStatus, string> = {
 const DEFAULT_ASSET_FORM: AssetFormState = {
   promotionId: '',
   rewardType: 'PERCENTAGE',
-  percentage: '10',
-  fixedAmount: '25',
-  maxDiscount: '50',
+  percentage: '',
+  fixedAmount: '',
+  maxDiscount: '',
   conditionType: 'MINIMUM_ORDER_AMOUNT',
   operator: 'GTE',
-  value: '{"amount":100}',
-  targetType: 'SHOP',
+  conditionAmount: '',
+  conditionUserId: '',
+  conditionShopId: '',
+  value: '{}',
+  targetType: 'PRODUCT',
   targetId: '',
+  code: '',
+  codeStatus: 'ACTIVE',
+  reservedByUserId: '',
+  expiresAt: '',
+  limitType: 'PER_USER',
+  maxCount: '1',
+  maxAmount: '',
+  shopId: '',
 }
 
 const toNullableString = (value: string | null | undefined): string | null => {
@@ -136,6 +176,54 @@ const formatDate = (value: string | null | undefined) => {
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
+
+const toDateTimeLocal = (value: string | null | undefined): string => {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  date.setMinutes(date.getMinutes() - date.getTimezoneOffset())
+  return date.toISOString().slice(0, 16)
+}
+
+const fromDateTimeLocal = (value: string): string | null =>
+  value ? new Date(value).toISOString() : null
+
+const parseJsonObject = (value: string): Record<string, unknown> | null => {
+  try {
+    const parsed: unknown = JSON.parse(value)
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : null
+  } catch {
+    return null
+  }
+}
+
+const ASSET_LABELS: Record<ManagementTab, string> = {
+  rewards: 'Rewards',
+  conditions: 'Conditions',
+  targets: 'Targets',
+  codes: 'Promo Codes',
+  usageLimits: 'Usage Limits',
+}
+
+const ASSET_SINGULAR_LABELS: Record<ManagementTab, string> = {
+  rewards: 'reward',
+  conditions: 'condition',
+  targets: 'target',
+  codes: 'promo code',
+  usageLimits: 'usage limit',
+}
+
+const targetTypeForScope = (scope: PromotionScope | undefined): TargetType | undefined => {
+  if (scope === 'PRODUCT') return 'PRODUCT'
+  if (scope === 'CATEGORY') return 'CATEGORY'
+  if (scope === 'SHOP') return 'SHOP'
+  return undefined
+}
+
+const promotionScopeSupportsTargets = (scope: PromotionScope | undefined): boolean =>
+  targetTypeForScope(scope) !== undefined
 
 const rewardLabel = (type: PromotionType) => {
   if (type === 'PERCENTAGE') return 'Percentage reward'
@@ -174,10 +262,78 @@ const toUpdatePayload = (record: PromotionRecord, status: PromotionStatus) => ({
   status,
 })
 
+const summarizeReward = (asset: PromotionAsset): string => {
+  if (asset.rewardType === 'PERCENTAGE') {
+    return `${asset.percentage || '0'}% off${asset.maxDiscount ? ` · up to $${asset.maxDiscount}` : ''}`
+  }
+  if (asset.rewardType === 'FIXED_AMOUNT') {
+    return `$${asset.fixedAmount || '0'} off${asset.maxDiscount ? ` · max $${asset.maxDiscount}` : ''}`
+  }
+  return 'Free shipping'
+}
+
+const summarizeCondition = (
+  asset: PromotionAsset,
+  activeShopId?: string | null,
+  activeShopName?: string,
+): string => {
+  if (asset.conditionType === 'MINIMUM_ORDER_AMOUNT') {
+    return `Order subtotal at least $${asset.conditionAmount || '0'}`
+  }
+  if (asset.conditionType === 'USER_SHOP_MEMBER') {
+    const shop = asset.conditionShopId === activeShopId
+      ? activeShopName || 'your shop'
+      : asset.conditionShopId || 'selected shop'
+    return `Customer ${asset.conditionUserId || 'not specified'} must order from ${shop}`
+  }
+  return `${asset.conditionType || 'Condition'} · ${asset.operator || 'No operator configured'}`
+}
+
+const summarizeUsageLimit = (asset: PromotionAsset): string => {
+  if (asset.limitType === 'PER_USER') {
+    return `Up to ${asset.maxCount || '0'} redemption${asset.maxCount === '1' ? '' : 's'} per customer`
+  }
+  if (asset.limitType === 'GLOBAL') {
+    return `Up to ${asset.maxCount || '0'} total redemption${asset.maxCount === '1' ? '' : 's'}`
+  }
+  return `Discount budget up to $${asset.maxAmount || '0'}`
+}
+
+const summarizeTarget = (asset: PromotionAsset): string => {
+  const name = asset.detail.split(' · ').slice(1).join(' · ') || 'Name unavailable'
+  const type = asset.targetType === 'PRODUCT'
+    ? 'Product'
+    : asset.targetType === 'CATEGORY'
+      ? 'Category'
+      : asset.targetType === 'BRAND'
+        ? 'Brand'
+        : asset.targetType === 'SHOP'
+          ? 'Shop'
+          : 'Target'
+  return `${type}: ${name}`
+}
+
+const summarizePromoCode = (asset: PromotionAsset): string => {
+  const status = asset.codeStatus === 'ACTIVE'
+    ? 'Ready to use'
+    : asset.codeStatus === 'DISABLED'
+      ? 'Disabled'
+      : 'Already redeemed'
+  const expiry = asset.expiresAt ? ` · expires ${formatDate(asset.expiresAt)}` : ''
+  const reservation = asset.reservedByUserId ? ' · reserved for a customer' : ''
+  return `${asset.code || 'Code'} · ${status}${expiry}${reservation}`
+}
+
 const toAsset = (
   kind: PromotionAssetKind,
-  record: PromotionRewardRecord | PromotionConditionRecord | PromotionTargetRecord,
+  record:
+    | PromotionRewardRecord
+    | PromotionConditionRecord
+    | PromotionTargetRecord
+    | PromotionCodeRecord
+    | PromotionUsageLimitRecord,
   promotionNameById: Map<string, string>,
+  targetNameByRef: Map<string, string> = new Map(),
 ): PromotionAsset => {
   if (kind === 'rewards') {
     const reward = record as PromotionRewardRecord
@@ -193,14 +349,17 @@ const toAsset = (
       promotion: promotionNameById.get(reward.promotion_id) ?? reward.promotion_id,
       detail: `${reward.reward_type} · ${amount}${max}`,
       rewardType: reward.reward_type,
-      percentage: reward.percentage != null ? String(reward.percentage) : '10',
-      fixedAmount: reward.fixed_amount != null ? String(reward.fixed_amount) : '25',
+      percentage: reward.percentage != null ? String(reward.percentage) : '',
+      fixedAmount: reward.fixed_amount != null ? String(reward.fixed_amount) : '',
       maxDiscount: reward.max_discount_amount != null ? String(reward.max_discount_amount) : '',
     }
   }
 
   if (kind === 'conditions') {
     const condition = record as PromotionConditionRecord
+    const value = condition.value && typeof condition.value === 'object'
+      ? condition.value
+      : {}
     return {
       id: condition.id,
       promotionId: condition.promotion_id,
@@ -208,7 +367,43 @@ const toAsset = (
       detail: `${condition.condition_type} · ${condition.operator} · ${JSON.stringify(condition.value)}`,
       conditionType: condition.condition_type,
       operator: condition.operator,
+      conditionAmount: value.amount == null ? '' : String(value.amount),
+      conditionUserId: typeof value.user_id === 'string' ? value.user_id : '',
+      conditionShopId: typeof value.shop_id === 'string' ? value.shop_id : '',
       value: JSON.stringify(condition.value ?? {}, null, 2),
+    }
+  }
+
+  if (kind === 'codes') {
+    const code = record as PromotionCodeRecord
+    const expiry = code.expires_at ? ` · Expires ${formatDate(code.expires_at)}` : ' · No expiry'
+    return {
+      id: code.id,
+      promotionId: code.promotion_id,
+      promotion: promotionNameById.get(code.promotion_id) ?? code.promotion_id,
+      detail: `${code.code} · ${code.status}${expiry}`,
+      code: code.code,
+      codeStatus: code.status,
+      reservedByUserId: code.reserved_by_user_id ?? '',
+      expiresAt: toDateTimeLocal(code.expires_at),
+      used: code.status === 'USED',
+    }
+  }
+
+  if (kind === 'usageLimits') {
+    const limit = record as PromotionUsageLimitRecord
+    const detail = limit.limit_type === 'SHOP_BUDGET'
+      ? `SHOP BUDGET · max $${limit.max_amount ?? 0}`
+      : `${limit.limit_type.replace('_', ' ')} · max ${limit.max_count ?? 0} redemption${limit.max_count === 1 ? '' : 's'}`
+    return {
+      id: limit.id,
+      promotionId: limit.promotion_id,
+      promotion: promotionNameById.get(limit.promotion_id) ?? limit.promotion_id,
+      detail,
+      limitType: limit.limit_type,
+      maxCount: limit.max_count == null ? '' : String(limit.max_count),
+      maxAmount: limit.max_amount == null ? '' : String(limit.max_amount),
+      shopId: limit.shop_id ?? '',
     }
   }
 
@@ -217,13 +412,13 @@ const toAsset = (
     id: target.id,
     promotionId: target.promotion_id,
     promotion: promotionNameById.get(target.promotion_id) ?? target.promotion_id,
-    detail: `${target.target_type} · ${target.target_id}`,
+    detail: `${target.target_type} · ${targetNameByRef.get(`${target.target_type}:${target.target_id}`) ?? 'Name unavailable'}`,
     targetType: target.target_type,
     targetId: target.target_id,
   }
 }
 
-const buildAssetPayload = (kind: ManagementTab, form: AssetFormState) => {
+const buildAssetPayload = (kind: ManagementTab, form: AssetFormState, mode: AssetMode) => {
   if (kind === 'rewards') {
     return {
       promotion_id: form.promotionId,
@@ -234,11 +429,43 @@ const buildAssetPayload = (kind: ManagementTab, form: AssetFormState) => {
     }
   }
   if (kind === 'conditions') {
+    const value = form.conditionType === 'MINIMUM_ORDER_AMOUNT'
+      ? { amount: Number(form.conditionAmount) }
+      : form.conditionType === 'USER_SHOP_MEMBER'
+        ? {
+            user_id: form.conditionUserId.trim(),
+            shop_id: form.conditionShopId.trim(),
+          }
+        : JSON.parse(form.value) as Record<string, unknown>
     return {
       promotion_id: form.promotionId,
       condition_type: form.conditionType,
       operator: form.operator,
-      value: JSON.parse(form.value) as Record<string, unknown>,
+      value,
+    }
+  }
+  if (kind === 'codes') {
+    const payload = {
+      promotion_id: form.promotionId,
+      code: form.code.trim(),
+      reserved_by_user_id: toNullableString(form.reservedByUserId),
+      expires_at: fromDateTimeLocal(form.expiresAt),
+    }
+    return mode === 'edit' ? { ...payload, status: form.codeStatus } : payload
+  }
+  if (kind === 'usageLimits') {
+    return {
+      promotion_id: form.promotionId,
+      limit_type: form.limitType,
+      max_count: form.limitType === 'SHOP_BUDGET' || !form.maxCount
+        ? undefined
+        : Number(form.maxCount),
+      max_amount: form.limitType !== 'SHOP_BUDGET' || !form.maxAmount
+        ? undefined
+        : Number(form.maxAmount),
+      shop_id: form.limitType === 'SHOP_BUDGET'
+        ? toNullableString(form.shopId)
+        : undefined,
     }
   }
   return {
@@ -255,11 +482,13 @@ const PromotionEnginePage = () => {
   const isShopOwner = authRole === 'SHOP_OWNER'
   const canManagePromotionAssets = isPlatformAdmin || isShopOwner
   const activeShopId = authUser?.active_shop_id
+  const activeShopName = authUser?.active_shop_name?.trim()
   const navigate = useNavigate()
   const flashDealPaths = useFlashDealPaths()
 
   const [promotions, setPromotions] = useState<PromotionListItem[]>([])
   const [promotionsLoading, setPromotionsLoading] = useState(true)
+  const [promotionLoadFailed, setPromotionLoadFailed] = useState(false)
   const [promotionsError, setPromotionsError] = useState<string | null>(null)
   const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'all' | PromotionStatus | 'FLASH_DEALS'>('all')
@@ -273,6 +502,8 @@ const PromotionEnginePage = () => {
     rewards: [],
     conditions: [],
     targets: [],
+    codes: [],
+    usageLimits: [],
   })
   const [assetError, setAssetError] = useState<string | null>(null)
   const [assetModalOpen, setAssetModalOpen] = useState(false)
@@ -283,6 +514,10 @@ const PromotionEnginePage = () => {
 
   const promotionNameById = useMemo(
     () => new Map(promotions.map((promotion) => [promotion.id, promotion.name])),
+    [promotions],
+  )
+  const promotionIds = useMemo(
+    () => promotions.map(({ id }) => id),
     [promotions],
   )
 
@@ -305,19 +540,42 @@ const PromotionEnginePage = () => {
 
   useEffect(() => {
     let cancelled = false
+    if (!isPlatformAdmin && !activeShopId) {
+      setPromotions([])
+      setSelectedId('')
+      setPromotionsError('Select an active shop to view its promotions.')
+      setPromotionsLoading(false)
+      return () => {
+        cancelled = true
+      }
+    }
+
     setPromotionsLoading(true)
-    promotionApi.listPromotions()
+    setPromotionLoadFailed(false)
+    setPromotionsError(null)
+    promotionApi.listPromotions(isPlatformAdmin ? undefined : activeShopId ?? undefined)
       .then((records) => {
         if (cancelled) return
-        const items = records.map(toListItem)
+        const scopedRecords = isPlatformAdmin
+          ? records
+          : records.filter(
+              (record) =>
+                record.owner_type === 'SELLER' &&
+                record.shop_id === activeShopId,
+            )
+        const items = scopedRecords.map(toListItem)
         setPromotions(items)
-        setSelectedId((current) => current || items[0]?.id || '')
+        setSelectedId((current) =>
+          items.some((item) => item.id === current) ? current : items[0]?.id ?? '',
+        )
         setPromotionsError(null)
       })
       .catch(() => {
         if (cancelled) return
         setPromotions([])
-        setPromotionsError('Could not load promotions. Check the promotion service connection.')
+        setSelectedId('')
+        setPromotionLoadFailed(true)
+        setPromotionsError(null)
       })
       .finally(() => {
         if (!cancelled) setPromotionsLoading(false)
@@ -325,51 +583,55 @@ const PromotionEnginePage = () => {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [activeShopId, isPlatformAdmin])
 
   useEffect(() => {
     if (!canManagePromotionAssets) return
+    if (!isPlatformAdmin && !activeShopId) {
+      setAssets({ rewards: [], conditions: [], targets: [], codes: [], usageLimits: [] })
+      return
+    }
     let cancelled = false
-    Promise.all((['rewards', 'conditions', 'targets'] as ManagementTab[]).map(async (kind) => {
-      const records = await promotionApi.list<PromotionRewardRecord | PromotionConditionRecord | PromotionTargetRecord>(kind)
+    setAssets({ rewards: [], conditions: [], targets: [], codes: [], usageLimits: [] })
+    const loadAssets = async (kind: ManagementTab) => {
+      const records = isPlatformAdmin
+        ? await promotionApi.list<PromotionRewardRecord | PromotionConditionRecord | PromotionTargetRecord | PromotionCodeRecord | PromotionUsageLimitRecord>(kind)
+        : (await Promise.all(
+            promotionIds.map((promotionId) =>
+              promotionApi.list<PromotionRewardRecord | PromotionConditionRecord | PromotionTargetRecord | PromotionCodeRecord | PromotionUsageLimitRecord>(kind, promotionId),
+            ),
+          )).flat()
       return [kind, records] as const
-    }))
-      .then((results) => {
+    }
+    Promise.all((['rewards', 'conditions', 'targets', 'codes', 'usageLimits'] as ManagementTab[]).map(loadAssets))
+      .then(async (results) => {
+        const targetRecords = results.find(([kind]) => kind === 'targets')?.[1] ?? []
+        const targetNames = await promotionApi.resolveTargetNames(
+          targetRecords as PromotionTargetRecord[],
+        )
         if (cancelled) return
         const next = Object.fromEntries(
           results.map(([kind, records]) => [
             kind,
-            records.map((record) => toAsset(kind, record, new Map())),
+             records.map((record) => toAsset(kind, record, promotionNameById, targetNames)),
           ]),
         ) as Record<ManagementTab, PromotionAsset[]>
         setAssets(next)
         setAssetError(null)
       })
       .catch(() => {
-        if (!cancelled) setAssetError('Could not load promotion rewards, conditions, and targets.')
+        if (!cancelled) setAssetError('Could not load promotion building blocks.')
       })
     return () => {
       cancelled = true
     }
-  }, [canManagePromotionAssets])
-
-  useEffect(() => {
-    if (promotionNameById.size === 0) return
-    setAssets((current) => ({
-      rewards: current.rewards.map((asset) => ({
-        ...asset,
-        promotion: promotionNameById.get(asset.promotionId) ?? asset.promotion,
-      })),
-      conditions: current.conditions.map((asset) => ({
-        ...asset,
-        promotion: promotionNameById.get(asset.promotionId) ?? asset.promotion,
-      })),
-      targets: current.targets.map((asset) => ({
-        ...asset,
-        promotion: promotionNameById.get(asset.promotionId) ?? asset.promotion,
-      })),
-    }))
-  }, [promotionNameById])
+  }, [
+    activeShopId,
+    canManagePromotionAssets,
+    isPlatformAdmin,
+    promotionIds,
+    promotionNameById,
+  ])
 
   const filteredPromotions = useMemo(() => {
     const normalizedSearch = search.toLowerCase().trim()
@@ -383,6 +645,23 @@ const PromotionEnginePage = () => {
   }, [activeTab, promotions, search])
 
   const selectedPromotion = promotions.find((promotion) => promotion.id === selectedId) ?? filteredPromotions[0]
+  const selectedPromotionAssets = {
+    rewards: selectedPromotion
+      ? assets.rewards.filter((asset) => asset.promotionId === selectedPromotion.id)
+      : [],
+    conditions: selectedPromotion
+      ? assets.conditions.filter((asset) => asset.promotionId === selectedPromotion.id)
+      : [],
+    targets: selectedPromotion
+      ? assets.targets.filter((asset) => asset.promotionId === selectedPromotion.id)
+      : [],
+    codes: selectedPromotion
+      ? assets.codes.filter((asset) => asset.promotionId === selectedPromotion.id)
+      : [],
+    usageLimits: selectedPromotion
+      ? assets.usageLimits.filter((asset) => asset.promotionId === selectedPromotion.id)
+      : [],
+  }
   const activeCount = promotions.filter((promotion) => promotion.status === 'ACTIVE').length
   const targetCoverage = assets.targets.length
 
@@ -418,10 +697,15 @@ const PromotionEnginePage = () => {
   const openCreateAsset = () => {
     setAssetMode('create')
     setEditingAssetId(null)
+    const targetPromotion = promotions.find(({ id }) => id === defaultAssetPromotionId)
+    const targetType = targetTypeForScope(targetPromotion?.record.scope) ?? 'PRODUCT'
     setAssetForm({
       ...DEFAULT_ASSET_FORM,
       promotionId: defaultAssetPromotionId,
-      targetId: activeShopId ?? '',
+      targetType,
+      targetId: targetType === 'SHOP' ? targetPromotion?.record.shop_id ?? '' : '',
+      conditionShopId: activeShopId ?? '',
+      shopId: activeShopId ?? '',
     })
     setAssetModalOpen(true)
   }
@@ -429,17 +713,36 @@ const PromotionEnginePage = () => {
   const openEditAsset = (asset: PromotionAsset) => {
     setAssetMode('edit')
     setEditingAssetId(asset.id)
+    const targetPromotion = promotions.find(({ id }) => id === asset.promotionId)
+    const requiredTargetType = targetTypeForScope(targetPromotion?.record.scope)
+    const targetType = requiredTargetType ?? asset.targetType ?? 'PRODUCT'
+    const targetId = requiredTargetType === 'SHOP'
+      ? targetPromotion?.record.shop_id ?? ''
+      : requiredTargetType && requiredTargetType !== asset.targetType
+        ? ''
+        : asset.targetId ?? ''
     setAssetForm({
       promotionId: asset.promotionId,
       rewardType: asset.rewardType ?? 'PERCENTAGE',
-      percentage: asset.percentage ?? '10',
-      fixedAmount: asset.fixedAmount ?? '25',
+      percentage: asset.percentage ?? '',
+      fixedAmount: asset.fixedAmount ?? '',
       maxDiscount: asset.maxDiscount ?? '',
       conditionType: asset.conditionType ?? 'MINIMUM_ORDER_AMOUNT',
       operator: asset.operator ?? 'GTE',
-      value: asset.value ?? '{"amount":100}',
-      targetType: asset.targetType ?? 'SHOP',
-      targetId: asset.targetId ?? activeShopId ?? '',
+      conditionAmount: asset.conditionAmount ?? '',
+      conditionUserId: asset.conditionUserId ?? '',
+      conditionShopId: asset.conditionShopId ?? '',
+      value: asset.value ?? '{}',
+      targetType,
+      targetId,
+      code: asset.code ?? '',
+      codeStatus: asset.codeStatus ?? 'ACTIVE',
+      reservedByUserId: asset.reservedByUserId ?? '',
+      expiresAt: asset.expiresAt ?? '',
+      limitType: asset.limitType ?? 'PER_USER',
+      maxCount: asset.maxCount ?? '',
+      maxAmount: asset.maxAmount ?? '',
+      shopId: asset.shopId ?? '',
     })
     setAssetModalOpen(true)
   }
@@ -447,11 +750,20 @@ const PromotionEnginePage = () => {
   const saveAsset = async () => {
     setAssetSaving(true)
     try {
-      const payload = buildAssetPayload(managementTab, assetForm)
+      const payload = buildAssetPayload(managementTab, assetForm, assetMode)
+      type PromotionAssetRecord =
+        | PromotionRewardRecord
+        | PromotionConditionRecord
+        | PromotionTargetRecord
+        | PromotionCodeRecord
+        | PromotionUsageLimitRecord
       const record = assetMode === 'create'
-        ? await promotionApi.create<PromotionRewardRecord | PromotionConditionRecord | PromotionTargetRecord>(managementTab, payload)
-        : await promotionApi.update<PromotionRewardRecord | PromotionConditionRecord | PromotionTargetRecord>(managementTab, editingAssetId!, payload)
-      const asset = toAsset(managementTab, record, promotionNameById)
+        ? await promotionApi.create<PromotionAssetRecord>(managementTab, payload)
+        : await promotionApi.update<PromotionAssetRecord>(managementTab, editingAssetId!, payload)
+      const targetNames = managementTab === 'targets'
+        ? await promotionApi.resolveTargetNames([record as PromotionTargetRecord])
+        : new Map<string, string>()
+      const asset = toAsset(managementTab, record, promotionNameById, targetNames)
       setAssets((current) => ({
         ...current,
         [managementTab]: assetMode === 'create'
@@ -461,7 +773,7 @@ const PromotionEnginePage = () => {
       setAssetError(null)
       setAssetModalOpen(false)
     } catch {
-      setAssetError(`Could not ${assetMode === 'create' ? 'create' : 'update'} this ${managementTab.slice(0, -1)}. Check the values and JSON.`)
+      setAssetError(`Could not ${assetMode === 'create' ? 'create' : 'update'} this ${ASSET_SINGULAR_LABELS[managementTab]}. Check the values and JSON.`)
     } finally {
       setAssetSaving(false)
     }
@@ -476,7 +788,7 @@ const PromotionEnginePage = () => {
       }))
       setAssetError(null)
     } catch {
-      setAssetError(`Could not delete this ${managementTab.slice(0, -1)}.`)
+      setAssetError(`Could not delete this ${ASSET_SINGULAR_LABELS[managementTab]}.`)
     }
   }
 
@@ -621,7 +933,9 @@ const PromotionEnginePage = () => {
               </button>
             ))}
             {!promotionsLoading && filteredPromotions.length === 0 && (
-              <div className="px-5 py-14 text-center text-sm text-slate-500">No promotions match this view.</div>
+              <div className="px-5 py-14 text-center text-sm text-slate-500">
+                {promotionLoadFailed ? 'No promotions for now.' : 'No promotions match this view.'}
+              </div>
             )}
           </div>
         </div>
@@ -656,6 +970,41 @@ const PromotionEnginePage = () => {
                   <span>{selectedPromotion.stackable ? 'Stacking is enabled for this offer' : 'Stacking is disabled for this offer'}</span>
                 </div>
               </div>
+              <div className="mt-5 border-t border-white/10 pt-5">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-emerald-300">How this offer works</h3>
+                  <span className="text-[10px] text-slate-500">{selectedPromotion.scope}</span>
+                </div>
+                <div className="space-y-2">
+                  <PromotionDetailGroup
+                    title="Reward"
+                    items={selectedPromotionAssets.rewards.map(summarizeReward)}
+                    emptyText="No reward configured."
+                  />
+                  <PromotionDetailGroup
+                    title="Conditions"
+                    items={selectedPromotionAssets.conditions.map((asset) =>
+                      summarizeCondition(asset, activeShopId, activeShopName),
+                    )}
+                    emptyText="No extra conditions."
+                  />
+                  <PromotionDetailGroup
+                    title="Applies to"
+                    items={selectedPromotionAssets.targets.map(summarizeTarget)}
+                    emptyText="All eligible cart items; no target restrictions."
+                  />
+                  <PromotionDetailGroup
+                    title="Promo codes"
+                    items={selectedPromotionAssets.codes.map(summarizePromoCode)}
+                    emptyText="No promo code required."
+                  />
+                  <PromotionDetailGroup
+                    title="Usage limits"
+                    items={selectedPromotionAssets.usageLimits.map(summarizeUsageLimit)}
+                    emptyText="No redemption cap configured."
+                  />
+                </div>
+              </div>
               <button
                 type="button"
                 disabled={statusUpdatingId === selectedPromotion.id}
@@ -675,34 +1024,14 @@ const PromotionEnginePage = () => {
         </aside>
       </div>
 
-      <div className="flex flex-col justify-between gap-3 rounded-xl border border-dashed border-slate-300 bg-white/70 px-5 py-4 sm:flex-row sm:items-center">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
-            <Store size={18} />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-slate-900">
-              {isPlatformAdmin ? 'Platform promotion workspace' : 'Shop promotion workspace'}
-            </p>
-            <p className="text-xs text-slate-500">
-              {isPlatformAdmin
-                ? 'Offers can apply across the marketplace.'
-                : activeShopId
-                  ? `Connected to shop ${activeShopId.slice(0, 8)}…`
-                  : 'Choose an active shop to target offers.'}
-            </p>
-          </div>
-        </div>
-        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
-          <ArrowUpRight size={15} /> Ready to launch
-        </span>
-      </div>
-
       {canManagePromotionAssets && (
         <PromotionAssetManager
           isPlatformAdmin={isPlatformAdmin}
           activeTab={managementTab}
           assets={assets[managementTab]}
+          canCreateTargets={promotions.some((promotion) =>
+            promotionScopeSupportsTargets(promotion.record.scope),
+          )}
           onTabChange={setManagementTab}
           onAdd={openCreateAsset}
           onEdit={openEditAsset}
@@ -716,6 +1045,7 @@ const PromotionEnginePage = () => {
         open={showFullCreate}
         isPlatformAdmin={isPlatformAdmin}
         activeShopId={activeShopId}
+        activeShopName={activeShopName}
         onClose={() => setShowFullCreate(false)}
         onCreate={createPromotion}
       />
@@ -724,6 +1054,9 @@ const PromotionEnginePage = () => {
         open={assetModalOpen}
         mode={assetMode}
         kind={managementTab}
+        isPlatformAdmin={isPlatformAdmin}
+        activeShopId={activeShopId}
+        activeShopName={activeShopName}
         form={assetForm}
         saving={assetSaving}
         promotions={promotions}
@@ -776,10 +1109,46 @@ const DetailCell = ({ label, value }: { label: string; value: string }) => (
   </div>
 )
 
+const PromotionDetailGroup = ({
+  title,
+  items,
+  emptyText,
+}: {
+  title: string
+  items: string[]
+  emptyText: string
+}) => (
+  <section className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5">
+    <div className="flex items-center justify-between gap-2">
+      <h4 className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{title}</h4>
+      {items.length > 0 && (
+        <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[9px] font-semibold text-slate-400">
+          {items.length}
+        </span>
+      )}
+    </div>
+    {items.length === 0 ? (
+      <p className="mt-1 text-[11px] text-slate-500">{emptyText}</p>
+    ) : (
+      <ul className="mt-1.5 space-y-1.5">
+        {items.slice(0, 3).map((item, index) => (
+          <li key={`${title}-${index}`} className="break-words text-[11px] leading-relaxed text-slate-200">
+            {item}
+          </li>
+        ))}
+        {items.length > 3 && (
+          <li className="text-[10px] font-medium text-slate-400">+{items.length - 3} more</li>
+        )}
+      </ul>
+    )}
+  </section>
+)
+
 const PromotionAssetManager = ({
   isPlatformAdmin,
   activeTab,
   assets,
+  canCreateTargets,
   onTabChange,
   onAdd,
   onEdit,
@@ -788,17 +1157,12 @@ const PromotionAssetManager = ({
   isPlatformAdmin: boolean
   activeTab: ManagementTab
   assets: PromotionAsset[]
+  canCreateTargets: boolean
   onTabChange: (tab: ManagementTab) => void
   onAdd: () => void
   onEdit: (asset: PromotionAsset) => void
   onRemove: (id: string) => void
 }) => {
-  const labels: Record<ManagementTab, string> = {
-    rewards: 'Rewards',
-    conditions: 'Conditions',
-    targets: 'Targets',
-  }
-
   return (
     <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="flex flex-col justify-between gap-4 border-b border-slate-200 px-5 py-5 sm:flex-row sm:items-center">
@@ -809,27 +1173,29 @@ const PromotionAssetManager = ({
           </div>
           <p className="mt-1 text-xs text-slate-500">
             {isPlatformAdmin
-              ? 'Control how platform offers are rewarded, qualified, and targeted.'
-              : 'Define rewards, conditions, and targets for your shop promotions.'}
+              ? 'Control codes, limits, rewards, conditions, and targets for promotions.'
+              : 'Define codes, usage limits, rewards, conditions, and targets for your shop promotions.'}
           </p>
         </div>
         <button
           type="button"
           onClick={onAdd}
+          disabled={activeTab === 'targets' && !canCreateTargets}
+          title={activeTab === 'targets' && !canCreateTargets ? 'Order and Shipping promotions do not use targets.' : undefined}
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-emerald-300 hover:text-emerald-700"
         >
-          <Plus size={15} /> Add {activeTab.slice(0, -1)}
+          <Plus size={15} /> Add {ASSET_SINGULAR_LABELS[activeTab]}
         </button>
       </div>
       <div className="flex gap-1 border-b border-slate-100 px-5 pt-3">
-        {(['rewards', 'conditions', 'targets'] as ManagementTab[]).map((tab) => (
+        {(['rewards', 'conditions', 'targets', 'codes', 'usageLimits'] as ManagementTab[]).map((tab) => (
           <button
             key={tab}
             type="button"
             onClick={() => onTabChange(tab)}
             className={`border-b-2 px-3 pb-3 text-xs font-semibold ${activeTab === tab ? 'border-violet-600 text-violet-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
           >
-            {labels[tab]}
+            {ASSET_LABELS[tab]}
           </button>
         ))}
       </div>
@@ -837,7 +1203,13 @@ const PromotionAssetManager = ({
         {assets.map((asset) => (
           <div key={asset.id} className="flex items-center gap-4 px-5 py-4">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-50 text-violet-700">
-              {activeTab === 'rewards' ? <CircleDollarSign size={17} /> : activeTab === 'conditions' ? <Check size={17} /> : <Target size={17} />}
+              {activeTab === 'rewards' || activeTab === 'usageLimits'
+                ? <CircleDollarSign size={17} />
+                : activeTab === 'conditions'
+                  ? <Check size={17} />
+                  : activeTab === 'codes'
+                    ? <Sparkles size={17} />
+                    : <Target size={17} />}
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-slate-900">{asset.promotion}</p>
@@ -846,23 +1218,27 @@ const PromotionAssetManager = ({
             <button
               type="button"
               onClick={() => onEdit(asset)}
-              aria-label={`Edit ${labels[activeTab].toLowerCase()} item`}
-              className="rounded-md px-2 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+              aria-label={`Edit ${ASSET_SINGULAR_LABELS[activeTab]} item`}
+              disabled={asset.used}
+              title={asset.used ? 'Redeemed promo codes are read-only' : undefined}
+              className="rounded-md px-2 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Edit
             </button>
             <button
               type="button"
               onClick={() => onRemove(asset.id)}
-              aria-label={`Delete ${labels[activeTab].toLowerCase()} item`}
-              className="rounded-md p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+              aria-label={`Delete ${ASSET_SINGULAR_LABELS[activeTab]} item`}
+              disabled={asset.used}
+              title={asset.used ? 'Redeemed promo codes are read-only' : undefined}
+              className="rounded-md p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <X size={15} />
             </button>
           </div>
         ))}
         {assets.length === 0 && (
-          <p className="px-5 py-8 text-center text-sm text-slate-500">No {labels[activeTab].toLowerCase()} configured.</p>
+          <p className="px-5 py-8 text-center text-sm text-slate-500">No {ASSET_LABELS[activeTab].toLowerCase()} configured.</p>
         )}
       </div>
     </section>
@@ -873,11 +1249,12 @@ type PromotionCreateModalProps = {
   open: boolean
   isPlatformAdmin: boolean
   activeShopId: string | null | undefined
+  activeShopName: string | undefined
   onClose: () => void
   onCreate: (payload: PromotionCreatePayload) => Promise<void>
 }
 
-const PromotionCreateModal = ({ open, isPlatformAdmin, activeShopId, onClose, onCreate }: PromotionCreateModalProps) => {
+const PromotionCreateModal = ({ open, isPlatformAdmin, activeShopId, activeShopName, onClose, onCreate }: PromotionCreateModalProps) => {
   const [ownerType, setOwnerType] = useState<OwnerType>(isPlatformAdmin ? 'PLATFORM' : 'SELLER')
   const [shopId, setShopId] = useState(activeShopId ?? '')
   const [scope, setScope] = useState<PromotionScope>('ORDER')
@@ -889,14 +1266,15 @@ const PromotionCreateModal = ({ open, isPlatformAdmin, activeShopId, onClose, on
   const [startAt, setStartAt] = useState('2026-09-11T00:00')
   const [endAt, setEndAt] = useState('')
   const [status, setStatus] = useState<PromotionStatus>('DRAFT')
+  const resolvedOwnerType: OwnerType = isPlatformAdmin ? ownerType : 'SELLER'
+  const resolvedShopId = isPlatformAdmin
+    ? toNullableString(shopId)
+    : toNullableString(activeShopId)
+  const shopScopeMissingShop = scope === 'SHOP' && !resolvedShopId
 
   if (!open) return null
 
   const submit = async () => {
-    const resolvedOwnerType: OwnerType = isPlatformAdmin ? ownerType : 'SELLER'
-    const resolvedShopId = isPlatformAdmin
-      ? toNullableString(shopId)
-      : (toNullableString(activeShopId) ?? toNullableString(shopId))
     const priorityValue = Number(priority)
     await onCreate({
       owner_type: resolvedOwnerType,
@@ -927,15 +1305,25 @@ const PromotionCreateModal = ({ open, isPlatformAdmin, activeShopId, onClose, on
             <option value="SELLER">Seller</option>
           </select>
         </FormField>
-        <FormField label="Shop ID" hint="Required for seller promotions">
-          <input
-            value={shopId}
-            onChange={(event) => setShopId(event.target.value)}
-            placeholder="UUID or leave blank"
-            disabled={!isPlatformAdmin && Boolean(activeShopId)}
-            className={INPUT_CLASS}
-          />
-        </FormField>
+        {isPlatformAdmin ? (
+          <FormField label="Shop ID" hint={scope === 'SHOP' ? 'Required for SHOP scope' : 'Required for seller promotions'}>
+            <input
+              value={shopId}
+              onChange={(event) => setShopId(event.target.value)}
+              placeholder="UUID or leave blank"
+              className={INPUT_CLASS}
+            />
+          </FormField>
+        ) : (
+          <FormField label="Shop">
+            <input
+              value={activeShopName || 'No active shop selected'}
+              readOnly
+              aria-readonly="true"
+              className={INPUT_CLASS}
+            />
+          </FormField>
+        )}
         <FormField label="Scope">
           <select value={scope} onChange={(event) => setScope(event.target.value as PromotionScope)} className={INPUT_CLASS}>
             {['PRODUCT', 'CATEGORY', 'SHOP', 'ORDER', 'SHIPPING'].map((value) => <option key={value}>{value}</option>)}
@@ -973,7 +1361,12 @@ const PromotionCreateModal = ({ open, isPlatformAdmin, activeShopId, onClose, on
         <input type="checkbox" checked={stackable} onChange={(event) => setStackable(event.target.checked)} className="h-4 w-4 accent-emerald-600" />
         Stackable promotion
       </label>
-      <ModalActions onClose={onClose} onSubmit={submit} submitLabel="Create promotion" />
+      <ModalActions
+        onClose={onClose}
+        onSubmit={submit}
+        submitLabel="Create promotion"
+        disabled={(!isPlatformAdmin && !activeShopId) || shopScopeMissingShop}
+      />
     </ModalShell>
   )
 }
@@ -982,6 +1375,9 @@ type PromotionAssetFormModalProps = {
   open: boolean
   mode: AssetMode
   kind: ManagementTab
+  isPlatformAdmin: boolean
+  activeShopId: string | null | undefined
+  activeShopName: string | undefined
   form: AssetFormState
   saving: boolean
   promotions: PromotionListItem[]
@@ -994,6 +1390,9 @@ const PromotionAssetFormModal = ({
   open,
   mode,
   kind,
+  isPlatformAdmin,
+  activeShopId,
+  activeShopName,
   form,
   saving,
   promotions,
@@ -1001,17 +1400,121 @@ const PromotionAssetFormModal = ({
   onChange,
   onSubmit,
 }: PromotionAssetFormModalProps) => {
+  const [targetCatalogProducts, setTargetCatalogProducts] = useState<PromotionTargetCatalogProduct[]>([])
+  const [targetCatalogLoading, setTargetCatalogLoading] = useState(false)
+  const [targetCatalogError, setTargetCatalogError] = useState<string | null>(null)
+  const selectedPromotion = promotions.find((promotion) => promotion.id === form.promotionId)
+  const requiredTargetType = targetTypeForScope(selectedPromotion?.record.scope)
+  const targetShopId = selectedPromotion?.record.shop_id ?? undefined
+
+  useEffect(() => {
+    if (
+      !open ||
+      kind !== 'targets' ||
+      !requiredTargetType ||
+      requiredTargetType === 'SHOP'
+    ) {
+      setTargetCatalogProducts([])
+      setTargetCatalogError(null)
+      setTargetCatalogLoading(false)
+      return
+    }
+
+    let cancelled = false
+    setTargetCatalogProducts([])
+    setTargetCatalogLoading(true)
+    setTargetCatalogError(null)
+    promotionApi.listTargetCatalogProducts(targetShopId)
+      .then((products) => {
+        if (!cancelled) setTargetCatalogProducts(products)
+      })
+      .catch(() => {
+        if (!cancelled) setTargetCatalogError('Could not load this shop’s catalog options.')
+      })
+      .finally(() => {
+        if (!cancelled) setTargetCatalogLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [kind, open, requiredTargetType, targetShopId])
+
   if (!open) return null
 
-  const singular = kind.slice(0, -1)
+  const singular = ASSET_SINGULAR_LABELS[kind]
   const title = mode === 'create' ? `Create ${singular}` : `Edit ${singular}`
+  const invalidReward = kind === 'rewards' && (
+    form.rewardType === 'PERCENTAGE' ? !form.percentage :
+      form.rewardType === 'FIXED_AMOUNT' ? !form.fixedAmount : false
+  )
+  const invalidCondition = kind === 'conditions' && (
+    form.conditionType === 'MINIMUM_ORDER_AMOUNT'
+      ? !form.conditionAmount || !Number.isFinite(Number(form.conditionAmount))
+      : form.conditionType === 'USER_SHOP_MEMBER'
+        ? !form.conditionUserId.trim() || !form.conditionShopId.trim()
+        : parseJsonObject(form.value) === null
+  )
+  const conditionValuePreview = form.conditionType === 'MINIMUM_ORDER_AMOUNT'
+    ? { amount: form.conditionAmount === '' ? '' : Number(form.conditionAmount) }
+    : form.conditionType === 'USER_SHOP_MEMBER'
+      ? {
+          user_id: form.conditionUserId,
+          shop_id: form.conditionShopId,
+        }
+      : parseJsonObject(form.value) ?? {}
+  const knownConditionTypes = ['MINIMUM_ORDER_AMOUNT', 'USER_SHOP_MEMBER']
+  const conditionOperators = form.conditionType === 'MINIMUM_ORDER_AMOUNT'
+    ? [{ value: 'GTE', label: 'At least' }]
+    : form.conditionType === 'USER_SHOP_MEMBER'
+      ? [{ value: 'EQ', label: 'User and shop match' }]
+      : [{ value: form.operator, label: form.operator }]
+  const invalidCode = kind === 'codes' && !form.code.trim()
+  const invalidUsageLimit = kind === 'usageLimits' && (
+    form.limitType === 'SHOP_BUDGET' ? !form.maxAmount : !form.maxCount
+  )
+  const invalidTarget = kind === 'targets' && (
+    !requiredTargetType ||
+    form.targetType !== requiredTargetType ||
+    !form.targetId ||
+    (requiredTargetType === 'SHOP' && form.targetId !== selectedPromotion?.record.shop_id)
+  )
+  const targetOptions = requiredTargetType === 'PRODUCT'
+    ? targetCatalogProducts.map((product) => ({ id: product.id, label: product.name }))
+    : requiredTargetType === 'CATEGORY'
+      ? Array.from(new Map(
+          targetCatalogProducts.flatMap((product) => {
+            const id = product.category?.id ?? product.categoryId
+            if (!id) return []
+            return [[id, product.category?.name || id] as const]
+          }),
+        )).map(([id, label]) => ({ id, label }))
+      : []
+  const searchableTargetOptions = targetOptions
+    .sort((left, right) => left.label.localeCompare(right.label))
+    .map((option) => ({ value: option.id, label: option.label }))
+  if (form.targetId && !searchableTargetOptions.some((option) => option.value === form.targetId)) {
+    searchableTargetOptions.push({ value: form.targetId, label: form.targetId })
+  }
 
   return (
     <ModalShell title={title} eyebrow="Promotion building block" onClose={onClose}>
       <FormField label="Promotion">
         <select
           value={form.promotionId}
-          onChange={(event) => onChange('promotionId', event.target.value)}
+          onChange={(event) => {
+            const promotionId = event.target.value
+            const promotion = promotions.find((item) => item.id === promotionId)
+            onChange('promotionId', promotionId)
+            if (kind === 'targets') {
+              const targetType = targetTypeForScope(promotion?.record.scope)
+              onChange('targetType', targetType ?? 'PRODUCT')
+              onChange(
+                'targetId',
+                targetType === 'SHOP' ? promotion?.record.shop_id ?? '' : '',
+              )
+            }
+          }}
           className={INPUT_CLASS}
         >
           <option value="">Select a promotion</option>
@@ -1044,6 +1547,7 @@ const PromotionAssetFormModal = ({
                 max="100"
                 value={form.percentage}
                 onChange={(event) => onChange('percentage', event.target.value)}
+                placeholder="e.g. 10"
                 disabled={form.rewardType !== 'PERCENTAGE'}
                 className={INPUT_CLASS}
               />
@@ -1054,6 +1558,7 @@ const PromotionAssetFormModal = ({
                 min="0"
                 value={form.fixedAmount}
                 onChange={(event) => onChange('fixedAmount', event.target.value)}
+                placeholder="e.g. 25"
                 disabled={form.rewardType !== 'FIXED_AMOUNT'}
                 className={INPUT_CLASS}
               />
@@ -1064,6 +1569,7 @@ const PromotionAssetFormModal = ({
                 min="0"
                 value={form.maxDiscount}
                 onChange={(event) => onChange('maxDiscount', event.target.value)}
+                placeholder="No limit"
                 className={INPUT_CLASS}
               />
             </FormField>
@@ -1075,52 +1581,238 @@ const PromotionAssetFormModal = ({
         <>
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField label="Condition type">
-              <input
+              <select
                 value={form.conditionType}
-                onChange={(event) => onChange('conditionType', event.target.value)}
+                onChange={(event) => {
+                  const nextType = event.target.value
+                  onChange('conditionType', nextType)
+                  if (nextType === 'MINIMUM_ORDER_AMOUNT') onChange('operator', 'GTE')
+                  if (nextType === 'USER_SHOP_MEMBER') onChange('operator', 'EQ')
+                }}
                 className={INPUT_CLASS}
-              />
+              >
+                {!knownConditionTypes.includes(form.conditionType) && (
+                  <option value={form.conditionType}>{form.conditionType} (legacy)</option>
+                )}
+                <option value="MINIMUM_ORDER_AMOUNT">Minimum order amount</option>
+                <option value="USER_SHOP_MEMBER">Specific customer and shop</option>
+              </select>
             </FormField>
             <FormField label="Operator">
-              <input
+              <select
                 value={form.operator}
                 onChange={(event) => onChange('operator', event.target.value)}
                 className={INPUT_CLASS}
-              />
+              >
+                {!conditionOperators.some(({ value }) => value === form.operator) && (
+                  <option value={form.operator}>{form.operator} (saved value)</option>
+                )}
+                {conditionOperators.map((operator) => (
+                  <option key={operator.value} value={operator.value}>{operator.label}</option>
+                ))}
+              </select>
             </FormField>
           </div>
-          <FormField label="Value (JSONB)">
-            <textarea
-              value={form.value}
-              onChange={(event) => onChange('value', event.target.value)}
-              rows={5}
-              className={`${INPUT_CLASS} font-mono text-xs`}
-            />
-          </FormField>
+          {form.conditionType === 'MINIMUM_ORDER_AMOUNT' && (
+            <FormField label="Minimum order subtotal">
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.conditionAmount}
+                onChange={(event) => onChange('conditionAmount', event.target.value)}
+                placeholder="e.g. 100"
+                required
+                className={INPUT_CLASS}
+              />
+            </FormField>
+          )}
+          {form.conditionType === 'USER_SHOP_MEMBER' && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField label="Customer user ID">
+                <input
+                  value={form.conditionUserId}
+                  onChange={(event) => onChange('conditionUserId', event.target.value)}
+                  placeholder="Customer UUID"
+                  required
+                  className={INPUT_CLASS}
+                />
+              </FormField>
+              <FormField label={isPlatformAdmin ? 'Shop ID' : 'Shop'}>
+                <input
+                  value={isPlatformAdmin ? form.conditionShopId : activeShopName || 'Your shop'}
+                  onChange={(event) => onChange('conditionShopId', event.target.value)}
+                  placeholder="Shop UUID"
+                  readOnly={!isPlatformAdmin}
+                  aria-readonly={!isPlatformAdmin}
+                  required
+                  className={INPUT_CLASS}
+                />
+              </FormField>
+            </div>
+          )}
+          {!knownConditionTypes.includes(form.conditionType) && (
+            <FormField label="Value (JSONB)">
+              <textarea
+                value={form.value}
+                onChange={(event) => onChange('value', event.target.value)}
+                rows={4}
+                placeholder='{"key":"value"}'
+                className={`${INPUT_CLASS} font-mono text-xs`}
+              />
+            </FormField>
+          )}
+          <div className="rounded-lg bg-slate-50 p-3">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Value saved to JSONB</p>
+            <pre className="mt-2 overflow-x-auto text-xs text-slate-700">{JSON.stringify(conditionValuePreview, null, 2)}</pre>
+          </div>
         </>
       )}
 
       {kind === 'targets' && (
         <>
-          <FormField label="Target type">
-            <select
-              value={form.targetType}
-              onChange={(event) => onChange('targetType', event.target.value as TargetType)}
-              className={INPUT_CLASS}
-            >
-              {['PRODUCT', 'CATEGORY', 'BRAND', 'SHOP'].map((value) => (
-                <option key={value} value={value}>{value}</option>
-              ))}
-            </select>
-          </FormField>
-          <FormField label="Target ID">
+          {!requiredTargetType ? (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+              {selectedPromotion?.scope} promotions apply to the order or shipping total and do not use catalog targets.
+            </div>
+          ) : (
+            <>
+              <FormField label="Target type (matched to promotion scope)">
+                <input value={requiredTargetType} readOnly className={INPUT_CLASS} />
+              </FormField>
+              {requiredTargetType === 'SHOP' ? (
+                <FormField label="Promotion shop">
+                  <input
+                    value={selectedPromotion?.record.shop_id
+                      ? selectedPromotion.record.shop_id === activeShopId
+                        ? activeShopName || selectedPromotion.record.shop_id
+                        : selectedPromotion.record.shop_id
+                      : 'Choose a shop on the promotion first'}
+                    readOnly
+                    className={INPUT_CLASS}
+                  />
+                  <span className="mt-1 block font-normal text-slate-500">
+                    A SHOP target is automatically set to the shop selected on the promotion.
+                  </span>
+                </FormField>
+              ) : (
+                <FormField label={`Target ${requiredTargetType.toLowerCase()}`}>
+                  <SearchableSelect
+                    value={form.targetId}
+                    onChange={(value) => onChange('targetId', value)}
+                    options={searchableTargetOptions}
+                    mode="search-and-scroll"
+                    placeholder={`Search ${requiredTargetType.toLowerCase()}s…`}
+                    emptyLabel={`Select ${requiredTargetType.toLowerCase()}`}
+                    searchAriaLabel={`Search ${requiredTargetType.toLowerCase()}s in this shop`}
+                    loading={targetCatalogLoading}
+                    disabled={Boolean(targetCatalogError)}
+                  />
+                  {targetCatalogError ? (
+                    <span className="mt-1 block font-normal text-rose-600">{targetCatalogError}</span>
+                  ) : !targetCatalogLoading && targetOptions.length === 0 ? (
+                    <span className="mt-1 block font-normal text-slate-500">
+                      No {requiredTargetType.toLowerCase()}s with products in this promotion’s shop.
+                    </span>
+                  ) : null}
+                </FormField>
+              )}
+            </>
+          )}
+        </>
+      )}
+
+      {kind === 'codes' && (
+        <>
+          <FormField label="Promo code">
             <input
-              value={form.targetId}
-              onChange={(event) => onChange('targetId', event.target.value)}
-              placeholder="UUID"
+              value={form.code}
+              onChange={(event) => onChange('code', event.target.value.toUpperCase())}
+              maxLength={64}
+              placeholder="WELCOME10"
+              required
               className={INPUT_CLASS}
             />
           </FormField>
+          {mode === 'edit' && (
+            <FormField label="Status">
+              <select
+                value={form.codeStatus}
+                onChange={(event) => onChange('codeStatus', event.target.value as PromotionCodeStatus)}
+                className={INPUT_CLASS}
+              >
+                <option value="ACTIVE">ACTIVE</option>
+                <option value="DISABLED">DISABLED</option>
+              </select>
+            </FormField>
+          )}
+          <FormField label="Reserved user ID" hint="Optional">
+            <input
+              value={form.reservedByUserId}
+              onChange={(event) => onChange('reservedByUserId', event.target.value)}
+              placeholder="Leave blank for any customer"
+              className={INPUT_CLASS}
+            />
+          </FormField>
+          <FormField label="Expiry" hint="Optional">
+            <input
+              type="datetime-local"
+              value={form.expiresAt}
+              onChange={(event) => onChange('expiresAt', event.target.value)}
+              className={INPUT_CLASS}
+            />
+          </FormField>
+        </>
+      )}
+
+      {kind === 'usageLimits' && (
+        <>
+          <FormField label="Limit type">
+            <select
+              value={form.limitType}
+              onChange={(event) => onChange('limitType', event.target.value as UsageLimitType)}
+              className={INPUT_CLASS}
+            >
+              <option value="PER_USER">PER_USER</option>
+              <option value="GLOBAL">GLOBAL</option>
+              <option value="SHOP_BUDGET">SHOP_BUDGET</option>
+            </select>
+          </FormField>
+          {form.limitType === 'SHOP_BUDGET' ? (
+            <>
+              <FormField label="Maximum discount budget">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.maxAmount}
+                  onChange={(event) => onChange('maxAmount', event.target.value)}
+                  required
+                  className={INPUT_CLASS}
+                />
+              </FormField>
+              <FormField label="Shop ID" hint="Optional scope">
+                <input
+                  value={form.shopId}
+                  onChange={(event) => onChange('shopId', event.target.value)}
+                  placeholder="UUID"
+                  className={INPUT_CLASS}
+                />
+              </FormField>
+            </>
+          ) : (
+            <FormField label="Maximum redemptions">
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={form.maxCount}
+                onChange={(event) => onChange('maxCount', event.target.value)}
+                required
+                className={INPUT_CLASS}
+              />
+            </FormField>
+          )}
         </>
       )}
 
@@ -1128,7 +1820,7 @@ const PromotionAssetFormModal = ({
         onClose={onClose}
         onSubmit={onSubmit}
         submitLabel={saving ? 'Saving…' : mode === 'create' ? `Create ${singular}` : `Save ${singular}`}
-        disabled={saving || !form.promotionId}
+        disabled={saving || !form.promotionId || invalidReward || invalidCondition || invalidCode || invalidUsageLimit || invalidTarget}
       />
     </ModalShell>
   )
