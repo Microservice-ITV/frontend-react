@@ -286,7 +286,6 @@ const DashboardTopbar = ({
   const handleLogout = () => {
     setProfileOpen(false);
     dispatch(logout());
-    navigate("/login");
   };
 
   const formatTimeAgo = (value: string): string => {

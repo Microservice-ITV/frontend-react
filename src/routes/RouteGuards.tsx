@@ -27,12 +27,9 @@ export const GuestRoute = () => {
   // settles; its own request/verify flow determines whether a session is created.
   if (isPhoneAuthRoute) return <Outlet />
 
-  if (isAuthBootstrapping) return <ContentLoading />
-
-  // Keep users on guest pages until profile is loaded; this avoids redirecting
-  // to "/" before role resolution is available right after login.
-  if (isAuthenticated && !authUser) {
-    return <Outlet />
+  // Same account-not-ready wait already used by protected pages.
+  if (isAuthBootstrapping || (isAuthenticated && !authUser)) {
+    return <ContentLoading />
   }
 
   // If user is already logged in:

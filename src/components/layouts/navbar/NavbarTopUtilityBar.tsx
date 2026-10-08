@@ -3,7 +3,7 @@ import { useMemo } from 'react'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { logout } from '@/features/auth/store/authThunks'
 import { extractRoleFromUser } from '@/app/rbac/normalizers'
-import { Sparkles, Tag } from 'lucide-react'
+import { Sparkles, Tag, User } from 'lucide-react'
 import { openAiAssistant } from '@/features/ai/store/aiAssistantSlice'
 
 /** Logged-in buyers: apply to sell. Shop roles: dashboard entry. */
@@ -116,7 +116,6 @@ const NavbarTopUtilityBar = () => {
 
                                 <button
                                     onClick={() => {
-                                        dispatch({ type: 'auth/forceLogout' })
                                         dispatch(logout())
                                     }}
                                     className="w-full text-left px-4 py-3 text-sm hover:bg-gray-100 cursor-pointer"
@@ -126,14 +125,20 @@ const NavbarTopUtilityBar = () => {
                             </div>
                         </div>
                     ) : (
-                        <>
-                            <Link to="/login" className="hover:text-black">
-                                Login
-                            </Link>
-                            <Link to="/register" className="hover:text-black">
-                                Register
-                            </Link>
-                        </>
+                        <div className="flex items-center gap-1.5">
+                            <User className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden />
+                            <span>
+                                <Link to="/login" className="hover:text-black">
+                                    Login
+                                </Link>
+                                <span className="mx-1" aria-hidden>
+                                    /
+                                </span>
+                                <Link to="/register" className="hover:text-black">
+                                    Register
+                                </Link>
+                            </span>
+                        </div>
                     )}
                 </div>
             </div>
