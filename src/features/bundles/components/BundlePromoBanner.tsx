@@ -35,9 +35,10 @@ const BundlePromoBanner = ({ bundles, addingId, onAdd }: BundlePromoBannerProps)
   const missingItems = openBundle?.items.filter((item) => !item.inCart) ?? []
   const selectedMissing = missingItems.filter((item) => selectedIds.includes(item.productId))
 
-  useEffect(() => {
-    setSelectedIds([])
-  }, [openId])
+  const openOffer = (bundle: BundlePromoModel) => {
+    setOpenId(bundle.id)
+    setSelectedIds(bundle.items.filter((item) => !item.inCart).map((item) => item.productId))
+  }
 
   useEffect(() => {
     if (!openBundle) return
@@ -70,7 +71,7 @@ const BundlePromoBanner = ({ bundles, addingId, onAdd }: BundlePromoBannerProps)
             <button
               key={bundle.id}
               type="button"
-              onClick={() => setOpenId(bundle.id)}
+              onClick={() => openOffer(bundle)}
               className="group relative flex w-full items-center justify-between gap-3 overflow-hidden rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-left transition-colors duration-300 hover:border-emerald-300 hover:bg-emerald-100/80 motion-safe:animate-[bundle-offer-in_420ms_ease-out] sm:px-4"
             >
               <span className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/70 to-transparent motion-reduce:hidden motion-safe:animate-[bundle-offer-shine_4.8s_ease-in-out_infinite]" />
