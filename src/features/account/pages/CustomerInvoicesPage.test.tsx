@@ -107,4 +107,35 @@ describe('CustomerInvoicesPage payment slip actions', () => {
       expect(screen.getByText('Submit payment slip')).toBeTruthy()
     })
   })
+
+  it('omits order references from the invoice history', async () => {
+    const invoice = createInvoice()
+    await renderPage(invoice)
+
+    expect(screen.queryByRole('columnheader', { name: 'Order reference' })).toBeNull()
+    expect(screen.queryByText(invoice.orderReference)).toBeNull()
+  })
+
+  it('paginates the invoice history', async () => {
+    const invoices = Array.from({ length: 12 }, (_, index) => createInvoice({
+      id: `invoice-id-${index + 1}`,
+      invoiceNumber: `INV-20261007-${String(index + 1).padStart(6, '0')}`,
+    }))
+    getMyInvoicesMock.mockResolvedValue(invoices)
+    render(
+      <MemoryRouter>
+        <CustomerInvoicesPage />
+      </MemoryRouter>,
+    )
+
+    await screen.findAllByRole('link', { name: invoices[9].invoiceNumber })
+    expect(screen.queryByRole('link', { name: invoices[10].invoiceNumber })).toBeNull()
+    expect(screen.getByText('Showing 1-10 of 12 invoices')).toBeTruthy()
+
+    screen.getByRole('button', { name: 'Next' }).click()
+
+    await screen.findAllByRole('link', { name: invoices[10].invoiceNumber })
+    expect(screen.queryByRole('link', { name: invoices[0].invoiceNumber })).toBeNull()
+    expect(screen.getByText('Showing 11-12 of 12 invoices')).toBeTruthy()
+  })
 })
