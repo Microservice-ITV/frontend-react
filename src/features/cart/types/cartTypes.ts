@@ -10,6 +10,8 @@ export interface CartItem {
     image?: string
     price: number
     quantity: number
+    /** Units that can still be purchased for this variant. */
+    availableStock?: number
 
     // flash-deal promo origin (present only for flash-deal cart lines)
     flashDealId?: string

@@ -1,21 +1,41 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { productClient } from '@/lib/api/productClient'
 import type { ProductVariant } from '@/features/products/types/productTypes'
 
-function uniqByColor(variants: ProductVariant[]): ProductVariant[] {
+type SizeOption = { id: string; code: string; name: string }
+
+function isPlaceholderSize(code: string, name: string): boolean {
+    const key = (code || name).trim().toUpperCase()
+    return key === 'DEF' || key === 'DEFAULT'
+}
+
+function hasLabel(value: string | undefined | null): boolean {
+    return Boolean(value?.trim())
+}
+
+function sizeButtonClass(onProduct: boolean, outOfStock: boolean, active: boolean): string {
+    const tone = !onProduct || outOfStock ? 'text-gray-300' : 'text-gray-900'
+    const border = active ? 'relative z-10 border-gray-800' : 'border-gray-200'
+    const hover = onProduct && !active ? 'hover:border-gray-300' : ''
+    const cursor = onProduct ? 'cursor-pointer' : 'cursor-not-allowed'
+    return `flex h-12 w-16 shrink-0 items-center justify-center border bg-white text-sm ${cursor} ${tone} ${border} ${hover}`
+}
+
+function uniqBySize(variants: ProductVariant[]): ProductVariant[] {
     const seen = new Set<string>()
     return variants.filter((v) => {
-        if (seen.has(v.colorId)) return false
-        seen.add(v.colorId)
+        if (seen.has(v.sizeId)) return false
+        seen.add(v.sizeId)
         return true
     })
 }
 
-function uniqBySizeForColor(variants: ProductVariant[], colorId: string): ProductVariant[] {
-    const rows = variants.filter((v) => v.colorId === colorId)
+function uniqByColorForSize(variants: ProductVariant[], sizeId: string): ProductVariant[] {
+    const rows = variants.filter((v) => v.sizeId === sizeId)
     const seen = new Set<string>()
     return rows.filter((v) => {
-        if (seen.has(v.sizeId)) return false
-        seen.add(v.sizeId)
+        if (seen.has(v.colorId)) return false
+        seen.add(v.colorId)
         return true
     })
 }
@@ -36,6 +56,24 @@ export function variantDisplayLabel(v: ProductVariant): string {
     return 'Option'
 }
 
+function HoverTip({ label, className, children }: { label: string; className?: string; children: ReactNode }) {
+    return (
+        <span className={['group/tip relative inline-flex', className].filter(Boolean).join(' ')}>
+            {children}
+            <span
+                role="tooltip"
+                className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover/tip:opacity-100"
+            >
+                {label}
+                <span
+                    className="absolute left-1/2 top-full -translate-x-1/2 border-x-4 border-t-4 border-x-transparent border-t-gray-800"
+                    aria-hidden
+                />
+            </span>
+        </span>
+    )
+}
+
 function SelectedCheck() {
     return (
         <span
@@ -45,6 +83,61 @@ function SelectedCheck() {
             ✓
         </span>
     )
+}
+
+const SWATCH_ALIASES: Record<string, string> = {
+    navy: '#000080',
+    offwhite: '#f4f1ea',
+    cream: '#fffdd0',
+    ivory: '#fffff0',
+    beige: '#f5f5dc',
+    burgundy: '#800020',
+    maroon: '#800000',
+    teal: '#008080',
+    olive: '#808000',
+    gold: '#d4af37',
+    silver: '#c0c0c0',
+    grey: '#808080',
+    gray: '#808080',
+}
+
+const CSS_COLOR_NAMES = new Set([
+    'white', 'black', 'red', 'blue', 'green', 'yellow', 'orange', 'pink', 'purple',
+    'brown', 'navy', 'gray', 'grey', 'beige', 'gold', 'silver', 'maroon', 'teal',
+    'cyan', 'magenta', 'lime', 'aqua', 'coral', 'ivory', 'khaki', 'tan', 'salmon',
+    'indigo', 'violet', 'turquoise', 'chocolate', 'crimson', 'lavender', 'lightblue',
+    'lightgreen', 'lightgray', 'lightgrey', 'darkblue', 'darkgreen', 'darkred',
+    'darkgray', 'darkgrey', 'skyblue',
+])
+
+const LIGHT_SWATCHES = new Set([
+    'white', 'ivory', 'cream', 'beige', 'yellow', 'khaki', 'lightyellow', 'snow',
+    'offwhite', '#ffffff', '#fff', '#fffff0', '#fffdd0', '#f4f1ea', '#f5f5dc', '#c0c0c0',
+])
+
+/** Paint a circle from the color name. Codes like WHT are not CSS colors. */
+function swatchColor(name: string, code: string): string {
+    const trimmedCode = code.trim()
+    if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(trimmedCode)) return trimmedCode
+    const key = name.trim().toLowerCase().replace(/[\s_-]+/g, '')
+    if (SWATCH_ALIASES[key]) return SWATCH_ALIASES[key]
+    if (CSS_COLOR_NAMES.has(key)) return key
+    if (!key) return '#d1d5db'
+    let hash = 0
+    for (let i = 0; i < key.length; i += 1) hash = key.charCodeAt(i) + ((hash << 5) - hash)
+    return `hsl(${Math.abs(hash) % 360} 42% 46%)`
+}
+
+function isLightSwatch(color: string): boolean {
+    const value = color.toLowerCase()
+    if (LIGHT_SWATCHES.has(value)) return true
+    const hex = value.match(/^#([0-9a-f]{6})$/)
+    if (!hex) return false
+    const n = Number.parseInt(hex[1], 16)
+    const r = (n >> 16) & 255
+    const g = (n >> 8) & 255
+    const b = n & 255
+    return (r * 299 + g * 587 + b * 114) / 1000 > 180
 }
 
 type Props = {
@@ -59,7 +152,8 @@ type Props = {
 }
 
 /**
- * Shopee-style Color / Size rows, or a fallback "Option" row when SKUs share empty/duplicate dimension IDs.
+ * Color and Size rows stay visible even when a product has only one of each.
+ * Falls back to an Option row when SKUs have no color or size names.
  * Single source of truth: `selectedVariantId`.
  */
 const ProductVariantSelector = ({
@@ -74,11 +168,38 @@ const ProductVariantSelector = ({
         [variants],
     )
     const [selectedVariantId, setSelectedVariantId] = useState('')
+    const [catalogSizes, setCatalogSizes] = useState<SizeOption[]>([])
+
+    useEffect(() => {
+        let cancelled = false
+        productClient
+            .get<{ data?: Array<{ id?: string; code?: string; name?: string }> }>('/sizes', {
+                params: { limit: 100 },
+            })
+            .then((res) => {
+                if (cancelled) return
+                const rows = Array.isArray(res.data?.data) ? res.data.data : []
+                setCatalogSizes(
+                    rows
+                        .filter((size) => Boolean(size.id))
+                        .map((size) => ({
+                            id: size.id as string,
+                            code: size.code ?? '',
+                            name: size.name ?? '',
+                        })),
+                )
+            })
+            .catch(() => {
+                if (!cancelled) setCatalogSizes([])
+            })
+        return () => {
+            cancelled = true
+        }
+    }, [])
 
     // Reset when navigating products or when the SKU set changes (use variantSig, not variants ref)
     useEffect(() => {
-        const def = pickDefaultVariant(variants)
-        setSelectedVariantId(def?.variantId ?? '')
+        setSelectedVariantId(pickDefaultVariant(variants)?.variantId ?? '')
         // eslint-disable-next-line react-hooks/exhaustive-deps -- variants identity changes every render; variantSig is the stable fingerprint
     }, [productId, variantSig])
 
@@ -96,48 +217,64 @@ const ProductVariantSelector = ({
         }
     }, [selected, selectedVariantId])
 
+    const sizeOptions = useMemo(() => {
+        const byId = new Map<string, SizeOption>()
+        const ordered: SizeOption[] = []
+        for (const size of catalogSizes) {
+            if (isPlaceholderSize(size.code, size.name)) continue
+            byId.set(size.id, size)
+            ordered.push(size)
+        }
+        for (const variant of uniqBySize(variants)) {
+            if (byId.has(variant.sizeId) || isPlaceholderSize(variant.sizeCode || '', variant.sizeName || '')) continue
+            ordered.push({
+                id: variant.sizeId,
+                code: variant.sizeCode || '',
+                name: variant.sizeName || '',
+            })
+        }
+        return ordered
+    }, [catalogSizes, variants])
+    const currentSizeId = selected?.sizeId ?? ''
+
     const lastEmitted = useRef<string | undefined>(undefined)
     useEffect(() => {
         const id = selected?.variantId
         if (id === lastEmitted.current) return
         lastEmitted.current = id
         onVariantChange(selected ?? null)
-    }, [selected, onVariantChange])
-
-    const colorOptions = useMemo(() => uniqByColor(variants), [variants])
-    const currentColorId = selected?.colorId ?? ''
-    const sizeOptions = useMemo(
-        () => (currentColorId ? uniqBySizeForColor(variants, currentColorId) : []),
-        [variants, currentColorId],
+    }, [onVariantChange, selected])
+    const colorOptions = useMemo(
+        () => (currentSizeId ? uniqByColorForSize(variants, currentSizeId) : []),
+        [variants, currentSizeId],
     )
 
-    const showColor = colorOptions.length > 1
-    const showSize = sizeOptions.length > 1
+    const showColor = colorOptions.some((v) => hasLabel(v.colorName) || hasLabel(v.colorCode))
+    const showSize = sizeOptions.some((size) => hasLabel(size.name) || hasLabel(size.code))
     const showFallback = variants.length > 1 && !showColor && !showSize
 
     const handleColor = (nextColorId: string) => {
-        const withColor = variants.filter((v) => v.colorId === nextColorId)
-        if (withColor.length === 0) return
-        const cur = variants.find((v) => v.variantId === selectedVariantId)
-        const preferSize = cur?.sizeId
-        const sameSize =
-            preferSize &&
-            withColor.find((v) => v.sizeId === preferSize && v.shopStock > 0)
-        const pick = sameSize ?? pickDefaultVariant(withColor) ?? withColor[0]
+        const matches = variants.filter(
+            (v) => v.colorId === nextColorId && (!currentSizeId || v.sizeId === currentSizeId),
+        )
+        if (matches.length === 0) return
+        const pick = pickDefaultVariant(matches) ?? matches[0]
         setSelectedVariantId(pick.variantId)
     }
 
     const handleSize = (nextSizeId: string) => {
-        const cur = variants.find((v) => v.variantId === selectedVariantId) ?? pickDefaultVariant(variants)
-        if (!cur) return
-        const match =
-            variants.find(
-                (v) => v.colorId === cur.colorId && v.sizeId === nextSizeId && v.shopStock > 0,
-            ) ?? variants.find((v) => v.colorId === cur.colorId && v.sizeId === nextSizeId)
-        if (match) setSelectedVariantId(match.variantId)
+        const withSize = variants.filter((v) => v.sizeId === nextSizeId)
+        if (withSize.length === 0) return
+        const cur = variants.find((v) => v.variantId === selectedVariantId)
+        const preferColor = cur?.colorId
+        const sameColor =
+            preferColor &&
+            withSize.find((v) => v.colorId === preferColor && v.shopStock > 0)
+        const pick = sameColor || pickDefaultVariant(withSize) || withSize[0]
+        setSelectedVariantId(pick.variantId)
     }
 
-    if (variants.length <= 1) {
+    if (!showColor && !showSize && !showFallback) {
         return null
     }
 
@@ -197,58 +334,97 @@ const ProductVariantSelector = ({
                 </div>
             )}
 
-            {showColor && (
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-4">
-                    <span className="w-20 shrink-0 pt-2 text-gray-500 sm:w-24">Color</span>
-                    <div className="flex flex-wrap gap-2">
-                        {colorOptions.map((v) => {
-                            const anyInColor = variants.some(
-                                (x) => x.colorId === v.colorId && x.shopStock > 0,
-                            )
-                            const disabled = !anyInColor
-                            const active = v.colorId === selected?.colorId
-                            const label = v.colorName || v.colorCode || 'Option'
+            {showSize && (
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+                    <span className="w-20 shrink-0 text-sm font-medium text-gray-900 sm:w-24">Size:</span>
+                    <div className="inline-flex max-w-full flex-nowrap overflow-x-auto">
+                        {sizeOptions.map((size) => {
+                            const onProduct = variants.some((x) => x.sizeId === size.id)
+                            const outOfStock =
+                                onProduct &&
+                                !variants.some((x) => x.sizeId === size.id && x.shopStock > 0)
+                            const active = onProduct && size.id === currentSizeId
+                            const label = size.code.trim() || size.name.trim() || 'Size'
+                            const tip = size.name.trim() || label
                             return (
-                                <button
-                                    key={v.colorId}
-                                    type="button"
-                                    disabled={disabled}
-                                    onClick={() => !disabled && handleColor(v.colorId)}
-                                    className={pillClass(active, disabled)}
+                                <HoverTip
+                                    key={size.id}
+                                    label={tip}
+                                    className="-ml-px first:ml-0"
                                 >
-                                    {thumb(v)}
-                                    <span className="max-w-[200px] text-left leading-tight">{label}</span>
-                                    {active && !disabled ? <SelectedCheck /> : null}
-                                </button>
+                                    <button
+                                        type="button"
+                                        disabled={!onProduct}
+                                        aria-label={tip}
+                                        aria-pressed={active}
+                                        onClick={() => handleSize(size.id)}
+                                        className={sizeButtonClass(onProduct, outOfStock, active)}
+                                    >
+                                        {label}
+                                    </button>
+                                </HoverTip>
                             )
                         })}
                     </div>
                 </div>
             )}
 
-            {showSize && (
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-4">
-                    <span className="w-20 shrink-0 pt-2 text-gray-500 sm:w-24">Size</span>
-                    <div className="flex flex-wrap gap-2">
-                        {sizeOptions.map((v) => {
-                            const disabled = v.shopStock <= 0
-                            const active = v.sizeId === selected?.sizeId
-                            const label = v.sizeName || v.sizeCode || 'Size'
+            {showColor && (
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+                    <span className="w-20 shrink-0 text-sm font-medium text-gray-900 sm:w-24">Color:</span>
+                    <div className="flex flex-wrap items-center gap-3">
+                        {colorOptions.map((v) => {
+                            const anyInColor = variants.some(
+                                (x) =>
+                                    x.colorId === v.colorId &&
+                                    x.sizeId === currentSizeId &&
+                                    x.shopStock > 0,
+                            )
+                            const disabled = !anyInColor
+                            const active = v.colorId === selected?.colorId && selected?.sizeId === currentSizeId
+                            const label = v.colorName || v.colorCode || 'Option'
+                            const fill = swatchColor(v.colorName, v.colorCode)
+                            const light = isLightSwatch(fill)
                             return (
-                                <button
-                                    key={`${v.colorId}-${v.sizeId}`}
-                                    type="button"
-                                    disabled={disabled}
-                                    onClick={() => !disabled && handleSize(v.sizeId)}
-                                    className={pillClass(active, disabled)}
-                                >
-                                    {label}
-                                    {active && !disabled ? <SelectedCheck /> : null}
-                                </button>
+                                <HoverTip key={v.colorId} label={label}>
+                                    <button
+                                        type="button"
+                                        disabled={disabled}
+                                        aria-label={label}
+                                        aria-pressed={active}
+                                        onClick={() => !disabled && handleColor(v.colorId)}
+                                        className={[
+                                            'relative h-8 w-8 rounded-full border transition',
+                                            light ? 'border-gray-300' : 'border-transparent',
+                                            disabled
+                                                ? 'cursor-not-allowed opacity-40'
+                                                : 'cursor-pointer',
+                                            active && !disabled
+                                                ? 'ring-2 ring-gray-400 ring-offset-2'
+                                                : '',
+                                        ].join(' ')}
+                                        style={{ backgroundColor: fill }}
+                                    >
+                                        {active && !disabled ? (
+                                            <span
+                                                className={`pointer-events-none absolute inset-0 flex items-center justify-center text-sm font-bold leading-none ${
+                                                    light ? 'text-gray-900' : 'text-white'
+                                                }`}
+                                                aria-hidden
+                                            >
+                                                ✓
+                                            </span>
+                                        ) : null}
+                                    </button>
+                                </HoverTip>
                             )
                         })}
                     </div>
                 </div>
+            )}
+
+            {showSize && !showColor && (
+                <p className="text-sm text-gray-500">No color available for this size.</p>
             )}
         </div>
     )

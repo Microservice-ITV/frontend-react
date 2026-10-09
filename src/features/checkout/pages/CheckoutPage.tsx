@@ -8,6 +8,7 @@ import CheckoutSummary from '../components/CheckoutSummary'
 import CheckoutSummarySkeleton from '../components/CheckoutSummarySkeleton'
 import { SagaStatusDisplay } from '../components/SagaStatusDisplay'
 import { selectSelectedItems } from '@/features/cart/store/cartSelectors'
+import { useSyncCartAvailableStock } from '@/features/cart/hooks/useSyncCartAvailableStock'
 import { calculateCheckout } from '../utils/checkoutCalculator'
 import { checkoutCart, fetchCheckoutStatus, fetchSagaStatus } from '@/features/checkout/store/checkoutThunks'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -26,9 +27,10 @@ import { fetchUserAddresses } from '@/features/account/store/accountThunks'
 import { NewAddressModal } from '@/features/account/components/NewAddressModal'
 import type { UserAddress } from '@/features/account/types/addressTypes'
 import { clearShippingCalculate } from '@/features/shipping/store/shippingSlice'
-import { fetchCheckoutShippingCalculation } from '@/features/shipping/store/shippingThunks'
+import { fetchCheckoutShippingCalculation, fetchShopProfilesForCurrentCart } from '@/features/shipping/store/shippingThunks'
 import { useCheckoutDeliveryCompany } from '@/features/shipping/hooks/useCheckoutDeliveryCompany'
 import { hasConfirmedStock, isStockReadinessConfirmed } from '../utils/checkoutStatus'
+import { checkoutHasNoDeliveryRoute } from '../utils/deliveryReadiness'
 
 type StoredCheckoutSession = {
     checkoutId: string
@@ -38,10 +40,10 @@ type StoredCheckoutSession = {
 
 const terminalCheckoutStatuses = new Set(['PAID', 'COMPLETED', 'FAILED', 'FAILED_STOCK', 'FAILED_PAYMENT', 'EXPIRED'])
 const terminalSagaStatuses = new Set(['COMPLETED', 'FAILED', 'TIMEOUT'])
-const noShopRoutes: { shopId: string; fromDistrictId: string; toDistrictId: string }[] = []
 
 const CheckoutPage = () => {
     const dispatch = useAppDispatch()
+    useSyncCartAvailableStock()
     const navigate = useNavigate()
     const { openModal, closeModal } = useGlobalModal()
     const authUser = useAppSelector(selectAuthUser)
@@ -52,6 +54,7 @@ const CheckoutPage = () => {
     const [hasResolvedInitialAddressFetch, setHasResolvedInitialAddressFetch] = useState(false)
     const [checkoutSessionBootstrapped, setCheckoutSessionBootstrapped] = useState(false)
     const [stockConfirmedSessionKey, setStockConfirmedSessionKey] = useState<string | null>(null)
+    const [checkoutPreparationTimedOut, setCheckoutPreparationTimedOut] = useState(false)
     const hasAutoPromptedRef = useRef(false)
 
     // Only grab selected items for checkout
@@ -90,7 +93,22 @@ const CheckoutPage = () => {
         () => [...new Set(items.map((item) => item.shopId).filter(Boolean))],
         [items],
     )
-    const deliveryCompany = useCheckoutDeliveryCompany(shopIds, noShopRoutes)
+    const profilesByShopId = useAppSelector((state) => state.shipping.profilesByShopId)
+    const shopRoutes = useMemo(
+        () => shopIds.map((shopId) => ({
+            shopId,
+            fromDistrictId: profilesByShopId[shopId]?.districtId?.trim() ?? '',
+            toDistrictId: selectedDeliveryAddress?.district_id != null
+                ? String(selectedDeliveryAddress.district_id)
+                : '',
+        })),
+        [profilesByShopId, selectedDeliveryAddress?.district_id, shopIds],
+    )
+    const deliveryCompany = useCheckoutDeliveryCompany(shopIds, shopRoutes)
+    useEffect(() => {
+        if (shopIds.length === 0) return
+        void dispatch(fetchShopProfilesForCurrentCart())
+    }, [dispatch, shopIds])
     const quotableCompanyByShopId = useMemo(() => {
         const next: Record<string, string> = {}
         for (const shopId of shopIds) {
@@ -102,6 +120,13 @@ const CheckoutPage = () => {
         return next
     }, [deliveryCompany.companyByShopId, deliveryCompany.unavailableCompanyIdsByShop, shopIds])
     const hasQuotableCompany = Object.keys(quotableCompanyByShopId).length > 0
+    const deliveryQuotePendingConfirmation = checkoutHasNoDeliveryRoute({
+        shopIds,
+        companiesCount: deliveryCompany.companies.length,
+        unavailableCompanyIdsByShop: deliveryCompany.unavailableCompanyIdsByShop,
+        loading: deliveryCompany.loading,
+        routesReady: deliveryCompany.routesReady,
+    })
 
     const shippingCalculateCacheKey = useMemo(() => {
         if (!selectedDeliveryAddress?.address_id || !hasQuotableCompany) return ''
@@ -122,6 +147,33 @@ const CheckoutPage = () => {
         paymentStatus,
         confirmedReadinessKey: stockConfirmedSessionKey,
     })
+
+    useEffect(() => {
+        setCheckoutPreparationTimedOut(false)
+
+        if (
+            !currentCheckout?.checkout_id ||
+            isStockReady ||
+            checkoutError ||
+            (paymentStatus != null && paymentStatus !== 'PENDING_STOCK')
+        ) {
+            return
+        }
+
+        const timeoutId = window.setTimeout(() => {
+            setCheckoutPreparationTimedOut(true)
+        }, 20_000)
+
+        return () => window.clearTimeout(timeoutId)
+    }, [currentCheckout?.checkout_id, checkoutError, isStockReady, paymentStatus])
+
+    const retryCheckoutPreparation = useCallback(() => {
+        if (checkoutStorageKey) {
+            sessionStorage.removeItem(checkoutStorageKey)
+        }
+        setCheckoutPreparationTimedOut(false)
+        dispatch(clearCheckout())
+    }, [checkoutStorageKey, dispatch])
 
     const refreshAddresses = useCallback(async () => {
         if (!authUser?.id) return
@@ -533,11 +585,23 @@ const CheckoutPage = () => {
                                     onRequireAddress={openAddressSelectionModal}
                                     deliveryAddress={selectedDeliveryAddress}
                                     cartItems={items}
+                                    deliveryQuotePendingConfirmation={deliveryQuotePendingConfirmation}
                                     deliveryCompanyIdByShopId={deliveryCompany.companyByShopId}
                                 />
                             ) : checkoutError ? (
                                 <div role="alert" className="rounded-sm border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                                     {checkoutError}
+                                </div>
+                            ) : checkoutPreparationTimedOut ? (
+                                <div role="alert" className="rounded-sm border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                                    <p>Checkout preparation is taking longer than expected.</p>
+                                    <button
+                                        type="button"
+                                        onClick={retryCheckoutPreparation}
+                                        className="mt-3 rounded bg-emerald-600 px-4 py-2 font-medium text-white hover:bg-emerald-700"
+                                    >
+                                        Retry checkout
+                                    </button>
                                 </div>
                             ) : (
                                 <CheckoutSummarySkeleton />

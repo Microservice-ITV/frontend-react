@@ -13,10 +13,21 @@ export function sanitizeUnsignedDecimalInput(raw: string, maxDecimals: number): 
   return intPart + '.' + frac
 }
 
-/** Base price: money, typically 2 decimal places. */
+/** Seller price fields: up to 9999999, with at most 2 decimal places. */
+const MAX_MONEY = 9_999_999
+const MAX_MONEY_DIGITS = 7
+
 export function sanitizeMoneyInput(raw: string): string {
   let s = sanitizeUnsignedDecimalInput(raw, 2)
   if (s.startsWith('.')) s = `0${s}`
+  const dot = s.indexOf('.')
+  const intPart = dot === -1 ? s : s.slice(0, dot)
+  const frac = dot === -1 ? '' : s.slice(dot)
+  s = intPart.slice(0, MAX_MONEY_DIGITS) + frac
+  const amount = Number(s)
+  if (s !== '' && Number.isFinite(amount) && amount > MAX_MONEY) {
+    return String(MAX_MONEY)
+  }
   return s
 }
 

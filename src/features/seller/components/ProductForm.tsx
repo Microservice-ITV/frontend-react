@@ -74,7 +74,8 @@ const basePriceField = z
     (s) => /^\d+(\.\d{1,2})?$/.test(s),
     "Use numbers only, up to 2 decimal places",
   )
-  .refine((s) => parseFloat(s) > 0, "Base price must be greater than 0");
+  .refine((s) => parseFloat(s) > 0, "Base price must be greater than 0")
+  .refine((s) => parseFloat(s) <= 9999999, "Cannot be more than 99999999");
 
 const optionalPercentField = (label: string, max: number) =>
   z
@@ -220,6 +221,21 @@ const areStringArraysEqual = (a: string[], b: string[]) => {
   return true;
 };
 
+const isDefaultCatalogOption = (item: Option) => {
+  const name = item.name.trim().toLowerCase();
+  return name === "default" || name === "def";
+};
+
+const splitDefaultOptions = (options: Option[]) => {
+  const selectable: Option[] = [];
+  const defaultIds = new Set<string>();
+  for (const item of options) {
+    if (isDefaultCatalogOption(item)) defaultIds.add(item.id);
+    else selectable.push(item);
+  }
+  return { selectable, defaultIds };
+};
+
 export const defaultVariantRow = (): ProductFormValues["variants"][number] => ({
   serverVariantId: undefined,
   colorId: "",
@@ -283,6 +299,7 @@ const ProductForm = ({
     formState: { errors },
     watch,
     setValue,
+    getValues,
     reset,
   } = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
@@ -294,9 +311,32 @@ const ProductForm = ({
     name: "variants",
   });
 
+  const colorCatalog = useMemo(
+    () => splitDefaultOptions(colorOptions),
+    [colorOptions],
+  );
+  const sizeCatalog = useMemo(
+    () => splitDefaultOptions(sizeOptions),
+    [sizeOptions],
+  );
+
   useEffect(() => {
     reset(initialValues);
   }, [initialValuesKey, initialValues, reset]);
+
+  useEffect(() => {
+    const { defaultIds: defaultColorIds } = colorCatalog;
+    const { defaultIds: defaultSizeIds } = sizeCatalog;
+    if (defaultColorIds.size === 0 && defaultSizeIds.size === 0) return;
+    getValues("variants").forEach((row, index) => {
+      if (row.colorId && defaultColorIds.has(row.colorId)) {
+        setValue(`variants.${index}.colorId`, "");
+      }
+      if (row.sizeId && defaultSizeIds.has(row.sizeId)) {
+        setValue(`variants.${index}.sizeId`, "");
+      }
+    });
+  }, [colorCatalog, sizeCatalog, initialValuesKey, getValues, setValue]);
 
   useEffect(() => {
     setEditableExistingImages((prev) =>
@@ -393,7 +433,7 @@ const ProductForm = ({
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
           {/* Left Column: Product Information */}
-          <div>
+          <div className="lg:sticky lg:top-16 lg:z-10 lg:self-start">
             <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
               <h2 className="text-base font-bold text-slate-900">
                 Product Information
@@ -599,7 +639,7 @@ const ProductForm = ({
                   </label>
                   <textarea
                     id="description"
-                    rows={4}
+                    rows={8}
                     placeholder="Product description"
                     {...register("description")}
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none placeholder:text-slate-400 focus:border-emerald-500"
@@ -756,12 +796,6 @@ const ProductForm = ({
                       const effective = listOk
                         ? computeEffectiveSellingPrice(list, disc)
                         : null;
-                      const listPriceDisplay = list
-                        ? `$${list.toFixed(2)}`
-                        : "—";
-                      const listPriceInputValue = list ? list.toFixed(2) : "";
-                      const effectivePriceDisplay =
-                        effective != null ? `$${effective.toFixed(2)}` : "—";
                       const markupDisplay =
                         markup != null ? `${markup.toFixed(2)}%` : "—";
 
@@ -818,7 +852,7 @@ const ProductForm = ({
                                     value={f.value}
                                     onChange={f.onChange}
                                     onBlur={f.onBlur}
-                                    options={colorOptions.map((item) => ({
+                                    options={colorCatalog.selectable.map((item) => ({
                                       value: item.id,
                                       label: item.name,
                                     }))}
@@ -848,7 +882,7 @@ const ProductForm = ({
                                     value={f.value}
                                     onChange={f.onChange}
                                     onBlur={f.onBlur}
-                                    options={sizeOptions.map((item) => ({
+                                    options={sizeCatalog.selectable.map((item) => ({
                                       value: item.id,
                                       label: item.name,
                                     }))}
@@ -874,7 +908,7 @@ const ProductForm = ({
                                 className="mb-1 block text-xs font-medium text-slate-700"
                                 htmlFor={`basePrice-${index}`}
                               >
-                                Base price ($)
+                                Base price
                               </label>
                               <Controller
                                 name={`variants.${index}.basePrice`}
@@ -911,7 +945,7 @@ const ProductForm = ({
                                 className="mb-1 block text-xs font-medium text-slate-700"
                                 htmlFor={`listPrice-${index}`}
                               >
-                                Selling price ($)
+                                Selling price
                               </label>
                               <Controller
                                 name={`variants.${index}.listPrice`}
@@ -1054,7 +1088,7 @@ const ProductForm = ({
                                   Selling price:
                                 </span>
                                 <strong className="text-slate-900">
-                                  ${list ? list.toFixed(2) : "—"}
+                                  {list ? `Ks ${list.toFixed(2)}` : "—"}
                                 </strong>
                               </div>
                               <div className="flex items-center gap-2">
@@ -1062,16 +1096,15 @@ const ProductForm = ({
                                   Customer pays:
                                 </span>
                                 <strong className="text-emerald-700">
-                                  $
                                   {effective != null
-                                    ? effective.toFixed(2)
+                                    ? `Ks ${effective.toFixed(2)}`
                                     : "—"}
                                 </strong>
                               </div>
                               <div className="flex items-center gap-2">
                                 <span className="text-slate-500">Markup:</span>
                                 <strong className="text-slate-700">
-                                  ${markup != null ? markup.toFixed(2) : "—"}%
+                                  {markup != null ? `${markup.toFixed(2)}%` : "—"}
                                 </strong>
                               </div>
                             </div>

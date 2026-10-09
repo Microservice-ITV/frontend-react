@@ -35,6 +35,8 @@ interface CheckoutSummaryProps {
   deliveryAddress: UserAddress | null
   cartItems: CartItem[]
   checkoutSessionItems?: CheckoutStatusResponse['items']
+  /** No delivery company has a district route; fee is confirmed after the order. */
+  deliveryQuotePendingConfirmation?: boolean
   deliveryCompanyIdByShopId: Record<string, string>
 }
 
@@ -160,6 +162,7 @@ const CheckoutSummary = ({
   deliveryAddress,
   cartItems,
   checkoutSessionItems,
+  deliveryQuotePendingConfirmation = false,
   deliveryCompanyIdByShopId,
 }: CheckoutSummaryProps) => {
   const dispatch = useAppDispatch()
@@ -379,8 +382,9 @@ const CheckoutSummary = ({
   }
 
   const buildCheckoutAddressPayload = (address: UserAddress) => {
-    const shipping_total =
-      shippingCalculateStatus === 'succeeded' && totalShippingFee != null && totalShippingFee >= 0
+    const shipping_total = deliveryQuotePendingConfirmation
+      ? 0
+      : shippingCalculateStatus === 'succeeded' && totalShippingFee != null && totalShippingFee >= 0
         ? totalShippingFee
         : checkout.shippingSubtotal
 
@@ -431,7 +435,10 @@ const CheckoutSummary = ({
     // Runtime guard. `canPlaceOrder` disables the button for durable faults, but a
     // click can still land while the quote is idle/loading (those states are not
     // treated as faults), so keep catching them here.
-    if (shippingCalculateStatus !== 'succeeded' || totalShippingFee == null) {
+    if (
+      !deliveryQuotePendingConfirmation &&
+      (shippingCalculateStatus !== 'succeeded' || totalShippingFee == null)
+    ) {
       dispatch(
         setCheckoutError(
           shippingCalculateError?.trim() ||
@@ -609,13 +616,12 @@ const CheckoutSummary = ({
 
   const deliveryFees = Object.values(feesByShopId)
   const anyNotDeliverable = deliveryFees.some((fee) => fee.deliveryStatus === 'NOT_DELIVERABLE')
+  const showPendingDeliveryFee = deliveryQuotePendingConfirmation || (
+    shippingCalculateStatus === 'succeeded' && anyNotDeliverable
+  )
 
-  // An order must not be submittable when the delivery fee is genuinely unavailable
-  // (service down, no usable fee, or a shop that cannot deliver here). Previously
-  // the button stayed enabled in those states and handlePlaceOrder rejected the
-  // click afterwards, so the user got a dead button plus an error banner instead
-  // of an honest disabled button. A quote that is merely still loading is NOT
-  // treated as a fault — see getDeliveryBlockReason.
+  // Route/area issues are a manual follow-up flow, not a hard block. The checkout
+  // can go ahead with a zero-fee placeholder while a team confirms the final quote.
   const deliveryBlockReason = getDeliveryBlockReason({
     hasDeliveryAddress,
     calculateStatus: shippingCalculateStatus,
@@ -694,7 +700,7 @@ const CheckoutSummary = ({
     if (!hasDeliveryAddress) return 'Add address'
     if (shippingCalculateStatus === 'loading') return 'Calculating…'
     if (shippingCalculateStatus === 'failed') return 'Unavailable'
-    if (shippingCalculateStatus === 'succeeded' && anyNotDeliverable) return 'Not available'
+    if (showPendingDeliveryFee) return 'Ks 0.00'
     if (shippingCalculateStatus === 'succeeded') {
       return formatKsPrice(shippingSubtotal)
     }
@@ -734,7 +740,9 @@ const CheckoutSummary = ({
         </div>
         <div className="mb-3 flex justify-between gap-3">
           <span className="shrink-0 text-gray-600">Delivery</span>
-          <span className="whitespace-nowrap tabular-nums text-gray-900">{deliveryPriceText}</span>
+          <div className="flex flex-col items-end">
+            <span className="whitespace-nowrap tabular-nums text-gray-900">{deliveryPriceText}</span>
+          </div>
           {shippingCalculateStatus === 'failed' && shippingCalculateError && (
             <p className="mt-1 text-right text-[11px] text-amber-700">{shippingCalculateError}</p>
           )}

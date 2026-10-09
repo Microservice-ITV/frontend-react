@@ -208,7 +208,9 @@ export const guestCheckoutCart = createAsyncThunk<
             country: string
             state: string
             city: string
+            city_id?: number | null
             district: string
+            district_id?: number | null
             ward: string
             address_line_1: string
             address_line_2?: string | null

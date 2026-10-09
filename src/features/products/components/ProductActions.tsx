@@ -77,6 +77,7 @@ const ProductActions = ({
     shopId: product.shop.id,
     shopName: product.shop.name,
     categoryId: product.categoryId,
+    availableStock: maxStock,
     selected: true,
   });
 

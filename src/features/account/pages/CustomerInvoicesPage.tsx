@@ -1,5 +1,6 @@
 import { useEffect, useState, type ChangeEvent, type DragEvent } from 'react'
 import { Link } from 'react-router-dom'
+import DataTablePagination from '@/components/ui/DataTablePagination'
 import { AlertCircle, CheckCircle2, Clock3, Download, Eye, FileText, Loader2, Receipt, RefreshCw, UploadCloud, X, Image as ImageIcon } from 'lucide-react'
 import { downloadInvoicePdf, getMyInvoices, type InvoiceDocument, type InvoiceStatus, uploadPaymentSlip } from '@/lib/api/invoiceClient'
 import InvoiceStatCard from '@/features/invoices/components/InvoiceStatCard'
@@ -22,6 +23,8 @@ const STATUS_LABELS: Record<InvoiceStatus, string> = {
   VOID: 'Void',
   REFUNDED: 'Refunded',
 }
+
+const DEFAULT_ROWS_PER_PAGE = 10
 
 const formatMoney = (value: string | number, currency: string): string => {
   const safeCurrency = currency || 'MMK'
@@ -65,6 +68,8 @@ const getInvoiceStatusLabel = (invoice: InvoiceDocument): string =>
 const CustomerInvoicesPage = () => {
   const isAuthenticated = useAppSelector(selectIsAuthenticated)
   const [invoices, setInvoices] = useState<InvoiceDocument[]>([])
+  const [page, setPage] = useState(1)
+  const [rowsPerPage, setRowsPerPage] = useState(DEFAULT_ROWS_PER_PAGE)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceDocument | null>(null)
@@ -79,6 +84,7 @@ const CustomerInvoicesPage = () => {
   const loadInvoices = async () => {
     if (!isAuthenticated) {
       setInvoices([])
+      setPage(1)
       setIsLoading(false)
       return
     }
@@ -89,6 +95,7 @@ const CustomerInvoicesPage = () => {
     try {
       const data = await getMyInvoices()
       setInvoices(data)
+      setPage(1)
     } catch (requestError: unknown) {
       const message = requestError instanceof Error ? requestError.message : 'Unable to load your invoices.'
       setError(message)
@@ -192,6 +199,8 @@ const CustomerInvoicesPage = () => {
   const pendingInvoices = invoices.filter((invoice) => invoice.status === 'PENDING_VERIFICATION' || invoice.status === 'UNPAID')
   const totalBilled = invoices.reduce((sum, invoice) => sum + Number(invoice.grandTotal || 0), 0)
   const currency = invoices[0]?.currency || 'MMK'
+  const totalPages = Math.max(1, Math.ceil(invoices.length / rowsPerPage))
+  const pageInvoices = invoices.slice((page - 1) * rowsPerPage, page * rowsPerPage)
 
   return (
     <section className="bg-slate-50/80 p-3 sm:p-4 md:p-6">
@@ -212,6 +221,7 @@ const CustomerInvoicesPage = () => {
             <InvoiceStatCard
               label="Total billed"
               value={formatMoney(totalBilled, currency)}
+              valueClassName="whitespace-nowrap text-[clamp(0.75rem,1.2vw,1.25rem)]"
               hint={`Across ${invoices.length} invoice${invoices.length === 1 ? '' : 's'}`}
               icon={<FileText size={14} />}
               tone="emerald"
@@ -381,7 +391,7 @@ const CustomerInvoicesPage = () => {
                 compact
               />
             ) : (
-              invoices.map((invoice) => (
+              pageInvoices.map((invoice) => (
                 <article key={invoice.id} className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition hover:border-emerald-200 hover:shadow-sm sm:p-5">
                   <div className="flex min-w-0 items-start gap-3">
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
@@ -390,13 +400,11 @@ const CustomerInvoicesPage = () => {
                     <div className="min-w-0 flex-1">
                       <Link
                         to={`/account/invoices/${encodeURIComponent(invoice.invoiceNumber || invoice.id)}`}
-                        className="block break-all font-mono text-sm font-semibold tracking-tight text-slate-900 transition hover:text-emerald-700"
+                        title={invoice.invoiceNumber}
+                        className="block truncate font-mono text-sm font-semibold tracking-tight text-slate-900 transition hover:text-emerald-700"
                       >
                         {invoice.invoiceNumber}
                       </Link>
-                      <p className="mt-1 break-all text-xs text-slate-500">
-                        <span className="text-slate-400">Order</span> {invoice.orderReference || 'Unavailable'}
-                      </p>
                     </div>
                     <div className="shrink-0">
                       <InvoiceStatusBadge
@@ -472,20 +480,19 @@ const CustomerInvoicesPage = () => {
             <table className="w-full table-fixed text-left">
               <thead className="border-b border-slate-100 bg-slate-50">
                 <tr>
-                  <th className="w-[20%] px-3 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Invoice #</th>
-                  <th className="w-[17%] px-2 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Order reference</th>
-                  <th className="w-[10%] px-2 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Shop</th>
-                  <th className="w-[10%] px-2 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Date</th>
-                  <th className="w-[13%] px-2 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Amount</th>
-                  <th className="w-[12%] px-2 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Status</th>
-                  <th className="w-[18%] px-2 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Actions</th>
+                  <th className="w-[23%] px-2 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Invoice #</th>
+                  <th className="w-[17%] px-2 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Shop</th>
+                  <th className="w-[12%] px-2 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Date</th>
+                  <th className="w-[13%] py-3 pl-2 pr-4 text-right text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Amount</th>
+                  <th className="w-[17%] py-3 pl-4 pr-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Status</th>
+                  <th className="w-[18%] px-3 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Actions</th>
                 </tr>
               </thead>
 
               <tbody>
                 {invoices.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-4">
+                    <td colSpan={6} className="px-4 py-4">
                       <InvoiceEmptyState
                         icon={<FileText size={20} />}
                         title="No invoices found"
@@ -494,44 +501,45 @@ const CustomerInvoicesPage = () => {
                     </td>
                   </tr>
                 ) : (
-                  invoices.map((invoice) => (
+                  pageInvoices.map((invoice) => (
                     <tr key={invoice.id} className="border-t border-slate-100 transition hover:bg-slate-50/70">
-                      <td className="min-w-0 px-4 py-4">
-                        <div className="flex items-center gap-3">
-                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-                            <FileText size={15} />
-                          </span>
-                          <div className="min-w-0">
-                            <Link
-                              to={`/account/invoices/${encodeURIComponent(invoice.invoiceNumber || invoice.id)}`}
-                              className="break-all font-mono text-[13px] font-semibold text-slate-900 transition hover:text-emerald-700"
-                            >
-                              {invoice.invoiceNumber}
-                            </Link>
-                            <p className="mt-0.5 text-[10px] uppercase tracking-[0.1em] text-slate-400">Invoice</p>
-                          </div>
-                        </div>
+                      <td className="min-w-0 px-2 py-4">
+                        <Link
+                          to={`/account/invoices/${encodeURIComponent(invoice.invoiceNumber || invoice.id)}`}
+                          title={invoice.invoiceNumber}
+                          className="block truncate whitespace-nowrap font-mono text-xs font-semibold tracking-tight text-slate-900 transition hover:text-emerald-700"
+                        >
+                          {invoice.invoiceNumber}
+                        </Link>
                       </td>
-                      <td className="break-all px-2 py-4 text-xs font-medium text-slate-700">{invoice.orderReference || 'Unavailable'}</td>
-                      <td className="break-words px-2 py-4 text-sm font-medium text-slate-700">{invoice.shopName || 'N/A'}</td>
-                      <td className="px-2 py-4 text-sm text-slate-600">{formatDate(invoice.createdAt)}</td>
-                      <td className="px-2 py-4 text-right text-sm font-semibold tabular-nums text-slate-900">
-                        {formatAmount(invoice.grandTotal)}
+                      <td className="truncate whitespace-nowrap px-2 py-4 text-[13px] font-medium text-slate-700" title={invoice.shopName || 'N/A'}>{invoice.shopName || 'N/A'}</td>
+                      <td className="min-w-0 px-2 py-4 text-[13px] text-slate-600" title={formatDate(invoice.createdAt)}>
+                        <span className="block truncate whitespace-nowrap">{formatDate(invoice.createdAt)}</span>
                       </td>
-                      <td className="px-2 py-4">
+                      <td className="min-w-0 py-4 pl-2 pr-4 text-right text-[13px] font-semibold tabular-nums text-slate-900" title={formatAmount(invoice.grandTotal)}>
+                        <span className="block truncate whitespace-nowrap">{formatAmount(invoice.grandTotal)}</span>
+                      </td>
+                      <td
+                        className="min-w-0 py-4 pl-4 pr-2"
+                        title={[
+                          getInvoiceStatusLabel(invoice),
+                          invoice.paymentMethod ? formatPaymentMethodLabel(invoice.paymentMethod) : null,
+                        ].filter(Boolean).join(' · ')}
+                      >
                         <InvoiceStatusBadge
                           status={invoice.status}
                           label={getInvoiceStatusLabel(invoice)}
                           size="sm"
+                          className="max-w-full overflow-hidden whitespace-nowrap"
                         />
                         {invoice.paymentMethod && (
-                          <p className="mt-1.5 text-[10px] leading-snug text-slate-500">
+                          <p className="mt-1.5 truncate whitespace-nowrap text-[11px] leading-snug text-slate-500">
                             {formatPaymentMethodLabel(invoice.paymentMethod)}
                           </p>
                         )}
                       </td>
-                      <td className="px-2 py-4 text-right">
-                        <div className="flex flex-wrap items-center justify-end gap-1">
+                      <td className="px-3 py-4 text-right">
+                        <div className="flex flex-wrap items-center justify-end gap-1.5">
                           <Link
                             to={`/account/invoices/${encodeURIComponent(invoice.invoiceNumber || invoice.id)}`}
                             title="View invoice details"
@@ -559,10 +567,11 @@ const CustomerInvoicesPage = () => {
                                 setSelectedFile(null)
                                 setPreviewUrl(null)
                               }}
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-100 bg-emerald-50 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-800 transition hover:border-emerald-200 hover:bg-emerald-100"
+                              title="Submit payment slip"
+                              aria-label={`Submit slip for ${invoice.invoiceNumber}`}
+                              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-emerald-100 bg-emerald-50 text-emerald-800 transition hover:border-emerald-200 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-1"
                             >
                               <UploadCloud size={12} />
-                              Submit slip
                             </button>
                           )}
                         </div>
@@ -573,6 +582,18 @@ const CustomerInvoicesPage = () => {
               </tbody>
             </table>
           </div>
+          <DataTablePagination
+            page={page}
+            totalPages={totalPages}
+            rowsPerPage={rowsPerPage}
+            totalItems={invoices.length}
+            itemLabel="invoices"
+            onPageChange={setPage}
+            onRowsPerPageChange={(value) => {
+              setRowsPerPage(value)
+              setPage(1)
+            }}
+          />
         </div>
       )}
       </div>

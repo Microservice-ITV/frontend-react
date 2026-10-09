@@ -18,13 +18,12 @@ import CheckoutSummary from '../components/CheckoutSummary'
 import CheckoutSummarySkeleton from '../components/CheckoutSummarySkeleton'
 import { SagaStatusDisplay } from '../components/SagaStatusDisplay'
 import { fetchCheckoutStatus, fetchSagaStatus } from '../store/checkoutThunks'
-import { fetchCheckoutShippingCalculation } from '@/features/shipping/store/shippingThunks'
+import { fetchCheckoutShippingCalculation, fetchShopProfilesForCurrentCart } from '@/features/shipping/store/shippingThunks'
 import { useCheckoutDeliveryCompany } from '@/features/shipping/hooks/useCheckoutDeliveryCompany'
 import { clearShippingCalculate } from '@/features/shipping/store/shippingSlice'
 import { clearCheckout, setCurrentCheckout } from '../store/checkoutSlice'
 import { hasConfirmedStock, isStockReadinessConfirmed } from '../utils/checkoutStatus'
-
-const noShopRoutes: { shopId: string; fromDistrictId: string; toDistrictId: string }[] = []
+import { checkoutHasNoDeliveryRoute } from '../utils/deliveryReadiness'
 
 const AuthCheckout = () => {
   const items = useAppSelector(selectSelectedItems)
@@ -105,7 +104,22 @@ const GuestCheckoutPayment = () => {
     () => [...new Set(items.map((item) => item.shopId).filter(Boolean))],
     [items],
   )
-  const deliveryCompany = useCheckoutDeliveryCompany(shopIds, noShopRoutes)
+  const profilesByShopId = useAppSelector((state) => state.shipping.profilesByShopId)
+  const shopRoutes = useMemo(
+    () => shopIds.map((shopId) => ({
+      shopId,
+      fromDistrictId: profilesByShopId[shopId]?.districtId?.trim() ?? '',
+      toDistrictId: paymentDeliveryAddress?.district_id != null
+        ? String(paymentDeliveryAddress.district_id)
+        : '',
+    })),
+    [paymentDeliveryAddress?.district_id, profilesByShopId, shopIds],
+  )
+  const deliveryCompany = useCheckoutDeliveryCompany(shopIds, shopRoutes)
+  useEffect(() => {
+    if (shopIds.length === 0) return
+    void dispatch(fetchShopProfilesForCurrentCart())
+  }, [dispatch, shopIds])
   const quotableCompanyByShopId = useMemo(() => {
     const next: Record<string, string> = {}
     for (const shopId of shopIds) {
@@ -117,6 +131,13 @@ const GuestCheckoutPayment = () => {
     return next
   }, [deliveryCompany.companyByShopId, deliveryCompany.unavailableCompanyIdsByShop, shopIds])
   const hasQuotableCompany = Object.keys(quotableCompanyByShopId).length > 0
+  const deliveryQuotePendingConfirmation = checkoutHasNoDeliveryRoute({
+    shopIds,
+    companiesCount: deliveryCompany.companies.length,
+    unavailableCompanyIdsByShop: deliveryCompany.unavailableCompanyIdsByShop,
+    loading: deliveryCompany.loading,
+    routesReady: deliveryCompany.routesReady,
+  })
 
   const shippingCalculateCacheKey = useMemo(() => {
     if (!paymentDeliveryAddress?.address_id || !hasQuotableCompany) return ''
@@ -275,6 +296,7 @@ const GuestCheckoutPayment = () => {
                   onRequireAddress={goToGuestForm}
                   deliveryAddress={paymentDeliveryAddress}
                   cartItems={items}
+                  deliveryQuotePendingConfirmation={deliveryQuotePendingConfirmation}
                   deliveryCompanyIdByShopId={deliveryCompany.companyByShopId}
                 />
               ) : (

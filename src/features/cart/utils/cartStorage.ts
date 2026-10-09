@@ -20,6 +20,9 @@ function normalizeStoredItem(raw: Partial<CartItem>): CartItem {
         image: raw.image,
         price: typeof raw.price === 'number' ? raw.price : Number(raw.price) || 0,
         quantity: typeof raw.quantity === 'number' ? raw.quantity : Number(raw.quantity) || 1,
+        availableStock: raw.availableStock == null || !Number.isFinite(Number(raw.availableStock))
+            ? undefined
+            : Math.max(0, Math.floor(Number(raw.availableStock))),
         weightKg: toPositiveNumber(raw.weightKg),
         lengthCm: toPositiveNumber(raw.lengthCm),
         widthCm: toPositiveNumber(raw.widthCm),

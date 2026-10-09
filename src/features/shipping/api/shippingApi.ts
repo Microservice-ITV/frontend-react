@@ -39,8 +39,9 @@ export type CalculateShippingRequest = {
         cityId?: string
         districtId?: string
         district: string
-        lat: number
-        lng: number
+        /** Omitted when the address has no map pin and the quote uses district rates. */
+        lat?: number
+        lng?: number
     }
     shops: CalculateShippingShopPayload[]
     /** Matches shipping-service `calculateShippingSchema.serviceType`. */
@@ -105,7 +106,7 @@ function buildPackage(rows: CartItem[]): CalculateShippingPackage {
 export function buildCalculatePayload(
     address: UserAddress,
     items: CartItem[],
-    coords: LatLng,
+    coords: LatLng | null,
     customer: CalculateShippingCustomer | undefined,
     deliveryCompanyId: string,
 ): CalculateShippingRequest {
@@ -147,8 +148,7 @@ export function buildCalculatePayload(
             ...(cityId ? { cityId } : {}),
             district: address.district ?? '',
             ...(districtId ? { districtId } : {}),
-            lat: coords.lat,
-            lng: coords.lng,
+            ...(coords ? { lat: coords.lat, lng: coords.lng } : {}),
         },
         shops,
         serviceType: 'STANDARD',

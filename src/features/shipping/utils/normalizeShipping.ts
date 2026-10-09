@@ -7,6 +7,7 @@ function num(v: unknown): number | null {
 }
 
 function textOrNull(v: unknown): string | null {
+    if (typeof v === 'number' && Number.isFinite(v)) return String(v)
     if (typeof v !== 'string') return null
     const trimmed = v.trim()
     return trimmed || null
