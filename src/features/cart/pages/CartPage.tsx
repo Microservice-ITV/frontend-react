@@ -12,9 +12,11 @@ import CartItemLists from '../components/CartItemLists'
 import CartSummary, { GuestCheckoutModal } from '../components/CartSummary'
 import CartEmptyState from '../components/CartEmptyState'
 import RecommendationSection from '@/features/products/components/RecommendationSection'
+import { useSyncCartAvailableStock } from '../hooks/useSyncCartAvailableStock'
 
 const CartPage = () => {
     const dispatch = useAppDispatch()
+    useSyncCartAvailableStock()
     const [showGuestModal, setShowGuestModal] = useState(false)
     const [bundleMatch, setBundleMatch] = useState<BundleMatchResult | null>(null)
     const items = useAppSelector(selectCartItems)

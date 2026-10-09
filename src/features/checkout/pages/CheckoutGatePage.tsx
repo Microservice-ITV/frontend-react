@@ -23,6 +23,7 @@ import { useCheckoutDeliveryCompany } from '@/features/shipping/hooks/useCheckou
 import { clearShippingCalculate } from '@/features/shipping/store/shippingSlice'
 import { clearCheckout, setCurrentCheckout } from '../store/checkoutSlice'
 import { hasConfirmedStock, isStockReadinessConfirmed } from '../utils/checkoutStatus'
+import { checkoutHasNoDeliveryRoute } from '../utils/deliveryReadiness'
 
 const AuthCheckout = () => {
   const items = useAppSelector(selectSelectedItems)
@@ -130,6 +131,13 @@ const GuestCheckoutPayment = () => {
     return next
   }, [deliveryCompany.companyByShopId, deliveryCompany.unavailableCompanyIdsByShop, shopIds])
   const hasQuotableCompany = Object.keys(quotableCompanyByShopId).length > 0
+  const deliveryQuotePendingConfirmation = checkoutHasNoDeliveryRoute({
+    shopIds,
+    companiesCount: deliveryCompany.companies.length,
+    unavailableCompanyIdsByShop: deliveryCompany.unavailableCompanyIdsByShop,
+    loading: deliveryCompany.loading,
+    routesReady: deliveryCompany.routesReady,
+  })
 
   const shippingCalculateCacheKey = useMemo(() => {
     if (!paymentDeliveryAddress?.address_id || !hasQuotableCompany) return ''
@@ -288,6 +296,7 @@ const GuestCheckoutPayment = () => {
                   onRequireAddress={goToGuestForm}
                   deliveryAddress={paymentDeliveryAddress}
                   cartItems={items}
+                  deliveryQuotePendingConfirmation={deliveryQuotePendingConfirmation}
                 />
               ) : (
                 <CheckoutSummarySkeleton />

@@ -5,11 +5,16 @@ import type { CheckoutDeliveryCompany } from '@/features/shipping/hooks/useCheck
 import type { ShopCalculatedShipping } from '@/features/shipping/types/shippingTypes'
 import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
 import { taxChargeForAmount } from '../api/checkoutApi'
-import { deliveryUnavailableMessage } from '../utils/deliveryReadiness'
+import {
+  DELIVERY_FOLLOW_UP_MESSAGE,
+  deliveryUnavailableMessage,
+  shopHasNoDeliveryRoute,
+} from '../utils/deliveryReadiness'
 import { chatIcon, voucherIcon } from '@/assets/icons'
 import { CheckoutTotals } from '../utils/checkoutCalculator'
 import placeholderImage from '@/public/placeholder.svg'
 import { Truck } from 'lucide-react'
+import CartQuantityInput from '@/features/cart/components/CartQuantityInput'
 import CheckoutDeliveryCompanySelect from './CheckoutDeliveryCompanySelect'
 
 export type CheckoutDeliveryCompanySelection = {
@@ -47,7 +52,7 @@ type ShippingNoticeKind = 'service' | 'route' | 'company'
 
 const SHIPPING_NOTICE: Record<ShippingNoticeKind, string> = {
   service: 'Delivery is under maintenance and is not available right now.',
-  route: 'Your address cannot be delivered yet.',
+  route: DELIVERY_FOLLOW_UP_MESSAGE,
   company: 'No delivery company is available right now.',
 }
 
@@ -55,7 +60,7 @@ const ShippingUnavailableNotice = ({ kind }: { kind: ShippingNoticeKind }) => (
   <div className="rounded-sm border border-amber-200 bg-amber-50 px-3 py-3 text-[13px] leading-5 text-gray-700">
     <div className="flex items-start justify-between gap-3 text-sm font-semibold text-gray-900">
       <span>Standard shipping</span>
-      <span>Not available</span>
+      {kind !== 'route' && <span>Not available</span>}
     </div>
     <p className="mt-2 text-xs text-amber-800">{SHIPPING_NOTICE[kind]}</p>
   </div>
@@ -102,7 +107,9 @@ const ShippingOptionCard = ({
         <span>{fee.methodLabel?.trim() || 'Standard shipping'}</span>
         <span>
           {fee.deliveryStatus === 'NOT_DELIVERABLE'
-            ? 'Not available'
+            ? fee.unavailableReason === 'ROUTE_NOT_AVAILABLE'
+              ? null
+              : 'Not available'
             : formatKsPrice(fee.amount, currency)}
         </span>
       </div>
@@ -192,7 +199,7 @@ const CheckoutItems = ({ checkout, deliveryCompany }: CheckoutItemsProps) => {
         </div>
       ) : null} */}
 
-      <div className="hidden items-center gap-3.5 rounded-sm border border-[var(--dni-cart-border)] bg-white px-3 py-2.5 text-sm text-gray-500 sm:px-4 md:grid md:grid-cols-[minmax(0,1fr)_7.5rem_5rem_8.5rem_auto]">
+      <div className="hidden items-center gap-3.5 rounded-sm border border-[var(--dni-cart-border)] bg-white px-3 py-2.5 text-sm text-gray-500 sm:px-4 md:grid md:grid-cols-[minmax(0,1fr)_7.5rem_9rem_8.5rem_auto]">
         <span className="text-gray-900">Products Ordered</span>
         <span className="whitespace-nowrap text-right">Unit Price</span>
         <span className="text-center">Quantity</span>
@@ -217,9 +224,10 @@ const CheckoutItems = ({ checkout, deliveryCompany }: CheckoutItemsProps) => {
         const companyLoadFailed = !deliveryCompany.loading && Boolean(deliveryCompany.error)
         const noDeliveryCompany =
           !deliveryCompany.loading && !companyLoadFailed && deliveryCompany.companies.length === 0
-        const noDeliveryRoute =
-          deliveryCompany.companies.length > 0 &&
-          unavailableIds.length >= deliveryCompany.companies.length
+        const noDeliveryRoute = shopHasNoDeliveryRoute(
+          deliveryCompany.companies.length,
+          unavailableIds,
+        )
         const serviceUnavailable = companyLoadFailed || calculateStatus === 'failed'
         const shippingNoticeKind: ShippingNoticeKind | null = noDeliveryRoute
           ? 'route'
@@ -294,7 +302,7 @@ const CheckoutItems = ({ checkout, deliveryCompany }: CheckoutItemsProps) => {
                 return (
                   <li
                     key={`${item.productId}-${item.variantId ?? ''}-${item.shopId}`}
-                    className="flex flex-col gap-2 border-b border-[var(--dni-cart-border)] px-3 py-3 last:border-b-0 sm:px-4 md:grid md:grid-cols-[minmax(0,1fr)_7.5rem_5rem_8.5rem_auto] md:items-center md:gap-3.5"
+                    className="flex flex-col gap-2 border-b border-[var(--dni-cart-border)] px-3 py-3 last:border-b-0 sm:px-4 md:grid md:grid-cols-[minmax(0,1fr)_7.5rem_9rem_8.5rem_auto] md:items-center md:gap-3.5"
                   >
                     <div className="flex min-w-0 items-center gap-3">
                       <img
@@ -323,8 +331,9 @@ const CheckoutItems = ({ checkout, deliveryCompany }: CheckoutItemsProps) => {
                       {formatKsPrice(item.price)}
                     </p>
                     <div className="flex items-center justify-between pl-[4.5rem] md:contents">
-                      <p className="text-sm text-gray-500 md:hidden">Qty {item.quantity}</p>
-                      <p className="hidden text-center text-sm text-gray-700 md:block">{item.quantity}</p>
+                      <div className="md:flex md:justify-center">
+                        <CartQuantityInput item={item} />
+                      </div>
                       <p className="whitespace-nowrap text-sm font-semibold tabular-nums text-emerald-700 md:text-right md:text-[15px]">
                         {formatKsPrice(subtotal)}
                       </p>

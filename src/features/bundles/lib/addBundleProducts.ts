@@ -1,6 +1,7 @@
 import type { AppDispatch } from '@/app/store'
 import { addToCart } from '@/features/cart/store/cartSlice'
 import { productApi } from '@/features/products/api/productApi'
+import { productDetailMaxStock } from '@/features/products/components/ProductQuantityInput'
 import { pickDefaultVariant, variantDisplayLabel } from '@/features/products/components/ProductVariantSelector'
 import { fetchShopProfilesForCurrentCart } from '@/features/shipping/store/shippingThunks'
 
@@ -30,6 +31,7 @@ export async function addBundleProducts(
         shopId: product.shop.id,
         shopName: product.shop.name,
         categoryId: product.categoryId,
+        availableStock: productDetailMaxStock(product, variant),
         selected: true,
       }))
       added = true

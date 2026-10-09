@@ -3,12 +3,36 @@ import type { DeliveryUnavailableReason } from '@/features/shipping/types/shippi
 /** Mirrors `ShippingState['calculateStatus']` in features/shipping/store/shippingSlice. */
 export type ShippingCalculateStatus = 'idle' | 'loading' | 'succeeded' | 'failed'
 
+export const DELIVERY_FOLLOW_UP_MESSAGE =
+    'Delivery fees will be confirmed later. You can place your order now, and our team will contact you to arrange delivery.'
+
 export function deliveryUnavailableMessage(
     reason: DeliveryUnavailableReason | undefined,
 ): string {
     if (reason === 'PROFILE_NOT_READY') return 'This shop cannot deliver yet.'
-    if (reason === 'ROUTE_NOT_AVAILABLE') return 'We cannot deliver this shop on this route.'
+    if (reason === 'ROUTE_NOT_AVAILABLE') return DELIVERY_FOLLOW_UP_MESSAGE
     return 'Delivery is not available to this address.'
+}
+
+/** True when every listed company is blocked for this shop's district pair. */
+export function shopHasNoDeliveryRoute(
+    companiesCount: number,
+    unavailableCompanyIds: readonly string[] | undefined,
+): boolean {
+    return companiesCount > 0 && (unavailableCompanyIds?.length ?? 0) >= companiesCount
+}
+
+/** True when no shop in the checkout has a company with a district route. */
+export function checkoutHasNoDeliveryRoute(params: {
+    shopIds: readonly string[]
+    companiesCount: number
+    unavailableCompanyIdsByShop: Record<string, string[]>
+    loading: boolean
+    routesReady: boolean
+}): boolean {
+    const { shopIds, companiesCount, unavailableCompanyIdsByShop, loading, routesReady } = params
+    if (loading || !routesReady || companiesCount === 0 || shopIds.length === 0) return false
+    return shopIds.every((shopId) => shopHasNoDeliveryRoute(companiesCount, unavailableCompanyIdsByShop[shopId]))
 }
 
 export type DeliveryReadinessInput = {
@@ -71,8 +95,16 @@ export const getDeliveryBlockReason = ({
                     .map((reason) => deliveryUnavailableMessage(reason)),
             ),
         ]
-        if (messages.length > 0) return messages.join(' ')
-        return 'One or more shops cannot deliver to your address. Please remove those items or choose another address.'
+
+        // Route/area problems are handled as a follow-up flow: the customer can still
+        // place the order now, and the team will confirm the final delivery fee later.
+        if (messages.length > 0) {
+            const routeIssue = unavailableReasons.some((reason) => reason === 'ROUTE_NOT_AVAILABLE')
+            if (routeIssue) return null
+            return messages.join(' ')
+        }
+
+        return null
     }
 
     return null
