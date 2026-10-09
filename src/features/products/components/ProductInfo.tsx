@@ -5,7 +5,6 @@ import ProductVariantSelector, { pickDefaultVariant } from './ProductVariantSele
 import type { ProductDetail, ProductFlashDeal, ProductVariant } from '@/features/products/types/productTypes'
 import { getGalleryImagesForVariant } from '@/features/products/utils/variantGallery'
 import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
-import { stripYouTubeUrlsFromText } from '@/features/products/utils/videoEmbed'
 import { productServiceAssetUrl } from '@/lib/api/apiConfig'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { toggleWishlist } from '@/features/wishlist/store/wishlistSlice'
@@ -185,14 +184,6 @@ const ProductInfo = ({ product, onSelectedVariantChange }: Props) => {
     const n = activeVariant?.shopStock ?? product.stock ?? 0
     return n > 0 ? `${n} in stock` : 'Out of stock'
   }, [activeVariant?.shopStock, product.stock])
-
-  /** Teaser only for long copy — full text lives in the section below. */
-  const highlightBlurb = useMemo(() => {
-    const raw = stripYouTubeUrlsFromText(product.description?.trim() ?? '')
-    if (!raw || raw.length <= 160) return null
-    const oneLine = raw.replace(/\s+/g, ' ')
-    return `${oneLine.slice(0, 157).trimEnd()}…`
-  }, [product.description])
 
   const handleWishlist = useCallback(() => {
     dispatch(toggleWishlist(product.id))
@@ -388,19 +379,6 @@ const ProductInfo = ({ product, onSelectedVariantChange }: Props) => {
           </div>
         </div>
       </div>
-
-      {/* Feature highlight */}
-      {highlightBlurb ? (
-        <div className="border border-[var(--dni-primary-100)] bg-[var(--dni-primary-50)]/80 px-4 py-3.5 sm:px-5 sm:py-4">
-          <div className="flex items-center gap-2 text-[var(--dni-primary-700)]">
-            <span className="text-base leading-none" aria-hidden>
-              ⚡
-            </span>
-            <h2 className="text-sm font-semibold">Smart & Convenient</h2>
-          </div>
-          <p className="mt-1.5 text-sm text-gray-600 leading-relaxed">{highlightBlurb}</p>
-        </div>
-      ) : null}
 
       <ProductVariantSelector
         productId={product.id}
