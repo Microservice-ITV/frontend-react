@@ -480,11 +480,11 @@ const CustomerInvoicesPage = () => {
             <table className="w-full table-fixed text-left">
               <thead className="border-b border-slate-100 bg-slate-50">
                 <tr>
-                  <th className="w-[24%] px-3 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Invoice #</th>
-                  <th className="w-[13%] px-2 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Shop</th>
-                  <th className="w-[13%] px-2 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Date</th>
-                  <th className="w-[14%] py-3 pl-2 pr-4 text-right text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Amount</th>
-                  <th className="w-[18%] py-3 pl-4 pr-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Status</th>
+                  <th className="w-[23%] px-2 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Invoice #</th>
+                  <th className="w-[17%] px-2 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Shop</th>
+                  <th className="w-[12%] px-2 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Date</th>
+                  <th className="w-[13%] py-3 pl-2 pr-4 text-right text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Amount</th>
+                  <th className="w-[17%] py-3 pl-4 pr-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Status</th>
                   <th className="w-[18%] px-3 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Actions</th>
                 </tr>
               </thead>
@@ -503,7 +503,7 @@ const CustomerInvoicesPage = () => {
                 ) : (
                   pageInvoices.map((invoice) => (
                     <tr key={invoice.id} className="border-t border-slate-100 transition hover:bg-slate-50/70">
-                      <td className="min-w-0 px-3 py-4">
+                      <td className="min-w-0 px-2 py-4">
                         <Link
                           to={`/account/invoices/${encodeURIComponent(invoice.invoiceNumber || invoice.id)}`}
                           title={invoice.invoiceNumber}
