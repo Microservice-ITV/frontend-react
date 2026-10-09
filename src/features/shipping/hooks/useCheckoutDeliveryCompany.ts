@@ -94,7 +94,9 @@ export function useCheckoutDeliveryCompany(shopIds: string[], routes: ShopDistri
         const res = await shippingApi.listActiveDeliveryCompanies()
         const body = res.data as { data?: { companies?: CheckoutDeliveryCompany[] } }
         const rows = body.data?.companies ?? []
-        if (!cancelled) setCompanies(rows)
+        if (!cancelled) {
+          setCompanies(rows)
+        }
       } catch {
         if (!cancelled) setError('Delivery companies could not be loaded.')
       } finally {

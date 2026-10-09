@@ -66,11 +66,11 @@ const ProductGallery = ({ images }: Props) => {
   };
 
   return (
-    <div className="w-full lg:w-[450px] flex-shrink-0">
+    <div className="w-full min-w-0 lg:w-[450px] lg:max-w-full flex-shrink-0">
       <img
         src={productServiceAssetUrl(activeSrc)}
         alt="Product"
-        className="w-full h-[300px] sm:h-[400px] lg:h-[450px] object-fill bg-white"
+        className="w-full h-auto max-h-[70vh] object-contain bg-white"
       />
 
       <div className="relative mt-2">
@@ -113,7 +113,7 @@ const ProductGallery = ({ images }: Props) => {
               <img
                 src={productServiceAssetUrl(img)}
                 alt=""
-                className="h-full w-full object-fill"
+                className="h-full w-full object-contain"
               />
             </button>
           ))}

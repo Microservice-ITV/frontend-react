@@ -114,7 +114,6 @@ const AdminDeliveryCompanyFormPage = ({ mode }: AdminDeliveryCompanyFormPageProp
       setSubmitError("Code and name are required.");
       return;
     }
-
     setIsSubmitting(true);
     try {
       let logoUrl: string | null | undefined;
@@ -210,7 +209,7 @@ const AdminDeliveryCompanyFormPage = ({ mode }: AdminDeliveryCompanyFormPageProp
                 {mode === "create" ? "New delivery company" : "Edit delivery company"}
               </h1>
               <p className="mt-0.5 text-sm text-slate-600">
-                Code and name identify the company. Existing quotes keep the name used when they were created.
+                This is the platform-wide delivery company catalog. Sellers choose a company and configure shop-specific delivery expenses separately.
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">

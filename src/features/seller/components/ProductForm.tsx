@@ -393,7 +393,7 @@ const ProductForm = ({
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
           {/* Left Column: Product Information */}
-          <div>
+          <div className="lg:sticky lg:top-16 lg:z-10 lg:self-start">
             <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
               <h2 className="text-base font-bold text-slate-900">
                 Product Information
@@ -599,7 +599,7 @@ const ProductForm = ({
                   </label>
                   <textarea
                     id="description"
-                    rows={4}
+                    rows={8}
                     placeholder="Product description"
                     {...register("description")}
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none placeholder:text-slate-400 focus:border-emerald-500"
@@ -756,12 +756,6 @@ const ProductForm = ({
                       const effective = listOk
                         ? computeEffectiveSellingPrice(list, disc)
                         : null;
-                      const listPriceDisplay = list
-                        ? `$${list.toFixed(2)}`
-                        : "—";
-                      const listPriceInputValue = list ? list.toFixed(2) : "";
-                      const effectivePriceDisplay =
-                        effective != null ? `$${effective.toFixed(2)}` : "—";
                       const markupDisplay =
                         markup != null ? `${markup.toFixed(2)}%` : "—";
 
@@ -874,7 +868,7 @@ const ProductForm = ({
                                 className="mb-1 block text-xs font-medium text-slate-700"
                                 htmlFor={`basePrice-${index}`}
                               >
-                                Base price ($)
+                                Base price
                               </label>
                               <Controller
                                 name={`variants.${index}.basePrice`}
@@ -911,7 +905,7 @@ const ProductForm = ({
                                 className="mb-1 block text-xs font-medium text-slate-700"
                                 htmlFor={`listPrice-${index}`}
                               >
-                                Selling price ($)
+                                Selling price
                               </label>
                               <Controller
                                 name={`variants.${index}.listPrice`}
@@ -1054,7 +1048,7 @@ const ProductForm = ({
                                   Selling price:
                                 </span>
                                 <strong className="text-slate-900">
-                                  ${list ? list.toFixed(2) : "—"}
+                                  {list ? `Ks ${list.toFixed(2)}` : "—"}
                                 </strong>
                               </div>
                               <div className="flex items-center gap-2">
@@ -1062,16 +1056,15 @@ const ProductForm = ({
                                   Customer pays:
                                 </span>
                                 <strong className="text-emerald-700">
-                                  $
                                   {effective != null
-                                    ? effective.toFixed(2)
+                                    ? `Ks ${effective.toFixed(2)}`
                                     : "—"}
                                 </strong>
                               </div>
                               <div className="flex items-center gap-2">
                                 <span className="text-slate-500">Markup:</span>
                                 <strong className="text-slate-700">
-                                  ${markup != null ? markup.toFixed(2) : "—"}%
+                                  {markup != null ? `${markup.toFixed(2)}%` : "—"}
                                 </strong>
                               </div>
                             </div>

@@ -1,5 +1,6 @@
 import { useEffect, useState, type ChangeEvent, type DragEvent } from 'react'
 import { Link } from 'react-router-dom'
+import DataTablePagination from '@/components/ui/DataTablePagination'
 import { AlertCircle, CheckCircle2, Clock3, Download, Eye, FileText, Loader2, Receipt, RefreshCw, UploadCloud, X, Image as ImageIcon } from 'lucide-react'
 import { downloadInvoicePdf, getMyInvoices, type InvoiceDocument, type InvoiceStatus, uploadPaymentSlip } from '@/lib/api/invoiceClient'
 import InvoiceStatCard from '@/features/invoices/components/InvoiceStatCard'
@@ -22,6 +23,8 @@ const STATUS_LABELS: Record<InvoiceStatus, string> = {
   VOID: 'Void',
   REFUNDED: 'Refunded',
 }
+
+const DEFAULT_ROWS_PER_PAGE = 10
 
 const formatMoney = (value: string | number, currency: string): string => {
   const safeCurrency = currency || 'MMK'
@@ -65,6 +68,8 @@ const getInvoiceStatusLabel = (invoice: InvoiceDocument): string =>
 const CustomerInvoicesPage = () => {
   const isAuthenticated = useAppSelector(selectIsAuthenticated)
   const [invoices, setInvoices] = useState<InvoiceDocument[]>([])
+  const [page, setPage] = useState(1)
+  const [rowsPerPage, setRowsPerPage] = useState(DEFAULT_ROWS_PER_PAGE)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceDocument | null>(null)
@@ -79,6 +84,7 @@ const CustomerInvoicesPage = () => {
   const loadInvoices = async () => {
     if (!isAuthenticated) {
       setInvoices([])
+      setPage(1)
       setIsLoading(false)
       return
     }
@@ -89,6 +95,7 @@ const CustomerInvoicesPage = () => {
     try {
       const data = await getMyInvoices()
       setInvoices(data)
+      setPage(1)
     } catch (requestError: unknown) {
       const message = requestError instanceof Error ? requestError.message : 'Unable to load your invoices.'
       setError(message)
@@ -192,21 +199,29 @@ const CustomerInvoicesPage = () => {
   const pendingInvoices = invoices.filter((invoice) => invoice.status === 'PENDING_VERIFICATION' || invoice.status === 'UNPAID')
   const totalBilled = invoices.reduce((sum, invoice) => sum + Number(invoice.grandTotal || 0), 0)
   const currency = invoices[0]?.currency || 'MMK'
+  const totalPages = Math.max(1, Math.ceil(invoices.length / rowsPerPage))
+  const pageInvoices = invoices.slice((page - 1) * rowsPerPage, page * rowsPerPage)
 
   return (
-    <section className="bg-slate-50 p-4 md:p-6">
+    <section className="bg-slate-50/80 p-3 sm:p-4 md:p-6">
       {/* ── Page header ───────────────────────────────────────────────── */}
-      <div className="mb-6">
-        <h1 className="text-xl font-bold tracking-tight text-slate-900 md:text-2xl">My Invoices</h1>
-        <p className="mt-1 text-sm text-slate-500">View and manage your order invoices and payment documents.</p>
+      <div className="mb-6 flex items-start gap-3 sm:mb-7">
+        <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
+          <Receipt size={19} aria-hidden="true" />
+        </span>
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-slate-900 md:text-2xl">My Invoices</h1>
+          <p className="mt-1 text-sm leading-relaxed text-slate-500">View and manage your order invoices and payment documents.</p>
+        </div>
       </div>
 
-      <div className="space-y-5">
+      <div className="space-y-5 sm:space-y-6">
         {!isLoading && isAuthenticated && !error && (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <InvoiceStatCard
               label="Total billed"
               value={formatMoney(totalBilled, currency)}
+              valueClassName="whitespace-nowrap text-[clamp(0.75rem,1.2vw,1.25rem)]"
               hint={`Across ${invoices.length} invoice${invoices.length === 1 ? '' : 's'}`}
               icon={<FileText size={14} />}
               tone="emerald"
@@ -236,7 +251,7 @@ const CustomerInvoicesPage = () => {
         )}
 
       {selectedInvoice && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+        <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-4 shadow-sm sm:p-5">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-700">Submit payment slip</p>
@@ -314,12 +329,16 @@ const CustomerInvoicesPage = () => {
 
       {isLoading && (
         <div aria-live="polite" className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-100 px-4 py-4 sm:px-5">
+            <p className="text-sm font-semibold text-slate-900">Invoice history</p>
+            <p className="mt-1 text-xs text-slate-500">Loading your billing documents…</p>
+          </div>
           <InvoiceTableSkeleton rows={4} />
         </div>
       )}
 
       {!isLoading && error && (
-        <div aria-live="assertive" className="flex flex-col items-center gap-3 rounded-xl border border-rose-200 bg-white px-6 py-12 text-center shadow-sm">
+        <div aria-live="assertive" className="flex flex-col items-center gap-3 rounded-xl border border-rose-200 bg-white px-5 py-12 text-center shadow-sm sm:px-6">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-rose-50 text-rose-500">
             <AlertCircle size={20} />
           </div>
@@ -348,80 +367,91 @@ const CustomerInvoicesPage = () => {
       )}
 
       {!isLoading && !error && isAuthenticated && (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-col gap-1 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-sm font-semibold text-slate-900">Invoice history</h2>
-              <p className="mt-0.5 text-xs text-slate-500">Your latest billing documents and payment status.</p>
+        <div className="overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm">
+          <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-500 ring-1 ring-slate-100">
+                <FileText size={16} aria-hidden="true" />
+              </span>
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900">Invoice history</h2>
+                <p className="mt-1 text-xs leading-relaxed text-slate-500">Your latest billing documents and payment status.</p>
+              </div>
             </div>
-            <span className="text-xs font-medium text-slate-400">{invoices.length} total</span>
+            <span className="inline-flex w-fit items-center rounded-full bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-200">
+              {invoices.length} {invoices.length === 1 ? 'invoice' : 'invoices'}
+            </span>
           </div>
-          <div className="space-y-3 p-3 xl:hidden">
+          <div className="space-y-3 bg-slate-50/50 p-3 sm:p-4 2xl:hidden">
             {invoices.length === 0 ? (
               <InvoiceEmptyState
-                icon={<FileText size={20} />}
-                title="No invoices found"
-                description="Your invoices will appear here once they are created."
+                icon={<Receipt size={20} />}
+                title="No invoices yet"
+                description="Your invoices will appear here after an order is placed."
+                compact
               />
             ) : (
-              invoices.map((invoice) => (
-                <article key={invoice.id} className="min-w-0 rounded-lg border border-slate-200 bg-white p-4">
-                  <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0">
+              pageInvoices.map((invoice) => (
+                <article key={invoice.id} className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition hover:border-emerald-200 hover:shadow-sm sm:p-5">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+                      <FileText size={17} aria-hidden="true" />
+                    </span>
+                    <div className="min-w-0 flex-1">
                       <Link
                         to={`/account/invoices/${encodeURIComponent(invoice.invoiceNumber || invoice.id)}`}
-                        className="break-all font-mono text-[13px] font-semibold text-slate-900 hover:text-emerald-700"
+                        title={invoice.invoiceNumber}
+                        className="block truncate font-mono text-sm font-semibold tracking-tight text-slate-900 transition hover:text-emerald-700"
                       >
                         {invoice.invoiceNumber}
                       </Link>
-                      <p className="mt-1 break-words text-xs text-slate-500">
-                        Order {invoice.orderReference || 'Unavailable'}
-                      </p>
                     </div>
-                    <InvoiceStatusBadge
-                      status={invoice.status}
-                      label={getInvoiceStatusLabel(invoice)}
-                      size="sm"
-                    />
+                    <div className="shrink-0">
+                      <InvoiceStatusBadge
+                        status={invoice.status}
+                        label={getInvoiceStatusLabel(invoice)}
+                        size="sm"
+                      />
+                    </div>
                   </div>
 
-                  <dl className="mt-4 grid grid-cols-2 gap-x-3 gap-y-3 border-t border-slate-100 pt-3 text-xs">
+                  <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-4 border-t border-slate-100 pt-4 text-xs sm:grid-cols-4">
                     <div className="min-w-0">
-                      <dt className="text-slate-400">Shop</dt>
-                      <dd className="mt-1 break-words font-medium text-slate-700">{invoice.shopName || 'N/A'}</dd>
+                      <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Shop</dt>
+                      <dd className="mt-1.5 break-words font-medium text-slate-700">{invoice.shopName || 'N/A'}</dd>
                     </div>
                     <div>
-                      <dt className="text-slate-400">Date</dt>
-                      <dd className="mt-1 text-slate-600">{formatDate(invoice.createdAt)}</dd>
+                      <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Date</dt>
+                      <dd className="mt-1.5 text-slate-600">{formatDate(invoice.createdAt)}</dd>
                     </div>
                     <div>
-                      <dt className="text-slate-400">Amount</dt>
-                      <dd className="mt-1 font-semibold tabular-nums text-slate-900">
+                      <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Amount</dt>
+                      <dd className="mt-1.5 font-semibold tabular-nums text-slate-900">
                         {formatAmount(invoice.grandTotal)}
                       </dd>
                     </div>
                     {invoice.paymentMethod && (
-                      <div>
-                        <dt className="text-slate-400">Payment method</dt>
-                        <dd className="mt-1 font-medium text-slate-700">
+                      <div className="min-w-0">
+                        <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Payment</dt>
+                        <dd className="mt-1.5 break-words font-medium text-slate-700">
                           {formatPaymentMethodLabel(invoice.paymentMethod)}
                         </dd>
                       </div>
                     )}
                   </dl>
 
-                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+                  <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
                     <Link
                       to={`/account/invoices/${encodeURIComponent(invoice.invoiceNumber || invoice.id)}`}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
                     >
-                      <Eye size={14} /> View
+                      <Eye size={14} aria-hidden="true" /> View invoice
                     </Link>
                     <button
                       type="button"
                       onClick={() => handleDownloadPdf(invoice)}
                       disabled={downloadingInvoiceId !== null}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-300"
                     >
                       {downloadingInvoiceId === invoice.id
                         ? <Loader2 size={14} className="animate-spin" />
@@ -436,7 +466,7 @@ const CustomerInvoicesPage = () => {
                           setSelectedFile(null)
                           setPreviewUrl(null)
                         }}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 transition hover:border-emerald-200 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
                       >
                         <UploadCloud size={13} /> Submit slip
                       </button>
@@ -446,24 +476,23 @@ const CustomerInvoicesPage = () => {
               ))
             )}
           </div>
-          <div className="hidden xl:block">
+          <div className="hidden 2xl:block">
             <table className="w-full table-fixed text-left">
-              <thead className="border-b border-slate-100 bg-slate-50/70">
+              <thead className="border-b border-slate-100 bg-slate-50">
                 <tr>
-                  <th className="w-[18%] px-3 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Invoice #</th>
-                  <th className="w-[16%] px-2 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Order reference</th>
-                  <th className="w-[10%] px-2 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Shop</th>
-                  <th className="w-[10%] px-2 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Date</th>
-                  <th className="w-[12%] px-2 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Amount</th>
-                  <th className="w-[12%] px-2 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Status</th>
-                  <th className="w-[22%] px-2 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Actions</th>
+                  <th className="w-[23%] px-2 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Invoice #</th>
+                  <th className="w-[17%] px-2 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Shop</th>
+                  <th className="w-[12%] px-2 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Date</th>
+                  <th className="w-[13%] py-3 pl-2 pr-4 text-right text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Amount</th>
+                  <th className="w-[17%] py-3 pl-4 pr-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Status</th>
+                  <th className="w-[18%] px-3 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Actions</th>
                 </tr>
               </thead>
 
               <tbody>
                 {invoices.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-4">
+                    <td colSpan={6} className="px-4 py-4">
                       <InvoiceEmptyState
                         icon={<FileText size={20} />}
                         title="No invoices found"
@@ -472,49 +501,50 @@ const CustomerInvoicesPage = () => {
                     </td>
                   </tr>
                 ) : (
-                  invoices.map((invoice) => (
+                  pageInvoices.map((invoice) => (
                     <tr key={invoice.id} className="border-t border-slate-100 transition hover:bg-slate-50/70">
-                      <td className="min-w-0 px-3 py-4">
-                        <div className="flex items-center gap-3">
-                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-                            <FileText size={15} />
-                          </span>
-                          <div className="min-w-0">
-                            <Link
-                              to={`/account/invoices/${encodeURIComponent(invoice.invoiceNumber || invoice.id)}`}
-                              className="break-all font-mono text-[13px] font-semibold text-slate-900 hover:text-emerald-700"
-                            >
-                              {invoice.invoiceNumber}
-                            </Link>
-                            <p className="mt-0.5 text-[10px] uppercase tracking-[0.1em] text-slate-400">Invoice</p>
-                          </div>
-                        </div>
+                      <td className="min-w-0 px-2 py-4">
+                        <Link
+                          to={`/account/invoices/${encodeURIComponent(invoice.invoiceNumber || invoice.id)}`}
+                          title={invoice.invoiceNumber}
+                          className="block truncate whitespace-nowrap font-mono text-xs font-semibold tracking-tight text-slate-900 transition hover:text-emerald-700"
+                        >
+                          {invoice.invoiceNumber}
+                        </Link>
                       </td>
-                      <td className="break-all px-2 py-4 text-xs font-medium text-slate-700">{invoice.orderReference || 'Unavailable'}</td>
-                      <td className="break-words px-2 py-4 text-sm text-slate-600">{invoice.shopName || 'N/A'}</td>
-                      <td className="px-2 py-4 text-sm text-slate-500">{formatDate(invoice.createdAt)}</td>
-                      <td className="px-2 py-4 text-right text-sm font-semibold tabular-nums text-slate-900">
-                        {formatAmount(invoice.grandTotal)}
+                      <td className="truncate whitespace-nowrap px-2 py-4 text-[13px] font-medium text-slate-700" title={invoice.shopName || 'N/A'}>{invoice.shopName || 'N/A'}</td>
+                      <td className="min-w-0 px-2 py-4 text-[13px] text-slate-600" title={formatDate(invoice.createdAt)}>
+                        <span className="block truncate whitespace-nowrap">{formatDate(invoice.createdAt)}</span>
                       </td>
-                      <td className="px-2 py-4">
+                      <td className="min-w-0 py-4 pl-2 pr-4 text-right text-[13px] font-semibold tabular-nums text-slate-900" title={formatAmount(invoice.grandTotal)}>
+                        <span className="block truncate whitespace-nowrap">{formatAmount(invoice.grandTotal)}</span>
+                      </td>
+                      <td
+                        className="min-w-0 py-4 pl-4 pr-2"
+                        title={[
+                          getInvoiceStatusLabel(invoice),
+                          invoice.paymentMethod ? formatPaymentMethodLabel(invoice.paymentMethod) : null,
+                        ].filter(Boolean).join(' · ')}
+                      >
                         <InvoiceStatusBadge
                           status={invoice.status}
                           label={getInvoiceStatusLabel(invoice)}
                           size="sm"
+                          className="max-w-full overflow-hidden whitespace-nowrap"
                         />
                         {invoice.paymentMethod && (
-                          <p className="mt-1 text-[10px] text-slate-500">
+                          <p className="mt-1.5 truncate whitespace-nowrap text-[11px] leading-snug text-slate-500">
                             {formatPaymentMethodLabel(invoice.paymentMethod)}
                           </p>
                         )}
                       </td>
-                      <td className="px-2 py-4 text-right">
+                      <td className="px-3 py-4 text-right">
                         <div className="flex flex-wrap items-center justify-end gap-1.5">
                           <Link
                             to={`/account/invoices/${encodeURIComponent(invoice.invoiceNumber || invoice.id)}`}
                             title="View invoice details"
                             aria-label={`View details for ${invoice.invoiceNumber}`}
-                            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-800"
+                            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-1"
                           >
                             <Eye size={14} />
                           </Link>
@@ -524,7 +554,7 @@ const CustomerInvoicesPage = () => {
                             disabled={downloadingInvoiceId !== null}
                             title="Download invoice PDF"
                             aria-label={`Download ${invoice.invoiceNumber} PDF`}
-                            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-800 disabled:cursor-not-allowed disabled:border-slate-100 disabled:bg-slate-50 disabled:text-slate-300"
+                            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:border-slate-100 disabled:bg-slate-50 disabled:text-slate-300"
                           >
                             {downloadingInvoiceId === invoice.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
                           </button>
@@ -537,10 +567,11 @@ const CustomerInvoicesPage = () => {
                                 setSelectedFile(null)
                                 setPreviewUrl(null)
                               }}
-                              className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-2.5 py-1.5 text-[11px] font-semibold text-white transition hover:bg-slate-800"
+                              title="Submit payment slip"
+                              aria-label={`Submit slip for ${invoice.invoiceNumber}`}
+                              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-emerald-100 bg-emerald-50 text-emerald-800 transition hover:border-emerald-200 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-1"
                             >
                               <UploadCloud size={12} />
-                              Submit slip
                             </button>
                           )}
                         </div>
@@ -551,6 +582,18 @@ const CustomerInvoicesPage = () => {
               </tbody>
             </table>
           </div>
+          <DataTablePagination
+            page={page}
+            totalPages={totalPages}
+            rowsPerPage={rowsPerPage}
+            totalItems={invoices.length}
+            itemLabel="invoices"
+            onPageChange={setPage}
+            onRowsPerPageChange={(value) => {
+              setRowsPerPage(value)
+              setPage(1)
+            }}
+          />
         </div>
       )}
       </div>

@@ -27,7 +27,7 @@ import { fetchUserAddresses } from '@/features/account/store/accountThunks'
 import { NewAddressModal } from '@/features/account/components/NewAddressModal'
 import type { UserAddress } from '@/features/account/types/addressTypes'
 import { clearShippingCalculate } from '@/features/shipping/store/shippingSlice'
-import { fetchCheckoutShippingCalculation, fetchShopProfilesForCurrentCart } from '@/features/shipping/store/shippingThunks'
+import { fetchCheckoutShippingCalculation } from '@/features/shipping/store/shippingThunks'
 import { useCheckoutDeliveryCompany } from '@/features/shipping/hooks/useCheckoutDeliveryCompany'
 import { hasConfirmedStock, isStockReadinessConfirmed } from '../utils/checkoutStatus'
 import { checkoutHasNoDeliveryRoute } from '../utils/deliveryReadiness'
@@ -40,6 +40,7 @@ type StoredCheckoutSession = {
 
 const terminalCheckoutStatuses = new Set(['PAID', 'COMPLETED', 'FAILED', 'FAILED_STOCK', 'FAILED_PAYMENT', 'EXPIRED'])
 const terminalSagaStatuses = new Set(['COMPLETED', 'FAILED', 'TIMEOUT'])
+const noShopRoutes: { shopId: string; fromDistrictId: string; toDistrictId: string }[] = []
 
 const CheckoutPage = () => {
     const dispatch = useAppDispatch()
@@ -93,22 +94,7 @@ const CheckoutPage = () => {
         () => [...new Set(items.map((item) => item.shopId).filter(Boolean))],
         [items],
     )
-    const profilesByShopId = useAppSelector((state) => state.shipping.profilesByShopId)
-    const shopRoutes = useMemo(
-        () => shopIds.map((shopId) => ({
-            shopId,
-            fromDistrictId: profilesByShopId[shopId]?.districtId?.trim() ?? '',
-            toDistrictId: selectedDeliveryAddress?.district_id != null
-                ? String(selectedDeliveryAddress.district_id)
-                : '',
-        })),
-        [profilesByShopId, selectedDeliveryAddress?.district_id, shopIds],
-    )
-    const deliveryCompany = useCheckoutDeliveryCompany(shopIds, shopRoutes)
-    useEffect(() => {
-        if (shopIds.length === 0) return
-        void dispatch(fetchShopProfilesForCurrentCart())
-    }, [dispatch, shopIds])
+    const deliveryCompany = useCheckoutDeliveryCompany(shopIds, noShopRoutes)
     const quotableCompanyByShopId = useMemo(() => {
         const next: Record<string, string> = {}
         for (const shopId of shopIds) {
@@ -586,6 +572,7 @@ const CheckoutPage = () => {
                                     deliveryAddress={selectedDeliveryAddress}
                                     cartItems={items}
                                     deliveryQuotePendingConfirmation={deliveryQuotePendingConfirmation}
+                                    deliveryCompanyIdByShopId={deliveryCompany.companyByShopId}
                                 />
                             ) : checkoutError ? (
                                 <div role="alert" className="rounded-sm border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">

@@ -235,6 +235,14 @@ export const DASHBOARD_MENU_SELLER: DashboardMenuSection[] = [
         icon: Receipt,
       },
       {
+        key: "seller-accounting-delivery-company-fees",
+        label: "Delivery Expense Fees",
+        to: "/seller/accounting/delivery-company-fees",
+        area: "seller",
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: Truck,
+      },
+      {
         key: "seller-accounting-pending-approvals",
         label: "Pending Approvals",
         to: "/seller/accounting/pending-approvals",

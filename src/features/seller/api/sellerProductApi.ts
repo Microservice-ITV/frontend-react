@@ -117,24 +117,34 @@ export type ProductDetailReadItem = {
   name?: string;
   title?: string;
   slug?: string;
+  sku?: string;
   description?: string;
   categoryId?: string;
   category?: {
     id?: string;
     name?: string;
     title?: string;
+    parent?: { id?: string; name?: string } | null;
   };
   shopId?: string;
+  shop?: { id?: string; name?: string };
   brandId?: string;
+  brand?: { id?: string; name?: string; code?: string };
   isActive?: boolean;
   imageUrl?: string;
   images?: string[];
   tags?: string[];
+  stock?: number | string;
+  createdAt?: string;
+  updatedAt?: string;
   variants?: Array<{
     id?: string
     variantId?: string
+    sku?: string
     colorId?: string
     sizeId?: string
+    color?: { id?: string; name?: string; code?: string }
+    size?: { id?: string; name?: string; code?: string }
     basePrice?: number | string
     listPrice?: number | string
     sellingPrice?: number | string
@@ -149,6 +159,7 @@ export type ProductDetailReadItem = {
     width?: number | string | null;
     height?: number | string | null;
     weight?: number | string | null;
+    imageIndexes?: number[]
     isPrimary?: boolean;
   }>;
 };

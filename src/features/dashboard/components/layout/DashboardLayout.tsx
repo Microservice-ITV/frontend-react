@@ -74,7 +74,7 @@ const DashboardLayout = ({ area }: DashboardLayoutProps) => {
   return (
     <div
       ref={rootRef}
-      className="dni-dashboard min-h-screen overflow-x-hidden bg-slate-50 text-slate-900"
+      className="dni-dashboard min-h-screen overflow-x-clip bg-slate-50 text-slate-900"
     >
       <DashboardSidebar
         area={area}

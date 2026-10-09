@@ -199,7 +199,7 @@ const SellerOrderDetailPage = () => {
     return () => { cancelled = true }
   }, [id, activeShopId, authUserId])
 
-  const handleShipOrder = (shopId?: string, shopName?: string) => {
+  const handleShipOrder = async (shopId?: string, shopName?: string) => {
     if (!order) return
 
     openModal({
@@ -220,8 +220,8 @@ const SellerOrderDetailPage = () => {
           </p>
           <p className="text-xs text-slate-500">
             {shopId
-              ? 'Only this shop&apos;s items will be shipped — other shops ship separately with their own tracking numbers.'
-              : 'A tracking number will be automatically generated.'}
+              ? 'Only this shop’s items will be shipped using its configured Delivery Company — other shops ship separately with their own tracking numbers.'
+              : 'The shop’s configured Delivery Company will be used. A tracking number will be automatically generated.'}
           </p>
         </div>
       ),
@@ -231,9 +231,6 @@ const SellerOrderDetailPage = () => {
       onPrimary: async () => {
         try {
           await sellerOrderApi.createShipment(order.orderId, {
-            courier_code: 'STANDARD',
-            courier_name: 'Standard Shipping',
-            courier_phone: 'N/A',
             ...(shopId ? { shop_id: shopId } : {}),
           })
           if (activeShopId || authUserId) {

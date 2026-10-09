@@ -36,6 +36,7 @@ interface CheckoutSummaryProps {
   checkoutSessionItems?: CheckoutStatusResponse['items']
   /** No delivery company has a district route; fee is confirmed after the order. */
   deliveryQuotePendingConfirmation?: boolean
+  deliveryCompanyIdByShopId: Record<string, string>
 }
 
 const promoStatusLabel = (status: PromoCodeStatus | null | undefined, message?: string | null): string => {
@@ -68,6 +69,7 @@ const buildShopShippings = (
   checkoutSessionItems: CheckoutStatusResponse['items'] | undefined,
   feesByShopId: Record<string, { amount?: number | null }>,
   shippingCalculateStatus: string,
+  deliveryCompanyIdByShopId: Record<string, string>,
 ): CheckoutShopShippingPayload[] => {
   const shopCountFromCart = Object.keys(checkout.groupedByShop).length
   const perShopFallback = shopCountFromCart > 0 ? checkout.shippingSubtotal / shopCountFromCart : 0
@@ -114,6 +116,9 @@ const buildShopShippings = (
     return {
       shop_id: shopId,
       shipping_fee: fromApi ?? perShopFallbackForIds,
+      delivery_company_id: cartShopId
+        ? deliveryCompanyIdByShopId[cartShopId] ?? ''
+        : '',
     }
   })
 }
@@ -126,6 +131,7 @@ const CheckoutSummary = ({
   cartItems,
   checkoutSessionItems,
   deliveryQuotePendingConfirmation = false,
+  deliveryCompanyIdByShopId,
 }: CheckoutSummaryProps) => {
   const dispatch = useAppDispatch()
   const stripe = useStripe()
@@ -356,6 +362,7 @@ const CheckoutSummary = ({
       checkoutSessionItems ?? currentStatus?.items,
       feesByShopId,
       shippingCalculateStatus,
+      deliveryCompanyIdByShopId,
     )
 
     return {
@@ -406,6 +413,13 @@ const CheckoutSummary = ({
             'Delivery fee is not ready yet. Please wait for it to calculate, or check your delivery address.',
         ),
       )
+      return
+    }
+
+    const missingCompanyShop = [...new Set(cartItems.map((item) => item.shopId))]
+      .find((shopId) => !deliveryCompanyIdByShopId[shopId]?.trim())
+    if (missingCompanyShop) {
+      dispatch(setCheckoutError('A delivery company is not configured for one or more shops. Please contact the shop owner.'))
       return
     }
 

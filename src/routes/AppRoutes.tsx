@@ -114,9 +114,11 @@ import AdminDeliveryQuoteDetailPage from "@/features/admin/pages/AdminDeliveryQu
 import AdminUsersPage from "@/features/admin/pages/AdminUsersPage";
 import PlatformUsersPage from "@/features/admin/pages/PlatformUsersPage";
 import AdminInvoicesPage from "@/features/admin/pages/AdminInvoicesPage";
+import AdminMissingInvoicesPage from "@/features/admin/pages/AdminMissingInvoicesPage";
 import AdminIncomePage from "@/features/admin/pages/AdminIncomePage";
 import AdminExpensePage from "@/features/admin/pages/AdminExpensePage";
 import AdminExpenseCategoriesPage from "@/features/admin/pages/AdminExpenseCategoriesPage";
+import SellerDeliveryCompanyFeesPage from "@/features/seller/pages/SellerDeliveryCompanyFeesPage";
 import CommonNotificationsPage from "@/features/common/pages/CommonNotificationsPage";
 import CommonChatPage from "@/features/common/pages/CommonChatPage";
 import CommonHelpSupportPage from "@/features/common/pages/CommonHelpSupportPage";
@@ -622,6 +624,14 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.sellerAccounting}
                 >
                   <SellerAccountingOverviewPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/delivery-company-fees"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerAccounting}>
+                  <SellerDeliveryCompanyFeesPage />
                 </ProtectedRoute>
               }
             />
@@ -1331,6 +1341,16 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.superAdminInvoices}
                 >
                   <AdminInvoicesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="invoices/missing"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminInvoices}
+                >
+                  <AdminMissingInvoicesPage />
                 </ProtectedRoute>
               }
             />

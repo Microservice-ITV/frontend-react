@@ -448,9 +448,9 @@ export const sellerOrderApi = {
   async createShipment(
     orderId: string,
     payload: {
-      courier_code: string
-      courier_name: string
-      courier_phone: string
+      courier_code?: string
+      courier_name?: string
+      courier_phone?: string
       tracking_number?: string
       tracking_url?: string
       /** Ship only this shop's portion (multi-owner order, per-shop fulfillment). */
