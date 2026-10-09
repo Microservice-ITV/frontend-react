@@ -198,39 +198,21 @@ const AdminCityRateFormPage = ({ mode }: AdminCityRateFormPageProps) => {
 
       {!loading && !loadError && !citiesLoading && (
         <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <button
-                type="button"
-                onClick={() => navigate("/super-admin/shipping/city-rates")}
-                className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-800 cursor-pointer"
-              >
-                <ArrowLeft size={14} />
-                Back to route rates
-              </button>
-              <h1 className="text-xl font-bold text-slate-900">
-                {mode === "create" ? "New route rate" : "Edit route rate"}
-              </h1>
-              <p className="mt-0.5 text-sm text-slate-600">
-                Flat delivery fee charged between a from-district and a to-district.
-              </p>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <button
-                type="button"
-                onClick={() => navigate("/super-admin/shipping/city-rates")}
-                className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
-              >
-                {isSubmitting ? "Saving…" : mode === "create" ? "Create route rate" : "Save changes"}
-              </button>
-            </div>
+          <div>
+            <button
+              type="button"
+              onClick={() => navigate("/super-admin/shipping/city-rates")}
+              className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-800 cursor-pointer"
+            >
+              <ArrowLeft size={14} />
+              Back to route rates
+            </button>
+            <h1 className="text-xl font-bold text-slate-900">
+              {mode === "create" ? "New route rate" : "Edit route rate"}
+            </h1>
+            <p className="mt-0.5 text-sm text-slate-600">
+              Flat delivery fee charged between a from-district and a to-district.
+            </p>
           </div>
 
           {submitError && (

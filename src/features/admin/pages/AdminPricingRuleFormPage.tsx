@@ -218,43 +218,21 @@ const AdminPricingRuleFormPage = ({ mode }: PricingRuleFormPageProps) => {
 
       {!loading && !loadError && (
         <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <button
-                type="button"
-                onClick={() => navigate('/super-admin/shipping/pricing-rules')}
-                className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-800 cursor-pointer"
-              >
-                <ArrowLeft size={14} />
-                Back to rules
-              </button>
-              <h1 className="text-xl font-bold text-slate-900">
-                {mode === 'create' ? 'New pricing rule' : 'Edit pricing rule'}
-              </h1>
-              <p className="mt-0.5 text-sm text-slate-600">
-                Base settings for this rule. Manage its weight rate from the weight rates screen.
-              </p>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <button
-                type="button"
-                onClick={() => navigate('/super-admin/shipping/pricing-rules')}
-                className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
-              >
-                {isSubmitting
-                  ? 'Saving…'
-                  : mode === 'create'
-                    ? 'Create rule'
-                    : 'Save changes'}
-              </button>
-            </div>
+          <div>
+            <button
+              type="button"
+              onClick={() => navigate('/super-admin/shipping/pricing-rules')}
+              className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-800 cursor-pointer"
+            >
+              <ArrowLeft size={14} />
+              Back to rules
+            </button>
+            <h1 className="text-xl font-bold text-slate-900">
+              {mode === 'create' ? 'New pricing rule' : 'Edit pricing rule'}
+            </h1>
+            <p className="mt-0.5 text-sm text-slate-600">
+              Base settings for this rule. Manage its weight rate from the weight rates screen.
+            </p>
           </div>
 
           {submitError && (
