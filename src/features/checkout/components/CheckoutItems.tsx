@@ -47,7 +47,7 @@ type ShippingNoticeKind = 'service' | 'route' | 'company'
 
 const SHIPPING_NOTICE: Record<ShippingNoticeKind, string> = {
   service: 'Delivery is under maintenance and is not available right now.',
-  route: 'Your address cannot be delivered yet.',
+  route: 'No active delivery company is available for this shop and address.',
   company: 'No delivery company is available right now.',
 }
 

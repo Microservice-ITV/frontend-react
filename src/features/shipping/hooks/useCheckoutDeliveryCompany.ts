@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { shippingApi } from '../api/shippingApi'
+import { accountingClient } from '@/lib/api/accountingClient'
 
 export type CheckoutDeliveryCompany = {
   id: string
@@ -76,6 +77,9 @@ export function useCheckoutDeliveryCompany(shopIds: string[], routes: ShopDistri
   const [selectedByShopId, setSelectedByShopId] = useState(readStoredMap)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [configurationError, setConfigurationError] = useState('')
+  const [configuredCompanyIdsByShop, setConfiguredCompanyIdsByShop] = useState<Record<string, string[]>>({})
+  const [configurationsReady, setConfigurationsReady] = useState(false)
   const [routesReady, setRoutesReady] = useState(false)
   const [availableByPair, setAvailableByPair] = useState<Record<string, string[] | null>>({})
   const shopKey = useMemo(() => [...shopIds].sort().join('|'), [shopIds])
@@ -109,6 +113,57 @@ export function useCheckoutDeliveryCompany(shopIds: string[], routes: ShopDistri
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    setConfigurationsReady(false)
+    setConfigurationError('')
+
+    if (shopIds.length === 0) {
+      setConfiguredCompanyIdsByShop({})
+      setConfigurationsReady(true)
+      return () => {
+        cancelled = true
+      }
+    }
+
+    const loadConfigurations = async () => {
+      try {
+        const entries = await Promise.all(
+          shopIds.map(async (shopId) => {
+            const response = await accountingClient.get<{
+              configurations?: Array<{ deliveryCompanyId?: unknown }>
+            }>(`/delivery-company-configurations/shops/${encodeURIComponent(shopId)}/checkout`)
+            const configurations = response.data.configurations
+            if (!Array.isArray(configurations)) {
+              throw new Error('Accounting returned an invalid shop Delivery Company configuration response')
+            }
+
+            return [
+              shopId,
+              configurations
+                .map((configuration) => configuration.deliveryCompanyId)
+                .filter((id): id is string => typeof id === 'string' && id.trim() !== ''),
+            ] as const
+          }),
+        )
+
+        if (cancelled) return
+        setConfiguredCompanyIdsByShop(Object.fromEntries(entries))
+      } catch {
+        if (cancelled) return
+        setConfiguredCompanyIdsByShop({})
+        setConfigurationError('Delivery companies could not be verified for each shop. Please try again.')
+      } finally {
+        if (!cancelled) setConfigurationsReady(true)
+      }
+    }
+
+    void loadConfigurations()
+    return () => {
+      cancelled = true
+    }
+  }, [shopKey, shopIds])
 
   useEffect(() => {
     if (loading) return
@@ -161,23 +216,26 @@ export function useCheckoutDeliveryCompany(shopIds: string[], routes: ShopDistri
 
   const unavailableCompanyIdsByShop = useMemo(() => {
     const out: Record<string, string[]> = {}
-    if (!routesReady) return out
-    for (const route of routes) {
-      const available = availableByPair[pairKey(route.fromDistrictId, route.toDistrictId)]
-      if (available == null) {
-        out[route.shopId] = []
-        continue
-      }
-      const availableIds = new Set(available)
-      out[route.shopId] = companies
-        .filter((company) => !availableIds.has(company.id))
+    if (!routesReady || !configurationsReady) return out
+    for (const shopId of shopIds) {
+      const configuredIds = new Set(configuredCompanyIdsByShop[shopId] ?? [])
+      const route = routes.find((candidate) => candidate.shopId === shopId)
+      const available = route
+        ? availableByPair[pairKey(route.fromDistrictId, route.toDistrictId)]
+        : null
+      const routeAvailableIds = available == null ? null : new Set(available)
+      out[shopId] = companies
+        .filter((company) =>
+          !configuredIds.has(company.id) ||
+          (routeAvailableIds !== null && !routeAvailableIds.has(company.id)),
+        )
         .map((company) => company.id)
     }
     return out
-  }, [availableByPair, companies, routeKey, routes, routesReady])
+  }, [availableByPair, companies, configuredCompanyIdsByShop, configurationsReady, routeKey, routes, routesReady, shopIds])
 
   useEffect(() => {
-    if (loading || !routesReady || companies.length === 0 || shopIds.length === 0) return
+    if (loading || !routesReady || !configurationsReady || companies.length === 0 || shopIds.length === 0) return
 
     setSelectedByShopId((current) => {
       const next = { ...current }
@@ -200,7 +258,7 @@ export function useCheckoutDeliveryCompany(shopIds: string[], routes: ShopDistri
       writeStoredMap(next)
       return next
     })
-  }, [companies, loading, routesReady, shopIds, shopKey, unavailableCompanyIdsByShop])
+  }, [companies, configurationsReady, loading, routesReady, shopIds, shopKey, unavailableCompanyIdsByShop])
 
   const selectCompany = (shopId: string, companyId: string) => {
     if ((unavailableCompanyIdsByShop[shopId] ?? []).includes(companyId)) return
@@ -213,7 +271,7 @@ export function useCheckoutDeliveryCompany(shopIds: string[], routes: ShopDistri
   }
 
   const selectionSettled = useMemo(() => {
-    if (!routesReady || loading) return false
+    if (!routesReady || !configurationsReady || loading) return false
     if (shopIds.length === 0) return true
     if (companies.length === 0) return false
     return shopIds.every((shopId) => {
@@ -223,25 +281,29 @@ export function useCheckoutDeliveryCompany(shopIds: string[], routes: ShopDistri
       if (available.length === 0) return !selected
       return Boolean(selected && available.some((company) => company.id === selected))
     })
-  }, [companies, loading, routesReady, selectedByShopId, shopIds, unavailableCompanyIdsByShop])
+  }, [companies, configurationsReady, loading, routesReady, selectedByShopId, shopIds, unavailableCompanyIdsByShop])
 
   const companyByShopId = useMemo(() => {
     const next: Record<string, string> = {}
+    if (!configurationsReady || !routesReady) return next
+
     for (const shopId of shopIds) {
       const companyId = selectedByShopId[shopId]
-      if (companyId) next[shopId] = companyId
+      if (companyId && !(unavailableCompanyIdsByShop[shopId] ?? []).includes(companyId)) {
+        next[shopId] = companyId
+      }
     }
     return next
-  }, [selectedByShopId, shopIds])
+  }, [configurationsReady, routesReady, selectedByShopId, shopIds, unavailableCompanyIdsByShop])
 
   return {
     companies,
     selectedByShopId,
     companyByShopId,
     unavailableCompanyIdsByShop,
-    routesReady: routesReady && selectionSettled,
+    routesReady: routesReady && configurationsReady && selectionSettled,
     loading,
-    error,
+    error: error || configurationError,
     selectCompany,
   }
 }

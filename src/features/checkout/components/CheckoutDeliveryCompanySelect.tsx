@@ -44,7 +44,7 @@ const CheckoutDeliveryCompanySelect = ({
             onClick={() => onSelect(company.id)}
             aria-pressed={selected}
             aria-label={company.name}
-            title={disabled ? `${company.name}: no district route for this company` : company.name}
+            title={disabled ? `${company.name}: not configured for this shop or delivery route` : company.name}
             className={`relative flex items-center overflow-hidden rounded-sm border text-left transition ${
               imageOnly ? 'w-fit shrink-0 gap-2 p-1.5' : 'min-w-0 flex-1 gap-3 px-3 py-2.5'
             } ${

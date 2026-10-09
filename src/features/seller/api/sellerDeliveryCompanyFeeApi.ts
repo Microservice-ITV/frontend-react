@@ -1,7 +1,7 @@
 import axios from "axios";
 import { accountingClient } from "@/lib/api/accountingClient";
 
-export type DeliveryChargingBasis = "PER_ORDER" | "PER_DAY";
+export type DeliveryChargingBasis = "PER_ORDER" | "PER_INVOICE";
 
 export type SellerDeliveryCompanyFee = {
   id: string;
