@@ -14,7 +14,6 @@ import { chatIcon, voucherIcon } from '@/assets/icons'
 import { CheckoutTotals } from '../utils/checkoutCalculator'
 import placeholderImage from '@/public/placeholder.svg'
 import { Truck } from 'lucide-react'
-import CartQuantityInput from '@/features/cart/components/CartQuantityInput'
 import CheckoutDeliveryCompanySelect from './CheckoutDeliveryCompanySelect'
 
 export type CheckoutDeliveryCompanySelection = {
@@ -331,9 +330,9 @@ const CheckoutItems = ({ checkout, deliveryCompany }: CheckoutItemsProps) => {
                       {formatKsPrice(item.price)}
                     </p>
                     <div className="flex items-center justify-between pl-[4.5rem] md:contents">
-                      <div className="md:flex md:justify-center">
-                        <CartQuantityInput item={item} />
-                      </div>
+                      <p className="text-center text-sm tabular-nums text-gray-700">
+                        {item.quantity}
+                      </p>
                       <p className="whitespace-nowrap text-sm font-semibold tabular-nums text-emerald-700 md:text-right md:text-[15px]">
                         {formatKsPrice(subtotal)}
                       </p>
