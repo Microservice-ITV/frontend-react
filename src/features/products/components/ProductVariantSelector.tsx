@@ -59,7 +59,8 @@ type Props = {
 }
 
 /**
- * Shopee-style Color / Size rows, or a fallback "Option" row when SKUs share empty/duplicate dimension IDs.
+ * Color and Size rows stay visible even when a product has only one of each.
+ * Falls back to an Option row when SKUs have no color or size names.
  * Single source of truth: `selectedVariantId`.
  */
 const ProductVariantSelector = ({
@@ -111,8 +112,9 @@ const ProductVariantSelector = ({
         [variants, currentColorId],
     )
 
-    const showColor = colorOptions.length > 1
-    const showSize = sizeOptions.length > 1
+    const hasLabel = (value: string | undefined | null) => Boolean(value?.trim())
+    const showColor = colorOptions.some((v) => hasLabel(v.colorName) || hasLabel(v.colorCode))
+    const showSize = sizeOptions.some((v) => hasLabel(v.sizeName) || hasLabel(v.sizeCode))
     const showFallback = variants.length > 1 && !showColor && !showSize
 
     const handleColor = (nextColorId: string) => {
@@ -137,7 +139,7 @@ const ProductVariantSelector = ({
         if (match) setSelectedVariantId(match.variantId)
     }
 
-    if (variants.length <= 1) {
+    if (!showColor && !showSize && !showFallback) {
         return null
     }
 

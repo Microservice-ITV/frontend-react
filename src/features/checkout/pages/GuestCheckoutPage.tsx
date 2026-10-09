@@ -4,8 +4,8 @@ import { selectSelectedItems } from '@/features/cart/store/cartSelectors'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { SearchableSelect } from '@/components/ui/SearchableSelect'
-import { useEffect, useMemo, useState } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { guestCheckoutCart } from '../store/checkoutThunks'
 import { clearCheckout, setCheckoutError } from '../store/checkoutSlice'
 import { loadAllDistricts, type DistrictOptionWithCity } from '@/features/admin/api/locationOptions'
@@ -15,6 +15,7 @@ import {
   resolveCartTax,
 } from '../api/checkoutApi'
 import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
+import { AlertCircle, Lightbulb, UserRound } from 'lucide-react'
 function getOrCreateGuestId(): string {
   try {
     const key = 'dni.guest_id'
@@ -31,9 +32,59 @@ function getOrCreateGuestId(): string {
   }
 }
 
+const fieldLabelClass = 'mb-1 block text-sm font-semibold text-gray-900'
+const fieldClass =
+  'w-full rounded-sm border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-600'
+const exampleBadgeClass =
+  'flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-[11px] font-semibold text-white'
+const exampleBoxClass = 'mt-2 rounded-sm border border-gray-300 bg-white text-sm text-gray-800'
+const exampleTextClass = `${exampleBoxClass} px-2.5 py-1.5`
+
+const FILL_IN_TOUR_DISMISS_KEY = 'dni.guest_checkout.fill_in_tour_dismissed'
+
+function dismissedFillInTourVisit() {
+  try {
+    return sessionStorage.getItem(FILL_IN_TOUR_DISMISS_KEY)
+  } catch {
+    return null
+  }
+}
+
+function rememberDismissedFillInTour(visitKey: string) {
+  try {
+    sessionStorage.setItem(FILL_IN_TOUR_DISMISS_KEY, visitKey)
+  } catch {
+    // Ignore storage failures. The tour can show again after a refresh.
+  }
+}
+
+function ExampleStep({
+  step,
+  label,
+  hint,
+  children,
+}: {
+  step: string
+  label: string
+  hint: string
+  children: ReactNode
+}) {
+  return (
+    <div>
+      <div className="flex items-center gap-1.5">
+        <span className={exampleBadgeClass}>{step}</span>
+        <span className="text-sm font-semibold text-gray-900">{label}</span>
+      </div>
+      {children}
+      <p className="mt-1.5 text-[11px] leading-4 text-gray-500">{hint}</p>
+    </div>
+  )
+}
+
 const GuestCheckoutPage = () => {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
+  const location = useLocation()
 
   const items = useAppSelector(selectSelectedItems)
   const { loading } = useAppSelector((state) => state.checkout)
@@ -64,6 +115,63 @@ const GuestCheckoutPage = () => {
   const [taxAmount, setTaxAmount] = useState(0)
   const [taxEnabled, setTaxEnabled] = useState(true)
   const [taxLoading, setTaxLoading] = useState(false)
+  const fillInGuideRef = useRef<HTMLDivElement>(null)
+  const checkoutFormRef = useRef<HTMLDivElement>(null)
+  const [fillInTourOpen, setFillInTourOpen] = useState(false)
+  const [fillInTourRect, setFillInTourRect] = useState<{
+    top: number
+    left: number
+    width: number
+    height: number
+  } | null>(null)
+
+  const pageReady = entryOk && items.length > 0
+
+  const dismissFillInTour = () => {
+    rememberDismissedFillInTour(location.key)
+    setFillInTourOpen(false)
+  }
+
+  const finishFillInTour = () => {
+    dismissFillInTour()
+    checkoutFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  useEffect(() => {
+    if (!pageReady || dismissedFillInTourVisit() === location.key) return
+
+    const timer = window.setTimeout(() => {
+      fillInGuideRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      setFillInTourOpen(true)
+    }, 150)
+
+    return () => window.clearTimeout(timer)
+  }, [pageReady, location.key])
+
+  useEffect(() => {
+    if (!fillInTourOpen) return
+
+    const measure = () => {
+      const box = fillInGuideRef.current?.getBoundingClientRect()
+      if (!box) return
+      setFillInTourRect({ top: box.top, left: box.left, width: box.width, height: box.height })
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      rememberDismissedFillInTour(location.key)
+      setFillInTourOpen(false)
+    }
+
+    measure()
+    window.addEventListener('resize', measure)
+    window.addEventListener('scroll', measure, true)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('resize', measure)
+      window.removeEventListener('scroll', measure, true)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [fillInTourOpen, location.key])
 
   const merchandiseSubtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const taxLinesKey = items
@@ -100,8 +208,6 @@ const GuestCheckoutPage = () => {
       cancelled = true
     }
   }, [taxLinesKey])
-
-  const announcement = 'Guest checkout is available without registration. You will not receive any promotion offer unless you register an account.'
 
   useEffect(() => {
     let cancelled = false
@@ -166,16 +272,6 @@ const GuestCheckoutPage = () => {
       is_billing: false,
     }
   }, [fullName, phoneE164, selectedDistrict, address, guestId])
-
-  const missingRequired = useMemo(() => {
-    const missing: string[] = []
-    if (!fullName.trim()) missing.push('Full name')
-    if (!phoneE164) missing.push('Phone number')
-    if (!selectedDistrict) missing.push('District')
-    if (!address.trim()) missing.push('Address')
-    if (items.length === 0) missing.push('Selected item(s)')
-    return missing
-  }, [fullName, phoneE164, selectedDistrict, address, items.length])
 
   const canContinue =
     !!deliveryAddress &&
@@ -257,15 +353,22 @@ const GuestCheckoutPage = () => {
   return (
     <div className="bg-gray-50 px-4 pt-8 pb-12">
       <div className="mx-auto w-full max-w-3xl space-y-4">
+        <div ref={checkoutFormRef} className="scroll-mt-28">
         <Card className="p-6">
-          <h1 className="text-lg font-semibold text-gray-900">Guest checkout</h1>
-          <p className="mt-2 text-sm font-semibold text-amber-700">{announcement}</p>
-
-          {items.length === 0 && (
-            <div className="mt-4 rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              No items selected. Go back to cart and select item(s) to checkout.
+          <h1 className="flex items-center gap-2 text-lg font-semibold text-gray-900">
+            <UserRound className="h-5 w-5 text-emerald-600" aria-hidden="true" />
+            Guest checkout
+          </h1>
+          <div
+            className="mt-3 flex items-start gap-2 rounded-sm border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900"
+            role="status"
+          >
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />
+            <div>
+              <p>Guest checkout is available without registration.</p>
+              <p className="mt-1">You will not receive any promotion offer unless you register an account.</p>
             </div>
-          )}
+          </div>
 
           {submitError && (
             <div className="mt-4 rounded-sm border border-red-200 bg-[#fff6f6] px-3 py-2 text-xs text-red-700" role="alert">
@@ -275,15 +378,22 @@ const GuestCheckoutPage = () => {
 
           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
+              <label htmlFor="guest-full-name" className={fieldLabelClass}>
+                Full Name <span className="text-red-500">*</span>
+              </label>
               <input
+                id="guest-full-name"
                 type="text"
                 placeholder="Full Name"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                className="w-full border rounded-sm px-3 py-2 text-sm focus:outline-none focus:ring-1 border-gray-300 focus:ring-emerald-600"
+                className={fieldClass}
               />
             </div>
             <div>
+              <label htmlFor="guest-phone" className={fieldLabelClass}>
+                Phone Number <span className="text-red-500">*</span>
+              </label>
               <div className="flex w-full">
                 <div className="flex items-center rounded-l-sm border border-gray-300 bg-gray-50 px-3 text-sm text-gray-700">
                   +95
@@ -317,9 +427,13 @@ const GuestCheckoutPage = () => {
               )}
             </div>
             <div className="md:col-span-2">
+              <label htmlFor="guest-city" className={fieldLabelClass}>
+                City <span className="text-red-500">*</span>
+              </label>
               <SearchableSelect
-                placeholder="Search district..."
-                emptyLabel="Select District"
+                id="guest-city"
+                placeholder="Search city..."
+                emptyLabel="Select City"
                 options={districts.map((d) => ({ value: d.id, label: d.name }))}
                 value={selectedDistrictId}
                 onChange={setSelectedDistrictId}
@@ -327,21 +441,19 @@ const GuestCheckoutPage = () => {
               />
             </div>
             <div className="md:col-span-2">
-              <input
-                type="text"
+              <label htmlFor="guest-address" className={fieldLabelClass}>
+                Address <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                id="guest-address"
+                rows={3}
                 placeholder="Street Name, Building, House No..."
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                className="w-full border rounded-sm px-3 py-2 text-sm focus:outline-none focus:ring-1 border-gray-300 focus:ring-emerald-600"
+                className={`${fieldClass} resize-y leading-5`}
               />
             </div>
           </div>
-
-          {!canContinue && missingRequired.length > 0 && (
-            <div className="mt-3 text-xs text-gray-500">
-              Required: {missingRequired.join(', ')}
-            </div>
-          )}
 
           <div className="mt-4 rounded-sm border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-700">
             <div className="flex justify-between gap-3">
@@ -349,9 +461,7 @@ const GuestCheckoutPage = () => {
               <span className="tabular-nums text-gray-900">{formatKsPrice(merchandiseSubtotal)}</span>
             </div>
             <div className="mt-2 flex justify-between gap-3">
-              <span>
-                Tax
-              </span>
+              <span>Tax</span>
               <span className={taxLoading ? 'text-xs text-gray-400' : 'tabular-nums font-medium text-gray-900'}>
                 {taxLoading
                   ? 'Calculating…'
@@ -375,13 +485,89 @@ const GuestCheckoutPage = () => {
               loading={submitting}
               disabled={!canContinue}
               onClick={() => void continueToPayment()}
-              className="md:max-w-sm"
             >
               Continue to payment
             </Button>
           </div>
         </Card>
+        </div>
+
+        <div
+          ref={fillInGuideRef}
+          className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-4"
+        >
+          <p className="flex items-center gap-2 text-sm font-semibold text-emerald-800">
+            <Lightbulb className="h-4 w-4" aria-hidden="true" />
+            How to fill in (example)
+          </p>
+          <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <ExampleStep step="1" label="Full Name" hint="Enter your real name.">
+              <div className={exampleTextClass}>Mg Kaung Pyae</div>
+            </ExampleStep>
+            <ExampleStep step="2" label="Phone Number" hint="Enter your mobile number (e.g. 912345678).">
+              <div className={`${exampleBoxClass} flex overflow-hidden`}>
+                <span className="border-r border-gray-300 bg-gray-50 px-2 py-1.5 text-gray-600">+95</span>
+                <span className="px-2 py-1.5">912345678</span>
+              </div>
+            </ExampleStep>
+            <ExampleStep step="3" label="City" hint="Select your city from the list.">
+              <div className={exampleTextClass}>Yangon</div>
+            </ExampleStep>
+            <ExampleStep
+              step="4"
+              label="Address"
+              hint="Enter your complete address (street name, building, house number, etc.)."
+            >
+              <div className={`${exampleTextClass} min-h-14 leading-5`}>No. 123, Baho Road, Bahan Township</div>
+            </ExampleStep>
+          </div>
+        </div>
       </div>
+
+      {fillInTourOpen && fillInTourRect && (
+        <div className="fixed inset-0 z-[80]" role="presentation">
+          <button
+            type="button"
+            aria-label="Dismiss fill-in guide"
+            className="absolute inset-0 cursor-default"
+            onClick={dismissFillInTour}
+          />
+          <div
+            className="pointer-events-none absolute rounded-md ring-2 ring-emerald-400"
+            style={{
+              top: fillInTourRect.top - 6,
+              left: fillInTourRect.left - 6,
+              width: fillInTourRect.width + 12,
+              height: fillInTourRect.height + 12,
+              boxShadow: '0 0 0 9999px rgba(17, 24, 39, 0.55)',
+            }}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="fill-in-tour-title"
+            className="absolute w-[min(20rem,calc(100vw-2rem))] rounded-md bg-white p-4 shadow-lg"
+            style={{
+              left: Math.max(16, Math.min(fillInTourRect.left, window.innerWidth - 336)),
+              top: Math.max(16, fillInTourRect.top - 148),
+            }}
+          >
+            <p id="fill-in-tour-title" className="text-sm font-semibold text-gray-900">
+              How to fill in
+            </p>
+            <p className="mt-1 text-sm leading-5 text-gray-600">
+              Use these examples for your name, phone number, city, and address.
+            </p>
+            <button
+              type="button"
+              onClick={finishFillInTour}
+              className="mt-3 h-9 rounded-sm bg-emerald-600 px-4 text-sm font-medium text-white hover:bg-emerald-700"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

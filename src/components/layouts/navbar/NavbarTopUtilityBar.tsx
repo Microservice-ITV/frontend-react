@@ -46,7 +46,7 @@ const NavbarTopUtilityBar = () => {
 
                 {/* Desktop Announcement Badge */}
                 <Link
-                    to={isAuthenticated ? "/promotions" : "/register"}
+                    to="/all_categories"
                     className="hidden md:inline-flex relative overflow-hidden items-center gap-2 px-4 py-1 rounded-full text-xs font-bold bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-amber-950 border border-yellow-200 shadow-[0_2px_10px_rgba(245,158,11,0.35)] hover:shadow-[0_4px_14px_rgba(245,158,11,0.5)] hover:scale-[1.03] active:scale-[0.98] transition-all duration-300 group cursor-pointer"
                 >
                     {/* Shimmer sweep effect */}
@@ -146,7 +146,7 @@ const NavbarTopUtilityBar = () => {
             {/* Mobile Responsive Gold Banner (Under Navbar Utility Strip) */}
             <div className="block md:hidden bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-amber-950 py-1.5 px-3 border-t border-b border-yellow-300/60 shadow-xs">
                 <Link
-                    to={isAuthenticated ? "/promotions" : "/register"}
+                    to="/all_categories"
                     className="flex items-center justify-between gap-2 max-w-7xl mx-auto text-xs font-bold"
                 >
                     <div className="flex items-center gap-1.5 min-w-0">
