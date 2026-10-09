@@ -5,7 +5,7 @@ import { useSyncCartAvailableStock } from '@/features/cart/hooks/useSyncCartAvai
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { SearchableSelect } from '@/components/ui/SearchableSelect'
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { guestCheckoutCart } from '../store/checkoutThunks'
 import { clearCheckout, setCheckoutError } from '../store/checkoutSlice'
@@ -38,8 +38,7 @@ const fieldClass =
   'w-full rounded-sm border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-600'
 const exampleBadgeClass =
   'flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-[11px] font-semibold text-white'
-const exampleBoxClass = 'mt-2 rounded-sm border border-gray-300 bg-white text-sm text-gray-800'
-const exampleTextClass = `${exampleBoxClass} px-2.5 py-1.5`
+const exampleValueClass = 'mt-2 text-sm font-medium leading-5 text-gray-900'
 
 const FILL_IN_TOUR_DISMISS_KEY = 'dni.guest_checkout.fill_in_tour_dismissed'
 
@@ -63,12 +62,12 @@ function ExampleStep({
   step,
   label,
   hint,
-  children,
+  example,
 }: {
   step: string
   label: string
   hint: string
-  children: ReactNode
+  example: string
 }) {
   return (
     <div>
@@ -76,7 +75,7 @@ function ExampleStep({
         <span className={exampleBadgeClass}>{step}</span>
         <span className="text-sm font-semibold text-gray-900">{label}</span>
       </div>
-      {children}
+      <p className={exampleValueClass}>{example}</p>
       <p className="mt-1.5 text-[11px] leading-4 text-gray-500">{hint}</p>
     </div>
   )
@@ -505,25 +504,20 @@ const GuestCheckoutPage = () => {
             How to fill in (example)
           </p>
           <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <ExampleStep step="1" label="Full Name" hint="Enter your real name.">
-              <div className={exampleTextClass}>Mg Kaung Pyae</div>
-            </ExampleStep>
-            <ExampleStep step="2" label="Phone Number" hint="Enter your mobile number (e.g. 912345678).">
-              <div className={`${exampleBoxClass} flex overflow-hidden`}>
-                <span className="border-r border-gray-300 bg-gray-50 px-2 py-1.5 text-gray-600">+95</span>
-                <span className="px-2 py-1.5">912345678</span>
-              </div>
-            </ExampleStep>
-            <ExampleStep step="3" label="City" hint="Select your city from the list.">
-              <div className={exampleTextClass}>Yangon</div>
-            </ExampleStep>
+            <ExampleStep step="1" label="Full Name" hint="Enter your real name." example="Mg Kaung Pyae" />
+            <ExampleStep
+              step="2"
+              label="Phone Number"
+              hint="Enter your mobile number (e.g. 912345678)."
+              example="+95 912345678"
+            />
+            <ExampleStep step="3" label="City" hint="Select your city from the list." example="Yangon" />
             <ExampleStep
               step="4"
               label="Address"
               hint="Enter your complete address (street name, building, house number, etc.)."
-            >
-              <div className={`${exampleTextClass} min-h-14 leading-5`}>No. 123, Baho Road, Bahan Township</div>
-            </ExampleStep>
+              example="No. 123, Baho Road, Bahan Township"
+            />
           </div>
         </div>
       </div>

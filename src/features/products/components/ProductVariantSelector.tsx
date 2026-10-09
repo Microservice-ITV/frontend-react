@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { ProductVariant } from '@/features/products/types/productTypes'
 
 function uniqByColor(variants: ProductVariant[]): ProductVariant[] {
@@ -36,6 +36,24 @@ export function variantDisplayLabel(v: ProductVariant): string {
     return 'Option'
 }
 
+function HoverTip({ label, className, children }: { label: string; className?: string; children: ReactNode }) {
+    return (
+        <span className={['group/tip relative inline-flex', className].filter(Boolean).join(' ')}>
+            {children}
+            <span
+                role="tooltip"
+                className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover/tip:opacity-100"
+            >
+                {label}
+                <span
+                    className="absolute left-1/2 top-full -translate-x-1/2 border-x-4 border-t-4 border-x-transparent border-t-gray-800"
+                    aria-hidden
+                />
+            </span>
+        </span>
+    )
+}
+
 function SelectedCheck() {
     return (
         <span
@@ -45,6 +63,61 @@ function SelectedCheck() {
             ✓
         </span>
     )
+}
+
+const SWATCH_ALIASES: Record<string, string> = {
+    navy: '#000080',
+    offwhite: '#f4f1ea',
+    cream: '#fffdd0',
+    ivory: '#fffff0',
+    beige: '#f5f5dc',
+    burgundy: '#800020',
+    maroon: '#800000',
+    teal: '#008080',
+    olive: '#808000',
+    gold: '#d4af37',
+    silver: '#c0c0c0',
+    grey: '#808080',
+    gray: '#808080',
+}
+
+const CSS_COLOR_NAMES = new Set([
+    'white', 'black', 'red', 'blue', 'green', 'yellow', 'orange', 'pink', 'purple',
+    'brown', 'navy', 'gray', 'grey', 'beige', 'gold', 'silver', 'maroon', 'teal',
+    'cyan', 'magenta', 'lime', 'aqua', 'coral', 'ivory', 'khaki', 'tan', 'salmon',
+    'indigo', 'violet', 'turquoise', 'chocolate', 'crimson', 'lavender', 'lightblue',
+    'lightgreen', 'lightgray', 'lightgrey', 'darkblue', 'darkgreen', 'darkred',
+    'darkgray', 'darkgrey', 'skyblue',
+])
+
+const LIGHT_SWATCHES = new Set([
+    'white', 'ivory', 'cream', 'beige', 'yellow', 'khaki', 'lightyellow', 'snow',
+    'offwhite', '#ffffff', '#fff', '#fffff0', '#fffdd0', '#f4f1ea', '#f5f5dc', '#c0c0c0',
+])
+
+/** Paint a circle from the color name. Codes like WHT are not CSS colors. */
+function swatchColor(name: string, code: string): string {
+    const trimmedCode = code.trim()
+    if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(trimmedCode)) return trimmedCode
+    const key = name.trim().toLowerCase().replace(/[\s_-]+/g, '')
+    if (SWATCH_ALIASES[key]) return SWATCH_ALIASES[key]
+    if (CSS_COLOR_NAMES.has(key)) return key
+    if (!key) return '#d1d5db'
+    let hash = 0
+    for (let i = 0; i < key.length; i += 1) hash = key.charCodeAt(i) + ((hash << 5) - hash)
+    return `hsl(${Math.abs(hash) % 360} 42% 46%)`
+}
+
+function isLightSwatch(color: string): boolean {
+    const value = color.toLowerCase()
+    if (LIGHT_SWATCHES.has(value)) return true
+    const hex = value.match(/^#([0-9a-f]{6})$/)
+    if (!hex) return false
+    const n = Number.parseInt(hex[1], 16)
+    const r = (n >> 16) & 255
+    const g = (n >> 8) & 255
+    const b = n & 255
+    return (r * 299 + g * 587 + b * 114) / 1000 > 180
 }
 
 type Props = {
@@ -200,9 +273,9 @@ const ProductVariantSelector = ({
             )}
 
             {showColor && (
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-4">
-                    <span className="w-20 shrink-0 pt-2 text-gray-500 sm:w-24">Color</span>
-                    <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+                    <span className="w-20 shrink-0 text-sm font-medium text-gray-900 sm:w-24">Color:</span>
+                    <div className="flex flex-wrap items-center gap-3">
                         {colorOptions.map((v) => {
                             const anyInColor = variants.some(
                                 (x) => x.colorId === v.colorId && x.shopStock > 0,
@@ -210,18 +283,40 @@ const ProductVariantSelector = ({
                             const disabled = !anyInColor
                             const active = v.colorId === selected?.colorId
                             const label = v.colorName || v.colorCode || 'Option'
+                            const fill = swatchColor(v.colorName, v.colorCode)
+                            const light = isLightSwatch(fill)
                             return (
-                                <button
-                                    key={v.colorId}
-                                    type="button"
-                                    disabled={disabled}
-                                    onClick={() => !disabled && handleColor(v.colorId)}
-                                    className={pillClass(active, disabled)}
-                                >
-                                    {thumb(v)}
-                                    <span className="max-w-[200px] text-left leading-tight">{label}</span>
-                                    {active && !disabled ? <SelectedCheck /> : null}
-                                </button>
+                                <HoverTip key={v.colorId} label={label}>
+                                    <button
+                                        type="button"
+                                        disabled={disabled}
+                                        aria-label={label}
+                                        aria-pressed={active}
+                                        onClick={() => !disabled && handleColor(v.colorId)}
+                                        className={[
+                                            'relative h-8 w-8 rounded-full border transition',
+                                            light ? 'border-gray-300' : 'border-transparent',
+                                            disabled
+                                                ? 'cursor-not-allowed opacity-40'
+                                                : 'cursor-pointer',
+                                            active && !disabled
+                                                ? 'ring-2 ring-gray-400 ring-offset-2'
+                                                : '',
+                                        ].join(' ')}
+                                        style={{ backgroundColor: fill }}
+                                    >
+                                        {active && !disabled ? (
+                                            <span
+                                                className={`pointer-events-none absolute inset-0 flex items-center justify-center text-sm font-bold leading-none ${
+                                                    light ? 'text-gray-900' : 'text-white'
+                                                }`}
+                                                aria-hidden
+                                            >
+                                                ✓
+                                            </span>
+                                        ) : null}
+                                    </button>
+                                </HoverTip>
                             )
                         })}
                     </div>
@@ -229,24 +324,39 @@ const ProductVariantSelector = ({
             )}
 
             {showSize && (
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-4">
-                    <span className="w-20 shrink-0 pt-2 text-gray-500 sm:w-24">Size</span>
-                    <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+                    <span className="w-20 shrink-0 text-sm font-medium text-gray-900 sm:w-24">Size:</span>
+                    <div className="inline-flex flex-wrap">
                         {sizeOptions.map((v) => {
                             const disabled = v.shopStock <= 0
                             const active = v.sizeId === selected?.sizeId
-                            const label = v.sizeName || v.sizeCode || 'Size'
+                            const label = v.sizeCode?.trim() || v.sizeName?.trim() || 'Size'
+                            const tip = v.sizeName?.trim() || label
                             return (
-                                <button
+                                <HoverTip
                                     key={`${v.colorId}-${v.sizeId}`}
-                                    type="button"
-                                    disabled={disabled}
-                                    onClick={() => !disabled && handleSize(v.sizeId)}
-                                    className={pillClass(active, disabled)}
+                                    label={tip}
+                                    className="-ml-px first:ml-0"
                                 >
-                                    {label}
-                                    {active && !disabled ? <SelectedCheck /> : null}
-                                </button>
+                                    <button
+                                        type="button"
+                                        disabled={disabled}
+                                        aria-label={tip}
+                                        aria-pressed={active}
+                                        onClick={() => !disabled && handleSize(v.sizeId)}
+                                        className={[
+                                            'flex h-11 w-14 shrink-0 items-center justify-center border bg-white text-sm text-gray-900',
+                                            disabled
+                                                ? 'cursor-not-allowed text-gray-300'
+                                                : 'cursor-pointer',
+                                            active && !disabled
+                                                ? 'relative z-10 border-gray-800'
+                                                : 'border-gray-200 hover:border-gray-300',
+                                        ].join(' ')}
+                                    >
+                                        {label}
+                                    </button>
+                                </HoverTip>
                             )
                         })}
                     </div>
