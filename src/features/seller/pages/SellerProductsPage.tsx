@@ -359,9 +359,6 @@ const SellerProductsPage = () => {
                   </span>
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
-                  Price
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
                   <span className="flex items-center gap-1">
                     Created
                   </span>
@@ -376,19 +373,19 @@ const SellerProductsPage = () => {
             <tbody>
               {isLoadingProducts ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-500">
+                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-500">
                     Loading products...
                   </td>
                 </tr>
               ) : effectiveProductsError ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-sm text-red-600">
+                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-red-600">
                     {effectiveProductsError}
                   </td>
                 </tr>
               ) : paginatedProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-500">
+                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-500">
                     No products found for this shop.
                   </td>
                 </tr>
@@ -438,9 +435,6 @@ const SellerProductsPage = () => {
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-700">
                       {product.stock}
-                    </td>
-                    <td className="px-4 py-3 text-xs font-medium text-slate-900">
-                      {product.price}
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-600">
                       {product.created}
