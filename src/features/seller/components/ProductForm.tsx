@@ -74,7 +74,8 @@ const basePriceField = z
     (s) => /^\d+(\.\d{1,2})?$/.test(s),
     "Use numbers only, up to 2 decimal places",
   )
-  .refine((s) => parseFloat(s) > 0, "Base price must be greater than 0");
+  .refine((s) => parseFloat(s) > 0, "Base price must be greater than 0")
+  .refine((s) => parseFloat(s) <= 9999999, "Cannot be more than 99999999");
 
 const optionalPercentField = (label: string, max: number) =>
   z
@@ -220,6 +221,21 @@ const areStringArraysEqual = (a: string[], b: string[]) => {
   return true;
 };
 
+const isDefaultCatalogOption = (item: Option) => {
+  const name = item.name.trim().toLowerCase();
+  return name === "default" || name === "def";
+};
+
+const splitDefaultOptions = (options: Option[]) => {
+  const selectable: Option[] = [];
+  const defaultIds = new Set<string>();
+  for (const item of options) {
+    if (isDefaultCatalogOption(item)) defaultIds.add(item.id);
+    else selectable.push(item);
+  }
+  return { selectable, defaultIds };
+};
+
 export const defaultVariantRow = (): ProductFormValues["variants"][number] => ({
   serverVariantId: undefined,
   colorId: "",
@@ -283,6 +299,7 @@ const ProductForm = ({
     formState: { errors },
     watch,
     setValue,
+    getValues,
     reset,
   } = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
@@ -294,9 +311,32 @@ const ProductForm = ({
     name: "variants",
   });
 
+  const colorCatalog = useMemo(
+    () => splitDefaultOptions(colorOptions),
+    [colorOptions],
+  );
+  const sizeCatalog = useMemo(
+    () => splitDefaultOptions(sizeOptions),
+    [sizeOptions],
+  );
+
   useEffect(() => {
     reset(initialValues);
   }, [initialValuesKey, initialValues, reset]);
+
+  useEffect(() => {
+    const { defaultIds: defaultColorIds } = colorCatalog;
+    const { defaultIds: defaultSizeIds } = sizeCatalog;
+    if (defaultColorIds.size === 0 && defaultSizeIds.size === 0) return;
+    getValues("variants").forEach((row, index) => {
+      if (row.colorId && defaultColorIds.has(row.colorId)) {
+        setValue(`variants.${index}.colorId`, "");
+      }
+      if (row.sizeId && defaultSizeIds.has(row.sizeId)) {
+        setValue(`variants.${index}.sizeId`, "");
+      }
+    });
+  }, [colorCatalog, sizeCatalog, initialValuesKey, getValues, setValue]);
 
   useEffect(() => {
     setEditableExistingImages((prev) =>
@@ -812,7 +852,7 @@ const ProductForm = ({
                                     value={f.value}
                                     onChange={f.onChange}
                                     onBlur={f.onBlur}
-                                    options={colorOptions.map((item) => ({
+                                    options={colorCatalog.selectable.map((item) => ({
                                       value: item.id,
                                       label: item.name,
                                     }))}
@@ -842,7 +882,7 @@ const ProductForm = ({
                                     value={f.value}
                                     onChange={f.onChange}
                                     onBlur={f.onBlur}
-                                    options={sizeOptions.map((item) => ({
+                                    options={sizeCatalog.selectable.map((item) => ({
                                       value: item.id,
                                       label: item.name,
                                     }))}
