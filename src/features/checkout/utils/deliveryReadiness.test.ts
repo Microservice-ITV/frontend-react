@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { getDeliveryBlockReason } from './deliveryReadiness'
+import {
+    checkoutHasNoDeliveryRoute,
+    DELIVERY_FOLLOW_UP_MESSAGE,
+    deliveryUnavailableMessage,
+    getDeliveryBlockReason,
+    shopHasNoDeliveryRoute,
+} from './deliveryReadiness'
 
 const ready = {
     hasDeliveryAddress: true,
@@ -84,16 +90,17 @@ describe('getDeliveryBlockReason', () => {
         expect(results).toEqual([null, null, null])
     })
 
-    it('blocks when any shop reports NOT_DELIVERABLE', () => {
+    it('does NOT block when a route is unavailable and the team will confirm delivery later', () => {
         expect(
             getDeliveryBlockReason({
                 ...ready,
                 deliveryStatuses: ['DELIVERABLE', 'NOT_DELIVERABLE'],
+                unavailableReasons: ['ROUTE_NOT_AVAILABLE'],
             }),
-        ).toMatch(/cannot deliver/i)
+        ).toBeNull()
     })
 
-    it('names a missing shop profile separately from a missing route', () => {
+    it('still blocks when a shop profile is not ready to deliver', () => {
         expect(
             getDeliveryBlockReason({
                 ...ready,
@@ -108,7 +115,7 @@ describe('getDeliveryBlockReason', () => {
                 deliveryStatuses: ['NOT_DELIVERABLE'],
                 unavailableReasons: ['ROUTE_NOT_AVAILABLE'],
             }),
-        ).toBe('We cannot deliver this shop on this route.')
+        ).toBeNull()
     })
 
     it('ignores a single NOT_DELIVERABLE among deliverable shops', () => {
@@ -141,5 +148,44 @@ describe('getDeliveryBlockReason', () => {
             calculateError: null,
         })
         expect(reason).not.toMatch(/not ready/i)
+    })
+})
+
+describe('deliveryUnavailableMessage', () => {
+    it('asks the customer to place the order when no district route exists', () => {
+        expect(deliveryUnavailableMessage('ROUTE_NOT_AVAILABLE')).toBe(DELIVERY_FOLLOW_UP_MESSAGE)
+    })
+})
+
+describe('shopHasNoDeliveryRoute', () => {
+    it('is true when every company is blocked for the shop', () => {
+        expect(shopHasNoDeliveryRoute(2, ['a', 'b'])).toBe(true)
+    })
+
+    it('is false while at least one company can serve the shop', () => {
+        expect(shopHasNoDeliveryRoute(2, ['a'])).toBe(false)
+    })
+})
+
+describe('checkoutHasNoDeliveryRoute', () => {
+    it('is true only after routes are ready and every shop lacks a company route', () => {
+        expect(
+            checkoutHasNoDeliveryRoute({
+                shopIds: ['shop-1'],
+                companiesCount: 2,
+                unavailableCompanyIdsByShop: { 'shop-1': ['a', 'b'] },
+                loading: false,
+                routesReady: true,
+            }),
+        ).toBe(true)
+        expect(
+            checkoutHasNoDeliveryRoute({
+                shopIds: ['shop-1'],
+                companiesCount: 2,
+                unavailableCompanyIdsByShop: { 'shop-1': ['a', 'b'] },
+                loading: false,
+                routesReady: false,
+            }),
+        ).toBe(false)
     })
 })

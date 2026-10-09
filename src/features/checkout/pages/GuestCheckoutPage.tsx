@@ -1,6 +1,7 @@
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import type { UserAddress } from '@/features/account/types/addressTypes'
 import { selectSelectedItems } from '@/features/cart/store/cartSelectors'
+import { useSyncCartAvailableStock } from '@/features/cart/hooks/useSyncCartAvailableStock'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { SearchableSelect } from '@/components/ui/SearchableSelect'
@@ -83,6 +84,7 @@ function ExampleStep({
 
 const GuestCheckoutPage = () => {
   const dispatch = useAppDispatch()
+  useSyncCartAvailableStock()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -304,7 +306,9 @@ const GuestCheckoutPage = () => {
             country: deliveryAddress.country ?? '',
             state: deliveryAddress.state ?? '',
             city: deliveryAddress.city ?? '',
+            city_id: deliveryAddress.city_id ?? null,
             district: deliveryAddress.district ?? '',
+            district_id: deliveryAddress.district_id ?? null,
             ward: deliveryAddress.ward ?? '',
             address_line_1: deliveryAddress.address_line_1,
             address_line_2: deliveryAddress.address_line_2 ?? null,

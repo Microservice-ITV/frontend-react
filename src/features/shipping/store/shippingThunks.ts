@@ -157,10 +157,16 @@ export const fetchCheckoutShippingCalculation = createAsyncThunk<
                 return { byShopId: {}, totalShippingFee: null, cacheKey, raw: null as unknown }
             }
 
+            const districtId =
+                address.district_id != null && Number.isFinite(Number(address.district_id))
+                    ? String(address.district_id)
+                    : ''
+            // Resolve a pin for guests too. District-rate carriers can still quote
+            // without one, while real-route carriers require lat/lng.
             const coords = await resolveDeliveryCoordinates(address)
-            if (!coords) {
+            if (!coords && !districtId) {
                 return rejectWithValue(
-                    'We could not locate this delivery address on the map. Add a map pin to your address and try again.',
+                    'Select a delivery district so we can calculate the delivery fee.',
                 )
             }
 
