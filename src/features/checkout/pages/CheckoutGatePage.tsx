@@ -18,14 +18,12 @@ import CheckoutSummary from '../components/CheckoutSummary'
 import CheckoutSummarySkeleton from '../components/CheckoutSummarySkeleton'
 import { SagaStatusDisplay } from '../components/SagaStatusDisplay'
 import { fetchCheckoutStatus, fetchSagaStatus } from '../store/checkoutThunks'
-import { fetchCheckoutShippingCalculation } from '@/features/shipping/store/shippingThunks'
+import { fetchCheckoutShippingCalculation, fetchShopProfilesForCurrentCart } from '@/features/shipping/store/shippingThunks'
 import { useCheckoutDeliveryCompany } from '@/features/shipping/hooks/useCheckoutDeliveryCompany'
 import { clearShippingCalculate } from '@/features/shipping/store/shippingSlice'
 import { clearCheckout, setCurrentCheckout } from '../store/checkoutSlice'
 import { hasConfirmedStock, isStockReadinessConfirmed } from '../utils/checkoutStatus'
 import { checkoutHasNoDeliveryRoute } from '../utils/deliveryReadiness'
-
-const noShopRoutes: { shopId: string; fromDistrictId: string; toDistrictId: string }[] = []
 
 const AuthCheckout = () => {
   const items = useAppSelector(selectSelectedItems)
@@ -106,7 +104,22 @@ const GuestCheckoutPayment = () => {
     () => [...new Set(items.map((item) => item.shopId).filter(Boolean))],
     [items],
   )
-  const deliveryCompany = useCheckoutDeliveryCompany(shopIds, noShopRoutes)
+  const profilesByShopId = useAppSelector((state) => state.shipping.profilesByShopId)
+  const shopRoutes = useMemo(
+    () => shopIds.map((shopId) => ({
+      shopId,
+      fromDistrictId: profilesByShopId[shopId]?.districtId?.trim() ?? '',
+      toDistrictId: paymentDeliveryAddress?.district_id != null
+        ? String(paymentDeliveryAddress.district_id)
+        : '',
+    })),
+    [paymentDeliveryAddress?.district_id, profilesByShopId, shopIds],
+  )
+  const deliveryCompany = useCheckoutDeliveryCompany(shopIds, shopRoutes)
+  useEffect(() => {
+    if (shopIds.length === 0) return
+    void dispatch(fetchShopProfilesForCurrentCart())
+  }, [dispatch, shopIds])
   const quotableCompanyByShopId = useMemo(() => {
     const next: Record<string, string> = {}
     for (const shopId of shopIds) {
