@@ -30,7 +30,7 @@ import { clearShippingCalculate } from '@/features/shipping/store/shippingSlice'
 import { fetchCheckoutShippingCalculation, fetchShopProfilesForCurrentCart } from '@/features/shipping/store/shippingThunks'
 import { useCheckoutDeliveryCompany } from '@/features/shipping/hooks/useCheckoutDeliveryCompany'
 import { hasConfirmedStock, isStockReadinessConfirmed } from '../utils/checkoutStatus'
-import { checkoutHasNoDeliveryRoute } from '../utils/deliveryReadiness'
+import { usePayDeliveryFeeNow } from '../hooks/usePayDeliveryFeeNow'
 
 type StoredCheckoutSession = {
     checkoutId: string
@@ -62,9 +62,6 @@ const CheckoutPage = () => {
     const feesByShopId = useAppSelector(state => state.shipping.feesByShopId)
     const totalShippingFee = useAppSelector(state => state.shipping.totalShippingFee)
     const shippingCalculateStatus = useAppSelector(state => state.shipping.calculateStatus)
-    /** On: charge the calculated delivery fee now. Off: place the order with a 0.00 delivery fee. */
-    const [payDeliveryFeeNow, setPayDeliveryFeeNow] = useState(true)
-
     const checkout = useMemo(
         () =>
             calculateCheckout(
@@ -120,7 +117,12 @@ const CheckoutPage = () => {
         return next
     }, [deliveryCompany.companyByShopId, deliveryCompany.unavailableCompanyIdsByShop, shopIds])
     const hasQuotableCompany = Object.keys(quotableCompanyByShopId).length > 0
-    const deliveryQuotePendingConfirmation = checkoutHasNoDeliveryRoute({
+    const {
+        payDeliveryFeeNow,
+        setPayDeliveryFeeNow,
+        payDeliveryFeeNowLockedOff,
+        deliveryQuotePendingConfirmation,
+    } = usePayDeliveryFeeNow({
         shopIds,
         companiesCount: deliveryCompany.companies.length,
         unavailableCompanyIdsByShop: deliveryCompany.unavailableCompanyIdsByShop,
@@ -569,6 +571,7 @@ const CheckoutPage = () => {
                                 checkout={checkout}
                                 payDeliveryFeeNow={payDeliveryFeeNow}
                                 onPayDeliveryFeeNowChange={setPayDeliveryFeeNow}
+                                payDeliveryFeeNowLockedOff={payDeliveryFeeNowLockedOff}
                                 deliveryCompany={{
                                     companies: deliveryCompany.companies,
                                     selectedByShopId: deliveryCompany.selectedByShopId,
