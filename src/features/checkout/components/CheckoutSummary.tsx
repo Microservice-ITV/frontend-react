@@ -420,13 +420,6 @@ const CheckoutSummary = ({
       return
     }
 
-    const missingCompanyShop = [...new Set(cartItems.map((item) => item.shopId))]
-      .find((shopId) => !deliveryCompanyIdByShopId[shopId]?.trim())
-    if (missingCompanyShop) {
-      dispatch(setCheckoutError('A delivery company is not configured for one or more shops. Please contact the shop owner.'))
-      return
-    }
-
     // Service down, no usable fee, or a shop that cannot deliver to this address.
     if (deliveryBlockReason) {
       dispatch(setCheckoutError(deliveryBlockReason))
