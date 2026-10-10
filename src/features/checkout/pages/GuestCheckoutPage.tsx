@@ -468,7 +468,7 @@ const GuestCheckoutPage = () => {
               <span className={taxLoading ? 'text-xs text-gray-400' : 'tabular-nums font-medium text-gray-900'}>
                 {taxLoading
                   ? 'Calculating…'
-                  : taxEnabled
+                  : taxEnabled && taxAmount !== 0
                     ? formatKsPrice(taxAmount)
                     : formatDisabledTaxAmount(taxAmount)}
               </span>
