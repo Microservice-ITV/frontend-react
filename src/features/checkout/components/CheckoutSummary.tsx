@@ -696,7 +696,7 @@ const CheckoutSummary = ({
           <span className="whitespace-nowrap tabular-nums text-gray-900">
             {scaledTax == null && taxLoading
               ? 'Calculating…'
-              : taxEnabled
+              : taxEnabled && shownTax !== 0
                 ? formatKsPrice(shownTax)
                 : formatDisabledTaxAmount(shownTax)}
           </span>
