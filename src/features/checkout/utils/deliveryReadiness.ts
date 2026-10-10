@@ -22,17 +22,52 @@ export function shopHasNoDeliveryRoute(
     return companiesCount > 0 && (unavailableCompanyIds?.length ?? 0) >= companiesCount
 }
 
-/** True when no shop in the checkout has a company with a district route. */
-export function checkoutHasNoDeliveryRoute(params: {
+export type DeliveryAvailabilityParams = {
     shopIds: readonly string[]
     companiesCount: number
     unavailableCompanyIdsByShop: Record<string, string[]>
     loading: boolean
     routesReady: boolean
-}): boolean {
+}
+
+export type PayDeliveryLockReason = 'company' | 'route'
+
+/** True when no shop in the checkout has a company with a district route. */
+export function checkoutHasNoDeliveryRoute(params: DeliveryAvailabilityParams): boolean {
     const { shopIds, companiesCount, unavailableCompanyIdsByShop, loading, routesReady } = params
     if (loading || !routesReady || companiesCount === 0 || shopIds.length === 0) return false
     return shopIds.every((shopId) => shopHasNoDeliveryRoute(companiesCount, unavailableCompanyIdsByShop[shopId]))
+}
+
+/**
+ * When true, "Pay delivery fee now" must stay off and cannot be turned on:
+ * - no delivery companies, or
+ * - companies exist but none have a route for this checkout.
+ */
+export function mustWaiveDeliveryFeeNow(params: DeliveryAvailabilityParams): boolean {
+    const { companiesCount, loading } = params
+    if (loading) return false
+    if (companiesCount === 0) return true
+    return checkoutHasNoDeliveryRoute(params)
+}
+
+/** Tooltip / hint when the pay-now switch is forced off. */
+export function payDeliveryFeeNowLockMessage(reason: PayDeliveryLockReason): string {
+    if (reason === 'route') {
+        return 'No delivery route for this address. You cannot pay the delivery fee now.'
+    }
+    return 'No delivery company is available. You cannot pay the delivery fee now.'
+}
+
+/** Prefer route over company when both apply for a shop card. */
+export function shopPayDeliveryLockReason(params: {
+    noDeliveryCompany: boolean
+    noDeliveryRoute: boolean
+    checkoutLockedOff?: boolean
+}): PayDeliveryLockReason | null {
+    if (params.noDeliveryRoute) return 'route'
+    if (params.noDeliveryCompany || params.checkoutLockedOff) return 'company'
+    return null
 }
 
 export type DeliveryReadinessInput = {

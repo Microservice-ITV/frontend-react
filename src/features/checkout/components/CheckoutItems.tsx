@@ -8,7 +8,10 @@ import { taxChargeForAmount } from '../api/checkoutApi'
 import {
   DELIVERY_FOLLOW_UP_MESSAGE,
   deliveryUnavailableMessage,
+  payDeliveryFeeNowLockMessage,
   shopHasNoDeliveryRoute,
+  shopPayDeliveryLockReason,
+  type PayDeliveryLockReason,
 } from '../utils/deliveryReadiness'
 import { voucherIcon } from '@/assets/icons'
 import { CheckoutTotals, ZERO_DELIVERY_FEE_LABEL } from '../utils/checkoutCalculator'
@@ -30,6 +33,8 @@ interface CheckoutItemsProps {
   /** When false, this order does not charge a delivery fee. The rider is paid on arrival. */
   payDeliveryFeeNow?: boolean
   onPayDeliveryFeeNowChange?: (payNow: boolean) => void
+  /** No company / no route: switch stays off and cannot be turned on. */
+  payDeliveryFeeNowLockedOff?: boolean
   deliveryCompany: CheckoutDeliveryCompanySelection
 }
 
@@ -90,41 +95,80 @@ const PayDeliveryFeeNowSwitch = ({
   shopId,
   payNow,
   onChange,
+  lockedOff = false,
+  lockReason = null,
 }: {
   shopId: string
   payNow: boolean
   onChange?: (payNow: boolean) => void
+  lockedOff?: boolean
+  lockReason?: PayDeliveryLockReason | null
 }) => {
   const labelId = `pay-delivery-now-${shopId}`
+  const tipId = `${labelId}-tip`
+  const canToggle = Boolean(onChange) && !lockedOff
+  const shownOn = !lockedOff && payNow
+  const lockMessage = lockedOff
+    ? payDeliveryFeeNowLockMessage(lockReason ?? 'company')
+    : null
+  const hint =
+    lockMessage ??
+    (shownOn
+      ? 'A delivery fee will be included in your order total.'
+      : 'Pay the delivery fee when your order arrives.')
+
+  const switchControl = (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={shownOn}
+      aria-labelledby={labelId}
+      aria-describedby={lockMessage ? tipId : undefined}
+      disabled={!canToggle}
+      onClick={() => canToggle && onChange?.(!payNow)}
+      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-300 ease-out ${
+        shownOn ? 'bg-emerald-600' : 'bg-gray-300'
+      } ${canToggle ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'}`}
+    >
+      <span
+        className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-300 ease-[cubic-bezier(0.34,1.4,0.64,1)] ${
+          shownOn ? 'translate-x-5' : 'translate-x-0'
+        }`}
+      />
+    </button>
+  )
+
   return (
-    <div className="mb-3 rounded-sm border border-gray-200 bg-white px-3 py-2.5">
+    <div
+      className={`mb-3 rounded-sm border border-gray-200 bg-white px-3 py-2.5 ${
+        lockedOff ? 'relative z-30' : ''
+      }`}
+    >
       <div className="flex items-center justify-between gap-3">
         <span id={labelId} className="text-sm font-medium text-gray-900">
           Pay delivery fee now
         </span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={payNow}
-          aria-labelledby={labelId}
-          disabled={!onChange}
-          onClick={() => onChange?.(!payNow)}
-          className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-300 ease-out ${
-            payNow ? 'bg-emerald-600' : 'bg-gray-300'
-          } ${onChange ? 'cursor-pointer' : 'cursor-default'}`}
-        >
-          <span
-            className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-300 ease-[cubic-bezier(0.34,1.4,0.64,1)] ${
-              payNow ? 'translate-x-5' : 'translate-x-0'
-            }`}
-          />
-        </button>
+        {lockMessage ? (
+          <span className="group/tip relative z-40 inline-flex shrink-0">
+            {/* Disabled buttons do not receive hover; wrap so the tooltip still opens. */}
+            <span className="inline-flex">{switchControl}</span>
+            <span
+              id={tipId}
+              role="tooltip"
+              className="pointer-events-none absolute bottom-full right-0 z-50 mb-2 w-52 rounded-md bg-gray-900 px-2.5 py-2 text-left text-xs font-medium leading-4 text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover/tip:opacity-100 group-focus-within/tip:opacity-100"
+            >
+              {lockMessage}
+              <span
+                className="absolute right-3 top-full border-x-4 border-t-4 border-x-transparent border-t-gray-900"
+                aria-hidden
+              />
+            </span>
+          </span>
+        ) : (
+          switchControl
+        )}
       </div>
-      <p className="mt-1.5 truncate text-xs text-gray-600">
-        {payNow
-          ? 'A delivery fee will be included in your order total.'
-          : 'Pay the delivery fee when your order arrives.'}
-      </p>
+      <p className="mt-1.5 text-xs leading-5 text-gray-600">{hint}</p>
     </div>
   )
 }
@@ -223,6 +267,7 @@ const CheckoutItems = ({
   checkout,
   payDeliveryFeeNow = true,
   onPayDeliveryFeeNowChange,
+  payDeliveryFeeNowLockedOff = false,
   deliveryCompany,
 }: CheckoutItemsProps) => {
   const { groupedByShop } = checkout
@@ -293,9 +338,16 @@ const CheckoutItems = ({
             : serviceUnavailable
               ? 'service'
               : null
+        const lockReason = shopPayDeliveryLockReason({
+          noDeliveryCompany,
+          noDeliveryRoute,
+          checkoutLockedOff: payDeliveryFeeNowLockedOff,
+        })
+        const shopLocksPayNow = lockReason != null
+        const chargeDeliveryNow = payDeliveryFeeNow && !shopLocksPayNow
         const isNotDeliverable = feeRow?.deliveryStatus === 'NOT_DELIVERABLE'
         const hasFee =
-          payDeliveryFeeNow &&
+          chargeDeliveryNow &&
           calculateStatus === 'succeeded' &&
           !isNotDeliverable &&
           feeRow?.amount != null &&
@@ -435,12 +487,14 @@ const CheckoutItems = ({
               <div className="border-t border-dashed border-black/10 px-3 py-3 sm:px-4 sm:py-4 lg:border-t-0">
                 <PayDeliveryFeeNowSwitch
                   shopId={shopId}
-                  payNow={payDeliveryFeeNow}
+                  payNow={chargeDeliveryNow}
                   onChange={onPayDeliveryFeeNowChange}
+                  lockedOff={shopLocksPayNow}
+                  lockReason={lockReason}
                 />
                 <div className="mb-2 text-sm font-medium text-gray-900">Shipping Option</div>
 
-                {!payDeliveryFeeNow ? (
+                {!chargeDeliveryNow ? (
                   <PayOnArrivalCard />
                 ) : shippingNoticeKind ? (
                   <ShippingUnavailableNotice kind={shippingNoticeKind} />
