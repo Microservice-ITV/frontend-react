@@ -10,7 +10,8 @@ import { createUserAddress, updateUserAddress } from '../store/accountThunks'
 import { locationApi, type StateOption, type CityOption, type DistrictOption, type WardOption } from '../api/locationApi'
 import type { UpsertAddressPayload, UserAddress } from '../types/addressTypes'
 import { MapLocationPicker } from '@/components/maps/MapLocationPicker'
-import { forwardGeocodeAddress } from '@/lib/geocoding/geocode'
+import { locateAddressPin } from '@/lib/geocoding/geocode'
+import { DEFAULT_MAP_CENTER } from '@/components/maps/mapConstants'
 
 type Props = {
   /** Called after a successful create/update; receives the saved address from the API. */
@@ -144,7 +145,7 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
 
   const [latitude, setLatitude] = useState<number | null>(() => parseCoordinate(initialAddress?.latitude))
   const [longitude, setLongitude] = useState<number | null>(() => parseCoordinate(initialAddress?.longitude))
-  const [geocodeStatus, setGeocodeStatus] = useState<'idle' | 'locating' | 'located' | 'failed'>('idle')
+  const [geocodeStatus, setGeocodeStatus] = useState<'idle' | 'locating' | 'located' | 'approximate' | 'failed'>('idle')
   const pinLat = parseCoordinate(latitude)
   const pinLng = parseCoordinate(longitude)
   const mapSectionRef = useRef<HTMLDivElement | null>(null)
@@ -278,13 +279,18 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
 
     if (geocodeWardRef.current === selectedWard.id) return
 
-    if (
-      mode === 'edit' &&
-      parseCoordinate(initialAddress?.latitude) != null &&
-      parseCoordinate(initialAddress?.longitude) != null &&
-      geocodeWardRef.current === null
-    ) {
+    const savedLat = mode === 'edit' ? parseCoordinate(initialAddress?.latitude) : null
+    const savedLng = mode === 'edit' ? parseCoordinate(initialAddress?.longitude) : null
+    const savedWardId = initialAddress?.ward_id != null ? Number(initialAddress.ward_id) : null
+    const wardStillOriginal =
+      savedWardId != null && Number.isFinite(savedWardId)
+        ? savedWardId === selectedWard.id
+        : (initialAddress?.ward ?? '').trim().toLowerCase() === selectedWard.name.trim().toLowerCase()
+    // Keep the saved pin only while the ward is unchanged. A new ward must get a new pin.
+    if (savedLat != null && savedLng != null && wardStillOriginal) {
       geocodeWardRef.current = selectedWard.id
+      setLatitude(savedLat)
+      setLongitude(savedLng)
       setGeocodeStatus('located')
       return
     }
@@ -302,18 +308,17 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
     let cancelled = false
     setGeocodeStatus('locating')
     const t = window.setTimeout(() => {
-      void forwardGeocodeAddress(geocodeParts).then((pt) => {
-        if (cancelled || seq !== geocodeSeqRef.current) return
-        if (userMapInteractionRef.current !== epoch) return
-        if (!pt) {
-          setGeocodeStatus('failed')
-          return
-        }
-        setLatitude(pt.lat)
-        setLongitude(pt.lng)
-        geocodeWardRef.current = wardId
-        setGeocodeStatus('located')
-      })
+      void locateAddressPin(geocodeParts)
+        .catch(() => null)
+        .then((match) => {
+          if (cancelled || seq !== geocodeSeqRef.current) return
+          if (userMapInteractionRef.current !== epoch) return
+          const point = match?.point ?? DEFAULT_MAP_CENTER
+          setLatitude(point.lat)
+          setLongitude(point.lng)
+          geocodeWardRef.current = wardId
+          setGeocodeStatus(match && !match.approximate ? 'located' : 'approximate')
+        })
     }, 450)
     return () => {
       cancelled = true
@@ -598,6 +603,11 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
             </p>
             {geocodeStatus === 'locating' && (
               <p className="text-[10px] text-gray-500">Locating this ward on the map…</p>
+            )}
+            {geocodeStatus === 'approximate' && (
+              <p className="text-[10px] text-amber-700">
+                A pin is on the map near this area. Drag it to your exact spot, then submit.
+              </p>
             )}
             {geocodeStatus === 'failed' && (
               <p className="text-[10px] text-amber-600">

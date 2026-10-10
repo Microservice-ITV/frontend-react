@@ -9,7 +9,7 @@ import CheckoutSummarySkeleton from '../components/CheckoutSummarySkeleton'
 import { SagaStatusDisplay } from '../components/SagaStatusDisplay'
 import { selectSelectedItems } from '@/features/cart/store/cartSelectors'
 import { useSyncCartAvailableStock } from '@/features/cart/hooks/useSyncCartAvailableStock'
-import { calculateCheckout } from '../utils/checkoutCalculator'
+import { amountDueNow, calculateCheckout, shippingFeesForCheckout } from '../utils/checkoutCalculator'
 import { checkoutCart, fetchCheckoutStatus, fetchSagaStatus } from '@/features/checkout/store/checkoutThunks'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Elements } from '@stripe/react-stripe-js'
@@ -62,14 +62,14 @@ const CheckoutPage = () => {
     const feesByShopId = useAppSelector(state => state.shipping.feesByShopId)
     const totalShippingFee = useAppSelector(state => state.shipping.totalShippingFee)
     const shippingCalculateStatus = useAppSelector(state => state.shipping.calculateStatus)
+    /** On: charge the calculated delivery fee now. Off: place the order with a 0.00 delivery fee. */
+    const [payDeliveryFeeNow, setPayDeliveryFeeNow] = useState(true)
 
     const checkout = useMemo(
         () =>
             calculateCheckout(
                 items,
-                shippingCalculateStatus === 'succeeded' && Object.keys(feesByShopId).length > 0
-                    ? { feesByShop: feesByShopId, totalShippingFee }
-                    : undefined,
+                shippingFeesForCheckout(shippingCalculateStatus, feesByShopId, totalShippingFee),
             ),
         [items, shippingCalculateStatus, feesByShopId, totalShippingFee],
     )
@@ -287,6 +287,8 @@ const CheckoutPage = () => {
     }, [addresses, selectedAddressId])
 
     useEffect(() => {
+        // Keep the last quote. Turning the switch off only changes what the customer pays now.
+        if (!payDeliveryFeeNow) return
         if (!hasDeliveryAddress || !selectedDeliveryAddress || items.length === 0 || !hasQuotableCompany || !deliveryCompany.routesReady) {
             dispatch(clearShippingCalculate())
             return
@@ -313,6 +315,7 @@ const CheckoutPage = () => {
         quotableCompanyByShopId,
         authUser?.id,
         authUser?.name,
+        payDeliveryFeeNow,
     ])
 
     // Drop any stale checkout session from Redux/storage when the user has no saved addresses yet.
@@ -564,6 +567,8 @@ const CheckoutPage = () => {
                             <CartBundleBanner items={items} allowAdd />
                             <CheckoutItems
                                 checkout={checkout}
+                                payDeliveryFeeNow={payDeliveryFeeNow}
+                                onPayDeliveryFeeNowChange={setPayDeliveryFeeNow}
                                 deliveryCompany={{
                                     companies: deliveryCompany.companies,
                                     selectedByShopId: deliveryCompany.selectedByShopId,
@@ -576,11 +581,12 @@ const CheckoutPage = () => {
                         </div>
 
                         <aside className="space-y-3 lg:sticky lg:top-4">
-                        <CheckoutPayment totalAmount={checkout.totalPayment} />
+                        <CheckoutPayment totalAmount={amountDueNow(checkout, payDeliveryFeeNow)} />
 
                             {isStockReady ? (
                                 <CheckoutSummary
                                     checkout={checkout}
+                                    payDeliveryFeeNow={payDeliveryFeeNow}
                                     hasDeliveryAddress={hasDeliveryAddress}
                                     onRequireAddress={openAddressSelectionModal}
                                     deliveryAddress={selectedDeliveryAddress}

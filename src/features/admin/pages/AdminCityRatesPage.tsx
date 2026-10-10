@@ -183,29 +183,29 @@ const AdminCityRatesPage = () => {
         <div className="w-full sm:w-56">
           <CitySelectField
             id="route-rates-from-district"
-            label="From district"
+            label="From cities"
             value={fromDistrictFilter}
             cities={districtOptions}
             onChange={(districtId) => {
               setFromDistrictFilter(districtId);
               setPage(1);
             }}
-            placeholder="Search from district"
-            clearLabel="All from districts"
+            placeholder="Search from cities"
+            clearLabel="All from cities"
           />
         </div>
         <div className="w-full sm:w-56">
           <CitySelectField
             id="route-rates-to-district"
-            label="To district"
+            label="To cities"
             value={toDistrictFilter}
             cities={districtOptions}
             onChange={(districtId) => {
               setToDistrictFilter(districtId);
               setPage(1);
             }}
-            placeholder="Search to district"
-            clearLabel="All to districts"
+            placeholder="Search to cities"
+            clearLabel="All to cities"
           />
         </div>
         <div className="w-full sm:w-44">

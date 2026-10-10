@@ -233,7 +233,7 @@ const AdminCityRateFormPage = ({ mode }: AdminCityRateFormPageProps) => {
               </div>
               <CitySelectField
                 id="city-rate-from"
-                label="From district"
+                label="From cities"
                 value={fromDistrictId}
                 cities={districts.map((district) => ({
                   id: district.id,
@@ -243,11 +243,11 @@ const AdminCityRateFormPage = ({ mode }: AdminCityRateFormPageProps) => {
                 }))}
                 onChange={setFromDistrictId}
                 disabled={mode === "edit"}
-                placeholder="Select from district"
+                placeholder="Select from cities"
               />
               <CitySelectField
                 id="city-rate-to"
-                label="To district"
+                label="To cities"
                 value={toDistrictId}
                 cities={districts.map((district) => ({
                   id: district.id,
