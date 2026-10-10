@@ -31,7 +31,6 @@ import SearchPage from "@/features/search/pages/SearchPage";
 import CartPage from "@/features/cart/pages/CartPage";
 import CartSeeMorePage from "@/features/cart/pages/CartSeeMorePage";
 import WishlistPage from "@/features/wishlist/pages/WishlistPage";
-import CheckoutPage from "@/features/checkout/pages/CheckoutPage";
 import CheckoutSuccessPage from "@/features/checkout/pages/CheckoutSuccessPage";
 import CheckoutGatePage from "@/features/checkout/pages/CheckoutGatePage";
 import GuestCheckoutPage from "@/features/checkout/pages/GuestCheckoutPage.tsx";
@@ -69,6 +68,16 @@ import CoinsPage from "@/features/account/pages/CoinsPage";
 import { ROUTE_ACCESS } from "./routeAccessMap";
 import DashboardLayout from "@/features/dashboard/components/layout/DashboardLayout";
 import DashboardPlaceholderPage from "@/features/dashboard/components/layout/DashboardPlaceholderPage";
+import WarehouseOverviewPage from "@/features/warehouse/pages/WarehouseOverviewPage";
+import WarehousesPage from "@/features/warehouse/pages/WarehousesPage";
+import InventoryPage from "@/features/warehouse/pages/InventoryPage";
+import MovementsPage from "@/features/warehouse/pages/MovementsPage";
+import StockOperationPage from "@/features/warehouse/pages/StockOperationPage";
+import SuppliersPage from "@/features/purchase/pages/SuppliersPage";
+import PurchaseOrdersPage from "@/features/purchase/pages/PurchaseOrdersPage";
+import CreatePurchaseOrderPage from "@/features/purchase/pages/CreatePurchaseOrderPage";
+import PurchaseReturnsPage from "@/features/purchase/pages/PurchaseReturnsPage";
+import PurchaseReceiptsPage from "@/features/purchase/pages/PurchaseReceiptsPage";
 import SellerOverviewPage from "@/features/seller/pages/SellerOverviewPage";
 import SellerOrdersPage from "@/features/seller/pages/SellerOrdersPage";
 import SellerOrderDetailPage from "@/features/seller/pages/SellerOrderDetailPage";
@@ -269,6 +278,86 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.sellerOverview}
                 >
                   <SellerOverviewPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="warehouse"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.warehouse}>
+                  <WarehouseOverviewPage base="/seller" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="warehouse/warehouses"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.warehouse}>
+                  <WarehousesPage base="/seller" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="warehouse/inventory"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.warehouse}>
+                  <InventoryPage base="/seller" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="warehouse/transfer"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.warehouse}>
+                  <StockOperationPage base="/seller" kind="transfer" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="warehouse/movements"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.warehouse}>
+                  <MovementsPage base="/seller" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="warehouse/suppliers"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.purchase}>
+                  <SuppliersPage base="/seller" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="warehouse/purchase-orders"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.purchase}>
+                  <PurchaseOrdersPage base="/seller" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="warehouse/purchase-orders/new"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.purchase}>
+                  <CreatePurchaseOrderPage base="/seller" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="warehouse/receipts"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.purchase}>
+                  <PurchaseReceiptsPage base="/seller" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="warehouse/returns"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.purchase}>
+                  <PurchaseReturnsPage base="/seller" />
                 </ProtectedRoute>
               }
             />
@@ -826,6 +915,96 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.superAdminOverview}
                 >
                   <AdminOverviewPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="warehouse"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminWarehouse}
+                >
+                  <WarehouseOverviewPage base="/super-admin" platform />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="warehouse/warehouses"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminWarehouse}
+                >
+                  <WarehousesPage base="/super-admin" platform />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="warehouse/inventory"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminWarehouse}
+                >
+                  <InventoryPage base="/super-admin" platform />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="warehouse/transfer"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminWarehouse}
+                >
+                  <StockOperationPage base="/super-admin" kind="transfer" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="warehouse/movements"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.superAdminWarehouse}
+                >
+                  <MovementsPage base="/super-admin" platform />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="warehouse/suppliers"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminPurchase}>
+                  <SuppliersPage base="/super-admin" platform />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="warehouse/purchase-orders"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminPurchase}>
+                  <PurchaseOrdersPage base="/super-admin" platform />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="warehouse/purchase-orders/new"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminPurchase}>
+                  <CreatePurchaseOrderPage base="/super-admin" platform />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="warehouse/receipts"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminPurchase}>
+                  <PurchaseReceiptsPage base="/super-admin" platform />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="warehouse/returns"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminPurchase}>
+                  <PurchaseReturnsPage base="/super-admin" platform />
                 </ProtectedRoute>
               }
             />
@@ -1773,3 +1952,4 @@ const AppRoutes = () => {
 };
 
 export default AppRoutes;
+

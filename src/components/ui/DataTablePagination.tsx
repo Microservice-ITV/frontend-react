@@ -51,7 +51,7 @@ const DataTablePagination = ({
   const end = Math.min(safePage * rowsPerPage, totalItems)
 
   return (
-    <div className="flex flex-col gap-4 border-t border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-xs text-slate-600">
         Showing {start}-{end} of {totalItems} {itemLabel}
       </p>
