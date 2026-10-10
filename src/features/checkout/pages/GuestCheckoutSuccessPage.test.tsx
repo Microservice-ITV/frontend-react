@@ -6,12 +6,14 @@ import { MemoryRouter } from 'react-router-dom'
 import type { InvoiceDocument } from '@/lib/api/invoiceClient'
 import GuestCheckoutSuccessPage from './GuestCheckoutSuccessPage'
 
-const { getGuestInvoicesByOrderMock } = vi.hoisted(() => ({
+const { getGuestInvoicesByOrderMock, getGuestInvoicesByCheckoutMock } = vi.hoisted(() => ({
   getGuestInvoicesByOrderMock: vi.fn(),
+  getGuestInvoicesByCheckoutMock: vi.fn(),
 }))
 
 vi.mock('@/lib/api/invoiceClient', () => ({
   getGuestInvoicesByOrder: getGuestInvoicesByOrderMock,
+  getGuestInvoicesByCheckout: getGuestInvoicesByCheckoutMock,
 }))
 
 const invoice: InvoiceDocument = {
@@ -78,21 +80,22 @@ describe('GuestCheckoutSuccessPage invoices', () => {
   afterEach(() => {
     cleanup()
     getGuestInvoicesByOrderMock.mockReset()
+    getGuestInvoicesByCheckoutMock.mockReset()
   })
 
   it('loads and displays invoices using the guest order ID and phone', async () => {
-    getGuestInvoicesByOrderMock.mockResolvedValue([invoice])
+    getGuestInvoicesByCheckoutMock.mockResolvedValue([invoice])
     renderPage()
 
     expect(await screen.findByText(`DNI-${invoice.invoiceNumber}`)).toBeTruthy()
-    expect(getGuestInvoicesByOrderMock).toHaveBeenCalledWith('guest-order-id', '+959123456789')
+    expect(getGuestInvoicesByCheckoutMock).toHaveBeenCalledWith('guest-order-id', '+959123456789')
     expect(screen.getAllByText('Guest Customer').length).toBeGreaterThan(0)
     expect(screen.getAllByText('+959123456789').length).toBeGreaterThan(0)
     expect(screen.getByText(/Yangon/)).toBeTruthy()
   })
 
   it('allows retrying when invoice generation has not completed yet', async () => {
-    getGuestInvoicesByOrderMock
+    getGuestInvoicesByCheckoutMock
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([invoice])
     renderPage()
@@ -101,7 +104,7 @@ describe('GuestCheckoutSuccessPage invoices', () => {
     retryButton.click()
 
     expect(await screen.findByText(`DNI-${invoice.invoiceNumber}`)).toBeTruthy()
-    expect(getGuestInvoicesByOrderMock).toHaveBeenCalledTimes(2)
+    expect(getGuestInvoicesByCheckoutMock).toHaveBeenCalledTimes(2)
   })
 
   it('allows looking up a guest invoice when opened without checkout navigation state', async () => {

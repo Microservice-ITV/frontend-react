@@ -1,11 +1,16 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import InvoiceDocumentSheet from '@/features/invoices/components/InvoiceDocumentSheet'
-import { getGuestInvoicesByOrder, type InvoiceDocument } from '@/lib/api/invoiceClient'
+import {
+  getGuestInvoicesByCheckout,
+  getGuestInvoicesByOrder,
+  type InvoiceDocument,
+} from '@/lib/api/invoiceClient'
 
 type GuestInvoiceLookup = {
-  orderId: string
+  identifier: string
   phone: string
+  kind: 'order' | 'checkout'
 }
 
 const GuestCheckoutSuccessPage = () => {
@@ -15,30 +20,34 @@ const GuestCheckoutSuccessPage = () => {
   const [orderIdInput, setOrderIdInput] = useState(location.state?.checkoutId ?? '')
   const [phoneInput, setPhoneInput] = useState(location.state?.phone ?? '')
   const [lookup, setLookup] = useState<GuestInvoiceLookup | null>(() => {
-    const orderId = location.state?.checkoutId
+    const checkoutId = location.state?.checkoutId
     const phone = location.state?.phone
-    return orderId && phone ? { orderId, phone } : null
+    return checkoutId && phone ? { identifier: checkoutId, phone, kind: 'checkout' } : null
   })
   const [invoices, setInvoices] = useState<InvoiceDocument[]>([])
   const [isLoadingInvoices, setIsLoadingInvoices] = useState(false)
   const [invoiceError, setInvoiceError] = useState<string | null>(null)
 
-  const checkoutId = lookup?.orderId
+  const identifier = lookup?.identifier
   const phone = lookup?.phone
 
   const loadInvoices = useCallback(async () => {
-    if (!checkoutId || !phone) return
+    if (!identifier || !phone) return
 
     setIsLoadingInvoices(true)
     setInvoiceError(null)
     try {
-      setInvoices(await getGuestInvoicesByOrder(checkoutId, phone))
+      setInvoices(await (
+        lookup?.kind === 'checkout'
+          ? getGuestInvoicesByCheckout(identifier, phone)
+          : getGuestInvoicesByOrder(identifier, phone)
+      ))
     } catch (error: unknown) {
       setInvoiceError(error instanceof Error ? error.message : 'Unable to load your invoice.')
     } finally {
       setIsLoadingInvoices(false)
     }
-  }, [checkoutId, phone])
+  }, [identifier, lookup?.kind, phone])
 
   useEffect(() => {
     void loadInvoices()
@@ -52,7 +61,7 @@ const GuestCheckoutSuccessPage = () => {
 
     setInvoices([])
     setInvoiceError(null)
-    setLookup({ orderId, phone })
+    setLookup({ identifier: orderId, phone, kind: 'order' })
   }
 
   return (
@@ -113,7 +122,7 @@ const GuestCheckoutSuccessPage = () => {
             <div className="mt-4 space-y-2 text-sm">
               <div className="flex justify-between gap-4">
                 <span className="text-gray-500">Order / Checkout ID</span>
-                <span className="font-mono text-gray-900">{checkoutId}</span>
+                <span className="font-mono text-gray-900">{identifier}</span>
               </div>
               <div className="flex justify-between gap-4">
                 <span className="text-gray-500">Phone</span>
