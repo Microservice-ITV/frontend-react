@@ -1,6 +1,9 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useAppDispatch } from '@/app/hooks'
+import { removeSelectedItems } from '@/features/cart/store/cartSlice'
 import InvoiceDocumentSheet from '@/features/invoices/components/InvoiceDocumentSheet'
+import { clearCheckout } from '../store/checkoutSlice'
 import {
   getGuestInvoicesByCheckout,
   getGuestInvoicesByOrder,
@@ -16,6 +19,14 @@ type GuestInvoiceLookup = {
 const GuestCheckoutSuccessPage = () => {
   const location = useLocation() as { state?: { checkoutId?: string; phone?: string } }
   const navigate = useNavigate()
+  const dispatch = useAppDispatch()
+  const placedCheckoutId = location.state?.checkoutId
+
+  useEffect(() => {
+    if (!placedCheckoutId) return
+    dispatch(removeSelectedItems())
+    dispatch(clearCheckout())
+  }, [dispatch, placedCheckoutId])
 
   const [orderIdInput, setOrderIdInput] = useState(location.state?.checkoutId ?? '')
   const [phoneInput, setPhoneInput] = useState(location.state?.phone ?? '')

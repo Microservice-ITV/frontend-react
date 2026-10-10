@@ -6,14 +6,19 @@ import { MemoryRouter } from 'react-router-dom'
 import type { InvoiceDocument } from '@/lib/api/invoiceClient'
 import GuestCheckoutSuccessPage from './GuestCheckoutSuccessPage'
 
-const { getGuestInvoicesByOrderMock, getGuestInvoicesByCheckoutMock } = vi.hoisted(() => ({
+const { getGuestInvoicesByOrderMock, getGuestInvoicesByCheckoutMock, dispatchMock } = vi.hoisted(() => ({
   getGuestInvoicesByOrderMock: vi.fn(),
   getGuestInvoicesByCheckoutMock: vi.fn(),
+  dispatchMock: vi.fn(),
 }))
 
 vi.mock('@/lib/api/invoiceClient', () => ({
   getGuestInvoicesByOrder: getGuestInvoicesByOrderMock,
   getGuestInvoicesByCheckout: getGuestInvoicesByCheckoutMock,
+}))
+
+vi.mock('@/app/hooks', () => ({
+  useAppDispatch: () => dispatchMock,
 }))
 
 const invoice: InvoiceDocument = {
