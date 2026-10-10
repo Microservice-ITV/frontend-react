@@ -253,6 +253,18 @@ export const getGuestInvoicesByOrder = async (
   return response.data.data.map(normalizeInvoiceItems)
 }
 
+export const getGuestInvoicesByCheckout = async (
+  checkoutId: string,
+  phone: string,
+): Promise<InvoiceDocument[]> => {
+  const response = await invoiceClient.post<InvoiceListResponse>(
+    '/invoices/guest/order',
+    { checkoutId, phone },
+  )
+
+  return response.data.data.map(normalizeInvoiceItems)
+}
+
 export const getCustomerInvoiceByNumber = async (
   invoiceNumber: string,
 ): Promise<InvoiceDocument> => {
