@@ -10,8 +10,8 @@ import {
   deliveryUnavailableMessage,
   shopHasNoDeliveryRoute,
 } from '../utils/deliveryReadiness'
-import { chatIcon, voucherIcon } from '@/assets/icons'
-import { CheckoutTotals } from '../utils/checkoutCalculator'
+import { voucherIcon } from '@/assets/icons'
+import { CheckoutTotals, ZERO_DELIVERY_FEE_LABEL } from '../utils/checkoutCalculator'
 import placeholderImage from '@/public/placeholder.svg'
 import { Truck } from 'lucide-react'
 import CheckoutDeliveryCompanySelect from './CheckoutDeliveryCompanySelect'
@@ -27,6 +27,9 @@ export type CheckoutDeliveryCompanySelection = {
 
 interface CheckoutItemsProps {
   checkout: CheckoutTotals
+  /** When false, this order does not charge a delivery fee. The rider is paid on arrival. */
+  payDeliveryFeeNow?: boolean
+  onPayDeliveryFeeNowChange?: (payNow: boolean) => void
   deliveryCompany: CheckoutDeliveryCompanySelection
 }
 
@@ -65,6 +68,67 @@ const ShippingUnavailableNotice = ({ kind }: { kind: ShippingNoticeKind }) => (
   </div>
 )
 
+/** Matches the calculated shipping card so the column does not jump on toggle. */
+const SHIPPING_OPTION_SHELL =
+  'flex min-h-[6.75rem] w-full flex-col rounded-md border p-3 text-left'
+
+const PayOnArrivalCard = () => (
+  <div className={`${SHIPPING_OPTION_SHELL} border-gray-200 bg-white text-[13px] leading-5 text-gray-700`}>
+    <div className="flex items-start justify-between gap-3 text-sm font-semibold text-gray-900">
+      <span>Delivery fee</span>
+      <span>{ZERO_DELIVERY_FEE_LABEL}</span>
+    </div>
+    <p className="mt-2 text-xs leading-5 text-gray-600">
+      You chose to pay the delivery fee when your order arrives.
+      <br />
+      It is not added to this order.
+    </p>
+  </div>
+)
+
+const PayDeliveryFeeNowSwitch = ({
+  shopId,
+  payNow,
+  onChange,
+}: {
+  shopId: string
+  payNow: boolean
+  onChange?: (payNow: boolean) => void
+}) => {
+  const labelId = `pay-delivery-now-${shopId}`
+  return (
+    <div className="mb-3 rounded-sm border border-gray-200 bg-white px-3 py-2.5">
+      <div className="flex items-center justify-between gap-3">
+        <span id={labelId} className="text-sm font-medium text-gray-900">
+          Pay delivery fee now
+        </span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={payNow}
+          aria-labelledby={labelId}
+          disabled={!onChange}
+          onClick={() => onChange?.(!payNow)}
+          className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-300 ease-out ${
+            payNow ? 'bg-emerald-600' : 'bg-gray-300'
+          } ${onChange ? 'cursor-pointer' : 'cursor-default'}`}
+        >
+          <span
+            className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-300 ease-[cubic-bezier(0.34,1.4,0.64,1)] ${
+              payNow ? 'translate-x-5' : 'translate-x-0'
+            }`}
+          />
+        </button>
+      </div>
+      <p className="mt-1.5 truncate text-xs text-gray-600">
+        {payNow
+          ? 'A delivery fee will be included in your order total.'
+          : 'Pay the delivery fee when your order arrives.'}
+      </p>
+    </div>
+  )
+}
+
 const ShippingOptionCard = ({
   fee,
   calculateStatus,
@@ -76,7 +140,7 @@ const ShippingOptionCard = ({
 }) => {
   if (calculateStatus === 'loading' || calculateStatus === 'idle') {
     return (
-      <div className="rounded-sm border border-emerald-100 bg-[#f3faf6] px-3 py-3 text-sm text-gray-500">
+      <div className="text-sm text-gray-500">
         {calculateStatus === 'loading' ? 'Calculating delivery price…' : 'Delivery price will appear after your address is confirmed.'}
       </div>
     )
@@ -101,7 +165,7 @@ const ShippingOptionCard = ({
   const routeLabel = [fromDistrict, toDistrict].filter(Boolean).join(' → ')
 
   return (
-    <div className="rounded-sm border border-emerald-200 bg-[#f3faf6] px-3 py-3 text-[13px] leading-5 text-gray-700">
+    <div className="text-[13px] leading-5 text-gray-700">
       <div className="flex items-start justify-between gap-3 text-sm font-semibold text-gray-900">
         <span>{fee.methodLabel?.trim() || 'Standard shipping'}</span>
         <span>
@@ -114,10 +178,6 @@ const ShippingOptionCard = ({
       </div>
 
       <div className="mt-2 space-y-0.5 text-xs text-gray-600">
-        {/* <p className="flex items-center gap-1.5 text-emerald-700">
-          <Truck className="h-3.5 w-3.5 shrink-0" aria-hidden />
-          <span>{fee.etaHint?.trim() || 'Delivery estimate unavailable'}</span>
-        </p> */}
         {fee.deliveryStatus === 'NOT_DELIVERABLE' ? (
           <p className="text-amber-800">
             {fee.unavailableReason === 'ROUTE_NOT_AVAILABLE'
@@ -159,7 +219,12 @@ function formatLineTaxRate(rate: number | null | undefined): string {
   return `${Number.isInteger(rounded) ? rounded : rounded}%`
 }
 
-const CheckoutItems = ({ checkout, deliveryCompany }: CheckoutItemsProps) => {
+const CheckoutItems = ({
+  checkout,
+  payDeliveryFeeNow = true,
+  onPayDeliveryFeeNowChange,
+  deliveryCompany,
+}: CheckoutItemsProps) => {
   const { groupedByShop } = checkout
   const feesByShopId = useAppSelector(state => state.shipping.feesByShopId)
   const calculateStatus = useAppSelector(state => state.shipping.calculateStatus)
@@ -191,13 +256,6 @@ const CheckoutItems = ({ checkout, deliveryCompany }: CheckoutItemsProps) => {
 
   return (
     <div className="space-y-3">
-
-      {/* {calculateStatus === 'failed' && calculateError ? (
-        <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          Delivery fee could not be calculated: {calculateError}
-        </div>
-      ) : null} */}
-
       <div className="hidden items-center gap-3.5 rounded-sm border border-[var(--dni-cart-border)] bg-white px-3 py-2.5 text-sm text-gray-500 sm:px-4 md:grid md:grid-cols-[minmax(0,1fr)_7.5rem_9rem_8.5rem_auto]">
         <span className="text-gray-900">Products Ordered</span>
         <span className="whitespace-nowrap text-right">Unit Price</span>
@@ -237,23 +295,12 @@ const CheckoutItems = ({ checkout, deliveryCompany }: CheckoutItemsProps) => {
               : null
         const isNotDeliverable = feeRow?.deliveryStatus === 'NOT_DELIVERABLE'
         const hasFee =
+          payDeliveryFeeNow &&
           calculateStatus === 'succeeded' &&
           !isNotDeliverable &&
           feeRow?.amount != null &&
           feeRow.amount >= 0
-        const shippingFee = hasFee ? (feeRow?.amount as number) : 0
-        const shippingCurrency = feeRow?.currency ?? 'Ks'
-        const rawMethod = feeRow?.methodLabel?.trim()
-        const methodTitle = isNotDeliverable
-          ? 'Delivery unavailable'
-          : rawMethod === 'STANDARD'
-            ? 'Standard shipping'
-            : rawMethod || 'Standard shipping'
-        const etaLine =
-          feeRow?.estimatedDays != null && feeRow.estimatedDays > 0
-            ? `Estimated ${feeRow.estimatedDays} business day${feeRow.estimatedDays === 1 ? '' : 's'}`
-            : feeRow?.etaHint?.trim() || null
-        const shopTotal = shopSubtotal + shippingFee
+        const shopTotal = shopSubtotal + (hasFee ? (feeRow.amount as number) : 0)
 
         return (
           <section
@@ -266,10 +313,6 @@ const CheckoutItems = ({ checkout, deliveryCompany }: CheckoutItemsProps) => {
                 <span className="min-w-0 truncate text-sm font-medium text-gray-900 sm:text-[15px]">
                   {shopItems[0].shopName}
                 </span>
-                {/* <button type="button" className="hidden shrink-0 items-center gap-1 text-sm text-emerald-600 sm:flex">
-                  <img src={chatIcon} alt="" className="h-4 w-4" />
-                  Chat
-                </button> */}
               </div>
             </div>
 
@@ -390,14 +433,21 @@ const CheckoutItems = ({ checkout, deliveryCompany }: CheckoutItemsProps) => {
               </div>
 
               <div className="border-t border-dashed border-black/10 px-3 py-3 sm:px-4 sm:py-4 lg:border-t-0">
+                <PayDeliveryFeeNowSwitch
+                  shopId={shopId}
+                  payNow={payDeliveryFeeNow}
+                  onChange={onPayDeliveryFeeNowChange}
+                />
                 <div className="mb-2 text-sm font-medium text-gray-900">Shipping Option</div>
 
-                {shippingNoticeKind ? (
+                {!payDeliveryFeeNow ? (
+                  <PayOnArrivalCard />
+                ) : shippingNoticeKind ? (
                   <ShippingUnavailableNotice kind={shippingNoticeKind} />
                 ) : (
                   <button
                     type="button"
-                    className="w-full cursor-pointer rounded-md border border-[#b7e3d5] bg-[#f0faf7] p-3 text-left transition hover:border-emerald-600 focus:outline-none"
+                    className={`${SHIPPING_OPTION_SHELL} cursor-pointer border-[#b7e3d5] bg-[#f0faf7] transition hover:border-emerald-600 focus:outline-none`}
                   >
                     <ShippingOptionCard
                       fee={feesByShopId[shopId]}
@@ -408,22 +458,6 @@ const CheckoutItems = ({ checkout, deliveryCompany }: CheckoutItemsProps) => {
                 )}
               </div>
             </div>
-
-            <div className="border-t border-dashed border-black/10 bg-[#fafdff] px-3 py-0 text-sm sm:px-4">
-              {/* <span className="font-medium text-gray-900">Guaranteed to get by 9 Feb</span>
-              <span className="ml-1 text-gray-500">with Collection Points</span>
-              <span className="ml-1 text-gray-400">›</span> */}
-            </div>
-
-            {/* <div className="flex items-center justify-between gap-2 border-t border-dashed border-black/10 bg-[#fafdff] px-3 py-3 sm:px-4">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-700">Allow to leave at doorstep</span>
-                <span className="rounded bg-emerald-600 px-2 py-[1px] text-xs text-white">New</span>
-              </div>
-              <div className="relative h-5 w-10 cursor-pointer rounded-full bg-green-500">
-                <div className="absolute top-0.5 right-0.5 h-4 w-4 rounded-full bg-white" />
-              </div>
-            </div> */}
 
             <div className="flex flex-wrap items-center justify-end gap-2 bg-[#fafdff] px-3 py-2.5 sm:px-4">
               <span className="text-sm text-gray-600">
