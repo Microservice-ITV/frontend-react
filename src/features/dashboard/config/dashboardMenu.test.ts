@@ -22,6 +22,26 @@ const findSellerAccountingItems = () => {
   return items
 }
 
+describe('DASHBOARD_MENU warehouse purchasing items', () => {
+  const labels = (sections: typeof DASHBOARD_MENU_SELLER) =>
+    sections.flatMap((section) => section.items).map((item) => item.label)
+
+  it('hides goods receipts and suppliers from the seller menu', () => {
+    const sellerLabels = labels(DASHBOARD_MENU_SELLER)
+
+    expect(sellerLabels).not.toContain('Goods Receipts')
+    expect(sellerLabels).not.toContain('Suppliers')
+    expect(sellerLabels).toContain('Purchase Orders')
+  })
+
+  it('keeps goods receipts and suppliers on the admin menu', () => {
+    const adminLabels = labels(DASHBOARD_MENU_ADMIN)
+
+    expect(adminLabels).toContain('Goods Receipts')
+    expect(adminLabels).toContain('Suppliers')
+  })
+})
+
 describe('DASHBOARD_MENU_SELLER accounting items', () => {
   it('includes chart of accounts under seller accounting', () => {
     const chartOfAccounts = findSellerAccountingItems().find((item) => item.key === 'seller-accounting-chart-of-accounts')

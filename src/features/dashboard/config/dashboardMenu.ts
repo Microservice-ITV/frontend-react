@@ -35,14 +35,97 @@ import {
   Truck,
   Scale,
   MapPin,
+  Warehouse,
+  ArrowLeftRight,
+  History,
+  ClipboardList,
+  PackageCheck,
+  XCircle,
 } from "lucide-react";
 import { CAPABILITIES } from "@/app/rbac/capabilities";
-import type { DashboardMenuSection } from "../types/dashboardTypes";
+import type { Capability } from "@/app/rbac/types";
+import type {
+  DashboardArea,
+  DashboardMenuSection,
+} from "../types/dashboardTypes";
 import { getSearchConfig } from "./searchConfigs";
 
 const withSearch = (item: DashboardMenuSection['items'][0]) => {
   const search = getSearchConfig(item.key)
   return search ? { ...item, search: { enabled: true, ...search } } : item
+}
+
+/** Admin dashboard only. Seller menu omits these instead of showing a permission denial. */
+const ADMIN_ONLY_WAREHOUSE_KEYS = new Set(["warehouse-receipts", "warehouse-suppliers"])
+
+const warehouseSection = (
+  base: "/seller" | "/super-admin",
+  area: DashboardArea,
+  capability: Capability,
+): DashboardMenuSection => {
+  const items: Array<{ key: string; label: string; path: string; icon: typeof Warehouse }> = [
+    { key: "warehouse-overview", label: "Overview", path: "/warehouse", icon: LayoutDashboard },
+    {
+      key: "warehouse-warehouses",
+      label: "Warehouses",
+      path: "/warehouse/warehouses",
+      icon: Warehouse,
+    },
+    { key: "warehouse-inventory", label: "Inventory Data", path: "/warehouse/inventory", icon: Boxes },
+    {
+      key: "warehouse-transfer",
+      label: "Transfer",
+      path: "/warehouse/transfer",
+      icon: ArrowLeftRight,
+    },
+    {
+      key: "warehouse-movements",
+      label: "Inventory Movements",
+      path: "/warehouse/movements",
+      icon: History,
+    },
+    {
+      key: "warehouse-purchase-orders",
+      label: "Purchase Orders",
+      path: "/warehouse/purchase-orders",
+      icon: ClipboardList,
+    },
+    {
+      key: "warehouse-receipts",
+      label: "Goods Receipts",
+      path: "/warehouse/receipts",
+      icon: PackageCheck,
+    },
+    {
+      key: "warehouse-returns",
+      label: "Purchase Returns",
+      path: "/warehouse/returns",
+      icon: XCircle,
+    },
+    {
+      key: "warehouse-suppliers",
+      label: "Suppliers",
+      path: "/warehouse/suppliers",
+      icon: Building2,
+    },
+  ]
+
+  const visibleItems =
+    area === "seller"
+      ? items.filter((entry) => !ADMIN_ONLY_WAREHOUSE_KEYS.has(entry.key))
+      : items
+
+  return {
+    title: "WAREHOUSE",
+    items: visibleItems.map((entry) => ({
+      key: `${area}-${entry.key}`,
+      label: entry.label,
+      to: `${base}${entry.path}`,
+      area,
+      requiredCapabilities: [capability],
+      icon: entry.icon,
+    })),
+  }
 }
 
 export const DASHBOARD_MENU_SELLER: DashboardMenuSection[] = [
@@ -67,6 +150,7 @@ export const DASHBOARD_MENU_SELLER: DashboardMenuSection[] = [
       },
     ],
   },
+  warehouseSection("/seller", "seller", CAPABILITIES.SELLER_DASHBOARD_VIEW),
   {
     title: "CATALOG",
     items: [
@@ -382,6 +466,11 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
       },
     ],
   },
+  warehouseSection(
+    "/super-admin",
+    "super_admin",
+    CAPABILITIES.PLATFORM_ADMIN_VIEW,
+  ),
   {
     title: "PLATFORM",
     items: [

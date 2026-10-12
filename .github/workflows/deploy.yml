@@ -62,6 +62,7 @@ jobs:
             VITE_PROMOTION_SERVICE_URL=https://api.dailyneeditems.com/promotions
             VITE_INVOICE_SERVICE_URL=https://api.dailyneeditems.com/invoices
             VITE_TAX_SERVICE_URL=https://api.dailyneeditems.com/tax
+            VITE_WAREHOUSE_SERVICE_URL=https://api.dailyneeditems.com/warehouses
             VITE_BFF_SERVICE_URL=https://api.dailyneeditems.com/bff
             VITE_ACCOUNTING_SERVICE_URL=https://api.dailyneeditems.com/accounting
             VITE_NOTIFICATION_SERVICE_URL=https://api.dailyneeditems.com

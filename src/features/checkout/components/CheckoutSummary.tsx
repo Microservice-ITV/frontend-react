@@ -2,6 +2,8 @@ import { CheckoutTotals, ZERO_DELIVERY_FEE_LABEL } from '../utils/checkoutCalcul
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CardElement, useElements, useStripe } from '@stripe/react-stripe-js'
+import type { StripeCardElement } from '@stripe/stripe-js'
+import axios from 'axios'
 import {
   cartTaxFromKnownRates,
   checkoutApi,
@@ -24,6 +26,10 @@ import type { CheckoutShopShippingPayload } from '../api/checkoutApi'
 import type { CheckoutStatusResponse } from '../types/checkoutTypes'
 import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
 import { getDeliveryBlockReason } from '../utils/deliveryReadiness'
+import {
+  checkoutShopsHaveDeliveryCompanies,
+  mapCheckoutShopIdsToCartShopIds,
+} from '../utils/checkoutShopShipping'
 
 let activeCartTaxRequest = 0
 
@@ -75,40 +81,16 @@ const buildShopShippings = (
 ): CheckoutShopShippingPayload[] => {
   const shopCountFromCart = Object.keys(checkout.groupedByShop).length
   const perShopFallback = shopCountFromCart > 0 ? checkout.shippingSubtotal / shopCountFromCart : 0
-  const cartProductToShop = new Map(cartItems.map((item) => [item.productId, item.shopId]))
+  const shopMappings = mapCheckoutShopIdsToCartShopIds(
+    Object.keys(checkout.groupedByShop),
+    cartItems,
+    checkoutSessionItems,
+  )
+  const perShopFallbackForIds = shopMappings.length > 0
+    ? checkout.shippingSubtotal / shopMappings.length
+    : perShopFallback
 
-  const sessionShops = new Map<string, string[]>()
-  for (const item of checkoutSessionItems ?? []) {
-    const shopId = item.shop_id?.trim()
-    if (!shopId) continue
-    const productIds = sessionShops.get(shopId) ?? []
-    productIds.push(item.product_id)
-    sessionShops.set(shopId, productIds)
-  }
-
-  const shopIds =
-    sessionShops.size > 0
-      ? [...sessionShops.keys()]
-      : Object.keys(checkout.groupedByShop)
-
-  const perShopFallbackForIds =
-    shopIds.length > 0 ? checkout.shippingSubtotal / shopIds.length : perShopFallback
-
-  return shopIds.map((shopId) => {
-    const productIds = sessionShops.get(shopId)
-    let cartShopId: string | undefined
-    if (productIds) {
-      for (const productId of productIds) {
-        const mapped = cartProductToShop.get(productId)
-        if (mapped) {
-          cartShopId = mapped
-          break
-        }
-      }
-    } else {
-      cartShopId = shopId
-    }
-
+  return shopMappings.map(({ checkoutShopId: shopId, cartShopId }) => {
     const row = cartShopId ? feesByShopId[cartShopId] : undefined
     const fromApi =
       shippingCalculateStatus === 'succeeded' && row?.amount != null && row.amount >= 0
@@ -123,6 +105,37 @@ const buildShopShippings = (
         : '',
     }
   })
+}
+
+const firstValidationMessage = (errors: unknown): string | undefined => {
+  if (!errors || typeof errors !== 'object') return undefined
+
+  for (const messages of Object.values(errors)) {
+    if (typeof messages === 'string' && messages.trim()) return messages
+    if (Array.isArray(messages)) {
+      const message = messages.find((item): item is string => typeof item === 'string' && item.trim() !== '')
+      if (message) return message
+    }
+  }
+
+  return undefined
+}
+
+const responseIsObject = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === 'object' && !Array.isArray(value)
+
+const isPromoCodeStatus = (value: unknown): value is PromoCodeStatus => {
+  const statuses: PromoCodeStatus[] = [
+    'VALID',
+    'INVALID',
+    'EXPIRED',
+    'USED',
+    'DISABLED',
+    'RESERVED',
+    'LIMIT_REACHED',
+    'NOT_APPLICABLE',
+  ]
+  return statuses.some((status) => status === value)
 }
 
 const CheckoutSummary = ({
@@ -403,6 +416,11 @@ const CheckoutSummary = ({
       return
     }
 
+    if (!hasDeliveryCompanyForEveryShop) {
+      dispatch(setCheckoutError('Select a delivery company configured for every shop to continue.'))
+      return
+    }
+
     // Runtime guard. `canPlaceOrder` disables the button for durable faults, but a
     // click can still land while the quote is idle/loading (those states are not
     // treated as faults), so keep catching them here.
@@ -420,13 +438,6 @@ const CheckoutSummary = ({
       return
     }
 
-    const missingCompanyShop = [...new Set(cartItems.map((item) => item.shopId))]
-      .find((shopId) => !deliveryCompanyIdByShopId[shopId]?.trim())
-    if (missingCompanyShop) {
-      dispatch(setCheckoutError('A delivery company is not configured for one or more shops. Please contact the shop owner.'))
-      return
-    }
-
     // Service down, no usable fee, or a shop that cannot deliver to this address.
     if (deliveryBlockReason) {
       dispatch(setCheckoutError(deliveryBlockReason))
@@ -440,7 +451,7 @@ const CheckoutSummary = ({
 
     const effectivePaymentMethod = sessionPaymentMethod ?? paymentMethod
     const isPrepaid = effectivePaymentMethod === 'prepaid'
-    let card: ReturnType<NonNullable<typeof elements>['getElement']> | null = null
+    let card: StripeCardElement | null = null
 
     if (isPrepaid) {
       if (!stripe || !elements || !clientSecret) {
@@ -540,35 +551,34 @@ const CheckoutSummary = ({
       dispatch(setCheckoutError(null))
       dispatch(setCheckoutPlacingOrder(false))
     } catch (error: unknown) {
-      console.error('[PlaceOrder] Unexpected error during payment confirmation:', error)
+      console.error('[PlaceOrder] Checkout address update or payment confirmation failed:', error)
 
-      const responseData =
-        error &&
-        typeof error === 'object' &&
-        'response' in error
-          ? (error as {
-              response?: {
-                data?: {
-                  error?: string
-                  promo_code_status?: PromoCodeStatus
-                  promo_code_message?: string
-                }
-              }
-            }).response?.data
-          : undefined
+      const responseData = axios.isAxiosError(error) && responseIsObject(error.response?.data)
+        ? error.response.data
+        : undefined
 
-      if (responseData?.promo_code_status) {
+      if (isPromoCodeStatus(responseData?.promo_code_status)) {
         setPromoCodeStatus(responseData.promo_code_status)
-        setPromoCodeMessage(responseData.promo_code_message ?? null)
+        setPromoCodeMessage(
+          typeof responseData.promo_code_message === 'string'
+            ? responseData.promo_code_message
+            : null,
+        )
         setAppliedPromoCode(null)
       }
 
-      const apiError = responseData?.error
+      const validationMessage = firstValidationMessage(responseData?.errors)
+      const apiError =
+        (typeof responseData?.error === 'string' && responseData.error.trim()
+          ? responseData.error
+          : undefined) ??
+        (typeof responseData?.message === 'string' && responseData.message.trim()
+          ? [responseData.message, validationMessage].filter(Boolean).join(': ')
+          : validationMessage)
       dispatch(
         setCheckoutError(
-          typeof apiError === 'string' && apiError.trim() !== ''
-            ? apiError
-            : 'Unable to confirm payment. Please try again.',
+          apiError
+            ?? 'Unable to update checkout. Please review the delivery details and try again.',
         ),
       )
       dispatch(setAwaitingFinalStatus(false))
@@ -606,8 +616,17 @@ const CheckoutSummary = ({
       })
     : null
 
+  const requiredShopMappings = mapCheckoutShopIdsToCartShopIds(
+    Object.keys(checkout.groupedByShop),
+    cartItems,
+    checkoutSessionItems ?? currentStatus?.items,
+  )
+  const hasDeliveryCompanyForEveryShop =
+    checkoutShopsHaveDeliveryCompanies(requiredShopMappings, deliveryCompanyIdByShopId)
+
   const canPlaceOrder =
     !!clientSecret &&
+    hasDeliveryCompanyForEveryShop &&
     deliveryBlockReason === null &&
     !isPlacingOrder &&
     !isAwaitingFinalStatus &&
@@ -650,6 +669,9 @@ const CheckoutSummary = ({
     }
     if (deliveryBlockReason) {
       return deliveryBlockReason
+    }
+    if (!hasDeliveryCompanyForEveryShop) {
+      return 'Select a delivery company configured for every shop to continue.'
     }
     if (clientSecret) {
       return isPrepaid
@@ -702,7 +724,7 @@ const CheckoutSummary = ({
           <span className="whitespace-nowrap tabular-nums text-gray-900">
             {scaledTax == null && taxLoading
               ? 'Calculating…'
-              : taxEnabled
+              : taxEnabled && shownTax !== 0
                 ? formatKsPrice(shownTax)
                 : formatDisabledTaxAmount(shownTax)}
           </span>

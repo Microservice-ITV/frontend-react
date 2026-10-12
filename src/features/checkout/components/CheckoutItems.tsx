@@ -4,7 +4,7 @@ import { loadAllDistricts } from '@/features/admin/api/locationOptions'
 import type { CheckoutDeliveryCompany } from '@/features/shipping/hooks/useCheckoutDeliveryCompany'
 import type { ShopCalculatedShipping } from '@/features/shipping/types/shippingTypes'
 import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
-import { taxChargeForAmount } from '../api/checkoutApi'
+import { formatDisabledTaxAmount, taxChargeForAmount } from '../api/checkoutApi'
 import {
   DELIVERY_FOLLOW_UP_MESSAGE,
   deliveryUnavailableMessage,
@@ -383,16 +383,21 @@ const CheckoutItems = ({
                   : null
                 const taxRateLabel = !lineTax
                   ? 'Calculating…'
-                  : noCategoryTax
-                    ? '0.00'
+                  : noCategoryTax || lineTax.taxRate == null
+                    ? '0%'
                     : formatLineTaxRate(lineTax.taxRate)
-                const taxAmountLabel = !lineTax
-                  ? 'Calculating…'
+                const resolvedTaxAmount = !lineTax
+                  ? null
                   : noCategoryTax
-                    ? formatKsPrice(0)
+                    ? 0
                     : liveTaxAmount != null
-                      ? formatKsPrice(liveTaxAmount)
-                      : formatKsPrice(lineTax.taxAmount)
+                      ? liveTaxAmount
+                      : lineTax.taxAmount
+                const taxAmountLabel = resolvedTaxAmount == null
+                  ? 'Calculating…'
+                  : resolvedTaxAmount === 0
+                    ? formatDisabledTaxAmount(0)
+                    : formatKsPrice(resolvedTaxAmount)
 
                 return (
                   <li

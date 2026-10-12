@@ -75,6 +75,9 @@ export type PaymentRecord = {
   deliveryStatusId?: number | null
   /** Fulfillment status aggregated over THIS seller's shops in the order. */
   sellerDeliveryStatus?: string | null
+  deliveryShopId?: string | null
+  deliveryCompanyId?: string | null
+  codCollectionBatchId?: string | null
   /** Seller-scoped money split from payment_allocations; null when unknown. */
   seller?: PaymentSellerShare | null
 }
@@ -470,6 +473,11 @@ export const sellerOrderApi = {
 
   async collectPayment(orderId: string): Promise<{ order_id: string; payment_id: string; status: string }> {
     const response = await orderClient.post(`/orders/${orderId}/collect-payment`)
+    return response.data
+  },
+
+  async collectCodBatch(orderIds: string[], shopId: string): Promise<{ batch_id: string; order_ids: string[]; status: string }> {
+    const response = await orderClient.post('/orders/collect-cod-batch', { order_ids: orderIds, shop_id: shopId })
     return response.data
   },
 
