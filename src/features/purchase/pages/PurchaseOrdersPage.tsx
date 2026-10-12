@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Eye, Plus } from 'lucide-react'
+import { Eye, FileText, Plus, RefreshCw } from 'lucide-react'
 import DataTable, { type DataTableColumn } from '@/components/ui/DataTable'
 import FilterBar from '@/components/ui/FilterBar'
 import ModalDrawer from '@/components/ui/ModalDrawer'
@@ -11,18 +11,31 @@ import {
 } from '../components/PurchaseBadges'
 import { purchasePaths, type PurchaseAreaBase } from '../config/purchasePaths'
 import { purchaseApi, purchaseErrorMessage } from '../api/purchaseApi'
+import { notifyOrderedReceiptCountChanged } from '../orderedReceiptCount'
 import { usePurchaseOrders } from '../hooks/usePurchaseData'
 import {
+  ADDITIONAL_COST_CATEGORY_LABELS,
+  COST_ALLOCATION_METHOD_LABELS,
+  COST_STATUS_LABELS,
   formatMoney,
   PURCHASE_ORDER_STATUS_LABELS,
   type PurchaseOrder,
+  type PurchaseOrderAttachment,
   type PurchaseOrderStatus,
 } from '../types/purchaseTypes'
 
 const primaryButtonClass =
-  'inline-flex items-center justify-center rounded-lg bg-[var(--dni-primary)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50'
-const subtleButtonClass =
-  'text-xs font-medium text-slate-500 hover:text-slate-700 disabled:opacity-40'
+  'inline-flex items-center justify-center gap-1.5 rounded-lg bg-[var(--dni-primary)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50'
+const secondaryButtonClass =
+  'inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50'
+const actionButtonClass =
+  'inline-flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-md px-2.5 py-1 text-xs font-medium disabled:opacity-40'
+const detailsButtonClass = `${actionButtonClass} border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100`
+const submitButtonClass = `${actionButtonClass} bg-indigo-600 text-white hover:bg-indigo-700`
+const approveButtonClass = `${actionButtonClass} bg-emerald-600 text-white hover:bg-emerald-700`
+const orderedButtonClass = `${actionButtonClass} bg-sky-600 text-white hover:bg-sky-700`
+const closeButtonClass = `${actionButtonClass} bg-amber-500 text-white hover:bg-amber-600`
+const cancelButtonClass = `${actionButtonClass} bg-red-600 text-white hover:bg-red-700`
 
 const numberParam = (value: string | null): number => {
   const parsed = Number(value ?? '')
@@ -34,7 +47,7 @@ export type PurchaseOrdersPageProps = {
   platform?: boolean
 }
 
-const PurchaseOrdersPage = ({ base }: PurchaseOrdersPageProps) => {
+const PurchaseOrdersPage = ({ base, platform = false }: PurchaseOrdersPageProps) => {
   const paths = purchasePaths(base)
   const [searchParams] = useSearchParams()
   const [status, setStatus] = useState<PurchaseOrderStatus | ''>('')
@@ -82,6 +95,7 @@ const PurchaseOrdersPage = ({ base }: PurchaseOrdersPageProps) => {
     try {
       await purchaseApi.updatePurchaseOrderStatus(id, next)
       await reload()
+      notifyOrderedReceiptCountChanged()
       if (details?.id === id) await openDetails(id)
     } catch (err) {
       setFeedback(purchaseErrorMessage(err))
@@ -101,14 +115,25 @@ const PurchaseOrdersPage = ({ base }: PurchaseOrdersPageProps) => {
     }
   }
 
+  const downloadAttachment = async (orderId: string, attachment: PurchaseOrderAttachment) => {
+    const response = await purchaseApi.downloadPurchaseOrderAttachment(orderId, attachment.id)
+    const blob = new Blob([response.data], { type: attachment.mimeType || 'application/octet-stream' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = attachment.fileName
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
   const columns: Array<DataTableColumn<PurchaseOrder>> = [
     {
       key: 'orderNumber',
       header: 'Order',
       sortValue: (row) => row.orderNumber,
       render: (row) => (
-        <div className="min-w-0">
-          <p className="font-medium text-slate-900">{row.orderNumber}</p>
+        <div>
+          <p className="whitespace-nowrap font-medium text-slate-900">{row.orderNumber}</p>
           <p className="truncate text-xs text-slate-400">{row.supplier?.name ?? '—'}</p>
         </div>
       ),
@@ -146,70 +171,61 @@ const PurchaseOrdersPage = ({ base }: PurchaseOrdersPageProps) => {
       key: 'actions',
       header: '',
       align: 'right',
-      width: '320px',
+      width: platform ? '320px' : '110px',
       render: (row) => (
-        <div className="flex items-center justify-end gap-3">
+        <div className="flex flex-nowrap items-center justify-end gap-1.5">
           <button
             type="button"
-            className={subtleButtonClass}
+            className={detailsButtonClass}
             onClick={() => void openDetails(row.id)}
           >
-            <span className="inline-flex items-center gap-1">
-              <Eye size={13} />
-              Details
-            </span>
+            <Eye size={13} />
+            Details
           </button>
-          {row.status === 'DRAFT' && (
+          {platform && row.status === 'DRAFT' && (
             <button
               type="button"
-              className={subtleButtonClass}
+              className={submitButtonClass}
               onClick={() => void changeStatus(row.id, 'PENDING_APPROVAL')}
             >
               Submit for approval
             </button>
           )}
-          {row.status === 'PENDING_APPROVAL' && (
+          {platform && (row.status === 'PENDING_APPROVAL' || row.status === 'PENDING') && (
             <button
               type="button"
-              className={subtleButtonClass}
+              className={approveButtonClass}
               onClick={() => void changeStatus(row.id, 'APPROVED')}
             >
               Approve
             </button>
           )}
-          {row.status === 'PENDING' && (
+          {platform && row.status === 'APPROVED' && (
             <button
               type="button"
-              className={subtleButtonClass}
-              onClick={() => void changeStatus(row.id, 'APPROVED')}
-            >
-              Approve
-            </button>
-          )}
-          {row.status === 'APPROVED' && (
-            <button
-              type="button"
-              className={subtleButtonClass}
+              className={orderedButtonClass}
               onClick={() => void changeStatus(row.id, 'ORDERED')}
             >
               Mark ordered
             </button>
           )}
-          {(row.status === 'ORDERED' ||
-            row.status === 'RECEIVED' ||
-            row.status === 'PARTIALLY_RECEIVED') && (
+          {platform &&
+            (row.status === 'ORDERED' || row.status === 'PARTIALLY_RECEIVED') && (
             <button
               type="button"
-              className={subtleButtonClass}
+              className={closeButtonClass}
               onClick={() => void changeStatus(row.id, 'CLOSED')}
             >
               Close
             </button>
           )}
-          {row.status !== 'CANCELLED' && row.status !== 'CLOSED' && (
+          {platform &&
+            row.status !== 'CANCELLED' &&
+            row.status !== 'CLOSED' &&
+            row.status !== 'RECEIVED' && (
             <button
               type="button"
-              className={subtleButtonClass}
+              className={cancelButtonClass}
               onClick={() => void changeStatus(row.id, 'CANCELLED')}
             >
               Cancel
@@ -237,10 +253,23 @@ const PurchaseOrdersPage = ({ base }: PurchaseOrdersPageProps) => {
             Order stock from your suppliers across every warehouse.
           </p>
         </div>
-        <Link to={newOrderHref} className={primaryButtonClass}>
-          <Plus size={16} />
-          New purchase order
-        </Link>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            className={secondaryButtonClass}
+            disabled={loading}
+            onClick={() => void reload()}
+          >
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            Refresh
+          </button>
+          {!platform && (
+            <Link to={newOrderHref} className={primaryButtonClass}>
+              <Plus size={16} />
+              New purchase order
+            </Link>
+          )}
+        </div>
       </div>
 
       {sourceRoute && (supplierFromParam || deliveryFeeFromParam > 0) && (
@@ -295,7 +324,7 @@ const PurchaseOrdersPage = ({ base }: PurchaseOrdersPageProps) => {
         error={error}
         emptyMessage="No purchase orders found."
         itemLabel="purchase orders"
-        minWidth="900px"
+        minWidth="980px"
         fixedLayout
       />
 
@@ -309,45 +338,86 @@ const PurchaseOrdersPage = ({ base }: PurchaseOrdersPageProps) => {
               ? `Supplier: ${details.supplier.name}`
               : undefined
           }
-          size="lg"
+          size="xl"
         >
           {detailsLoading && <p className="text-sm text-slate-500">Loading…</p>}
           {detailsError && <p className="text-sm text-red-600">{detailsError}</p>}
           <div className="space-y-5">
-            <div className="grid grid-cols-2 gap-3">
-              <DetailCell label="Status" value={<PurchaseOrderStatusBadge status={details.status} size="md" />} />
-              <DetailCell label="Total" value={formatMoney(details.totalAmount)} />
-              <DetailCell
-                label="Subtotal"
-                value={`${formatMoney(details.subtotal)}${
-                  details.shippingAmount && Number(details.shippingAmount) > 0
-                    ? ` + ${formatMoney(details.shippingAmount)} shipping`
-                    : ''
-                }`}
-              />
-              <DetailCell label="Currency" value={details.currency} />
-              <DetailCell
-                label="Expected"
-                value={
-                  details.expectedAt
-                    ? new Date(details.expectedAt).toLocaleDateString()
-                    : '—'
-                }
-              />
-              <DetailCell label="Created" value={new Date(details.createdAt).toLocaleString()} />
-            </div>
+            <section className="space-y-2">
+              <h3 className="text-sm font-semibold text-slate-800">Order & supplier details</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <DetailCell label="Status" value={<PurchaseOrderStatusBadge status={details.status} size="md" />} />
+                <DetailCell
+                  label="Order date"
+                  value={
+                    details.orderDate
+                      ? new Date(details.orderDate).toLocaleDateString()
+                      : new Date(details.createdAt).toLocaleDateString()
+                  }
+                />
+                <DetailCell label="Supplier" value={details.supplier?.name ?? '—'} />
+                <DetailCell label="Supplier contact" value={details.supplierContact || '—'} />
+                <DetailCell label="Currency" value={details.currency} />
+                <DetailCell label="Exchange rate" value={details.exchangeRate} />
+                <DetailCell
+                  label="Expected arrival"
+                  value={
+                    details.expectedAt
+                      ? new Date(details.expectedAt).toLocaleDateString()
+                      : '—'
+                  }
+                />
+                <DetailCell label="Payment terms" value={details.paymentTerms || '—'} />
+                <DetailCell label="Destination warehouse" value={details.warehouse?.name ?? '—'} />
+                <DetailCell label="Delivery terms" value={details.deliveryTerms || '—'} />
+              </div>
+            </section>
 
             <section className="space-y-2">
-              <h3 className="text-sm font-semibold text-slate-800">Line items</h3>
-              <div className="overflow-hidden rounded-lg border border-slate-200">
+              <h3 className="text-sm font-semibold text-slate-800">Notes</h3>
+              <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                {details.notes?.trim() ? details.notes : 'No notes'}
+              </p>
+            </section>
+
+            <section className="space-y-2">
+              <h3 className="text-sm font-semibold text-slate-800">Attachments</h3>
+              {(details.attachments?.length ?? 0) > 0 ? (
+                <ul className="space-y-1">
+                  {details.attachments?.map((file) => (
+                    <li key={file.id}>
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-2 text-sm font-medium text-sky-700 hover:text-sky-800"
+                        onClick={() => void downloadAttachment(details.id, file)}
+                      >
+                        <FileText size={14} />
+                        {file.fileName}
+                        <span className="text-xs font-normal text-slate-400">
+                          {Math.max(1, Math.round(file.sizeBytes / 1024))} KB
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-slate-500">No attachments</p>
+              )}
+            </section>
+
+            <section className="space-y-2">
+              <h3 className="text-sm font-semibold text-slate-800">Products line items</h3>
+              <div className="overflow-x-auto rounded-lg border border-slate-200">
                 <table className="w-full text-xs">
                   <thead className="bg-slate-50 text-left text-[11px] uppercase tracking-wide text-slate-500">
                     <tr>
                       <th className="px-3 py-2">Product</th>
                       <th className="px-3 py-2 text-right">Qty</th>
-                      <th className="px-3 py-2 text-right">Received</th>
-                      <th className="px-3 py-2 text-right">Unit cost</th>
-                      <th className="px-3 py-2 text-right">Line total</th>
+                      <th className="px-3 py-2 text-right">Unit price</th>
+                      <th className="px-3 py-2 text-right">Discount</th>
+                      <th className="px-3 py-2 text-right">Net amount</th>
+                      <th className="px-3 py-2 text-right">Weight/unit</th>
+                      <th className="px-3 py-2 text-right">Volume/unit</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -362,13 +432,17 @@ const PurchaseOrdersPage = ({ base }: PurchaseOrdersPageProps) => {
                           )}
                         </td>
                         <td className="px-3 py-2 text-right text-slate-700">{item.quantity}</td>
-                        <td className="px-3 py-2 text-right text-slate-500">{item.receivedQty}</td>
                         <td className="px-3 py-2 text-right text-slate-700">
                           {formatMoney(item.unitCost)}
+                        </td>
+                        <td className="px-3 py-2 text-right text-slate-500">
+                          {formatMoney(item.discountAmount)}
                         </td>
                         <td className="px-3 py-2 text-right font-medium text-slate-800">
                           {formatMoney(item.lineTotal)}
                         </td>
+                        <td className="px-3 py-2 text-right text-slate-500">{item.weightPerUnit}</td>
+                        <td className="px-3 py-2 text-right text-slate-500">{item.volumePerUnit}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -376,17 +450,18 @@ const PurchaseOrdersPage = ({ base }: PurchaseOrdersPageProps) => {
               </div>
             </section>
 
-            {(details.deliveryStages?.length ?? 0) > 0 && (
-              <section className="space-y-2">
-                <h3 className="text-sm font-semibold text-slate-800">Delivery stages</h3>
-                <div className="overflow-hidden rounded-lg border border-slate-200">
+            <section className="space-y-2">
+              <h3 className="text-sm font-semibold text-slate-800">Delivery stages & charges</h3>
+              {(details.deliveryStages?.length ?? 0) > 0 ? (
+                <div className="overflow-x-auto rounded-lg border border-slate-200">
                   <table className="w-full text-xs">
                     <thead className="bg-slate-50 text-left text-[11px] uppercase tracking-wide text-slate-500">
                       <tr>
                         <th className="px-3 py-2">Route</th>
                         <th className="px-3 py-2">Carrier</th>
-                        <th className="px-3 py-2 text-right">Fee</th>
+                        <th className="px-3 py-2 text-right">Charge fee</th>
                         <th className="px-3 py-2">Allocation</th>
+                        <th className="px-3 py-2">Applicable products</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -397,14 +472,87 @@ const PurchaseOrdersPage = ({ base }: PurchaseOrdersPageProps) => {
                           <td className="px-3 py-2 text-right text-slate-700">
                             {formatMoney(stage.feeAmount)}
                           </td>
-                          <td className="px-3 py-2 text-slate-500">{stage.allocationMethod}</td>
+                          <td className="px-3 py-2 text-slate-500">
+                            {COST_ALLOCATION_METHOD_LABELS[stage.allocationMethod] ?? stage.allocationMethod}
+                          </td>
+                          <td className="px-3 py-2 text-slate-500">
+                            {stage.applicableProductIds.length === 0
+                              ? 'All products'
+                              : stage.applicableProductIds
+                                  .map(
+                                    (productId) =>
+                                      details.items?.find((item) => item.productId === productId)
+                                        ?.productName ?? productId,
+                                  )
+                                  .join(', ')}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-              </section>
-            )}
+              ) : (
+                <p className="text-sm text-slate-500">No delivery stages</p>
+              )}
+            </section>
+
+            <section className="space-y-2">
+              <h3 className="text-sm font-semibold text-slate-800">Additional costs</h3>
+              {(details.additionalCosts?.length ?? 0) > 0 ? (
+                <div className="overflow-x-auto rounded-lg border border-slate-200">
+                  <table className="w-full text-xs">
+                    <thead className="bg-slate-50 text-left text-[11px] uppercase tracking-wide text-slate-500">
+                      <tr>
+                        <th className="px-3 py-2">Cost item</th>
+                        <th className="px-3 py-2">Category</th>
+                        <th className="px-3 py-2 text-right">Amount</th>
+                        <th className="px-3 py-2">Mode</th>
+                        <th className="px-3 py-2">Allocation</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {details.additionalCosts?.map((cost) => (
+                        <tr key={cost.id} className="border-t border-slate-100">
+                          <td className="px-3 py-2 font-medium text-slate-800">{cost.name}</td>
+                          <td className="px-3 py-2 text-slate-500">
+                            {ADDITIONAL_COST_CATEGORY_LABELS[cost.category] ?? cost.category}
+                          </td>
+                          <td className="px-3 py-2 text-right text-slate-700">
+                            {formatMoney(cost.amount)}
+                          </td>
+                          <td className="px-3 py-2 text-slate-500">
+                            {COST_STATUS_LABELS[cost.status] ?? cost.status}
+                          </td>
+                          <td className="px-3 py-2 text-slate-500">
+                            {COST_ALLOCATION_METHOD_LABELS[cost.allocationMethod] ?? cost.allocationMethod}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500">No additional costs</p>
+              )}
+            </section>
+
+            <section className="space-y-2">
+              <h3 className="text-sm font-semibold text-slate-800">Summary</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <DetailCell label="Subtotal" value={formatMoney(details.subtotal)} />
+                <DetailCell label="Delivery" value={formatMoney(details.shippingAmount)} />
+                <DetailCell
+                  label="Other costs"
+                  value={formatMoney(
+                    (details.additionalCosts ?? []).reduce(
+                      (sum, cost) => sum + Number(cost.amount),
+                      0,
+                    ),
+                  )}
+                />
+                <DetailCell label="Total" value={formatMoney(details.totalAmount)} />
+              </div>
+            </section>
 
             <section className="space-y-2">
               <h3 className="text-sm font-semibold text-slate-800">Status history</h3>
@@ -438,13 +586,6 @@ const PurchaseOrdersPage = ({ base }: PurchaseOrdersPageProps) => {
                 <p className="text-sm text-slate-500">No status changes recorded yet.</p>
               )}
             </section>
-
-            {details.notes && (
-              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                <span className="font-medium text-slate-700">Notes: </span>
-                {details.notes}
-              </div>
-            )}
           </div>
         </ModalDrawer>
       )}

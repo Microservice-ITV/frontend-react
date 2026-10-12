@@ -76,6 +76,10 @@ export const warehouseApi = {
     )
   },
 
+  deleteWarehouse(id: string) {
+    return warehouseClient.delete<{ success: boolean }>(`/warehouses/${id}`)
+  },
+
   listInventory(warehouseId: string) {
     return warehouseClient.get<Envelope<InventoryStock[]>>(
       `/warehouses/${warehouseId}/inventory`,
@@ -156,6 +160,10 @@ export const warehouseApi = {
     return warehouseClient.patch<Envelope<Supplier>>(`/suppliers/${id}`, payload)
   },
 
+  deleteSupplier(id: string) {
+    return warehouseClient.delete<{ success: boolean }>(`/suppliers/${id}`)
+  },
+
   listPurchaseOrders(params?: {
     status?: PurchaseOrderStatus | ''
     supplierId?: string
@@ -180,6 +188,13 @@ export const warehouseApi = {
     return warehouseClient.post<Envelope<PurchaseOrder>>(
       '/purchase-orders',
       payload,
+    )
+  },
+
+  downloadPurchaseOrderAttachment(orderId: string, attachmentId: string) {
+    return warehouseClient.get<Blob>(
+      `/purchase-orders/${orderId}/attachments/${attachmentId}`,
+      { responseType: 'blob' },
     )
   },
 

@@ -19,6 +19,8 @@ export type ModalDrawerProps = {
   panelClassName?: string
   closeOnBackdrop?: boolean
   hideClose?: boolean
+  /** Size the dialog to its content instead of the viewport height. */
+  fitContent?: boolean
 }
 
 const MODAL_SIZE_CLASSES: Record<ModalDrawerSize, string> = {
@@ -47,6 +49,7 @@ const ModalDrawer = ({
   panelClassName,
   closeOnBackdrop = true,
   hideClose = false,
+  fitContent = false,
 }: ModalDrawerProps) => {
   const [mounted, setMounted] = useState(open)
   const [shown, setShown] = useState(false)
@@ -99,7 +102,7 @@ const ModalDrawer = ({
       />
       <div
         className={clsx(
-          'relative flex h-full w-full flex-col bg-white shadow-xl transition-all duration-200',
+          'relative flex w-full flex-col bg-white shadow-xl transition-all duration-200',
           isDrawer
             ? clsx(
                 'h-full border-l border-slate-200',
@@ -109,6 +112,7 @@ const ModalDrawer = ({
               )
             : clsx(
                 'max-h-[90vh] rounded-xl border border-slate-200',
+                fitContent ? 'h-auto overflow-hidden' : 'h-full',
                 MODAL_SIZE_CLASSES[size],
                 shown ? 'translate-y-0 opacity-100' : 'translate-y-3 opacity-0',
                 panelClassName,
@@ -136,7 +140,16 @@ const ModalDrawer = ({
           )}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        <div
+          className={clsx(
+            'px-5 py-4',
+            fitContent && !isDrawer
+              ? 'max-h-[calc(90vh-8rem)] overflow-y-auto'
+              : 'min-h-0 flex-1 overflow-y-auto',
+          )}
+        >
+          {children}
+        </div>
 
         {footer && (
           <div className="flex items-center justify-end gap-3 border-t border-[var(--dni-border)] px-5 py-4">

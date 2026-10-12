@@ -55,6 +55,9 @@ const withSearch = (item: DashboardMenuSection['items'][0]) => {
   return search ? { ...item, search: { enabled: true, ...search } } : item
 }
 
+/** Admin dashboard only. Seller menu omits these instead of showing a permission denial. */
+const ADMIN_ONLY_WAREHOUSE_KEYS = new Set(["warehouse-receipts", "warehouse-suppliers"])
+
 const warehouseSection = (
   base: "/seller" | "/super-admin",
   area: DashboardArea,
@@ -107,9 +110,14 @@ const warehouseSection = (
     },
   ]
 
+  const visibleItems =
+    area === "seller"
+      ? items.filter((entry) => !ADMIN_ONLY_WAREHOUSE_KEYS.has(entry.key))
+      : items
+
   return {
     title: "WAREHOUSE",
-    items: items.map((entry) => ({
+    items: visibleItems.map((entry) => ({
       key: `${area}-${entry.key}`,
       label: entry.label,
       to: `${base}${entry.path}`,

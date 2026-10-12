@@ -4,7 +4,6 @@ import DataTable, { type DataTableColumn } from '@/components/ui/DataTable'
 import FilterBar, { type FilterOption } from '@/components/ui/FilterBar'
 import ModalDrawer from '@/components/ui/ModalDrawer'
 import StatusBadge from '@/components/ui/StatusBadge'
-import ShopSelector from '../components/ShopSelector'
 import { warehouseApi, warehouseErrorMessage } from '../api/warehouseApi'
 import type { WarehouseAreaBase } from '../config/warehousePaths'
 import { useWarehouses } from '../hooks/useWarehouseData'
@@ -37,8 +36,7 @@ const MOVEMENT_TYPE_OPTIONS: FilterOption[] = MOVEMENT_TYPES.map((type) => ({
   label: MOVEMENT_TYPE_LABELS[type],
 }))
 
-const MovementsPage = ({ platform = false }: MovementsPageProps) => {
-  const [shopId, setShopId] = useState('')
+const MovementsPage = (_props: MovementsPageProps) => {
   const [search, setSearch] = useState('')
   const [warehouseId, setWarehouseId] = useState('')
   const [movementType, setMovementType] = useState('')
@@ -56,7 +54,7 @@ const MovementsPage = ({ platform = false }: MovementsPageProps) => {
     null,
   )
 
-  const { warehouses } = useWarehouses({ shopId })
+  const { warehouses } = useWarehouses()
   const productNames = useProductNames()
 
   const load = useCallback(async () => {
@@ -421,43 +419,44 @@ const MovementsPage = ({ platform = false }: MovementsPageProps) => {
             full routing details.
           </p>
         </div>
-        {platform && <ShopSelector value={shopId} onChange={setShopId} />}
       </div>
 
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-slate-800">Pending transfer approvals</h2>
-          <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700">
-            {transfers.length} pending
-          </span>
+      {feedback && (
+        <div
+          className={
+            feedback.tone === 'success'
+              ? 'rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700'
+              : 'rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700'
+          }
+        >
+          {feedback.message}
         </div>
+      )}
 
-        {feedback && (
-          <div
-            className={
-              feedback.tone === 'success'
-                ? 'rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700'
-                : 'rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700'
-            }
-          >
-            {feedback.message}
+      {(transfers.length > 0 || transfersError) && (
+        <section className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold text-slate-800">Pending transfer approvals</h2>
+            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700">
+              {transfers.length} pending
+            </span>
           </div>
-        )}
 
-        <DataTable<WarehouseTransfer>
-          columns={transferColumns}
-          rows={transfers}
-          rowKey={(row) => row.id}
-          loading={transfersLoading}
-          error={transfersError}
-          emptyMessage="No transfers waiting for approval."
-          emptyIcon={Check}
-          initialRowsPerPage={5}
-          itemLabel="transfers"
-          minWidth="860px"
-          fixedLayout
-        />
-      </section>
+          <DataTable<WarehouseTransfer>
+            columns={transferColumns}
+            rows={transfers}
+            rowKey={(row) => row.id}
+            loading={transfersLoading}
+            error={transfersError}
+            emptyMessage="No transfers waiting for approval."
+            emptyIcon={Check}
+            initialRowsPerPage={5}
+            itemLabel="transfers"
+            minWidth="860px"
+            fixedLayout
+          />
+        </section>
+      )}
 
       <FilterBar
         search={{

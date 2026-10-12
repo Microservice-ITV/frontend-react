@@ -5,18 +5,21 @@ import FilterBar from '@/components/ui/FilterBar'
 import ModalDrawer from '@/components/ui/ModalDrawer'
 import { PurchaseReceiptStatusBadge } from '../components/PurchaseBadges'
 import { purchaseApi, purchaseErrorMessage } from '../api/purchaseApi'
+import { notifyOrderedReceiptCountChanged } from '../orderedReceiptCount'
 import { purchasePaths, type PurchaseAreaBase } from '../config/purchasePaths'
 import { usePurchaseOrders, usePurchaseReceipts } from '../hooks/usePurchaseData'
 import type { PurchaseOrderItem, PurchaseReceipt, PurchaseReceiptStatus } from '../types/purchaseTypes'
 
 const primaryButtonClass =
-  'inline-flex items-center justify-center rounded-lg bg-[var(--dni-primary)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50'
+  'inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--dni-primary)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50'
 const secondaryButtonClass =
   'inline-flex items-center justify-center rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 disabled:opacity-50'
 const subtleButtonClass =
   'text-xs font-medium text-slate-500 hover:text-slate-700 disabled:opacity-40'
 const inputClass =
   'w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[var(--dni-primary)]'
+const compactInputClass =
+  'w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs text-slate-900 outline-none focus:border-[var(--dni-primary)]'
 const labelClass = 'mb-1 block text-xs font-medium text-slate-600'
 
 type DraftLine = {
@@ -38,7 +41,7 @@ const PurchaseReceiptsPage = ({ base }: PurchaseReceiptsPageProps) => {
   const [status, setStatus] = useState<PurchaseReceiptStatus | ''>('')
   const [search, setSearch] = useState('')
   const { receipts, loading, error, reload } = usePurchaseReceipts({ status })
-  const { orders } = usePurchaseOrders()
+  const { orders, reload: reloadOrders } = usePurchaseOrders()
 
   const [modalOpen, setModalOpen] = useState(false)
   const [orderId, setOrderId] = useState('')
@@ -49,8 +52,9 @@ const PurchaseReceiptsPage = ({ base }: PurchaseReceiptsPageProps) => {
   const [formError, setFormError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
 
-  const recevableOrders = orders.filter(
-    (order) => order.status !== 'CANCELLED' && order.status !== 'RECEIVED',
+  const orderedOrders = orders.filter((order) => order.status === 'ORDERED')
+  const receivableOrders = orders.filter(
+    (order) => order.status === 'ORDERED' || order.status === 'PARTIALLY_RECEIVED',
   )
 
   const term = search.trim().toLowerCase()
@@ -59,6 +63,10 @@ const PurchaseReceiptsPage = ({ base }: PurchaseReceiptsPageProps) => {
         `${receipt.receiptNumber} ${receipt.purchaseOrderId}`.toLowerCase().includes(term),
       )
     : receipts
+
+  const updateLine = (index: number, patch: Partial<DraftLine>) => {
+    setLines((current) => current.map((item, i) => (i === index ? { ...item, ...patch } : item)))
+  }
 
   const openCreate = () => {
     setOrderId('')
@@ -139,6 +147,8 @@ const PurchaseReceiptsPage = ({ base }: PurchaseReceiptsPageProps) => {
       }
       setModalOpen(false)
       await reload()
+      await reloadOrders()
+      notifyOrderedReceiptCountChanged()
     } catch (err) {
       setFormError(purchaseErrorMessage(err))
     } finally {
@@ -151,6 +161,8 @@ const PurchaseReceiptsPage = ({ base }: PurchaseReceiptsPageProps) => {
     try {
       await purchaseApi.confirmPurchaseReceipt(id)
       await reload()
+      await reloadOrders()
+      notifyOrderedReceiptCountChanged()
     } catch (err) {
       setFeedback(purchaseErrorMessage(err))
     }
@@ -161,12 +173,15 @@ const PurchaseReceiptsPage = ({ base }: PurchaseReceiptsPageProps) => {
       key: 'receiptNumber',
       header: 'Receipt',
       sortValue: (row) => row.receiptNumber,
-      render: (row) => (
-        <div className="min-w-0">
-          <p className="font-medium text-slate-900">{row.receiptNumber}</p>
-          <p className="truncate text-xs text-slate-400">{row.purchaseOrderId}</p>
-        </div>
-      ),
+      render: (row) => {
+        const order = orders.find((entry) => entry.id === row.purchaseOrderId)
+        return (
+          <div className="min-w-0">
+            <p className="font-medium text-slate-900">{row.receiptNumber}</p>
+            <p className="truncate text-xs text-slate-400">{order?.orderNumber ?? '—'}</p>
+          </div>
+        )
+      },
     },
     {
       key: 'status',
@@ -210,9 +225,16 @@ const PurchaseReceiptsPage = ({ base }: PurchaseReceiptsPageProps) => {
             Receive ordered goods — confirming a GRN updates inventory.
           </p>
         </div>
-        <button type="button" className={primaryButtonClass} onClick={openCreate}>
-          Receive goods
-        </button>
+        <div className="relative inline-flex self-start">
+          <button type="button" className={primaryButtonClass} onClick={openCreate}>
+            Receive goods
+          </button>
+          {orderedOrders.length > 0 && (
+            <span className="absolute -right-2 -top-2 flex size-5 items-center justify-center rounded-full border border-emerald-600 bg-white text-[11px] font-semibold leading-none text-emerald-700 shadow-sm">
+              {orderedOrders.length}
+            </span>
+          )}
+        </div>
       </div>
 
       {feedback && <p className="text-sm text-red-600">{feedback}</p>}
@@ -247,117 +269,14 @@ const PurchaseReceiptsPage = ({ base }: PurchaseReceiptsPageProps) => {
         fixedLayout
       />
 
-      <ModalDrawer open={modalOpen} onClose={() => setModalOpen(false)} title="Receive goods">
-        <div className="space-y-4">
-          <div>
-            <label className={labelClass}>Purchase order</label>
-            <select
-              className={inputClass}
-              value={orderId}
-              onChange={(event) => void selectOrder(event.target.value)}
-            >
-              <option value="">Select purchase order…</option>
-              {recevableOrders.map((order) => (
-                <option key={order.id} value={order.id}>
-                  {order.orderNumber} — {order.supplier?.name ?? ''}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {loadingItems && <p className="text-sm text-slate-500">Loading items…</p>}
-
-            {lines.length > 0 && (
-              <div className="space-y-2">
-                <span className="text-xs font-medium text-slate-600">Receive quantities</span>
-                {lines.map((line, index) => (
-                  <div key={line.item.id} className="grid grid-cols-12 items-center gap-2">
-                    <span className="col-span-3 truncate text-sm text-slate-600">
-                      {line.item.productName ?? line.item.productId}
-                    </span>
-                    <input
-                      className={`${inputClass} col-span-2`}
-                      value={line.quantity}
-                      onChange={(event) =>
-                        setLines((current) =>
-                          current.map((item, i) =>
-                            i === index ? { ...item, quantity: event.target.value } : item,
-                          ),
-                        )
-                      }
-                      placeholder="Qty"
-                    />
-                    <input
-                      className={`${inputClass} col-span-2`}
-                      placeholder="Accepted"
-                      value={line.acceptedQty}
-                      onChange={(event) =>
-                        setLines((current) =>
-                          current.map((item, i) =>
-                            i === index ? { ...item, acceptedQty: event.target.value } : item,
-                          ),
-                        )
-                      }
-                    />
-                    <input
-                      className={`${inputClass} col-span-2`}
-                      placeholder="Rejected"
-                      value={line.rejectedQty}
-                      onChange={(event) =>
-                        setLines((current) =>
-                          current.map((item, i) =>
-                            i === index ? { ...item, rejectedQty: event.target.value } : item,
-                          ),
-                        )
-                      }
-                    />
-                    <input
-                      className={`${inputClass} col-span-1`}
-                      placeholder="Batch"
-                      value={line.batchNumber}
-                      onChange={(event) =>
-                        setLines((current) =>
-                          current.map((item, i) =>
-                            i === index ? { ...item, batchNumber: event.target.value } : item,
-                          ),
-                        )
-                      }
-                    />
-                    <input
-                      type="date"
-                      className={`${inputClass} col-span-2`}
-                      placeholder="Expiry"
-                      value={line.expiryAt}
-                      onChange={(event) =>
-                        setLines((current) =>
-                          current.map((item, i) =>
-                            i === index ? { ...item, expiryAt: event.target.value } : item,
-                          ),
-                        )
-                      }
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-
-          {orderId && !loadingItems && lines.length === 0 && (
-            <p className="text-sm text-slate-500">
-              This purchase order has nothing left to receive.
-            </p>
-          )}
-
-          <div>
-            <label className={labelClass}>Notes</label>
-            <input
-              className={inputClass}
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-            />
-          </div>
-
-          {formError && <p className="text-sm text-red-600">{formError}</p>}
-          <div className="flex justify-end gap-2">
+      <ModalDrawer
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title="Receive goods"
+        size="lg"
+        fitContent
+        footer={
+          <>
             <button type="button" className={secondaryButtonClass} onClick={() => setModalOpen(false)}>
               Cancel
             </button>
@@ -369,7 +288,123 @@ const PurchaseReceiptsPage = ({ base }: PurchaseReceiptsPageProps) => {
             >
               {saving ? 'Receiving…' : 'Receive & confirm'}
             </button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <div>
+            <label className={labelClass} htmlFor="receipt-purchase-order">
+              Purchase order
+            </label>
+            <select
+              id="receipt-purchase-order"
+              className={inputClass}
+              value={orderId}
+              onChange={(event) => void selectOrder(event.target.value)}
+            >
+              <option value="">Select purchase order…</option>
+              {receivableOrders.map((order) => (
+                <option key={order.id} value={order.id}>
+                  {order.orderNumber} — {order.supplier?.name ?? ''}
+                </option>
+              ))}
+            </select>
+            {receivableOrders.length === 0 && (
+              <p className="mt-1 text-xs text-slate-500">
+                No ordered purchase orders are ready to receive.
+              </p>
+            )}
           </div>
+
+          {loadingItems && <p className="text-sm text-slate-500">Loading items…</p>}
+
+          {lines.length > 0 && (
+            <div className="space-y-1.5">
+              <span className="text-xs font-medium text-slate-600">Receive quantities</span>
+              <div className="overflow-x-auto">
+                <div className="min-w-[36rem] space-y-1.5">
+                  <div className="grid grid-cols-[minmax(0,1.5fr)_4.5rem_4.5rem_4.5rem_5.5rem_7.5rem] gap-1.5 px-0.5 text-[11px] font-medium text-slate-500">
+                    <span>Product</span>
+                    <span>Quantity</span>
+                    <span>Accepted</span>
+                    <span>Rejected</span>
+                    <span>Batch</span>
+                    <span>Expiry</span>
+                  </div>
+                  {lines.map((line, index) => {
+                    const remaining = Number(line.item.quantity) - Number(line.item.receivedQty)
+                    return (
+                      <div
+                        key={line.item.id}
+                        className="grid grid-cols-[minmax(0,1.5fr)_4.5rem_4.5rem_4.5rem_5.5rem_7.5rem] items-center gap-1.5"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm text-slate-800">
+                            {line.item.productName ?? line.item.productId}
+                          </p>
+                          <p className="text-[11px] text-slate-400">
+                            Ordered {line.item.quantity}
+                            {line.item.unit ? ` ${line.item.unit}` : ''} · Remaining {remaining}
+                          </p>
+                        </div>
+                        <input
+                          aria-label="Quantity"
+                          className={compactInputClass}
+                          value={line.quantity}
+                          onChange={(event) => updateLine(index, { quantity: event.target.value })}
+                        />
+                        <input
+                          aria-label="Accepted"
+                          className={compactInputClass}
+                          value={line.acceptedQty}
+                          onChange={(event) => updateLine(index, { acceptedQty: event.target.value })}
+                        />
+                        <input
+                          aria-label="Rejected"
+                          className={compactInputClass}
+                          value={line.rejectedQty}
+                          onChange={(event) => updateLine(index, { rejectedQty: event.target.value })}
+                        />
+                        <input
+                          aria-label="Batch"
+                          className={compactInputClass}
+                          value={line.batchNumber}
+                          onChange={(event) => updateLine(index, { batchNumber: event.target.value })}
+                        />
+                        <input
+                          aria-label="Expiry"
+                          type="date"
+                          className={compactInputClass}
+                          value={line.expiryAt}
+                          onChange={(event) => updateLine(index, { expiryAt: event.target.value })}
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {orderId && !loadingItems && lines.length === 0 && (
+            <p className="text-sm text-slate-500">
+              This purchase order has nothing left to receive.
+            </p>
+          )}
+
+          <div>
+            <label className={labelClass} htmlFor="receipt-notes">
+              Notes
+            </label>
+            <input
+              id="receipt-notes"
+              className={inputClass}
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+            />
+          </div>
+
+          {formError && <p className="text-sm text-red-600">{formError}</p>}
         </div>
       </ModalDrawer>
     </div>

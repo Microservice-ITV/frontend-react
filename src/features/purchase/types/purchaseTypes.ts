@@ -227,6 +227,8 @@ export type PurchaseOrder = {
   paymentTerms: string | null
   deliveryTerms: string | null
   notes: string | null
+  supplierContact?: string | null
+  orderDate?: string | null
   orderedAt: string | null
   expectedAt: string | null
   subtotal: string
@@ -238,12 +240,22 @@ export type PurchaseOrder = {
   createdAt: string
   updatedAt: string
   supplier?: Supplier
+  warehouse?: { id: string; name: string; code?: string | null } | null
   items?: PurchaseOrderItem[]
   receipts?: PurchaseReceipt[]
   statusHistory?: PurchaseOrderStatusHistory[]
   deliveryStages?: PurchaseDeliveryStage[]
   additionalCosts?: PurchaseAdditionalCost[]
   costAdjustments?: PurchaseCostAdjustment[]
+  attachments?: PurchaseOrderAttachment[]
+}
+
+export type PurchaseOrderAttachment = {
+  id: string
+  fileName: string
+  mimeType: string
+  sizeBytes: number
+  createdAt: string
 }
 
 export type PurchaseOrderItemPayload = {
@@ -268,6 +280,8 @@ export type PurchaseOrderPayload = {
   paymentTerms?: string | null
   deliveryTerms?: string | null
   notes?: string | null
+  supplierContact?: string | null
+  orderDate?: string | null
   expectedAt?: string | null
   discountAmount?: number
   taxAmount?: number
@@ -275,6 +289,12 @@ export type PurchaseOrderPayload = {
   items: PurchaseOrderItemPayload[]
   deliveryStages?: PurchaseDeliveryStagePayload[]
   additionalCosts?: PurchaseAdditionalCostPayload[]
+  attachments?: Array<{
+    fileName: string
+    mimeType: string
+    sizeBytes: number
+    contentBase64: string
+  }>
 }
 
 export const PURCHASE_RECEIPT_STATUSES = ['DRAFT', 'POSTED', 'CANCELLED'] as const
