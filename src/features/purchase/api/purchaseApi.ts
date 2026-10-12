@@ -14,10 +14,12 @@ export const purchaseApi = {
   getSupplier: warehouseApi.getSupplier,
   createSupplier: warehouseApi.createSupplier,
   updateSupplier: warehouseApi.updateSupplier,
+  deleteSupplier: warehouseApi.deleteSupplier,
 
   listPurchaseOrders: warehouseApi.listPurchaseOrders,
   getPurchaseOrder: warehouseApi.getPurchaseOrder,
   createPurchaseOrder: warehouseApi.createPurchaseOrder,
+  downloadPurchaseOrderAttachment: warehouseApi.downloadPurchaseOrderAttachment,
   updatePurchaseOrderStatus: warehouseApi.updatePurchaseOrderStatus,
 
   listDeliveryStages: warehouseApi.listDeliveryStages,

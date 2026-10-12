@@ -36,14 +36,13 @@ const subtleButtonClass =
 const inputClass =
   'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-[var(--dni-primary)]'
 const cellInputClass =
-  'w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs text-slate-900 outline-none focus:border-[var(--dni-primary)]'
+  'w-full min-w-0 rounded-md border border-slate-200 px-2 py-1.5 text-xs text-slate-900 outline-none focus:border-[var(--dni-primary)]'
 const labelClass = 'mb-1 block text-xs font-medium text-slate-600'
 const thClass =
   'px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-slate-500'
 
 const DELIVERY_TERMS = ['EXW', 'FCA', 'FOB', 'CFR', 'CIF', 'CIP', 'DAP', 'DPU', 'DDP']
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'JPY', 'CNY', 'VND', 'SGD', 'THB', 'MMK']
-const UNITS = ['pcs', 'box', 'carton', 'pallet', 'kg', 'unit']
 
 let uid = 0
 const nextKey = () => `row-${(uid += 1)}`
@@ -100,7 +99,12 @@ type DraftCost = {
   applicableProductIds: string[]
 }
 
-type AttachmentRow = { name: string; size: number }
+type AttachmentRow = {
+  name: string
+  size: number
+  mimeType: string
+  contentBase64: string
+}
 
 type ProductRow = {
   id: string
@@ -219,7 +223,13 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
   const [items, setItems] = useState<DraftItem[]>([emptyItem()])
 
   // Section 3 — delivery stages
-  const [stages, setStages] = useState<DraftStage[]>(defaultStages)
+  const [stages, setStages] = useState<DraftStage[]>(() => {
+    const rows = defaultStages()
+    if (initialShipping > 0 && rows[0]) {
+      rows[0] = { ...rows[0], feeAmount: String(initialShipping) }
+    }
+    return rows
+  })
 
   // Section 4 — additional costs
   const [costs, setCosts] = useState<DraftCost[]>(defaultCosts)
@@ -227,10 +237,6 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
   // Section 5 — summary & submission
   const [notes, setNotes] = useState('')
   const [attachments, setAttachments] = useState<AttachmentRow[]>([])
-  const [discountAmount, setDiscountAmount] = useState('0')
-  const [taxAmount, setTaxAmount] = useState('0')
-  const [shippingAmount, setShippingAmount] = useState(String(initialShipping))
-  const [shippingTouched, setShippingTouched] = useState(initialShipping > 0)
 
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -257,10 +263,9 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
     [costs],
   )
 
-  const discount = num(discountAmount)
-  const tax = num(taxAmount)
-  const ship = num(shippingAmount)
-  const totalAmount = round2(subtotal - discount + tax + ship)
+  const deliveryTotal = stageFeeTotal
+  const otherCostsTotal = additionalCostsTotal
+  const totalAmount = round2(subtotal + deliveryTotal + otherCostsTotal)
 
   const selectableProducts = useMemo(() => {
     const seen = new Set<string>()
@@ -272,12 +277,6 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
       })
   }, [items, productMeta])
 
-  useEffect(() => {
-    if (shippingTouched) return
-    setShippingAmount(String(stageFeeTotal))
-  }, [stageFeeTotal, shippingTouched])
-
-  // Pre-fill supplier contact / payment terms / currency when the supplier changes.
   useEffect(() => {
     if (!supplierId || supplierId === lastSupplierRef.current) return
     const supplier = suppliers.find((entry) => entry.id === supplierId)
@@ -369,12 +368,37 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
     )
   }
 
-  const addFiles = (fileList: FileList | null) => {
+  const addFiles = async (fileList: FileList | null) => {
     if (!fileList) return
-    const incoming = Array.from(fileList).map((file) => ({ name: file.name, size: file.size }))
+    const incoming = Array.from(fileList)
+    const tooLarge = incoming.find((file) => file.size > 4 * 1024 * 1024)
+    if (tooLarge) {
+      setFormError(`${tooLarge.name} is larger than 4 MB.`)
+      return
+    }
+    const rows = await Promise.all(
+      incoming.map(
+        (file) =>
+          new Promise<AttachmentRow>((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onload = () => {
+              const result = String(reader.result ?? '')
+              const contentBase64 = result.includes(',') ? (result.split(',')[1] ?? '') : result
+              resolve({
+                name: file.name,
+                size: file.size,
+                mimeType: file.type || 'application/octet-stream',
+                contentBase64,
+              })
+            }
+            reader.onerror = () => reject(reader.error)
+            reader.readAsDataURL(file)
+          }),
+      ),
+    )
     setAttachments((current) => {
       const seen = new Set(current.map((row) => row.name))
-      return [...current, ...incoming.filter((row) => !seen.has(row.name))]
+      return [...current, ...rows.filter((row) => row.contentBase64 && !seen.has(row.name))].slice(0, 5)
     })
   }
 
@@ -396,10 +420,12 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
     paymentTerms: paymentTerms || null,
     deliveryTerms: deliveryTerms || null,
     notes: notes || null,
+    supplierContact: contact || null,
+    orderDate: orderDate ? `${orderDate}T00:00:00.000Z` : null,
     expectedAt: expectedAt ? new Date(expectedAt).toISOString() : null,
-    discountAmount: discount,
-    taxAmount: tax,
-    shippingAmount: ship,
+    discountAmount: 0,
+    taxAmount: 0,
+    shippingAmount: deliveryTotal,
     items: items
       .filter((item) => item.productId)
       .map((item) => ({
@@ -436,6 +462,12 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
         status: cost.status,
         applicableProductIds: cost.applicableProductIds,
       })),
+    attachments: attachments.map((file) => ({
+      fileName: file.name,
+      mimeType: file.mimeType,
+      sizeBytes: file.size,
+      contentBase64: file.contentBase64,
+    })),
   })
 
   const submit = async (mode: 'draft' | 'approval') => {
@@ -615,42 +647,27 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
           </button>
         }
       >
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[960px] border-collapse">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50">
-                <th className={thClass}>Product</th>
-                <th className={`${thClass} w-20`}>Unit</th>
-                <th className={`${thClass} w-24 text-right`}>Qty</th>
-                <th className={`${thClass} w-28 text-right`}>Unit price</th>
-                <th className={`${thClass} w-24 text-right`}>Discount</th>
-                <th className={`${thClass} w-28 text-right`}>Net amount</th>
-                <th className={`${thClass} w-28 text-right`}>Weight/unit (kg)</th>
-                <th className={`${thClass} w-28 text-right`}>Volume/unit (m³)</th>
-                <th className={`${thClass} w-10`} />
-              </tr>
-            </thead>
+        <table className="w-full table-fixed border-collapse">
+          <thead>
+            <tr className="border-b border-slate-200 bg-slate-50">
+              <th className={`${thClass} w-[18%]`}>Product</th>
+              <th className={`${thClass} w-[10%] text-right`}>Qty</th>
+              <th className={`${thClass} w-[13%] text-right`}>Unit price</th>
+              <th className={`${thClass} w-[11%] text-right`}>Discount</th>
+              <th className={`${thClass} w-[13%] text-right`}>Net amount</th>
+              <th className={`${thClass} w-[15%] text-right`}>Weight/unit (kg)</th>
+              <th className={`${thClass} w-[15%] text-right`}>Volume/unit (m³)</th>
+              <th className={`${thClass} w-[5%]`} />
+            </tr>
+          </thead>
             <tbody>
               {items.map((item) => (
                 <tr key={item.key} className="border-b border-slate-100">
-                  <td className="px-3 py-2">
+                  <td className="min-w-0 px-2 py-2">
                     <ProductSearchSelect
                       value={item.productId}
                       onChange={(productId) => updateItem(item.key, { productId })}
                     />
-                  </td>
-                  <td className="px-3 py-2">
-                    <select
-                      className={cellInputClass}
-                      value={item.unit}
-                      onChange={(event) => updateItem(item.key, { unit: event.target.value })}
-                    >
-                      {UNITS.map((unit) => (
-                        <option key={unit} value={unit}>
-                          {unit}
-                        </option>
-                      ))}
-                    </select>
                   </td>
                   <td className="px-3 py-2">
                     <input
@@ -723,7 +740,6 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
               ))}
             </tbody>
           </table>
-        </div>
         <div className="mt-3 flex items-center justify-end gap-2 text-xs text-slate-500">
           <span>Subtotal</span>
           <span className="font-semibold text-slate-800">{formatMoney(subtotal)}</span>
@@ -796,10 +812,7 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
                       step="0.01"
                       className={`${cellInputClass} text-right`}
                       value={stage.feeAmount}
-                      onChange={(event) => {
-                        setShippingTouched(false)
-                        updateStage(stage.key, { feeAmount: event.target.value })
-                      }}
+                      onChange={(event) => updateStage(stage.key, { feeAmount: event.target.value })}
                     />
                   </td>
                   <td className="px-3 py-2">
@@ -1030,7 +1043,7 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={(event) => {
                   event.preventDefault()
-                  addFiles(event.dataTransfer.files)
+                  void addFiles(event.dataTransfer.files)
                 }}
               >
                 <UploadCloud size={20} className="text-slate-400" />
@@ -1043,7 +1056,7 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
                   multiple
                   className="hidden"
                   onChange={(event) => {
-                    addFiles(event.target.files)
+                    void addFiles(event.target.files)
                     event.target.value = ''
                   }}
                 />
@@ -1080,7 +1093,7 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
               )}
               <p className="mt-1 text-[11px] text-slate-400">
                 <Paperclip size={11} className="mr-1 inline" />
-                Files are kept for this session only.
+                Up to 5 files, 4 MB each. Saved with the purchase order.
               </p>
             </div>
           </div>
@@ -1090,62 +1103,20 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
               <span className="text-slate-500">Subtotal</span>
               <span className="font-medium text-slate-900">{formatMoney(subtotal)}</span>
             </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm text-slate-500">Discount</span>
-              <input
-                type="number"
-                min={0}
-                step="0.01"
-                className="w-40 rounded-lg border border-slate-200 px-3 py-1.5 text-right text-sm outline-none focus:border-[var(--dni-primary)]"
-                value={discountAmount || ''}
-                placeholder="0.00"
-                onChange={(event) => setDiscountAmount(event.target.value)}
-              />
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-500">Delivery</span>
+              <span className="font-medium text-slate-900">{formatMoney(deliveryTotal)}</span>
             </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm text-slate-500">Tax</span>
-              <input
-                type="number"
-                min={0}
-                step="0.01"
-                className="w-40 rounded-lg border border-slate-200 px-3 py-1.5 text-right text-sm outline-none focus:border-[var(--dni-primary)]"
-                value={taxAmount || ''}
-                placeholder="0.00"
-                onChange={(event) => setTaxAmount(event.target.value)}
-              />
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm text-slate-500">
-                Shipping / freight
-                {!shippingTouched && (
-                  <span className="ml-1 text-xs text-sky-600">(from stages)</span>
-                )}
-              </span>
-              <input
-                type="number"
-                min={0}
-                step="0.01"
-                className="w-40 rounded-lg border border-slate-200 px-3 py-1.5 text-right text-sm outline-none focus:border-[var(--dni-primary)]"
-                value={shippingAmount || ''}
-                placeholder="0.00"
-                onChange={(event) => {
-                  setShippingTouched(true)
-                  setShippingAmount(event.target.value)
-                }}
-              />
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-500">Other costs</span>
+              <span className="font-medium text-slate-900">{formatMoney(otherCostsTotal)}</span>
             </div>
             <div className="flex items-center justify-between gap-3 border-t border-slate-200 pt-3">
               <span className="text-sm font-semibold text-slate-800">
-                Total = Subtotal − Discount + Tax + Shipping
+                Total = Subtotal + Delivery + Other costs
               </span>
               <span className="text-base font-bold text-[var(--dni-primary)]">
                 {formatMoney(totalAmount)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between border-t border-slate-200 pt-3 text-xs text-slate-500">
-              <span>Additional costs</span>
-              <span className="font-medium text-slate-700">
-                {formatMoney(additionalCostsTotal)}
               </span>
             </div>
 

@@ -1,12 +1,23 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeftRight, type LucideIcon } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { ArrowLeftRight, ArrowRight, Plus, type LucideIcon } from 'lucide-react'
+import DataTable, { type DataTableColumn } from '@/components/ui/DataTable'
+import FilterBar from '@/components/ui/FilterBar'
 import ModalDrawer from '@/components/ui/ModalDrawer'
+import StatusBadge, { type BadgeTone } from '@/components/ui/StatusBadge'
 import TransferStockForm from '../components/forms/TransferStockForm'
-import { secondaryButtonClass } from '../components/forms/FormField'
+import { primaryButtonClass } from '../components/forms/FormField'
+import { warehouseApi, warehouseErrorMessage } from '../api/warehouseApi'
 import { warehousePaths, type WarehouseAreaBase } from '../config/warehousePaths'
 import { useWarehouses } from '../hooks/useWarehouseData'
-import type { StockOperationKind } from '../types/warehouseTypes'
+import { productLabel, useProductNames } from '../hooks/useProductNames'
+import {
+  TRANSFER_STATUSES,
+  TRANSFER_STATUS_LABELS,
+  type StockOperationKind,
+  type TransferStatus,
+  type WarehouseTransfer,
+} from '../types/warehouseTypes'
 
 export type StockOperationPageProps = {
   base: WarehouseAreaBase
@@ -15,32 +26,159 @@ export type StockOperationPageProps = {
 
 const OPERATION_COPY: Record<
   StockOperationKind,
-  { label: string; title: string; subtitle: string; description: string; icon: LucideIcon; variant: 'modal' | 'drawer'; size: 'md' | 'xl' | 'lg' }
+  {
+    label: string
+    title: string
+    subtitle: string
+    description: string
+    icon: LucideIcon
+    variant: 'modal' | 'drawer'
+    size: 'md' | 'xl' | 'lg'
+  }
 > = {
   transfer: {
     label: 'Transfer',
     title: 'Transfer Stock',
     subtitle: 'Request a transfer between warehouses — waits for approval.',
     description:
-      'Pick a source and destination warehouse, then submit the transfer for approval. Stock moves once a warehouse approves it.',
+      'Transfers stay here with their status. Stock moves only after a pending transfer is approved.',
     icon: ArrowLeftRight,
     variant: 'drawer',
     size: 'lg',
   },
 }
 
+const transferTone = (status: TransferStatus): BadgeTone => {
+  if (status === 'APPROVED') return 'success'
+  if (status === 'REJECTED') return 'danger'
+  return 'warning'
+}
+
 const StockOperationPage = ({ base, kind }: StockOperationPageProps) => {
   const paths = warehousePaths(base)
-  const navigate = useNavigate()
   const copy = OPERATION_COPY[kind]
   const Icon = copy.icon
 
-  const [open, setOpen] = useState(true)
+  const [open, setOpen] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [status, setStatus] = useState<TransferStatus | ''>('')
+  const [transfers, setTransfers] = useState<WarehouseTransfer[]>([])
+  const [transfersLoading, setTransfersLoading] = useState(true)
+  const [transfersError, setTransfersError] = useState<string | null>(null)
   const { warehouses, loading, error, reload } = useWarehouses()
+  const productNames = useProductNames()
+
+  const loadTransfers = useCallback(async () => {
+    setTransfersLoading(true)
+    setTransfersError(null)
+    try {
+      const response = await warehouseApi.listTransfers({ limit: 500 })
+      setTransfers(response.data?.data ?? [])
+    } catch (err) {
+      setTransfers([])
+      setTransfersError(warehouseErrorMessage(err))
+    } finally {
+      setTransfersLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadTransfers()
+  }, [loadTransfers])
+
+  const warehouseName = useCallback(
+    (id: string) => warehouses.find((warehouse) => warehouse.id === id)?.name ?? id.slice(0, 8),
+    [warehouses],
+  )
+
+  const rows = useMemo(() => {
+    const warehouseIds = new Set(warehouses.map((warehouse) => warehouse.id))
+    const term = search.trim().toLowerCase()
+    return transfers.filter((transfer) => {
+      if (
+        !loading &&
+        !warehouseIds.has(transfer.fromWarehouseId) &&
+        !warehouseIds.has(transfer.toWarehouseId)
+      ) {
+        return false
+      }
+      if (status && transfer.status !== status) return false
+      if (!term) return true
+      const haystack = `${transfer.referenceId ?? ''} ${productLabel(productNames, transfer.productId)} ${warehouseName(transfer.fromWarehouseId)} ${warehouseName(transfer.toWarehouseId)} ${transfer.status}`.toLowerCase()
+      return haystack.includes(term)
+    })
+  }, [transfers, warehouses, loading, search, status, productNames, warehouseName])
+
+  const columns: Array<DataTableColumn<WarehouseTransfer>> = [
+    {
+      key: 'reference',
+      header: 'Reference',
+      width: '170px',
+      sortValue: (row) => row.referenceId ?? row.id,
+      render: (row) => (
+        <span className="whitespace-nowrap text-xs text-slate-700">
+          {row.referenceId ?? row.id.slice(0, 8)}
+        </span>
+      ),
+    },
+    {
+      key: 'product',
+      header: 'Product',
+      sortValue: (row) => productLabel(productNames, row.productId),
+      render: (row) => (
+        <span
+          className="block max-w-[220px] truncate text-sm text-slate-700"
+          title={row.productId}
+        >
+          {productLabel(productNames, row.productId)}
+        </span>
+      ),
+    },
+    {
+      key: 'route',
+      header: 'Route',
+      render: (row) => (
+        <span className="inline-flex items-center gap-1.5 text-sm text-slate-700">
+          {warehouseName(row.fromWarehouseId)}
+          <ArrowRight size={13} className="shrink-0 text-slate-400" />
+          {warehouseName(row.toWarehouseId)}
+        </span>
+      ),
+    },
+    {
+      key: 'quantity',
+      header: 'Qty',
+      align: 'right',
+      width: '80px',
+      sortValue: (row) => row.quantity,
+      render: (row) => <span className="font-medium text-slate-900">{row.quantity}</span>,
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      width: '120px',
+      sortValue: (row) => row.status,
+      render: (row) => (
+        <StatusBadge label={TRANSFER_STATUS_LABELS[row.status]} tone={transferTone(row.status)} />
+      ),
+    },
+    {
+      key: 'created',
+      header: 'Created',
+      width: '170px',
+      sortValue: (row) => row.createdAt,
+      render: (row) => (
+        <span className="whitespace-nowrap text-xs text-slate-500">
+          {new Date(row.createdAt).toLocaleString()}
+        </span>
+      ),
+    },
+  ]
 
   const handleSuccess = (message: string) => {
     void reload()
+    void loadTransfers()
     setNotice(message)
     setOpen(false)
   }
@@ -88,54 +226,59 @@ const StockOperationPage = ({ base, kind }: StockOperationPageProps) => {
         </div>
         <button
           type="button"
-          className={secondaryButtonClass}
-          onClick={() => navigate(paths.inventory)}
+          className={primaryButtonClass}
+          onClick={() => {
+            setNotice(null)
+            setOpen(true)
+          }}
         >
-          Back to inventory
+          <Plus size={16} />
+          New transfer
         </button>
       </div>
 
       {notice && (
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-          {notice}{' '}
-          <button
-            type="button"
-            className="ml-1 cursor-pointer font-medium underline"
-            onClick={() => {
-              setNotice(null)
-              setOpen(true)
-            }}
-          >
-            Run another
-          </button>
+          {notice}
         </div>
       )}
 
-      {!notice && !open && (
-        <div className="rounded-xl border border-[var(--dni-border)] bg-white p-6 text-center">
-          <p className="text-sm text-slate-500">The {copy.label.toLowerCase()} form is closed.</p>
-          <button
-            type="button"
-            className={`${secondaryButtonClass} mt-3`}
-            onClick={() => setOpen(true)}
-          >
-            Open {copy.label.toLowerCase()} form
-          </button>
-        </div>
-      )}
+      <FilterBar
+        search={{
+          value: search,
+          onChange: setSearch,
+          placeholder: 'Search reference, product, or warehouse…',
+        }}
+        selects={[
+          {
+            key: 'status',
+            label: 'Status',
+            value: status,
+            allLabel: 'All statuses',
+            onChange: (value) => setStatus(value as TransferStatus | ''),
+            options: TRANSFER_STATUSES.map((option) => ({
+              value: option,
+              label: TRANSFER_STATUS_LABELS[option],
+            })),
+          },
+        ]}
+      />
 
-      <div className="flex items-start gap-3 rounded-xl border border-[var(--dni-border)] bg-white p-4">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--dni-primary-soft)] text-[var(--dni-primary-600)]">
-          <Icon size={18} />
-        </span>
-        <div>
-          <p className="text-sm font-semibold text-slate-800">{copy.title}</p>
-          <p className="text-sm text-slate-500">{copy.subtitle}</p>
-        </div>
-      </div>
+      <DataTable<WarehouseTransfer>
+        columns={columns}
+        rows={rows}
+        rowKey={(row) => row.id}
+        loading={transfersLoading || loading}
+        error={transfersError}
+        emptyMessage="No transfers yet."
+        emptyIcon={Icon}
+        clientPaginated
+        itemLabel="transfers"
+        minWidth="860px"
+      />
 
       <ModalDrawer
-        open={open && !notice}
+        open={open}
         onClose={() => setOpen(false)}
         title={copy.title}
         subtitle={copy.subtitle}

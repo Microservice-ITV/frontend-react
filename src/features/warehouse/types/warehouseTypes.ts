@@ -49,6 +49,7 @@ export interface Warehouse {
   name: string
   address: string | null
   status: WarehouseStatus
+  createdBy?: string | null
 }
 
 export interface InventoryStock {

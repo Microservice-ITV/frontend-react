@@ -142,6 +142,7 @@ const ProductSearchSelect = ({
       onQueryChange={setQuery}
       loading={loading}
       filterLocally={false}
+      mode="search-only"
       placeholder={placeholder}
       emptyLabel="Search a product…"
       disabled={disabled}

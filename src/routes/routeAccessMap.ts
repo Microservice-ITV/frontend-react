@@ -10,7 +10,7 @@ export const ROUTE_ACCESS = {
   sellerOverview: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
   /** Warehouse & inventory management — shop owner scope */
   warehouse: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
-  /** Purchasing (suppliers, purchase orders, goods receipts) — shop owner scope */
+  /** Purchasing (purchase orders, returns) — shop owner scope. Goods receipts and suppliers are admin only. */
   purchase: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
   sellerAnalytics: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
   sellerOrders: [CAPABILITIES.SELLER_DASHBOARD_VIEW],

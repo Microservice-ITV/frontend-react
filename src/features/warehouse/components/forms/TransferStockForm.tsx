@@ -40,7 +40,6 @@ const TransferStockForm = ({
   const [fromWarehouseId, setFromWarehouseId] = useState('')
   const [toWarehouseId, setToWarehouseId] = useState('')
   const [productId, setProductId] = useState('')
-  const [variantId, setVariantId] = useState('')
   const [quantity, setQuantity] = useState('')
   const [referenceId, setReferenceId] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -79,13 +78,11 @@ const TransferStockForm = ({
         fromWarehouseId,
         toWarehouseId,
         productId,
-        variantId: variantId.trim() || undefined,
         quantity: Number(quantity),
         referenceId: referenceId.trim(),
         referenceType: 'TRANSFER',
       })
       setQuantity('')
-      setVariantId('')
       setReferenceId(buildReferenceId())
       onSuccess()
     } catch (err) {
@@ -142,7 +139,7 @@ const TransferStockForm = ({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <FormField label="Product / Variant" required error={fieldErrors.productId}>
+        <FormField label="Product" required error={fieldErrors.productId}>
           <ProductSearchSelect
             value={productId}
             onChange={setProductId}
@@ -150,18 +147,6 @@ const TransferStockForm = ({
           />
         </FormField>
 
-        <FormField label="Variant ID" hint="Optional — leave blank for the base product.">
-          <input
-            type="text"
-            value={variantId}
-            onChange={(event) => setVariantId(event.target.value)}
-            placeholder="e.g. red-xl"
-            className={textInputClass}
-          />
-        </FormField>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
         <FormField label="Quantity" required error={fieldErrors.quantity}>
           <input
             type="number"
@@ -175,19 +160,19 @@ const TransferStockForm = ({
             }`}
           />
         </FormField>
-
-        <FormField label="Reference ID" required error={fieldErrors.referenceId}>
-          <input
-            type="text"
-            value={referenceId}
-            onChange={(event) => setReferenceId(event.target.value)}
-            placeholder="e.g. DEPOT-NOTE-07"
-            className={`${textInputClass} ${
-              fieldErrors.referenceId ? invalidTextInputClass : ''
-            }`}
-          />
-        </FormField>
       </div>
+
+      <FormField label="Reference ID" required error={fieldErrors.referenceId}>
+        <input
+          type="text"
+          value={referenceId}
+          onChange={(event) => setReferenceId(event.target.value)}
+          placeholder="e.g. DEPOT-NOTE-07"
+          className={`${textInputClass} ${
+            fieldErrors.referenceId ? invalidTextInputClass : ''
+          }`}
+        />
+      </FormField>
 
       <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
         Transfers start as <span className="font-semibold">pending</span> and only move

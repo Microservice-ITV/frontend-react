@@ -5,7 +5,6 @@ import DataTable, { type DataTableColumn } from '@/components/ui/DataTable'
 import FilterBar from '@/components/ui/FilterBar'
 import ModalDrawer from '@/components/ui/ModalDrawer'
 import RowActionMenu from '@/components/ui/RowActionMenu'
-import ShopSelector from '../components/ShopSelector'
 import { StockStatusBadge } from '../components/StockStatusBadge'
 import { primaryButtonClass } from '../components/forms/FormField'
 import TransferStockForm from '../components/forms/TransferStockForm'
@@ -41,10 +40,9 @@ const OPERATION_META: Record<
   },
 }
 
-const InventoryPage = ({ platform = false }: InventoryPageProps) => {
+const InventoryPage = (_props: InventoryPageProps) => {
   const [searchParams] = useSearchParams()
 
-  const [shopId, setShopId] = useState('')
   const [search, setSearch] = useState('')
   const [warehouseFilter, setWarehouseFilter] = useState(
     searchParams.get('warehouseId') ?? '',
@@ -55,7 +53,7 @@ const InventoryPage = ({ platform = false }: InventoryPageProps) => {
   const [notice, setNotice] = useState<string | null>(null)
 
   const { warehouses, loading: warehousesLoading, error: warehousesError } =
-    useWarehouses({ shopId })
+    useWarehouses()
   const { rows, loading, error, reload } = useInventoryRows(warehouses)
   const productNames = useProductNames()
 
@@ -230,7 +228,6 @@ const InventoryPage = ({ platform = false }: InventoryPageProps) => {
           </p>
         </div>
         <div className="flex flex-wrap items-start gap-2">
-          {platform && <ShopSelector value={shopId} onChange={setShopId} />}
           <button
             type="button"
             className={primaryButtonClass}
@@ -306,7 +303,6 @@ const InventoryPage = ({ platform = false }: InventoryPageProps) => {
                   <h2 className="text-sm font-semibold text-slate-800">
                     {group.warehouseName}
                   </h2>
-                  <span className="text-xs text-slate-400">warehouse_id: {group.warehouseId}</span>
                 </div>
                 <span className="text-xs text-slate-500">
                   {group.rows.length} products · on hand {totalOnHand} · reserved{' '}
