@@ -2,6 +2,7 @@ import { CheckoutTotals, ZERO_DELIVERY_FEE_LABEL } from '../utils/checkoutCalcul
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CardElement, useElements, useStripe } from '@stripe/react-stripe-js'
+import axios from 'axios'
 import {
   cartTaxFromKnownRates,
   checkoutApi,
@@ -123,6 +124,37 @@ const buildShopShippings = (
         : '',
     }
   })
+}
+
+const firstValidationMessage = (errors: unknown): string | undefined => {
+  if (!errors || typeof errors !== 'object') return undefined
+
+  for (const messages of Object.values(errors)) {
+    if (typeof messages === 'string' && messages.trim()) return messages
+    if (Array.isArray(messages)) {
+      const message = messages.find((item): item is string => typeof item === 'string' && item.trim() !== '')
+      if (message) return message
+    }
+  }
+
+  return undefined
+}
+
+const responseIsObject = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === 'object' && !Array.isArray(value)
+
+const isPromoCodeStatus = (value: unknown): value is PromoCodeStatus => {
+  const statuses: PromoCodeStatus[] = [
+    'VALID',
+    'INVALID',
+    'EXPIRED',
+    'USED',
+    'DISABLED',
+    'RESERVED',
+    'LIMIT_REACHED',
+    'NOT_APPLICABLE',
+  ]
+  return statuses.some((status) => status === value)
 }
 
 const CheckoutSummary = ({
@@ -533,35 +565,34 @@ const CheckoutSummary = ({
       dispatch(setCheckoutError(null))
       dispatch(setCheckoutPlacingOrder(false))
     } catch (error: unknown) {
-      console.error('[PlaceOrder] Unexpected error during payment confirmation:', error)
+      console.error('[PlaceOrder] Checkout address update or payment confirmation failed:', error)
 
-      const responseData =
-        error &&
-        typeof error === 'object' &&
-        'response' in error
-          ? (error as {
-              response?: {
-                data?: {
-                  error?: string
-                  promo_code_status?: PromoCodeStatus
-                  promo_code_message?: string
-                }
-              }
-            }).response?.data
-          : undefined
+      const responseData = axios.isAxiosError(error) && responseIsObject(error.response?.data)
+        ? error.response.data
+        : undefined
 
-      if (responseData?.promo_code_status) {
+      if (isPromoCodeStatus(responseData?.promo_code_status)) {
         setPromoCodeStatus(responseData.promo_code_status)
-        setPromoCodeMessage(responseData.promo_code_message ?? null)
+        setPromoCodeMessage(
+          typeof responseData.promo_code_message === 'string'
+            ? responseData.promo_code_message
+            : null,
+        )
         setAppliedPromoCode(null)
       }
 
-      const apiError = responseData?.error
+      const validationMessage = firstValidationMessage(responseData?.errors)
+      const apiError =
+        (typeof responseData?.error === 'string' && responseData.error.trim()
+          ? responseData.error
+          : undefined) ??
+        (typeof responseData?.message === 'string' && responseData.message.trim()
+          ? [responseData.message, validationMessage].filter(Boolean).join(': ')
+          : validationMessage)
       dispatch(
         setCheckoutError(
-          typeof apiError === 'string' && apiError.trim() !== ''
-            ? apiError
-            : 'Unable to confirm payment. Please try again.',
+          apiError
+            ?? 'Unable to update checkout. Please review the delivery details and try again.',
         ),
       )
       dispatch(setAwaitingFinalStatus(false))
@@ -601,6 +632,7 @@ const CheckoutSummary = ({
 
   const canPlaceOrder =
     !!clientSecret &&
+    hasDeliveryCompanyForEveryShop &&
     deliveryBlockReason === null &&
     !isPlacingOrder &&
     !isAwaitingFinalStatus &&
@@ -643,6 +675,9 @@ const CheckoutSummary = ({
     }
     if (deliveryBlockReason) {
       return deliveryBlockReason
+    }
+    if (!hasDeliveryCompanyForEveryShop) {
+      return 'Select a delivery company configured for every shop to continue.'
     }
     if (clientSecret) {
       return isPrepaid

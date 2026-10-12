@@ -62,7 +62,8 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
   const [payments, setPayments] = useState<PaymentRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [collecting, setCollecting] = useState<string | null>(null)
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([])
+  const [collectingBatch, setCollectingBatch] = useState(false)
 
   const [activeFilter, setActiveFilter] = useState('all')
   const [search, setSearch] = useState('')
@@ -159,26 +160,68 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
     }
   }, [payments])
 
-  const collect = async (payment: PaymentRecord) => {
-    setCollecting(payment.id)
+  const collectBatch = async () => {
+    if (selectedOrderIds.length === 0) return
+    const selectedPayment = payments.find((payment) => payment.orderId === selectedOrderIds[0])
+    if (!selectedPayment?.deliveryShopId) {
+      setError('The selected shop could not be resolved for this Collect COD batch.')
+      return
+    }
+    setCollectingBatch(true)
     setError('')
     try {
-      await sellerOrderApi.collectPayment(payment.orderId)
+      await sellerOrderApi.collectCodBatch(selectedOrderIds, selectedPayment.deliveryShopId)
+      setSelectedOrderIds([])
       await load()
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to collect COD payment.')
     } finally {
-      setCollecting(null)
+      setCollectingBatch(false)
     }
   }
 
   const isCodCollectable = (payment: PaymentRecord) => {
     const isCod = (payment.paymentMethod ?? payment.provider).toLowerCase() === 'cod'
+    const deliveryStatus = payment.sellerDeliveryStatus ?? payment.deliveryStatus
+    const batchNeedsRetry = Boolean(payment.codCollectionBatchId) && payments.some((row) =>
+      row.codCollectionBatchId === payment.codCollectionBatchId
+      && row.status.toUpperCase() !== 'COLLECTED',
+    )
     return (
       isCod &&
-      (payment.deliveryStatus ?? '').toUpperCase() === 'DELIVERED' &&
-      payment.status.toUpperCase() !== 'COLLECTED'
+      deliveryStatus?.toUpperCase() === 'DELIVERED' &&
+      Boolean(payment.deliveryShopId && payment.deliveryCompanyId) &&
+      (payment.status.toUpperCase() !== 'COLLECTED' || batchNeedsRetry)
     )
+  }
+
+  const toggleBatchOrder = (payment: PaymentRecord) => {
+    setError('')
+    const batchMembers = payment.codCollectionBatchId
+      ? payments.filter((row) => row.codCollectionBatchId === payment.codCollectionBatchId)
+      : [payment]
+    const candidateOrderIds = [...new Set(batchMembers.map((row) => row.orderId))]
+    if (candidateOrderIds.some((orderId) => selectedOrderIds.includes(orderId))) {
+      setSelectedOrderIds(selectedOrderIds.filter((id) => !candidateOrderIds.includes(id)))
+      return
+    }
+    if (selectedOrderIds.length + candidateOrderIds.length > 100) {
+      setError('A Collect COD batch can contain at most 100 orders.')
+      return
+    }
+    const selected = selectedOrderIds
+      .map((orderId) => payments.find((row) => row.orderId === orderId))
+      .filter((row): row is PaymentRecord => Boolean(row))
+    if (selected.some((row) => batchMembers.some((candidate) =>
+      row.deliveryShopId !== candidate.deliveryShopId
+      || row.deliveryCompanyId !== candidate.deliveryCompanyId
+      || row.codCollectionBatchId !== candidate.codCollectionBatchId,
+    ),
+    )) {
+      setError('Select orders for the same shop, delivery provider, and Collect COD batch.')
+      return
+    }
+    setSelectedOrderIds([...selectedOrderIds, ...candidateOrderIds])
   }
 
   return (
@@ -242,6 +285,16 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm font-semibold text-slate-900">All Payments</p>
           <div className="flex flex-wrap items-center gap-2">
+            {selectedOrderIds.length > 0 && (
+              <button
+                type="button"
+                disabled={collectingBatch}
+                onClick={() => void collectBatch()}
+                className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60"
+              >
+                {collectingBatch ? 'Collecting…' : `Collect ${selectedOrderIds.length} COD orders`}
+              </button>
+            )}
             <div className="relative w-full sm:w-52">
               <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
@@ -278,12 +331,14 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[920px]">
+          <table className="w-full min-w-[1040px]">
             <thead>
               <tr className="border-b border-slate-100">
+                <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Select</th>
                 <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Invoice</th>
                 <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Order</th>
                 <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Payment Provider</th>
+                <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Delivery Provider</th>
                 <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Amount</th>
                 <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Delivery Status</th>
                 <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Payment Status</th>
@@ -293,19 +348,29 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-2 py-8 text-center text-sm text-slate-500">
+                  <td colSpan={9} className="px-2 py-8 text-center text-sm text-slate-500">
                     Loading payments…
                   </td>
                 </tr>
               ) : paginatedPayments.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-2 py-8 text-center text-sm text-slate-500">
+                  <td colSpan={9} className="px-2 py-8 text-center text-sm text-slate-500">
                     No payments found.
                   </td>
                 </tr>
               ) : (
                 paginatedPayments.map((payment) => (
                   <tr key={payment.id} className="border-b border-slate-100 last:border-0">
+                    <td className="px-2 py-3">
+                      <input
+                        type="checkbox"
+                        aria-label={`Select order ${payment.orderId} for COD collection`}
+                        checked={selectedOrderIds.includes(payment.orderId)}
+                        disabled={!isCodCollectable(payment) || collectingBatch}
+                        onChange={() => toggleBatchOrder(payment)}
+                        className="size-4 accent-emerald-600 disabled:opacity-40"
+                      />
+                    </td>
                     <td className="px-2 py-3 text-xs font-semibold text-slate-900">
                       {payment.invoiceNo || '—'}
                     </td>
@@ -317,6 +382,9 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
                       {payment.paymentMethod && payment.paymentMethod !== payment.provider && (
                         <p className="text-[11px] text-slate-500">{payment.paymentMethod}</p>
                       )}
+                    </td>
+                    <td className="px-2 py-3 text-xs text-slate-600">
+                      {payment.deliveryCompanyId ?? '—'}
                     </td>
                     <td className="px-2 py-3 text-xs font-semibold text-slate-900">
                       {(() => {
@@ -386,15 +454,6 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
                         >
                           <Eye size={13} /> Details
                         </Link>
-                        {isCodCollectable(payment) && (
-                          <button
-                            disabled={collecting === payment.id}
-                            onClick={() => void collect(payment)}
-                            className="rounded-md bg-emerald-600 px-2.5 py-1.5 text-xs font-medium text-white disabled:opacity-60 cursor-pointer"
-                          >
-                            {collecting === payment.id ? 'Collecting…' : 'Collect COD'}
-                          </button>
-                        )}
                       </div>
                     </td>
                   </tr>

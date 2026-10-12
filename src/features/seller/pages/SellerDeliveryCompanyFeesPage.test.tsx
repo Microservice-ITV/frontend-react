@@ -36,7 +36,7 @@ const createdRule: SellerDeliveryCompanyFee = {
   id: "fee-1",
   shopId: "shop-2",
   deliveryCompanyId: "company-a",
-  chargingBasis: "PER_DAY",
+  chargingBasis: "PER_INVOICE",
   amount: "300.00",
   currency: "MMK",
   active: true,
@@ -91,7 +91,7 @@ describe("SellerDeliveryCompanyFeesPage", () => {
     expect(screen.getByText(/does not change the shipping fee charged to customers at checkout/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Add Delivery Company" }));
-    await user.selectOptions(screen.getByLabelText("Fee basis"), "PER_DAY");
+    await user.selectOptions(screen.getByLabelText("Fee basis"), "PER_INVOICE");
     await user.type(screen.getByLabelText("Provider delivery expense"), "300");
     await user.click(screen.getByRole("button", { name: "Save configuration" }));
 
@@ -100,7 +100,7 @@ describe("SellerDeliveryCompanyFeesPage", () => {
         expect.objectContaining({
           shopId: "shop-1",
           deliveryCompanyId: "company-a",
-          chargingBasis: "PER_DAY",
+          chargingBasis: "PER_INVOICE",
           amount: "300",
           currency: "MMK",
           active: true,
