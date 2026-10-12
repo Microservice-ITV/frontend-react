@@ -71,7 +71,7 @@ const warehouseSection = (
       path: "/warehouse/warehouses",
       icon: Warehouse,
     },
-    { key: "warehouse-inventory", label: "Inventory", path: "/warehouse/inventory", icon: Boxes },
+    { key: "warehouse-inventory", label: "Inventory Data", path: "/warehouse/inventory", icon: Boxes },
     {
       key: "warehouse-transfer",
       label: "Transfer",

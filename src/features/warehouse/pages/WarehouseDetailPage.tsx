@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Pencil, Trash2 } from 'lucide-react'
+import { usePageTitle } from '@/components/routing/PageTitle'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
 import { warehouseApi, warehouseErrorMessage } from '../api/warehouseApi'
 import { WarehouseStatusBadge } from '../components/StockStatusBadge'
@@ -50,6 +51,7 @@ const WarehouseDetailPage = ({ base }: WarehouseDetailPageProps) => {
   }, [id])
 
   const displayName = warehouse?.name?.trim() || 'Warehouse'
+  usePageTitle(warehouse?.name)
 
   const confirmDelete = () => {
     if (!id || !warehouse) return
