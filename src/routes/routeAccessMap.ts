@@ -8,6 +8,10 @@ export const ROUTE_ACCESS = {
   checkoutSuccess: [CAPABILITIES.CHECKOUT_VIEW],
   sellerDashboard: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
   sellerOverview: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+  /** Warehouse & inventory management — shop owner scope */
+  warehouse: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+  /** Purchasing (suppliers, purchase orders, goods receipts) — shop owner scope */
+  purchase: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
   sellerAnalytics: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
   sellerOrders: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
   /** Seller dashboard: browse categories only (list + detail) */
@@ -35,6 +39,10 @@ export const ROUTE_ACCESS = {
   sellerPermissions: [CAPABILITIES.SELLER_PERMISSIONS_VIEW],
   superAdminDashboard: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   superAdminOverview: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+  /** Warehouse & inventory management — platform wide scope */
+  superAdminWarehouse: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+  /** Purchasing — platform wide scope */
+  superAdminPurchase: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   superAdminAnalytics: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   superAdminShops: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   superAdminShipping: [CAPABILITIES.PLATFORM_ADMIN_VIEW],

@@ -1,0 +1,12 @@
+export type PurchaseAreaBase = '/seller' | '/super-admin'
+
+export const purchasePaths = (base: PurchaseAreaBase) => ({
+  root: `${base}/warehouse`,
+  suppliers: `${base}/warehouse/suppliers`,
+  orders: `${base}/warehouse/purchase-orders`,
+  newOrder: `${base}/warehouse/purchase-orders/new`,
+  receipts: `${base}/warehouse/receipts`,
+  returns: `${base}/warehouse/returns`,
+})
+
+export type PurchasePaths = ReturnType<typeof purchasePaths>

@@ -1,4 +1,4 @@
-import { CheckoutTotals } from '../utils/checkoutCalculator'
+import { CheckoutTotals, ZERO_DELIVERY_FEE_LABEL } from '../utils/checkoutCalculator'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CardElement, useElements, useStripe } from '@stripe/react-stripe-js'
@@ -30,6 +30,8 @@ let activeCartTaxRequest = 0
 
 interface CheckoutSummaryProps {
   checkout: CheckoutTotals
+  /** On by default. Off places the order with a delivery fee of 0.00. */
+  payDeliveryFeeNow: boolean
   hasDeliveryAddress: boolean
   onRequireAddress: () => void
   deliveryAddress: UserAddress | null
@@ -157,6 +159,7 @@ const isPromoCodeStatus = (value: unknown): value is PromoCodeStatus => {
 
 const CheckoutSummary = ({
   checkout,
+  payDeliveryFeeNow,
   hasDeliveryAddress,
   onRequireAddress,
   deliveryAddress,
@@ -186,7 +189,6 @@ const CheckoutSummary = ({
   const [authoritativeTotal, setAuthoritativeTotal] = useState<number | null>(null)
   const [promotionFinal, setPromotionFinal] = useState<number | null>(null)
   const promotionAllocationsRef = useRef<Array<Record<string, unknown>>>([])
-  const [promotionQuoteLoading, setPromotionQuoteLoading] = useState(false)
   const [promotionQuoteError, setPromotionQuoteError] = useState(false)
   const [promoCodeInput, setPromoCodeInput] = useState('')
   const [appliedPromoCode, setAppliedPromoCode] = useState<string | null>(null)
@@ -317,7 +319,6 @@ const CheckoutSummary = ({
     if (!checkoutId || !userId || promotionItems.length === 0) return
 
     let cancelled = false
-    setPromotionQuoteLoading(true)
     setPromotionQuoteError(false)
 
     void requestPromotionQuote(appliedPromoCode).then((quote) => {
@@ -330,8 +331,6 @@ const CheckoutSummary = ({
       }
     }).catch(() => {
       if (!cancelled) setPromotionQuoteError(true)
-    }).finally(() => {
-      if (!cancelled) setPromotionQuoteLoading(false)
     })
 
     return () => {
@@ -382,13 +381,14 @@ const CheckoutSummary = ({
   }
 
   const buildCheckoutAddressPayload = (address: UserAddress) => {
-    const shipping_total = deliveryQuotePendingConfirmation
+    const quotedShippingTotal = deliveryQuotePendingConfirmation
       ? 0
       : shippingCalculateStatus === 'succeeded' && totalShippingFee != null && totalShippingFee >= 0
         ? totalShippingFee
         : checkout.shippingSubtotal
+    const shipping_total = payDeliveryFeeNow ? quotedShippingTotal : 0
 
-    const shop_shippings = buildShopShippings(
+    const quotedShopShippings = buildShopShippings(
       checkout,
       cartItems,
       checkoutSessionItems ?? currentStatus?.items,
@@ -396,6 +396,9 @@ const CheckoutSummary = ({
       shippingCalculateStatus,
       deliveryCompanyIdByShopId,
     )
+    const shop_shippings = payDeliveryFeeNow
+      ? quotedShopShippings
+      : quotedShopShippings.map((row) => ({ ...row, shipping_fee: 0 }))
 
     return {
       full_name: address.full_name,
@@ -436,6 +439,7 @@ const CheckoutSummary = ({
     // click can still land while the quote is idle/loading (those states are not
     // treated as faults), so keep catching them here.
     if (
+      payDeliveryFeeNow &&
       !deliveryQuotePendingConfirmation &&
       (shippingCalculateStatus !== 'succeeded' || totalShippingFee == null)
     ) {
@@ -445,13 +449,6 @@ const CheckoutSummary = ({
             'Delivery fee is not ready yet. Please wait for it to calculate, or check your delivery address.',
         ),
       )
-      return
-    }
-
-    const missingCompanyShop = [...new Set(cartItems.map((item) => item.shopId))]
-      .find((shopId) => !deliveryCompanyIdByShopId[shopId]?.trim())
-    if (missingCompanyShop) {
-      dispatch(setCheckoutError('A delivery company is not configured for one or more shops. Please contact the shop owner.'))
       return
     }
 
@@ -622,16 +619,16 @@ const CheckoutSummary = ({
 
   // Route/area issues are a manual follow-up flow, not a hard block. The checkout
   // can go ahead with a zero-fee placeholder while a team confirms the final quote.
-  const deliveryBlockReason = getDeliveryBlockReason({
-    hasDeliveryAddress,
-    calculateStatus: shippingCalculateStatus,
-    totalShippingFee,
-    calculateError: shippingCalculateError,
-    deliveryStatuses: deliveryFees.map((fee) => fee.deliveryStatus),
-    unavailableReasons: deliveryFees.map((fee) => fee.unavailableReason),
-  })
-  const hasDeliveryCompanyForEveryShop = [...new Set(cartItems.map((item) => item.shopId))]
-    .every((shopId) => Boolean(deliveryCompanyIdByShopId[shopId]?.trim()))
+  const deliveryBlockReason = payDeliveryFeeNow
+    ? getDeliveryBlockReason({
+        hasDeliveryAddress,
+        calculateStatus: shippingCalculateStatus,
+        totalShippingFee,
+        calculateError: shippingCalculateError,
+        deliveryStatuses: deliveryFees.map((fee) => fee.deliveryStatus),
+        unavailableReasons: deliveryFees.map((fee) => fee.unavailableReason),
+      })
+    : null
 
   const canPlaceOrder =
     !!clientSecret &&
@@ -697,19 +694,19 @@ const CheckoutSummary = ({
     totalPayment,
   } = checkout
   const deliveryPriceText = (() => {
+    if (!payDeliveryFeeNow || showPendingDeliveryFee) return ZERO_DELIVERY_FEE_LABEL
     if (!hasDeliveryAddress) return 'Add address'
     if (shippingCalculateStatus === 'loading') return 'Calculating…'
     if (shippingCalculateStatus === 'failed') return 'Unavailable'
-    if (showPendingDeliveryFee) return 'Ks 0.00'
     if (shippingCalculateStatus === 'succeeded') {
       return formatKsPrice(shippingSubtotal)
     }
     return '—'
   })()
   const shownTax = scaledTax ?? taxAmount
-  const displayedTotal =
-    authoritativeTotal ??
-    (promotionFinal ?? totalPayment) + shownTax
+  const displayedTotal = !payDeliveryFeeNow
+    ? Math.max(0, merchandiseSubtotal - promotionDiscount) + shownTax
+    : (authoritativeTotal ?? (promotionFinal ?? totalPayment) + shownTax)
   const promoFeedback = promoStatusLabel(promoCodeStatus, promoCodeMessage)
   const promoIsValid = promoCodeStatus === 'VALID'
 
@@ -733,17 +730,17 @@ const CheckoutSummary = ({
           <span className="whitespace-nowrap tabular-nums text-gray-900">
             {scaledTax == null && taxLoading
               ? 'Calculating…'
-              : taxEnabled
+              : taxEnabled && shownTax !== 0
                 ? formatKsPrice(shownTax)
                 : formatDisabledTaxAmount(shownTax)}
           </span>
         </div>
-        <div className="mb-3 flex justify-between gap-3">
-          <span className="shrink-0 text-gray-600">Delivery</span>
-          <div className="flex flex-col items-end">
+        <div className="mb-3">
+          <div className="flex justify-between gap-3">
+            <span className="shrink-0 text-gray-600">Delivery</span>
             <span className="whitespace-nowrap tabular-nums text-gray-900">{deliveryPriceText}</span>
           </div>
-          {shippingCalculateStatus === 'failed' && shippingCalculateError && (
+          {payDeliveryFeeNow && shippingCalculateStatus === 'failed' && shippingCalculateError && (
             <p className="mt-1 text-right text-[11px] text-amber-700">{shippingCalculateError}</p>
           )}
         </div>
@@ -803,11 +800,9 @@ const CheckoutSummary = ({
                   <p className="text-xs font-bold uppercase tracking-[0.12em] text-emerald-800">Your savings</p>
                   <p className="mt-0.5 text-xs text-emerald-700">Promotions are checked for this checkout</p>
                 </div>
-                {promotionQuoteLoading ? (
-                  <span className="text-xs font-medium text-emerald-700">Checking…</span>
-                ) : (
-                  <span className="whitespace-nowrap text-lg font-bold tabular-nums text-emerald-700">-{formatKsPrice(promotionDiscount)}</span>
-                )}
+                <span className="whitespace-nowrap text-lg font-bold tabular-nums text-emerald-700">
+                  -{formatKsPrice(promotionDiscount)}
+                </span>
               </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-gray-600">Shipping discount</span>

@@ -166,3 +166,76 @@ export async function forwardGeocodeAddress(parts: WardGeocodeParts): Promise<La
     }
     return forwardGeocodeNominatim(parts)
 }
+
+type GoogleLatLng = { lat: () => number; lng: () => number }
+
+type GoogleGeocoderCtor = new () => {
+    geocode: (
+        request: { address: string; componentRestrictions?: { country: string } },
+        callback: (results: Array<{ geometry?: { location?: GoogleLatLng } }> | null, status: string) => void,
+    ) => void
+}
+
+function googleGeocoder(): GoogleGeocoderCtor | null {
+    const maps = (globalThis as { google?: { maps?: { Geocoder?: GoogleGeocoderCtor } } }).google?.maps
+    return maps?.Geocoder ?? null
+}
+
+function googleGeocodeQuery(query: string): Promise<LatLng | null> {
+    const Geocoder = googleGeocoder()
+    if (!Geocoder || !query.trim()) return Promise.resolve(null)
+    return new Promise((resolve) => {
+        new Geocoder().geocode(
+            { address: query, componentRestrictions: { country: 'MM' } },
+            (results, status) => {
+                const loc = status === 'OK' ? results?.[0]?.geometry?.location : undefined
+                if (!loc) {
+                    resolve(null)
+                    return
+                }
+                const lat = loc.lat()
+                const lng = loc.lng()
+                resolve(Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null)
+            },
+        )
+    })
+}
+
+/** Wait until the Maps script used by the pin picker has loaded, without blocking forever. */
+async function waitForGoogleGeocoder(timeoutMs = 4000): Promise<boolean> {
+    if (googleGeocoder()) return true
+    const started = Date.now()
+    while (Date.now() - started < timeoutMs) {
+        await new Promise((resolve) => window.setTimeout(resolve, 200))
+        if (googleGeocoder()) return true
+    }
+    return false
+}
+
+export type AddressPinMatch = {
+    point: LatLng
+    /** True when the point is the area, not a confirmed ward match. */
+    approximate: boolean
+}
+
+/**
+ * Find a pin for a ward. Exact Photon/Nominatim match first, then Google (already used by the
+ * map), then a coarser district/city/state match so edit can still drop a pin.
+ */
+export async function locateAddressPin(parts: WardGeocodeParts): Promise<AddressPinMatch | null> {
+    const exact = await forwardGeocodeAddress(parts)
+    if (exact) return { point: exact, approximate: false }
+
+    await waitForGoogleGeocoder()
+    const queries = [
+        buildSearchQuery(parts),
+        `${parts.district.trim()}, ${parts.city.trim()}, ${parts.state.trim()}, Myanmar`,
+        `${parts.city.trim()}, ${parts.state.trim()}, Myanmar`,
+        `${parts.state.trim()}, Myanmar`,
+    ]
+    for (const [index, query] of queries.entries()) {
+        const hit = await googleGeocodeQuery(query)
+        if (hit) return { point: hit, approximate: index > 0 }
+    }
+    return null
+}

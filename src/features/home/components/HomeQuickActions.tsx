@@ -7,7 +7,7 @@ import { isRequestSettled, useReportHomeSection } from '../homeScreenReady'
 import { Typing } from '@/components/loading-ui/typing'
 import type { HomeFeature } from '../store/homeTypes'
 
-const DESKTOP_PAGE_SIZE = 5
+const DESKTOP_PAGE_SIZE = 7
 
 const isWithinSchedule = (feature: HomeFeature, now: number): boolean => {
   const start = feature.startAt ? new Date(feature.startAt).getTime() : null
@@ -50,7 +50,7 @@ const HomeQuickActions = () => {
     'absolute top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center text-slate-500 transition-colors cursor-pointer hover:text-emerald-600 hover:border-emerald-400 disabled:opacity-0 disabled:pointer-events-none'
 
   const renderTile = (feature: HomeFeature) => (
-    <div key={feature.id} className="shrink-0 px-2 md:w-1/5">
+    <div key={feature.id} className="shrink-0 px-2 md:w-[calc(100%/var(--quick-action-page-size))]">
       <Link
         to="#"
         className="group flex flex-col items-center gap-2 text-center"
@@ -75,7 +75,7 @@ const HomeQuickActions = () => {
   )
 
   return (
-    <section>
+    <section style={{ ['--quick-action-page-size' as string]: DESKTOP_PAGE_SIZE }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="py-4">
           {status === 'loading' && visibleFeatures.length === 0 ? (

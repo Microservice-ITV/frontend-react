@@ -9,7 +9,7 @@ import { Elements } from '@stripe/react-stripe-js'
 import { stripePromise } from '@/lib/stripe'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
-import { calculateCheckout } from '../utils/checkoutCalculator'
+import { amountDueNow, calculateCheckout, shippingFeesForCheckout } from '../utils/checkoutCalculator'
 import CheckoutItems from '../components/CheckoutItems'
 import CheckoutAddress from '../components/CheckoutAddress'
 import GuestCheckoutAnnouncementBanner from '../components/GuestCheckoutAnnouncementBanner'
@@ -23,7 +23,7 @@ import { useCheckoutDeliveryCompany } from '@/features/shipping/hooks/useCheckou
 import { clearShippingCalculate } from '@/features/shipping/store/shippingSlice'
 import { clearCheckout, setCurrentCheckout } from '../store/checkoutSlice'
 import { hasConfirmedStock, isStockReadinessConfirmed } from '../utils/checkoutStatus'
-import { checkoutHasNoDeliveryRoute } from '../utils/deliveryReadiness'
+import { usePayDeliveryFeeNow } from '../hooks/usePayDeliveryFeeNow'
 
 const AuthCheckout = () => {
   const items = useAppSelector(selectSelectedItems)
@@ -88,14 +88,11 @@ const GuestCheckoutPayment = () => {
   const feesByShopId = useAppSelector((state) => state.shipping.feesByShopId)
   const totalShippingFee = useAppSelector((state) => state.shipping.totalShippingFee)
   const shippingCalculateStatus = useAppSelector((state) => state.shipping.calculateStatus)
-
   const checkoutTotals = useMemo(
     () =>
       calculateCheckout(
         items,
-        shippingCalculateStatus === 'succeeded' && Object.keys(feesByShopId).length > 0
-          ? { feesByShop: feesByShopId, totalShippingFee }
-          : undefined,
+        shippingFeesForCheckout(shippingCalculateStatus, feesByShopId, totalShippingFee),
       ),
     [items, shippingCalculateStatus, feesByShopId, totalShippingFee],
   )
@@ -131,7 +128,12 @@ const GuestCheckoutPayment = () => {
     return next
   }, [deliveryCompany.companyByShopId, deliveryCompany.unavailableCompanyIdsByShop, shopIds])
   const hasQuotableCompany = Object.keys(quotableCompanyByShopId).length > 0
-  const deliveryQuotePendingConfirmation = checkoutHasNoDeliveryRoute({
+  const {
+    payDeliveryFeeNow,
+    setPayDeliveryFeeNow,
+    payDeliveryFeeNowLockedOff,
+    deliveryQuotePendingConfirmation,
+  } = usePayDeliveryFeeNow({
     shopIds,
     companiesCount: deliveryCompany.companies.length,
     unavailableCompanyIdsByShop: deliveryCompany.unavailableCompanyIdsByShop,
@@ -190,6 +192,8 @@ const GuestCheckoutPayment = () => {
   }, [currentCheckout?.checkout_id])
 
   useEffect(() => {
+    // Keep the last quote. Turning the switch off only changes what the customer pays now.
+    if (!payDeliveryFeeNow) return
     if (!paymentDeliveryAddress || !hasQuotableCompany || !deliveryCompany.routesReady) {
       dispatch(clearShippingCalculate())
       return
@@ -208,7 +212,7 @@ const GuestCheckoutPayment = () => {
         },
       }),
     )
-  }, [dispatch, paymentDeliveryAddress, items, shippingCalculateCacheKey, hasQuotableCompany, deliveryCompany.routesReady, quotableCompanyByShopId])
+  }, [dispatch, payDeliveryFeeNow, paymentDeliveryAddress, items, shippingCalculateCacheKey, hasQuotableCompany, deliveryCompany.routesReady, quotableCompanyByShopId])
 
   const terminalCheckoutStatuses = useMemo(
     () => new Set(['PAID', 'COMPLETED', 'FAILED', 'FAILED_PAYMENT', 'EXPIRED']),
@@ -275,6 +279,9 @@ const GuestCheckoutPayment = () => {
               />
               <CheckoutItems
                 checkout={checkoutTotals}
+                payDeliveryFeeNow={payDeliveryFeeNow}
+                onPayDeliveryFeeNowChange={setPayDeliveryFeeNow}
+                payDeliveryFeeNowLockedOff={payDeliveryFeeNowLockedOff}
                 deliveryCompany={{
                   companies: deliveryCompany.companies,
                   selectedByShopId: deliveryCompany.selectedByShopId,
@@ -287,11 +294,12 @@ const GuestCheckoutPayment = () => {
             </div>
 
             <aside className="space-y-3 lg:sticky lg:top-4">
-            <CheckoutPayment totalAmount={checkoutTotals.totalPayment} />
+            <CheckoutPayment totalAmount={amountDueNow(checkoutTotals, payDeliveryFeeNow)} />
 
               {isStockReady ? (
                 <CheckoutSummary
                   checkout={checkoutTotals}
+                  payDeliveryFeeNow={payDeliveryFeeNow}
                   hasDeliveryAddress={true}
                   onRequireAddress={goToGuestForm}
                   deliveryAddress={paymentDeliveryAddress}

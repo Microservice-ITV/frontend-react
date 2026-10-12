@@ -388,10 +388,10 @@ const ProductInfo = ({ product, onSelectedVariantChange }: Props) => {
         onVariantChange={handleVariantChange}
       />
 
-      <p className="text-xs text-gray-600">
-        <span className="font-medium text-gray-800">Stock: </span>
-        {stockLabel}
-      </p>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+        <span className="w-20 shrink-0 text-sm font-medium text-gray-900 sm:w-24">Stock:</span>
+        <p className="text-sm text-gray-600">{stockLabel}</p>
+      </div>
 
       <ProductActions
         product={product}

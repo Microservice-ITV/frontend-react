@@ -75,7 +75,10 @@ const basePriceField = z
     "Use numbers only, up to 2 decimal places",
   )
   .refine((s) => parseFloat(s) > 0, "Base price must be greater than 0")
-  .refine((s) => parseFloat(s) <= 9999999, "Cannot be more than 99999999");
+  .refine(
+    (s) => parseFloat(s) <= 9999999,
+    "This price is too high. Please enter a reliable price.",
+  );
 
 const optionalPercentField = (label: string, max: number) =>
   z
