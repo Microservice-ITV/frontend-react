@@ -175,7 +175,7 @@ describe('checkoutHasNoDeliveryRoute', () => {
         expect(
             checkoutHasNoDeliveryRoute({
                 shopIds: ['shop-1'],
-                companiesCount: 2,
+                companiesCountByShop: { 'shop-1': 2 },
                 unavailableCompanyIdsByShop: { 'shop-1': ['a', 'b'] },
                 loading: false,
                 routesReady: true,
@@ -184,7 +184,7 @@ describe('checkoutHasNoDeliveryRoute', () => {
         expect(
             checkoutHasNoDeliveryRoute({
                 shopIds: ['shop-1'],
-                companiesCount: 2,
+                companiesCountByShop: { 'shop-1': 2 },
                 unavailableCompanyIdsByShop: { 'shop-1': ['a', 'b'] },
                 loading: false,
                 routesReady: false,
@@ -202,28 +202,34 @@ describe('mustWaiveDeliveryFeeNow', () => {
     }
 
     it('locks off when there are no delivery companies', () => {
-        expect(mustWaiveDeliveryFeeNow({ ...base, companiesCount: 0 })).toBe(true)
+        expect(mustWaiveDeliveryFeeNow({ ...base, companiesCountByShop: { 'shop-1': 0 } })).toBe(true)
     })
 
     it('locks off when companies exist but no shop has a route', () => {
         expect(
             mustWaiveDeliveryFeeNow({
                 ...base,
-                companiesCount: 2,
+                companiesCountByShop: { 'shop-1': 2 },
                 unavailableCompanyIdsByShop: { 'shop-1': ['a', 'b'] },
             }),
         ).toBe(true)
     })
 
     it('does not lock while companies are still loading', () => {
-        expect(mustWaiveDeliveryFeeNow({ ...base, companiesCount: 0, loading: true })).toBe(false)
+        expect(
+            mustWaiveDeliveryFeeNow({
+                ...base,
+                companiesCountByShop: { 'shop-1': 0 },
+                loading: true,
+            }),
+        ).toBe(false)
     })
 
     it('stays unlocked when a company can quote', () => {
         expect(
             mustWaiveDeliveryFeeNow({
                 ...base,
-                companiesCount: 2,
+                companiesCountByShop: { 'shop-1': 2 },
                 unavailableCompanyIdsByShop: { 'shop-1': ['a'] },
             }),
         ).toBe(false)

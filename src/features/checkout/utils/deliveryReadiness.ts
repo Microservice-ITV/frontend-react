@@ -24,7 +24,8 @@ export function shopHasNoDeliveryRoute(
 
 export type DeliveryAvailabilityParams = {
     shopIds: readonly string[]
-    companiesCount: number
+    /** Per-shop count of companies the shop admin enabled for checkout. */
+    companiesCountByShop: Record<string, number>
     unavailableCompanyIdsByShop: Record<string, string[]>
     loading: boolean
     routesReady: boolean
@@ -32,11 +33,25 @@ export type DeliveryAvailabilityParams = {
 
 export type PayDeliveryLockReason = 'company' | 'route'
 
+function shopCompanyCount(
+    companiesCountByShop: Record<string, number>,
+    shopId: string,
+): number {
+    return companiesCountByShop[shopId] ?? 0
+}
+
 /** True when no shop in the checkout has a company with a district route. */
 export function checkoutHasNoDeliveryRoute(params: DeliveryAvailabilityParams): boolean {
-    const { shopIds, companiesCount, unavailableCompanyIdsByShop, loading, routesReady } = params
-    if (loading || !routesReady || companiesCount === 0 || shopIds.length === 0) return false
-    return shopIds.every((shopId) => shopHasNoDeliveryRoute(companiesCount, unavailableCompanyIdsByShop[shopId]))
+    const { shopIds, companiesCountByShop, unavailableCompanyIdsByShop, loading, routesReady } = params
+    if (loading || !routesReady || shopIds.length === 0) return false
+    const anyCompanies = shopIds.some((shopId) => shopCompanyCount(companiesCountByShop, shopId) > 0)
+    if (!anyCompanies) return false
+    return shopIds.every((shopId) =>
+        shopHasNoDeliveryRoute(
+            shopCompanyCount(companiesCountByShop, shopId),
+            unavailableCompanyIdsByShop[shopId],
+        ),
+    )
 }
 
 /**
@@ -45,9 +60,13 @@ export function checkoutHasNoDeliveryRoute(params: DeliveryAvailabilityParams): 
  * - companies exist but none have a route for this checkout.
  */
 export function mustWaiveDeliveryFeeNow(params: DeliveryAvailabilityParams): boolean {
-    const { companiesCount, loading } = params
+    const { shopIds, companiesCountByShop, loading } = params
     if (loading) return false
-    if (companiesCount === 0) return true
+    const totalCompanies = shopIds.reduce(
+        (sum, shopId) => sum + shopCompanyCount(companiesCountByShop, shopId),
+        0,
+    )
+    if (totalCompanies === 0) return true
     return checkoutHasNoDeliveryRoute(params)
 }
 

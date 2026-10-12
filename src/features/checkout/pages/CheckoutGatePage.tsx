@@ -135,7 +135,7 @@ const GuestCheckoutPayment = () => {
     deliveryQuotePendingConfirmation,
   } = usePayDeliveryFeeNow({
     shopIds,
-    companiesCount: deliveryCompany.companies.length,
+    companiesCountByShop: deliveryCompany.companiesCountByShop,
     unavailableCompanyIdsByShop: deliveryCompany.unavailableCompanyIdsByShop,
     loading: deliveryCompany.loading,
     routesReady: deliveryCompany.routesReady,
@@ -283,7 +283,7 @@ const GuestCheckoutPayment = () => {
                 onPayDeliveryFeeNowChange={setPayDeliveryFeeNow}
                 payDeliveryFeeNowLockedOff={payDeliveryFeeNowLockedOff}
                 deliveryCompany={{
-                  companies: deliveryCompany.companies,
+                  companiesByShopId: deliveryCompany.companiesByShopId,
                   selectedByShopId: deliveryCompany.selectedByShopId,
                   unavailableCompanyIdsByShop: deliveryCompany.unavailableCompanyIdsByShop,
                   loading: deliveryCompany.loading,
