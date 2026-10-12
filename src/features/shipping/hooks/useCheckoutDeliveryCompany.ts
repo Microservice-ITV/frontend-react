@@ -198,7 +198,7 @@ export function useCheckoutDeliveryCompany(shopIds: string[], routes: ShopDistri
 
         const next: Record<string, string[] | null> = {}
         for (const [key, availability] of entries) {
-          next[key] = availability.availableCompanyIds ?? []
+          next[key] = availability.availableCompanyIds
         }
         setAvailableByPair(next)
       } catch {

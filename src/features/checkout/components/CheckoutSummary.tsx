@@ -2,6 +2,7 @@ import { CheckoutTotals, ZERO_DELIVERY_FEE_LABEL } from '../utils/checkoutCalcul
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CardElement, useElements, useStripe } from '@stripe/react-stripe-js'
+import type { StripeCardElement } from '@stripe/stripe-js'
 import axios from 'axios'
 import {
   cartTaxFromKnownRates,
@@ -25,6 +26,10 @@ import type { CheckoutShopShippingPayload } from '../api/checkoutApi'
 import type { CheckoutStatusResponse } from '../types/checkoutTypes'
 import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
 import { getDeliveryBlockReason } from '../utils/deliveryReadiness'
+import {
+  checkoutShopsHaveDeliveryCompanies,
+  mapCheckoutShopIdsToCartShopIds,
+} from '../utils/checkoutShopShipping'
 
 let activeCartTaxRequest = 0
 
@@ -76,40 +81,16 @@ const buildShopShippings = (
 ): CheckoutShopShippingPayload[] => {
   const shopCountFromCart = Object.keys(checkout.groupedByShop).length
   const perShopFallback = shopCountFromCart > 0 ? checkout.shippingSubtotal / shopCountFromCart : 0
-  const cartProductToShop = new Map(cartItems.map((item) => [item.productId, item.shopId]))
+  const shopMappings = mapCheckoutShopIdsToCartShopIds(
+    Object.keys(checkout.groupedByShop),
+    cartItems,
+    checkoutSessionItems,
+  )
+  const perShopFallbackForIds = shopMappings.length > 0
+    ? checkout.shippingSubtotal / shopMappings.length
+    : perShopFallback
 
-  const sessionShops = new Map<string, string[]>()
-  for (const item of checkoutSessionItems ?? []) {
-    const shopId = item.shop_id?.trim()
-    if (!shopId) continue
-    const productIds = sessionShops.get(shopId) ?? []
-    productIds.push(item.product_id)
-    sessionShops.set(shopId, productIds)
-  }
-
-  const shopIds =
-    sessionShops.size > 0
-      ? [...sessionShops.keys()]
-      : Object.keys(checkout.groupedByShop)
-
-  const perShopFallbackForIds =
-    shopIds.length > 0 ? checkout.shippingSubtotal / shopIds.length : perShopFallback
-
-  return shopIds.map((shopId) => {
-    const productIds = sessionShops.get(shopId)
-    let cartShopId: string | undefined
-    if (productIds) {
-      for (const productId of productIds) {
-        const mapped = cartProductToShop.get(productId)
-        if (mapped) {
-          cartShopId = mapped
-          break
-        }
-      }
-    } else {
-      cartShopId = shopId
-    }
-
+  return shopMappings.map(({ checkoutShopId: shopId, cartShopId }) => {
     const row = cartShopId ? feesByShopId[cartShopId] : undefined
     const fromApi =
       shippingCalculateStatus === 'succeeded' && row?.amount != null && row.amount >= 0
@@ -435,6 +416,11 @@ const CheckoutSummary = ({
       return
     }
 
+    if (!hasDeliveryCompanyForEveryShop) {
+      dispatch(setCheckoutError('Select a delivery company configured for every shop to continue.'))
+      return
+    }
+
     // Runtime guard. `canPlaceOrder` disables the button for durable faults, but a
     // click can still land while the quote is idle/loading (those states are not
     // treated as faults), so keep catching them here.
@@ -465,7 +451,7 @@ const CheckoutSummary = ({
 
     const effectivePaymentMethod = sessionPaymentMethod ?? paymentMethod
     const isPrepaid = effectivePaymentMethod === 'prepaid'
-    let card: ReturnType<NonNullable<typeof elements>['getElement']> | null = null
+    let card: StripeCardElement | null = null
 
     if (isPrepaid) {
       if (!stripe || !elements || !clientSecret) {
@@ -629,6 +615,14 @@ const CheckoutSummary = ({
         unavailableReasons: deliveryFees.map((fee) => fee.unavailableReason),
       })
     : null
+
+  const requiredShopMappings = mapCheckoutShopIdsToCartShopIds(
+    Object.keys(checkout.groupedByShop),
+    cartItems,
+    checkoutSessionItems ?? currentStatus?.items,
+  )
+  const hasDeliveryCompanyForEveryShop =
+    checkoutShopsHaveDeliveryCompanies(requiredShopMappings, deliveryCompanyIdByShopId)
 
   const canPlaceOrder =
     !!clientSecret &&
