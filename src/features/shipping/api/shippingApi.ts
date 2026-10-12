@@ -212,6 +212,27 @@ export const shippingApi = {
         return shippingClient.get<unknown>('/shipping/delivery-companies')
     },
 
+    /** Active Delivery Companies each shop admin enabled for checkout. */
+    batchShopDeliveryCompanies(shopIds: string[]) {
+        const unique = [...new Set(shopIds.map((id) => id.trim()).filter(Boolean))]
+        return shippingClient.post<unknown>('/shipping/shops/delivery-companies/batch', {
+            shopIds: unique,
+        })
+    },
+
+    getShopDeliveryCompanies(shopId: string) {
+        return shippingClient.get<unknown>(
+            `/shipping/shops/${encodeURIComponent(shopId)}/delivery-companies`,
+        )
+    },
+
+    replaceShopDeliveryCompanies(shopId: string, deliveryCompanyIds: string[]) {
+        return shippingClient.put<unknown>(
+            `/shipping/shops/${encodeURIComponent(shopId)}/delivery-companies`,
+            { deliveryCompanyIds },
+        )
+    },
+
     districtRouteAvailability(fromDistrictId: string, toDistrictId: string) {
         return shippingClient.get<unknown>('/shipping/delivery-companies/route-availability', {
             params: {

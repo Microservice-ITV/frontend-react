@@ -21,6 +21,7 @@ import {
   fetchAdminPricingRules,
   setAdminPricingRuleStatus,
 } from '../store/adminPricingRulesThunks'
+import { confirmStatusToggle } from '../utils/confirmStatusToggle'
 import {
   selectAdminPricingRules,
   selectAdminPricingRulesError,
@@ -123,13 +124,36 @@ const AdminPricingRulesPage = () => {
     })
   }
 
-  const toggleStatus = async (rule: DeliveryPricingRuleDto) => {
+  const confirmToggleStatus = (rule: DeliveryPricingRuleDto) => {
     const next: PricingRuleStatus = rule.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
-    try {
-      await dispatch(setAdminPricingRuleStatus({ id: rule.id, status: next })).unwrap()
-    } catch {
-      refresh()
-    }
+    confirmStatusToggle({
+      openModal,
+      subject: `“${rule.name}”`,
+      isActive: rule.status === 'ACTIVE',
+      deactivateContent: (
+        <p>
+          Version {rule.version} will stop being used for delivery fee calculation until you
+          activate it again.
+        </p>
+      ),
+      activateContent: (
+        <p>
+          Version {rule.version} will become available for delivery fee calculation again.
+        </p>
+      ),
+      onConfirm: async () => {
+        try {
+          await dispatch(setAdminPricingRuleStatus({ id: rule.id, status: next })).unwrap()
+        } catch (updateError: unknown) {
+          refresh()
+          throw new Error(
+            updateError instanceof Error && updateError.message.trim()
+              ? updateError.message
+              : 'Could not update pricing rule status.',
+          )
+        }
+      },
+    })
   }
 
   return (
@@ -342,7 +366,7 @@ rules.map((rule) => (
                             className: `flex w-full items-center gap-3 px-4 py-2 text-left text-xs font-medium hover:bg-slate-50 cursor-pointer ${
                                 rule.status === 'ACTIVE' ? 'text-slate-700' : 'text-emerald-700'
                               }`,
-                            onClick: () => void toggleStatus(rule),
+                            onClick: () => confirmToggleStatus(rule),
                           },
                           {
                             key: 'view',

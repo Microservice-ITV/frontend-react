@@ -20,7 +20,7 @@ import { Truck } from 'lucide-react'
 import CheckoutDeliveryCompanySelect from './CheckoutDeliveryCompanySelect'
 
 export type CheckoutDeliveryCompanySelection = {
-  companies: CheckoutDeliveryCompany[]
+  companiesByShopId: Record<string, CheckoutDeliveryCompany[]>
   selectedByShopId: Record<string, string>
   unavailableCompanyIdsByShop: Record<string, string[]>
   loading: boolean
@@ -322,12 +322,13 @@ const CheckoutItems = ({
           0
         )
         const feeRow = feesByShopId[shopId]
+        const shopCompanies = deliveryCompany.companiesByShopId[shopId] ?? []
         const unavailableIds = deliveryCompany.unavailableCompanyIdsByShop[shopId] ?? []
         const companyLoadFailed = !deliveryCompany.loading && Boolean(deliveryCompany.error)
         const noDeliveryCompany =
-          !deliveryCompany.loading && !companyLoadFailed && deliveryCompany.companies.length === 0
+          !deliveryCompany.loading && !companyLoadFailed && shopCompanies.length === 0
         const noDeliveryRoute = shopHasNoDeliveryRoute(
-          deliveryCompany.companies.length,
+          shopCompanies.length,
           unavailableIds,
         )
         const serviceUnavailable = companyLoadFailed || calculateStatus === 'failed'
@@ -463,9 +464,9 @@ const CheckoutItems = ({
                 <span>Delivery Method</span>
               </div>
               <CheckoutDeliveryCompanySelect
-                companies={deliveryCompany.companies}
+                companies={shopCompanies}
                 selectedId={deliveryCompany.selectedByShopId[shopId] ?? ''}
-                disabledCompanyIds={deliveryCompany.unavailableCompanyIdsByShop[shopId] ?? []}
+                disabledCompanyIds={unavailableIds}
                 loading={deliveryCompany.loading}
                 error={deliveryCompany.error}
                 onSelect={(companyId) => deliveryCompany.onSelect(shopId, companyId)}

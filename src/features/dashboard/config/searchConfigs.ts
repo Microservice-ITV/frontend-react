@@ -377,6 +377,7 @@ export const searchConfigs: Record<string, SearchConfig> = {
   'seller-chat': makeStaticSearch('/seller/chat'),
   'seller-files': makeStaticSearch('/seller/files'),
   'seller-notifications': makeStaticSearch('/seller/notifications'),
+  'seller-delivery-companies': makeStaticSearch('/seller/delivery-companies'),
   'seller-settings': makeStaticSearch('/seller/settings'),
   'seller-help-support': makeStaticSearch('/seller/help-support'),
   'admin-shops': {
