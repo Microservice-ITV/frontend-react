@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Pencil, Trash2 } from 'lucide-react'
+import { usePageTitle } from '@/components/routing/PageTitle'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
 import { purchaseApi, purchaseErrorMessage } from '../api/purchaseApi'
 import { SupplierStatusBadge } from '../components/PurchaseBadges'
@@ -50,6 +51,7 @@ const SupplierDetailPage = ({ base }: SupplierDetailPageProps) => {
   }, [id])
 
   const displayName = supplier?.name?.trim() || 'Supplier'
+  usePageTitle(supplier?.name)
 
   const confirmDelete = () => {
     if (!id || !supplier) return

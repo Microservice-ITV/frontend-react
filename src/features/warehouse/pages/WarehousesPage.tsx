@@ -107,7 +107,7 @@ const WarehousesPage = ({ base }: WarehousesPageProps) => {
             },
             {
               key: 'inventory',
-              label: 'Inventory',
+              label: 'Inventory Data',
               icon: <Boxes size={16} className="shrink-0 text-slate-500" />,
               onClick: () => navigate(`${paths.inventory}?warehouseId=${row.id}`),
             },

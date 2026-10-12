@@ -217,12 +217,12 @@ const InventoryPage = (_props: InventoryPageProps) => {
       <nav className="text-xs text-slate-500">
         <span>Dashboard</span> <span className="mx-1">/</span>
         <span>Warehouse</span> <span className="mx-1">/</span>
-        <span className="text-slate-700">Inventory</span>
+        <span className="text-slate-700">Inventory Data</span>
       </nav>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Inventory</h1>
+          <h1 className="text-xl font-bold text-slate-900">Inventory Data</h1>
           <p className="text-sm text-slate-500">
             On-hand stock across every warehouse, with live availability status.
           </p>

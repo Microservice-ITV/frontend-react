@@ -7,6 +7,32 @@ type PageTitleRule = {
   title: string
 }
 
+const WAREHOUSE_PAGE_TITLES: PageTitleRule[] = [
+  { path: '/warehouse', title: 'Warehouse Overview' },
+  { path: '/warehouse/warehouses', title: 'Warehouses' },
+  { path: '/warehouse/warehouses/new', title: 'New Warehouse' },
+  { path: '/warehouse/warehouses/:id/edit', title: 'Edit Warehouse' },
+  { path: '/warehouse/warehouses/:id', title: 'Warehouse' },
+  { path: '/warehouse/inventory', title: 'Inventory Data' },
+  { path: '/warehouse/transfer', title: 'Transfer' },
+  { path: '/warehouse/movements', title: 'Inventory Movements' },
+  { path: '/warehouse/purchase-orders', title: 'Purchase Orders' },
+  { path: '/warehouse/purchase-orders/new', title: 'Create Purchase Order' },
+  { path: '/warehouse/receipts', title: 'Goods Receipts' },
+  { path: '/warehouse/returns', title: 'Purchase Returns' },
+  { path: '/warehouse/suppliers', title: 'Suppliers' },
+  { path: '/warehouse/suppliers/new', title: 'New Supplier' },
+  { path: '/warehouse/suppliers/:id/edit', title: 'Edit Supplier' },
+  { path: '/warehouse/suppliers/:id', title: 'Supplier' },
+]
+
+function warehousePageTitles(base: '/seller' | '/super-admin'): PageTitleRule[] {
+  return WAREHOUSE_PAGE_TITLES.map((rule) => ({
+    path: `${base}${rule.path}`,
+    title: rule.title,
+  }))
+}
+
 /**
  * Most specific matching rule wins, so `/products/new` beats `/products/:id`.
  * Keep static paths and their `:param` siblings both listed.
@@ -129,6 +155,7 @@ const PAGE_TITLE_RULES: PageTitleRule[] = [
   { path: '/seller/notifications', title: 'Notifications' },
   { path: '/seller/settings', title: 'Settings' },
   { path: '/seller/help-support', title: 'Help & Support' },
+  ...warehousePageTitles('/seller'),
 
   { path: '/super-admin', title: 'Dashboard' },
   { path: '/super-admin/overview', title: 'Dashboard' },
@@ -212,6 +239,7 @@ const PAGE_TITLE_RULES: PageTitleRule[] = [
   { path: '/super-admin/files', title: 'Files' },
   { path: '/super-admin/settings', title: 'Settings' },
   { path: '/super-admin/help-support', title: 'Help & Support' },
+  ...warehousePageTitles('/super-admin'),
 ]
 
 function ruleScore(path: string): number {

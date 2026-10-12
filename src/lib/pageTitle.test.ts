@@ -30,6 +30,14 @@ describe('resolvePageTitle', () => {
     expect(resolvePageTitle('/seller/promotion-engine/bundles/abc/edit')).toBe('Edit Bundle')
     expect(resolvePageTitle('/super-admin/promotion-engine/bundles/new')).toBe('New Bundle')
     expect(resolvePageTitle('/super-admin/accounting/overview')).toBe('Accounting Overview')
+    expect(resolvePageTitle('/seller/warehouse')).toBe('Warehouse Overview')
+    expect(resolvePageTitle('/seller/warehouse/movements')).toBe('Inventory Movements')
+    expect(resolvePageTitle('/seller/warehouse/purchase-orders/new')).toBe('Create Purchase Order')
+    expect(resolvePageTitle('/super-admin/warehouse/warehouses/new')).toBe('New Warehouse')
+    expect(resolvePageTitle('/super-admin/warehouse/warehouses/abc')).toBe('Warehouse')
+    expect(resolvePageTitle('/super-admin/warehouse/warehouses/abc/edit')).toBe('Edit Warehouse')
+    expect(resolvePageTitle('/super-admin/warehouse/suppliers/abc/edit')).toBe('Edit Supplier')
+    expect(resolvePageTitle('/super-admin/warehouse/receipts')).toBe('Goods Receipts')
   })
 
   it('includes the search query', () => {
