@@ -4,11 +4,18 @@ import DataTable, { type DataTableColumn } from '@/components/ui/DataTable'
 import FilterBar from '@/components/ui/FilterBar'
 import ModalDrawer from '@/components/ui/ModalDrawer'
 import { PurchaseReceiptStatusBadge } from '../components/PurchaseBadges'
+import { productLabel, useProductNames } from '@/features/warehouse/hooks/useProductNames'
+import { useWarehouses } from '@/features/warehouse/hooks/useWarehouseData'
 import { purchaseApi, purchaseErrorMessage } from '../api/purchaseApi'
 import { notifyOrderedReceiptCountChanged } from '../orderedReceiptCount'
 import { purchasePaths, type PurchaseAreaBase } from '../config/purchasePaths'
 import { usePurchaseOrders, usePurchaseReceipts } from '../hooks/usePurchaseData'
-import type { PurchaseOrderItem, PurchaseReceipt, PurchaseReceiptStatus } from '../types/purchaseTypes'
+import type {
+  PurchaseOrder,
+  PurchaseOrderItem,
+  PurchaseReceipt,
+  PurchaseReceiptStatus,
+} from '../types/purchaseTypes'
 
 const primaryButtonClass =
   'inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--dni-primary)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50'
@@ -36,12 +43,31 @@ export type PurchaseReceiptsPageProps = {
   platform?: boolean
 }
 
+const purchaseOrderLabel = (
+  order: PurchaseOrder,
+  names: Record<string, string>,
+  warehouseName?: string,
+) => {
+  const products = [
+    ...new Set(
+      (order.items ?? [])
+        .map((item) => item.productName?.trim() || productLabel(names, item.productId))
+        .filter(Boolean),
+    ),
+  ]
+  return [order.orderNumber, order.supplier?.name?.trim(), products.join(', '), warehouseName]
+    .filter(Boolean)
+    .join(' · ')
+}
+
 const PurchaseReceiptsPage = ({ base }: PurchaseReceiptsPageProps) => {
   const paths = purchasePaths(base)
   const [status, setStatus] = useState<PurchaseReceiptStatus | ''>('')
   const [search, setSearch] = useState('')
   const { receipts, loading, error, reload } = usePurchaseReceipts({ status })
   const { orders, reload: reloadOrders } = usePurchaseOrders()
+  const { warehouses } = useWarehouses()
+  const productNames = useProductNames()
 
   const [modalOpen, setModalOpen] = useState(false)
   const [orderId, setOrderId] = useState('')
@@ -52,9 +78,13 @@ const PurchaseReceiptsPage = ({ base }: PurchaseReceiptsPageProps) => {
   const [formError, setFormError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
 
-  const orderedOrders = orders.filter((order) => order.status === 'ORDERED')
+  const orderedOrders = orders.filter(
+    (order) => order.orderKind !== 'SUPPLIER' && order.status === 'ORDERED',
+  )
   const receivableOrders = orders.filter(
-    (order) => order.status === 'ORDERED' || order.status === 'PARTIALLY_RECEIVED',
+    (order) =>
+      order.orderKind !== 'SUPPLIER' &&
+      (order.status === 'ORDERED' || order.status === 'PARTIALLY_RECEIVED'),
   )
 
   const term = search.trim().toLowerCase()
@@ -125,7 +155,9 @@ const PurchaseReceiptsPage = ({ base }: PurchaseReceiptsPageProps) => {
             : 0,
         unitCost: Number(line.item.unitCost),
         batchNumber: line.batchNumber || null,
-        expiryAt: line.expiryAt || null,
+        expiryAt: line.expiryAt
+          ? new Date(`${line.expiryAt}T00:00:00.000Z`).toISOString()
+          : null,
       }))
       .filter((item) => item.quantity > 0)
 
@@ -178,7 +210,15 @@ const PurchaseReceiptsPage = ({ base }: PurchaseReceiptsPageProps) => {
         return (
           <div className="min-w-0">
             <p className="font-medium text-slate-900">{row.receiptNumber}</p>
-            <p className="truncate text-xs text-slate-400">{order?.orderNumber ?? '—'}</p>
+            <p className="truncate text-xs text-slate-400">
+              {order
+                ? purchaseOrderLabel(
+                    order,
+                    productNames,
+                    warehouses.find((warehouse) => warehouse.id === order.warehouseId)?.name,
+                  )
+                : '—'}
+            </p>
           </div>
         )
       },
@@ -305,7 +345,11 @@ const PurchaseReceiptsPage = ({ base }: PurchaseReceiptsPageProps) => {
               <option value="">Select purchase order…</option>
               {receivableOrders.map((order) => (
                 <option key={order.id} value={order.id}>
-                  {order.orderNumber} — {order.supplier?.name ?? ''}
+                  {purchaseOrderLabel(
+                    order,
+                    productNames,
+                    warehouses.find((warehouse) => warehouse.id === order.warehouseId)?.name,
+                  )}
                 </option>
               ))}
             </select>
@@ -322,13 +366,13 @@ const PurchaseReceiptsPage = ({ base }: PurchaseReceiptsPageProps) => {
             <div className="space-y-1.5">
               <span className="text-xs font-medium text-slate-600">Receive quantities</span>
               <div className="overflow-x-auto">
-                <div className="min-w-[36rem] space-y-1.5">
-                  <div className="grid grid-cols-[minmax(0,1.5fr)_4.5rem_4.5rem_4.5rem_5.5rem_7.5rem] gap-1.5 px-0.5 text-[11px] font-medium text-slate-500">
+                <div className="min-w-[42rem] space-y-1.5">
+                  <div className="grid grid-cols-[minmax(0,1.5fr)_4.5rem_4.5rem_4.5rem_7.5rem_7.5rem] gap-1.5 px-0.5 text-[11px] font-medium text-slate-500">
                     <span>Product</span>
                     <span>Quantity</span>
                     <span>Accepted</span>
                     <span>Rejected</span>
-                    <span>Batch</span>
+                    <span>Manufactured</span>
                     <span>Expiry</span>
                   </div>
                   {lines.map((line, index) => {
@@ -336,11 +380,12 @@ const PurchaseReceiptsPage = ({ base }: PurchaseReceiptsPageProps) => {
                     return (
                       <div
                         key={line.item.id}
-                        className="grid grid-cols-[minmax(0,1.5fr)_4.5rem_4.5rem_4.5rem_5.5rem_7.5rem] items-center gap-1.5"
+                        className="grid grid-cols-[minmax(0,1.5fr)_4.5rem_4.5rem_4.5rem_7.5rem_7.5rem] items-center gap-1.5"
                       >
                         <div className="min-w-0">
                           <p className="truncate text-sm text-slate-800">
-                            {line.item.productName ?? line.item.productId}
+                            {line.item.productName?.trim() ||
+                              productLabel(productNames, line.item.productId)}
                           </p>
                           <p className="text-[11px] text-slate-400">
                             Ordered {line.item.quantity}
@@ -366,7 +411,8 @@ const PurchaseReceiptsPage = ({ base }: PurchaseReceiptsPageProps) => {
                           onChange={(event) => updateLine(index, { rejectedQty: event.target.value })}
                         />
                         <input
-                          aria-label="Batch"
+                          aria-label="Manufactured"
+                          type="date"
                           className={compactInputClass}
                           value={line.batchNumber}
                           onChange={(event) => updateLine(index, { batchNumber: event.target.value })}

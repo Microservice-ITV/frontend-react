@@ -14,6 +14,7 @@ import { productLabel, useProductNames } from '../hooks/useProductNames'
 import {
   TRANSFER_STATUSES,
   TRANSFER_STATUS_LABELS,
+  transferStatusLabel,
   type StockOperationKind,
   type TransferStatus,
   type WarehouseTransfer,
@@ -41,7 +42,7 @@ const OPERATION_COPY: Record<
     title: 'Transfer Stock',
     subtitle: 'Request a transfer between warehouses — waits for approval.',
     description:
-      'Transfers stay here with their status. Stock moves only after a pending transfer is approved.',
+      'Transfers stay here with their status. A warehouse transfer waits for the seller, then the warehouse manager completes it.',
     icon: ArrowLeftRight,
     variant: 'drawer',
     size: 'lg',
@@ -50,6 +51,7 @@ const OPERATION_COPY: Record<
 
 const transferTone = (status: TransferStatus): BadgeTone => {
   if (status === 'APPROVED') return 'success'
+  if (status === 'SELLER_APPROVED' || status === 'AWAITING_RECEIPT') return 'info'
   if (status === 'REJECTED') return 'danger'
   return 'warning'
 }
@@ -66,7 +68,9 @@ const StockOperationPage = ({ base, kind }: StockOperationPageProps) => {
   const [transfers, setTransfers] = useState<WarehouseTransfer[]>([])
   const [transfersLoading, setTransfersLoading] = useState(true)
   const [transfersError, setTransfersError] = useState<string | null>(null)
-  const { warehouses, loading, error, reload } = useWarehouses()
+  const { warehouses, loading, error, reload } = useWarehouses(
+    base === '/seller' ? { catalog: true, status: 'ACTIVE' } : undefined,
+  )
   const productNames = useProductNames()
 
   const loadTransfers = useCallback(async () => {
@@ -97,18 +101,49 @@ const StockOperationPage = ({ base, kind }: StockOperationPageProps) => {
     const term = search.trim().toLowerCase()
     return transfers.filter((transfer) => {
       if (
+        base !== '/seller' &&
         !loading &&
-        !warehouseIds.has(transfer.fromWarehouseId) &&
+        !warehouseIds.has(transfer.fromWarehouseId ?? '') &&
         !warehouseIds.has(transfer.toWarehouseId)
       ) {
         return false
       }
       if (status && transfer.status !== status) return false
       if (!term) return true
-      const haystack = `${transfer.referenceId ?? ''} ${productLabel(productNames, transfer.productId)} ${warehouseName(transfer.fromWarehouseId)} ${warehouseName(transfer.toWarehouseId)} ${transfer.status}`.toLowerCase()
+      const haystack = `${transfer.referenceId ?? ''} ${productLabel(productNames, transfer.productId)} ${transfer.fromSellerUserId ? 'seller inventory' : warehouseName(transfer.fromWarehouseId ?? '')} ${warehouseName(transfer.toWarehouseId)} ${transfer.status}`.toLowerCase()
       return haystack.includes(term)
     })
-  }, [transfers, warehouses, loading, search, status, productNames, warehouseName])
+  }, [transfers, warehouses, loading, search, status, productNames, warehouseName, base])
+
+  const completeTransfer = async (transfer: WarehouseTransfer) => {
+    const label = transfer.referenceId ?? transfer.id.slice(0, 8)
+    setNotice(null)
+    try {
+      const response = await warehouseApi.approveTransfer(transfer.id)
+      const nextStatus = response.data?.data?.transfer?.status
+      setNotice(
+        nextStatus === 'AWAITING_RECEIPT'
+          ? `Transfer ${label} sent. The destination warehouse manager can receive it.`
+          : `Transfer ${label} completed — stock moved.`,
+      )
+      await loadTransfers()
+    } catch (err) {
+      setNotice(null)
+      setTransfersError(warehouseErrorMessage(err))
+    }
+  }
+
+  const receiveTransfer = async (transfer: WarehouseTransfer) => {
+    const label = transfer.referenceId ?? transfer.id.slice(0, 8)
+    setNotice(null)
+    try {
+      await warehouseApi.receiveTransfer(transfer.id)
+      setNotice(`Transfer ${label} received — stock is in the destination warehouse.`)
+      await loadTransfers()
+    } catch (err) {
+      setTransfersError(warehouseErrorMessage(err))
+    }
+  }
 
   const columns: Array<DataTableColumn<WarehouseTransfer>> = [
     {
@@ -140,7 +175,7 @@ const StockOperationPage = ({ base, kind }: StockOperationPageProps) => {
       header: 'Route',
       render: (row) => (
         <span className="inline-flex items-center gap-1.5 text-sm text-slate-700">
-          {warehouseName(row.fromWarehouseId)}
+          {row.fromSellerUserId ? 'Seller inventory' : warehouseName(row.fromWarehouseId ?? '')}
           <ArrowRight size={13} className="shrink-0 text-slate-400" />
           {warehouseName(row.toWarehouseId)}
         </span>
@@ -157,11 +192,39 @@ const StockOperationPage = ({ base, kind }: StockOperationPageProps) => {
     {
       key: 'status',
       header: 'Status',
-      width: '120px',
+      width: '170px',
       sortValue: (row) => row.status,
       render: (row) => (
-        <StatusBadge label={TRANSFER_STATUS_LABELS[row.status]} tone={transferTone(row.status)} />
+        <StatusBadge label={transferStatusLabel(row)} tone={transferTone(row.status)} />
       ),
+    },
+    {
+      key: 'actions',
+      header: '',
+      align: 'right',
+      width: '200px',
+      render: (row) =>
+        base === '/warehouse-manager' &&
+        row.status === 'SELLER_APPROVED' &&
+        warehouses.some((warehouse) => warehouse.id === row.fromWarehouseId) ? (
+          <button
+            type="button"
+            className={`${primaryButtonClass} whitespace-nowrap`}
+            onClick={() => void completeTransfer(row)}
+          >
+            Complete transfer
+          </button>
+        ) : base === '/warehouse-manager' &&
+          row.status === 'AWAITING_RECEIPT' &&
+          warehouses.some((warehouse) => warehouse.id === row.toWarehouseId) ? (
+          <button
+            type="button"
+            className={primaryButtonClass}
+            onClick={() => void receiveTransfer(row)}
+          >
+            Received
+          </button>
+        ) : null,
     },
     {
       key: 'created',
@@ -199,8 +262,13 @@ const StockOperationPage = ({ base, kind }: StockOperationPageProps) => {
         return (
           <TransferStockForm
             warehouses={warehouses}
+            sellerMode={base === '/seller'}
             onSuccess={() =>
-              handleSuccess('Transfer request submitted — pending warehouse approval.')
+              handleSuccess(
+                base === '/seller'
+                  ? 'Transfer request submitted. The source warehouse manager can complete it.'
+                  : 'Transfer request submitted. It waits for the seller to approve.',
+              )
             }
           />
         )

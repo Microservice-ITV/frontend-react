@@ -36,7 +36,8 @@ const MOVEMENT_TYPE_OPTIONS: FilterOption[] = MOVEMENT_TYPES.map((type) => ({
   label: MOVEMENT_TYPE_LABELS[type],
 }))
 
-const MovementsPage = (_props: MovementsPageProps) => {
+const MovementsPage = ({ base }: MovementsPageProps) => {
+  const canDecide = base === '/warehouse-manager' || base === '/seller'
   const [search, setSearch] = useState('')
   const [warehouseId, setWarehouseId] = useState('')
   const [movementType, setMovementType] = useState('')
@@ -54,7 +55,9 @@ const MovementsPage = (_props: MovementsPageProps) => {
     null,
   )
 
-  const { warehouses } = useWarehouses()
+  const { warehouses } = useWarehouses(
+    base === '/seller' ? { catalog: true, status: 'ACTIVE' } : undefined,
+  )
   const productNames = useProductNames()
 
   const load = useCallback(async () => {
@@ -83,31 +86,63 @@ const MovementsPage = (_props: MovementsPageProps) => {
     setTransfersLoading(true)
     setTransfersError(null)
     try {
-      const response = await warehouseApi.listTransfers({ status: 'PENDING', limit: 100 })
-      setTransfers(response.data?.data ?? [])
+      if (base === '/seller') {
+        const response = await warehouseApi.listTransfers({ status: 'PENDING', limit: 100 })
+        setTransfers(response.data?.data ?? [])
+      } else {
+        const response = await warehouseApi.listTransfers({ limit: 200 })
+        const owned = new Set(warehouses.map((warehouse) => warehouse.id))
+        setTransfers(
+          (response.data?.data ?? []).filter(
+            (row) =>
+              (row.status === 'AWAITING_RECEIPT' && owned.has(row.toWarehouseId)) ||
+              (row.status === 'PENDING' && Boolean(row.fromSellerUserId) && owned.has(row.toWarehouseId)),
+          ),
+        )
+      }
     } catch (err) {
       setTransfers([])
       setTransfersError(warehouseErrorMessage(err))
     } finally {
       setTransfersLoading(false)
     }
-  }, [])
+  }, [base, warehouses])
 
   useEffect(() => {
+    if (!canDecide) {
+      setTransfers([])
+      setTransfersLoading(false)
+      return
+    }
     void loadTransfers()
-  }, [loadTransfers])
+  }, [canDecide, loadTransfers])
 
   const decideTransfer = async (
     transfer: WarehouseTransfer,
-    action: 'approve' | 'reject',
+    action: 'approve' | 'reject' | 'receive',
   ) => {
     const label = transfer.referenceId ?? transfer.id.slice(0, 8)
     setDecidingId(transfer.id)
     setFeedback(null)
     try {
-      if (action === 'approve') {
-        await warehouseApi.approveTransfer(transfer.id)
-        setFeedback({ tone: 'success', message: `Transfer ${label} approved — stock moved.` })
+      if (action === 'receive') {
+        await warehouseApi.receiveTransfer(transfer.id)
+        setFeedback({
+          tone: 'success',
+          message: `Transfer ${label} received — stock is in the warehouse.`,
+        })
+      } else if (action === 'approve') {
+        const response = await warehouseApi.approveTransfer(transfer.id)
+        const nextStatus = response.data?.data?.transfer?.status
+        setFeedback({
+          tone: 'success',
+          message:
+            nextStatus === 'SELLER_APPROVED'
+              ? `Transfer ${label} approved. The warehouse manager can complete it.`
+              : nextStatus === 'AWAITING_RECEIPT'
+                ? `Transfer ${label} approved. Click Received when the products arrive.`
+                : `Transfer ${label} approved — stock moved.`,
+        })
       } else {
         await warehouseApi.rejectTransfer(transfer.id, 'Rejected from inventory movements')
         setFeedback({ tone: 'success', message: `Transfer ${label} rejected.` })
@@ -134,7 +169,7 @@ const MovementsPage = (_props: MovementsPageProps) => {
       header: 'Route',
       render: (row) => (
         <span className="inline-flex items-center gap-1.5 text-sm text-slate-700">
-          {warehouseName(row.fromWarehouseId)}
+          {row.fromSellerUserId ? 'Seller inventory' : warehouseName(row.fromWarehouseId ?? '')}
           <ArrowRight size={13} className="text-slate-400" />
           {warehouseName(row.toWarehouseId)}
         </span>
@@ -176,24 +211,38 @@ const MovementsPage = (_props: MovementsPageProps) => {
       width: '190px',
       render: (row) => (
         <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={() => void decideTransfer(row, 'approve')}
-            disabled={decidingId === row.id}
-            className="inline-flex cursor-pointer items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-          >
-            <Check size={13} />
-            Approve
-          </button>
-          <button
-            type="button"
-            onClick={() => void decideTransfer(row, 'reject')}
-            disabled={decidingId === row.id}
-            className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50"
-          >
-            <X size={13} />
-            Reject
-          </button>
+          {row.status === 'AWAITING_RECEIPT' ? (
+            <button
+              type="button"
+              onClick={() => void decideTransfer(row, 'receive')}
+              disabled={decidingId === row.id}
+              className="inline-flex cursor-pointer items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+            >
+              <Check size={13} />
+              Received
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => void decideTransfer(row, 'approve')}
+                disabled={decidingId === row.id}
+                className="inline-flex cursor-pointer items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+              >
+                <Check size={13} />
+                Approve
+              </button>
+              <button
+                type="button"
+                onClick={() => void decideTransfer(row, 'reject')}
+                disabled={decidingId === row.id}
+                className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50"
+              >
+                <X size={13} />
+                Reject
+              </button>
+            </>
+          )}
         </div>
       ),
     },
@@ -433,10 +482,14 @@ const MovementsPage = (_props: MovementsPageProps) => {
         </div>
       )}
 
-      {(transfers.length > 0 || transfersError) && (
+      {canDecide && (transfers.length > 0 || transfersError) && (
         <section className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold text-slate-800">Pending transfer approvals</h2>
+            <h2 className="text-sm font-semibold text-slate-800">
+              {base === '/seller'
+                ? 'Warehouse transfer requests'
+                : 'Pending transfer approvals'}
+            </h2>
             <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700">
               {transfers.length} pending
             </span>

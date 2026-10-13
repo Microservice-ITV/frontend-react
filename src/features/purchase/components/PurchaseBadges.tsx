@@ -19,6 +19,9 @@ export const PURCHASE_ORDER_STATUS_TONES: Record<PurchaseOrderStatus, BadgeTone>
   RECEIVED: 'success',
   CLOSED: 'neutral',
   CANCELLED: 'danger',
+  LOW_STOCK: 'danger',
+  RESTOCK_REQUESTED: 'warning',
+  RESTOCK_APPROVED: 'info',
 }
 
 export const PURCHASE_DOCUMENT_STATUS_TONES: Record<

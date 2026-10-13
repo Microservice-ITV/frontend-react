@@ -197,6 +197,7 @@ invoiceClient.interceptors.request.use(async (config) => {
     SUPER_ADMIN: 'admin',
     SHOP_OWNER: 'shopAdmin',
     SHOP_ADMIN: 'shopAdmin',
+    WAREHOUSE_MANAGER: 'customer',
     USER: 'customer',
   }[extractRoleFromUser(user)]
 

@@ -20,6 +20,7 @@ const NavbarTopUtilityBar = () => {
     const startSellingTo = useMemo(() => {
         if (!user) return START_SELLING_PATH
         const role = extractRoleFromUser(user)
+        if (role === 'WAREHOUSE_MANAGER') return '/warehouse-manager/warehouse'
         if (role === 'SHOP_OWNER' || role === 'SHOP_ADMIN') return SELLER_DASHBOARD_OVERVIEW_PATH
         return START_SELLING_PATH
     }, [user])

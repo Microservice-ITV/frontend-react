@@ -37,7 +37,9 @@ describe('resolvePageTitle', () => {
     expect(resolvePageTitle('/super-admin/warehouse/warehouses/abc')).toBe('Warehouse')
     expect(resolvePageTitle('/super-admin/warehouse/warehouses/abc/edit')).toBe('Edit Warehouse')
     expect(resolvePageTitle('/super-admin/warehouse/suppliers/abc/edit')).toBe('Edit Supplier')
-    expect(resolvePageTitle('/super-admin/warehouse/receipts')).toBe('Goods Receipts')
+    expect(resolvePageTitle('/warehouse-manager/warehouse/receipts')).toBe('Goods Receipts')
+    expect(resolvePageTitle('/warehouse-manager/warehouse/movements')).toBe('Inventory Movements')
+    expect(resolvePageTitle('/super-admin/warehouse/assign-manager')).toBe('Assign Warehouse Manager')
   })
 
   it('includes the search query', () => {

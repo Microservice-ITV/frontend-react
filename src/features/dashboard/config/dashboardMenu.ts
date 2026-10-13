@@ -55,11 +55,17 @@ const withSearch = (item: DashboardMenuSection['items'][0]) => {
   return search ? { ...item, search: { enabled: true, ...search } } : item
 }
 
-/** Admin dashboard only. Seller menu omits these instead of showing a permission denial. */
+/** Seller menu omits these. Admin menu omits purchasing; the warehouse manager keeps it. */
 const ADMIN_ONLY_WAREHOUSE_KEYS = new Set(["warehouse-receipts", "warehouse-suppliers"])
+const ADMIN_HIDDEN_WAREHOUSE_KEYS = new Set([
+  "warehouse-purchase-orders",
+  "warehouse-receipts",
+  "warehouse-returns",
+  "warehouse-transfer",
+])
 
 const warehouseSection = (
-  base: "/seller" | "/super-admin",
+  base: "/seller" | "/super-admin" | "/warehouse-manager",
   area: DashboardArea,
   capability: Capability,
 ): DashboardMenuSection => {
@@ -91,6 +97,18 @@ const warehouseSection = (
       icon: ClipboardList,
     },
     {
+      key: "warehouse-order",
+      label: "Order from Warehouse",
+      path: "/warehouse/orders/new",
+      icon: ShoppingCart,
+    },
+    {
+      key: "warehouse-supplier-receive",
+      label: "Receive from Supplier",
+      path: "/warehouse/supplier-receipts",
+      icon: Package,
+    },
+    {
       key: "warehouse-receipts",
       label: "Goods Receipts",
       path: "/warehouse/receipts",
@@ -110,10 +128,14 @@ const warehouseSection = (
     },
   ]
 
-  const visibleItems =
-    area === "seller"
-      ? items.filter((entry) => !ADMIN_ONLY_WAREHOUSE_KEYS.has(entry.key))
-      : items
+  const visibleItems = items.filter((entry) => {
+    if (entry.key === "warehouse-order" && area !== "seller") return false
+    if (entry.key === "warehouse-supplier-receive" && area !== "warehouse_manager") return false
+    if (entry.key === "warehouse-suppliers" && area === "warehouse_manager") return false
+    if (area === "seller") return !ADMIN_ONLY_WAREHOUSE_KEYS.has(entry.key)
+    if (area === "super_admin") return !ADMIN_HIDDEN_WAREHOUSE_KEYS.has(entry.key)
+    return true
+  })
 
   return {
     title: "WAREHOUSE",
@@ -466,11 +488,27 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
       },
     ],
   },
-  warehouseSection(
-    "/super-admin",
-    "super_admin",
-    CAPABILITIES.PLATFORM_ADMIN_VIEW,
-  ),
+  (() => {
+    const warehouse = warehouseSection(
+      "/super-admin",
+      "super_admin",
+      CAPABILITIES.PLATFORM_ADMIN_VIEW,
+    )
+    return {
+      ...warehouse,
+      items: [
+        ...warehouse.items,
+        {
+          key: "admin-assign-warehouse-manager",
+          label: "Assign Warehouse Manager",
+          to: "/super-admin/warehouse/assign-manager",
+          area: "super_admin" as const,
+          requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+          icon: Shield,
+        },
+      ],
+    }
+  })(),
   {
     title: "PLATFORM",
     items: [
@@ -830,4 +868,12 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
       },
     ],
   },
+]
+
+export const DASHBOARD_MENU_WAREHOUSE_MANAGER: DashboardMenuSection[] = [
+  warehouseSection(
+    "/warehouse-manager",
+    "warehouse_manager",
+    CAPABILITIES.WAREHOUSE_DASHBOARD_VIEW,
+  ),
 ]

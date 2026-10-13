@@ -21,6 +21,7 @@ export const purchaseApi = {
   createPurchaseOrder: warehouseApi.createPurchaseOrder,
   downloadPurchaseOrderAttachment: warehouseApi.downloadPurchaseOrderAttachment,
   updatePurchaseOrderStatus: warehouseApi.updatePurchaseOrderStatus,
+  receiveSupplierOrder: warehouseApi.receiveSupplierOrder,
 
   listDeliveryStages: warehouseApi.listDeliveryStages,
   createDeliveryStage: warehouseApi.createDeliveryStage,

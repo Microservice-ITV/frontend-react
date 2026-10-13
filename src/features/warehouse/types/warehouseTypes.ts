@@ -92,8 +92,9 @@ export interface StockMutationPayload {
 }
 
 export interface TransferPayload {
-  fromWarehouseId: string
+  fromWarehouseId?: string
   toWarehouseId: string
+  fromSeller?: boolean
   productId: string
   variantId?: string
   quantity: number
@@ -102,19 +103,43 @@ export interface TransferPayload {
   createdBy?: string
 }
 
-export const TRANSFER_STATUSES = ['PENDING', 'APPROVED', 'REJECTED'] as const
+export interface SellerStock {
+  id: string
+  userId: string
+  productId: string
+  variantId: string
+  onHandQty: number
+  availableQty: number
+  updatedAt: string
+}
+
+export const TRANSFER_STATUSES = ['PENDING', 'SELLER_APPROVED', 'AWAITING_RECEIPT', 'APPROVED', 'REJECTED'] as const
 export type TransferStatus = (typeof TRANSFER_STATUSES)[number]
 
 export const TRANSFER_STATUS_LABELS: Record<TransferStatus, string> = {
   PENDING: 'Pending',
-  APPROVED: 'Approved',
+  SELLER_APPROVED: 'Seller approved',
+  AWAITING_RECEIPT: 'Awaiting receipt',
+  APPROVED: 'Received',
   REJECTED: 'Rejected',
+}
+
+export const transferStatusLabel = (row: {
+  status: TransferStatus
+  approvalSellerUserId?: string | null
+  fromSellerUserId?: string | null
+}) => {
+  if (row.status === 'PENDING' && row.approvalSellerUserId && !row.fromSellerUserId) {
+    return 'Waiting for seller'
+  }
+  return TRANSFER_STATUS_LABELS[row.status]
 }
 
 /** A stock transfer awaiting approval. Stock only moves once APPROVED. */
 export interface WarehouseTransfer {
   id: string
-  fromWarehouseId: string
+  fromWarehouseId: string | null
+  fromSellerUserId?: string | null
   toWarehouseId: string
   productId: string
   variantId: string
@@ -123,6 +148,7 @@ export interface WarehouseTransfer {
   referenceId: string | null
   referenceType: string | null
   requestedBy: string | null
+  approvalSellerUserId?: string | null
   decidedBy: string | null
   decidedAt: string | null
   note: string | null
@@ -135,6 +161,7 @@ export interface WarehousePayload {
   code?: string | null
   address?: string | null
   status?: WarehouseStatus
+  managerUserId?: string
 }
 
 /** Mirrors the service rule: <= 0 out, <= 5 low, otherwise in stock. */

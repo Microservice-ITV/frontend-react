@@ -27,7 +27,9 @@ const WarehousesPage = ({ base }: WarehousesPageProps) => {
   const { openModal } = useGlobalModal()
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<WarehouseStatus | ''>('')
-  const { warehouses, loading, error, reload } = useWarehouses()
+  const { warehouses, loading, error, reload } = useWarehouses(
+    base === '/seller' ? { catalog: true } : undefined,
+  )
 
   const rows = useMemo(() => {
     const term = search.trim().toLowerCase()
@@ -111,20 +113,24 @@ const WarehousesPage = ({ base }: WarehousesPageProps) => {
               icon: <Boxes size={16} className="shrink-0 text-slate-500" />,
               onClick: () => navigate(`${paths.inventory}?warehouseId=${row.id}`),
             },
-            {
-              key: 'edit',
-              label: 'Edit',
-              icon: <Pencil size={16} className="shrink-0 text-slate-500" />,
-              onClick: () => navigate(paths.warehouseEdit(row.id)),
-            },
-            {
-              key: 'delete',
-              label: 'Delete',
-              icon: <Trash2 size={16} className="shrink-0 text-slate-500" />,
-              className:
-                'flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-red-600 hover:bg-slate-50 cursor-pointer',
-              onClick: () => confirmDelete(row),
-            },
+            ...(base === '/seller'
+              ? []
+              : [
+                  {
+                    key: 'edit',
+                    label: 'Edit',
+                    icon: <Pencil size={16} className="shrink-0 text-slate-500" />,
+                    onClick: () => navigate(paths.warehouseEdit(row.id)),
+                  },
+                  {
+                    key: 'delete',
+                    label: 'Delete',
+                    icon: <Trash2 size={16} className="shrink-0 text-slate-500" />,
+                    className:
+                      'flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-red-600 hover:bg-slate-50 cursor-pointer',
+                    onClick: () => confirmDelete(row),
+                  },
+                ]),
           ]}
         />
       ),
@@ -148,14 +154,16 @@ const WarehousesPage = ({ base }: WarehousesPageProps) => {
             Manage the locations your stock lives in.
           </p>
         </div>
-        <button
-          type="button"
-          className={primaryButtonClass}
-          onClick={() => navigate(paths.warehouseNew)}
-        >
-          <Plus size={16} />
-          Add warehouse
-        </button>
+        {base === '/seller' && (
+          <button
+            type="button"
+            className={primaryButtonClass}
+            onClick={() => navigate(paths.warehouseNew)}
+          >
+            <Plus size={16} />
+            Add warehouse
+          </button>
+        )}
       </div>
 
       <FilterBar

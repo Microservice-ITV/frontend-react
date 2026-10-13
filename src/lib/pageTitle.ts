@@ -18,6 +18,8 @@ const WAREHOUSE_PAGE_TITLES: PageTitleRule[] = [
   { path: '/warehouse/movements', title: 'Inventory Movements' },
   { path: '/warehouse/purchase-orders', title: 'Purchase Orders' },
   { path: '/warehouse/purchase-orders/new', title: 'Create Purchase Order' },
+  { path: '/warehouse/orders/new', title: 'Order from Warehouse' },
+  { path: '/warehouse/supplier-receipts', title: 'Receive from Supplier' },
   { path: '/warehouse/receipts', title: 'Goods Receipts' },
   { path: '/warehouse/returns', title: 'Purchase Returns' },
   { path: '/warehouse/suppliers', title: 'Suppliers' },
@@ -26,7 +28,7 @@ const WAREHOUSE_PAGE_TITLES: PageTitleRule[] = [
   { path: '/warehouse/suppliers/:id', title: 'Supplier' },
 ]
 
-function warehousePageTitles(base: '/seller' | '/super-admin'): PageTitleRule[] {
+function warehousePageTitles(base: '/seller' | '/super-admin' | '/warehouse-manager'): PageTitleRule[] {
   return WAREHOUSE_PAGE_TITLES.map((rule) => ({
     path: `${base}${rule.path}`,
     title: rule.title,
@@ -241,6 +243,8 @@ const PAGE_TITLE_RULES: PageTitleRule[] = [
   { path: '/super-admin/settings', title: 'Settings' },
   { path: '/super-admin/help-support', title: 'Help & Support' },
   ...warehousePageTitles('/super-admin'),
+  { path: '/super-admin/warehouse/assign-manager', title: 'Assign Warehouse Manager' },
+  ...warehousePageTitles('/warehouse-manager'),
 ]
 
 function ruleScore(path: string): number {

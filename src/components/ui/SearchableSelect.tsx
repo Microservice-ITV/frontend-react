@@ -223,7 +223,7 @@ export const SearchableSelect = ({
         createPortal(
         <div
           ref={menuRef}
-          className="z-[80] overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
+          className="z-[200] overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
           style={{
             position: 'fixed',
             top: menuBox.top,

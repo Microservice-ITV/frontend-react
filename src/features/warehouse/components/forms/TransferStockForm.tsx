@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import SearchableSelect from '@/components/ui/SearchableSelect'
 import ProductSearchSelect from '../ProductSearchSelect'
 import { warehouseApi, warehouseErrorMessage } from '../../api/warehouseApi'
 import type { Warehouse } from '../../types/warehouseTypes'
@@ -14,6 +15,7 @@ export type TransferStockFormProps = {
   warehouses: Warehouse[]
   defaultWarehouseId?: string
   defaultProductId?: string
+  sellerMode?: boolean
   onSuccess: () => void
 }
 
@@ -27,6 +29,7 @@ const TransferStockForm = ({
   warehouses,
   defaultWarehouseId,
   defaultProductId,
+  sellerMode = false,
   onSuccess,
 }: TransferStockFormProps) => {
   const selectableWarehouses = useMemo(
@@ -42,18 +45,45 @@ const TransferStockForm = ({
   const [productId, setProductId] = useState('')
   const [quantity, setQuantity] = useState('')
   const [referenceId, setReferenceId] = useState('')
+  const [destinations, setDestinations] = useState<Warehouse[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
-    const first = defaultWarehouseId ?? selectableWarehouses[0]?.id ?? ''
+    let cancelled = false
+    void warehouseApi
+      .listWarehouses({ catalog: true, status: 'ACTIVE' })
+      .then((response) => {
+        if (!cancelled) setDestinations(response.data?.data ?? [])
+      })
+      .catch(() => {
+        if (!cancelled) setDestinations([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    const first = sellerMode ? '' : defaultWarehouseId || selectableWarehouses[0]?.id || ''
     setFromWarehouseId(first)
-    setToWarehouseId(selectableWarehouses.find((item) => item.id !== first)?.id ?? '')
+    setToWarehouseId('')
     setProductId(defaultProductId ?? '')
     setReferenceId(buildReferenceId())
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [defaultWarehouseId, defaultProductId])
+  }, [defaultWarehouseId, defaultProductId, selectableWarehouses, sellerMode])
+
+  const sourceWarehouses = useMemo(() => {
+    const pool = sellerMode && destinations.length > 0 ? destinations : selectableWarehouses
+    return pool.filter((warehouse) => warehouse.status !== 'INACTIVE')
+  }, [destinations, selectableWarehouses, sellerMode])
+
+  const destinationWarehouses = useMemo(() => {
+    const pool = destinations.length > 0 ? destinations : selectableWarehouses
+    return pool.filter(
+      (warehouse) => warehouse.status !== 'INACTIVE' && warehouse.id !== fromWarehouseId,
+    )
+  }, [destinations, selectableWarehouses, fromWarehouseId])
 
   const submit = async () => {
     const errors: Record<string, string> = {}
@@ -102,45 +132,41 @@ const TransferStockForm = ({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField label="From warehouse" required error={fieldErrors.fromWarehouseId}>
-          <select
+          <SearchableSelect
+            mode="scroll-only"
             value={fromWarehouseId}
-            onChange={(event) => setFromWarehouseId(event.target.value)}
-            className={`${textInputClass} cursor-pointer ${
-              fieldErrors.fromWarehouseId ? invalidTextInputClass : ''
-            }`}
-          >
-            <option value="">Select source…</option>
-            {selectableWarehouses.map((warehouse) => (
-              <option key={warehouse.id} value={warehouse.id}>
-                {warehouse.name}
-              </option>
-            ))}
-          </select>
+            onChange={(next) => {
+              setFromWarehouseId(next)
+              if (next === toWarehouseId) setToWarehouseId('')
+            }}
+            emptyLabel="Select source…"
+            aria-invalid={Boolean(fieldErrors.fromWarehouseId)}
+            options={sourceWarehouses.map((warehouse) => ({
+              value: warehouse.id,
+              label: warehouse.name,
+            }))}
+          />
         </FormField>
 
         <FormField label="To warehouse" required error={fieldErrors.toWarehouseId}>
-          <select
+          <SearchableSelect
+            mode="scroll-only"
             value={toWarehouseId}
-            onChange={(event) => setToWarehouseId(event.target.value)}
-            className={`${textInputClass} cursor-pointer ${
-              fieldErrors.toWarehouseId ? invalidTextInputClass : ''
-            }`}
-          >
-            <option value="">Select destination…</option>
-            {selectableWarehouses
-              .filter((warehouse) => warehouse.id !== fromWarehouseId)
-              .map((warehouse) => (
-                <option key={warehouse.id} value={warehouse.id}>
-                  {warehouse.name}
-                </option>
-              ))}
-          </select>
+            onChange={setToWarehouseId}
+            emptyLabel="Select destination…"
+            aria-invalid={Boolean(fieldErrors.toWarehouseId)}
+            options={destinationWarehouses.map((warehouse) => ({
+              value: warehouse.id,
+              label: warehouse.name,
+            }))}
+          />
         </FormField>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField label="Product" required error={fieldErrors.productId}>
           <ProductSearchSelect
+            ownedOnly={sellerMode}
             value={productId}
             onChange={setProductId}
             aria-invalid={Boolean(fieldErrors.productId)}
@@ -175,8 +201,10 @@ const TransferStockForm = ({
       </FormField>
 
       <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-        Transfers start as <span className="font-semibold">pending</span> and only move
-        stock after a warehouse approves them.
+        Transfers start as <span className="font-semibold">pending</span>.{' '}
+        {sellerMode
+          ? 'The source warehouse manager completes the transfer, then the destination warehouse manager clicks Received.'
+          : 'The seller approves the request, then you complete the transfer.'}
       </div>
 
       <div className="flex justify-end gap-3 border-t border-[var(--dni-border)] pt-4">

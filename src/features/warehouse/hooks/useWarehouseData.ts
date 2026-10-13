@@ -7,13 +7,20 @@ import {
   type Warehouse,
 } from '../types/warehouseTypes'
 
-export const useWarehouses = (params?: { status?: string; shopId?: string }) => {
+export const useWarehouses = (params?: {
+  status?: string
+  shopId?: string
+  catalog?: boolean
+  includePurchased?: boolean
+}) => {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const status = params?.status ?? ''
   const shopId = params?.shopId ?? ''
+  const catalog = params?.catalog ?? false
+  const includePurchased = params?.includePurchased ?? false
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -22,6 +29,8 @@ export const useWarehouses = (params?: { status?: string; shopId?: string }) => 
       const response = await warehouseApi.listWarehouses({
         status: status as '' | 'ACTIVE' | 'INACTIVE',
         shopId,
+        catalog,
+        includePurchased,
       })
       setWarehouses(response.data?.data ?? [])
     } catch (err) {
@@ -30,7 +39,7 @@ export const useWarehouses = (params?: { status?: string; shopId?: string }) => 
     } finally {
       setLoading(false)
     }
-  }, [status, shopId])
+  }, [status, shopId, catalog, includePurchased])
 
   useEffect(() => {
     void load()
