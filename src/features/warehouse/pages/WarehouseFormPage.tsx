@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { warehouseApi, warehouseErrorMessage } from '../api/warehouseApi'
+import { adminUsersApi } from '@/features/admin/api/adminUsersApi'
 import { warehousePaths, type WarehouseAreaBase } from '../config/warehousePaths'
 import { WAREHOUSE_STATUSES, type WarehouseStatus } from '../types/warehouseTypes'
 
@@ -27,6 +28,28 @@ const WarehouseFormPage = ({ base, mode }: WarehouseFormPageProps) => {
   const [code, setCode] = useState('')
   const [address, setAddress] = useState('')
   const [status, setStatus] = useState<WarehouseStatus>('ACTIVE')
+  const [managerUserId, setManagerUserId] = useState('')
+  const [managers, setManagers] = useState<Array<{ id: string; name: string; email: string }>>([])
+  const [managersError, setManagersError] = useState('')
+  const assignManager = base === '/seller' && mode === 'create'
+
+  useEffect(() => {
+    if (!assignManager) return
+    let cancelled = false
+    const loadManagers = async () => {
+      setManagersError('')
+      try {
+        const response = await adminUsersApi.listWarehouseManagers()
+        if (!cancelled) setManagers(response.data?.data?.users ?? [])
+      } catch (error) {
+        if (!cancelled) setManagersError(adminUsersApi.getApiErrorMessage(error))
+      }
+    }
+    void loadManagers()
+    return () => {
+      cancelled = true
+    }
+  }, [assignManager])
 
   useEffect(() => {
     if (mode !== 'edit' || !id) return
@@ -65,6 +88,10 @@ const WarehouseFormPage = ({ base, mode }: WarehouseFormPageProps) => {
       setSubmitError('Name must be at least 2 characters.')
       return
     }
+    if (assignManager && !managerUserId) {
+      setSubmitError('Select a warehouse manager.')
+      return
+    }
     setSubmitError('')
     setIsSubmitting(true)
     try {
@@ -73,6 +100,7 @@ const WarehouseFormPage = ({ base, mode }: WarehouseFormPageProps) => {
         code: code.trim().toUpperCase() || null,
         address: address.trim() || null,
         status,
+        ...(assignManager ? { managerUserId } : {}),
       }
       if (mode === 'edit' && id) {
         await warehouseApi.updateWarehouse(id, payload)
@@ -89,6 +117,22 @@ const WarehouseFormPage = ({ base, mode }: WarehouseFormPageProps) => {
   }
 
   const title = mode === 'create' ? 'New warehouse' : 'Edit warehouse'
+
+  if ((base === '/warehouse-manager' || base === '/super-admin') && mode === 'create') {
+    return (
+      <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-6">
+        <h1 className="text-xl font-bold text-slate-900">New warehouse</h1>
+        <p className="text-sm text-slate-600">
+          {base === '/super-admin'
+            ? 'An admin assigns warehouse managers. A seller creates the warehouse and selects one.'
+            : 'A warehouse manager cannot create a warehouse.'}
+        </p>
+        <Link to={paths.warehouses} className="text-sm font-medium text-emerald-700 hover:text-emerald-800">
+          Back to warehouses
+        </Link>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -128,7 +172,9 @@ const WarehouseFormPage = ({ base, mode }: WarehouseFormPageProps) => {
             <div>
               <h1 className="text-xl font-bold text-slate-900">{title}</h1>
               <p className="mt-0.5 text-sm text-slate-600">
-                Name, code, address, and whether this warehouse can hold stock.
+                {assignManager
+                  ? 'Name the warehouse and choose a manager an admin has already assigned.'
+                  : 'Name, code, address, and whether this warehouse can hold stock.'}
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -212,6 +258,35 @@ const WarehouseFormPage = ({ base, mode }: WarehouseFormPageProps) => {
                   ))}
                 </select>
               </div>
+              {assignManager && (
+                <div>
+                  <label htmlFor="warehouse-manager" className={labelClass}>
+                    Warehouse manager
+                  </label>
+                  <select
+                    id="warehouse-manager"
+                    value={managerUserId}
+                    onChange={(event) => setManagerUserId(event.target.value)}
+                    className={inputClass}
+                    required
+                  >
+                    <option value="">Select a warehouse manager</option>
+                    {managers.map((manager) => (
+                      <option key={manager.id} value={manager.id}>
+                        {manager.name} ({manager.email})
+                      </option>
+                    ))}
+                  </select>
+                  {managersError && (
+                    <p className="mt-1 text-xs text-red-700">{managersError}</p>
+                  )}
+                  {!managersError && managers.length === 0 && (
+                    <p className="mt-1 text-xs text-slate-500">
+                      An admin has not assigned a warehouse manager yet.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </section>
         </form>

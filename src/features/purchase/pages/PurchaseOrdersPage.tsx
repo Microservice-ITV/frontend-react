@@ -35,7 +35,22 @@ const submitButtonClass = `${actionButtonClass} bg-indigo-600 text-white hover:b
 const approveButtonClass = `${actionButtonClass} bg-emerald-600 text-white hover:bg-emerald-700`
 const orderedButtonClass = `${actionButtonClass} bg-sky-600 text-white hover:bg-sky-700`
 const closeButtonClass = `${actionButtonClass} bg-amber-500 text-white hover:bg-amber-600`
+const restockButtonClass = `${actionButtonClass} bg-amber-600 text-white hover:bg-amber-700`
 const cancelButtonClass = `${actionButtonClass} bg-red-600 text-white hover:bg-red-700`
+
+const supplierOrderHref = (newOrderPath: string, row: PurchaseOrder) => {
+  const lines = (row.items ?? [])
+    .filter((item) => item.productId)
+    .map((item) => `${item.productId}:${item.quantity}`)
+    .join(',')
+  const params = new URLSearchParams({
+    kind: 'supplier',
+    warehouse_id: row.warehouseId,
+    ...(row.supplierId ? { supplier_id: row.supplierId } : {}),
+    ...(lines ? { lines } : {}),
+  })
+  return `${newOrderPath}?${params.toString()}`
+}
 
 const numberParam = (value: string | null): number => {
   const parsed = Number(value ?? '')
@@ -171,7 +186,7 @@ const PurchaseOrdersPage = ({ base, platform = false }: PurchaseOrdersPageProps)
       key: 'actions',
       header: '',
       align: 'right',
-      width: platform ? '320px' : '110px',
+      width: platform ? '320px' : '280px',
       render: (row) => (
         <div className="flex flex-nowrap items-center justify-end gap-1.5">
           <button
@@ -191,7 +206,9 @@ const PurchaseOrdersPage = ({ base, platform = false }: PurchaseOrdersPageProps)
               Submit for approval
             </button>
           )}
-          {platform && (row.status === 'PENDING_APPROVAL' || row.status === 'PENDING') && (
+          {platform &&
+            row.orderKind === 'WAREHOUSE' &&
+            (row.status === 'PENDING_APPROVAL' || row.status === 'PENDING') && (
             <button
               type="button"
               className={approveButtonClass}
@@ -199,6 +216,32 @@ const PurchaseOrdersPage = ({ base, platform = false }: PurchaseOrdersPageProps)
             >
               Approve
             </button>
+          )}
+          {platform && row.status === 'LOW_STOCK' && (
+            <button
+              type="button"
+              className={restockButtonClass}
+              onClick={() => void changeStatus(row.id, 'RESTOCK_REQUESTED')}
+            >
+              Request restock
+            </button>
+          )}
+          {!platform && row.status === 'RESTOCK_REQUESTED' && (
+            <button
+              type="button"
+              className={approveButtonClass}
+              onClick={() => void changeStatus(row.id, 'RESTOCK_APPROVED')}
+            >
+              Approve request
+            </button>
+          )}
+          {!platform && row.status === 'RESTOCK_APPROVED' && (
+            <Link
+              to={supplierOrderHref(paths.newOrder, row)}
+              className={restockButtonClass}
+            >
+              Order from supplier
+            </Link>
           )}
           {platform && row.status === 'APPROVED' && (
             <button
@@ -250,7 +293,7 @@ const PurchaseOrdersPage = ({ base, platform = false }: PurchaseOrdersPageProps)
         <div>
           <h1 className="text-xl font-bold text-slate-900">Purchase Orders</h1>
           <p className="text-sm text-slate-500">
-            Order stock from your suppliers across every warehouse.
+            A supplier order waits until the warehouse manager clicks Received. That stock can then fill the earlier warehouse request.
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -264,10 +307,15 @@ const PurchaseOrdersPage = ({ base, platform = false }: PurchaseOrdersPageProps)
             Refresh
           </button>
           {!platform && (
-            <Link to={newOrderHref} className={primaryButtonClass}>
-              <Plus size={16} />
-              New purchase order
-            </Link>
+            <>
+              <Link to={paths.warehouseOrder} className={secondaryButtonClass}>
+                Order from warehouse
+              </Link>
+              <Link to={newOrderHref} className={primaryButtonClass}>
+                <Plus size={16} />
+                New purchase order
+              </Link>
+            </>
           )}
         </div>
       </div>
@@ -311,6 +359,9 @@ const PurchaseOrdersPage = ({ base, platform = false }: PurchaseOrdersPageProps)
               { value: 'RECEIVED', label: 'Received' },
               { value: 'CLOSED', label: 'Closed' },
               { value: 'CANCELLED', label: 'Cancelled' },
+              { value: 'LOW_STOCK', label: 'Low stock' },
+              { value: 'RESTOCK_REQUESTED', label: 'Restock requested' },
+              { value: 'RESTOCK_APPROVED', label: 'Restock approved' },
             ],
           },
         ]}

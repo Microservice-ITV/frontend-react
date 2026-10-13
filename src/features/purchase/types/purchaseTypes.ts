@@ -40,6 +40,9 @@ export const PURCHASE_ORDER_STATUSES = [
   'RECEIVED',
   'CLOSED',
   'CANCELLED',
+  'LOW_STOCK',
+  'RESTOCK_REQUESTED',
+  'RESTOCK_APPROVED',
 ] as const
 export type PurchaseOrderStatus = (typeof PURCHASE_ORDER_STATUSES)[number]
 
@@ -53,6 +56,9 @@ export const PURCHASE_ORDER_STATUS_LABELS: Record<PurchaseOrderStatus, string> =
   RECEIVED: 'Received',
   CLOSED: 'Closed',
   CANCELLED: 'Cancelled',
+  LOW_STOCK: 'Low stock',
+  RESTOCK_REQUESTED: 'Restock requested',
+  RESTOCK_APPROVED: 'Restock approved',
 }
 
 export const COST_ALLOCATION_METHODS = [
@@ -237,6 +243,7 @@ export type PurchaseOrder = {
   shippingAmount: string
   totalAmount: string
   createdBy: string | null
+  orderKind?: 'WAREHOUSE' | 'SUPPLIER'
   createdAt: string
   updatedAt: string
   supplier?: Supplier
@@ -273,8 +280,10 @@ export type PurchaseOrderItemPayload = {
 }
 
 export type PurchaseOrderPayload = {
-  supplierId: string
+  supplierId?: string | null
   warehouseId: string
+  orderKind?: 'WAREHOUSE' | 'SUPPLIER'
+  asDraft?: boolean
   currency?: string
   exchangeRate?: number
   paymentTerms?: string | null

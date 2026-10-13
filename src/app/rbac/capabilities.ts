@@ -8,6 +8,7 @@ export const CAPABILITIES = {
   CHECKOUT_PLACE_ORDER: 'checkout.place_order',
   SELLER_DASHBOARD_VIEW: 'seller.dashboard.view',
   PLATFORM_ADMIN_VIEW: 'platform.admin.view',
+  WAREHOUSE_DASHBOARD_VIEW: 'warehouse.dashboard.view',
   SELLER_PERMISSIONS_VIEW: 'seller.permissions.view',
   SELLER_PERMISSIONS_MANAGE: 'seller.permissions.manage',
   /** Browse platform categories (list + detail) — shop roles */

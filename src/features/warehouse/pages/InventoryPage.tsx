@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ArrowLeftRight, Warehouse } from 'lucide-react'
 import DataTable, { type DataTableColumn } from '@/components/ui/DataTable'
@@ -9,10 +9,12 @@ import { StockStatusBadge } from '../components/StockStatusBadge'
 import { primaryButtonClass } from '../components/forms/FormField'
 import TransferStockForm from '../components/forms/TransferStockForm'
 import type { WarehouseAreaBase } from '../config/warehousePaths'
+import { warehouseApi } from '../api/warehouseApi'
 import { filterInventoryRows, useInventoryRows, useWarehouses } from '../hooks/useWarehouseData'
 import { productLabel, useProductNames } from '../hooks/useProductNames'
 import {
   AVAILABILITY_LABELS,
+  toAvailability,
   type AvailabilityStatus,
   type InventoryRow,
   type StockOperationKind,
@@ -34,13 +36,15 @@ const OPERATION_META: Record<
 > = {
   transfer: {
     title: 'Transfer Stock',
-    subtitle: 'Request a transfer between warehouses — waits for approval.',
+    subtitle: 'Request a transfer. A warehouse manager waits for the seller before the stock moves.',
     variant: 'drawer',
     size: 'lg',
   },
 }
 
-const InventoryPage = (_props: InventoryPageProps) => {
+const InventoryPage = ({ base }: InventoryPageProps) => {
+  const isSeller = base === '/seller'
+  const canTransfer = isSeller || base === '/warehouse-manager'
   const [searchParams] = useSearchParams()
 
   const [search, setSearch] = useState('')
@@ -53,15 +57,60 @@ const InventoryPage = (_props: InventoryPageProps) => {
   const [notice, setNotice] = useState<string | null>(null)
 
   const { warehouses, loading: warehousesLoading, error: warehousesError } =
-    useWarehouses()
-  const { rows, loading, error, reload } = useInventoryRows(warehouses)
+    useWarehouses(isSeller ? { catalog: true, status: 'ACTIVE' } : undefined)
+  const warehouseInventory = useInventoryRows(isSeller ? [] : warehouses)
+  const [sellerRows, setSellerRows] = useState<InventoryRow[]>([])
+  const [sellerLoading, setSellerLoading] = useState(isSeller)
+  const [sellerVersion, setSellerVersion] = useState(0)
   const productNames = useProductNames()
+
+  useEffect(() => {
+    if (!isSeller) return
+    let cancelled = false
+    setSellerLoading(true)
+    void warehouseApi
+      .listSellerStock()
+      .then((response) => {
+        if (cancelled) return
+        setSellerRows(
+          (response.data?.data ?? []).map((row) => ({
+            id: row.id,
+            warehouseId: 'seller',
+            warehouseName: 'My inventory',
+            productId: row.productId,
+            variantId: row.variantId,
+            onHandQty: row.onHandQty,
+            reservedQty: 0,
+            availableQty: row.availableQty,
+            updatedAt: row.updatedAt,
+            availabilityStatus: toAvailability(row.availableQty),
+          })),
+        )
+      })
+      .catch(() => {
+        if (!cancelled) setSellerRows([])
+      })
+      .finally(() => {
+        if (!cancelled) setSellerLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [isSeller, sellerVersion])
+
+  const rows = isSeller ? sellerRows : warehouseInventory.rows
+  const loading = isSeller ? sellerLoading : warehouseInventory.loading
+  const error = isSeller ? null : warehouseInventory.error
+  const reload = () => {
+    if (isSeller) setSellerVersion((current) => current + 1)
+    else void warehouseInventory.reload()
+  }
 
   const visibleRows = useMemo(
     () =>
       filterInventoryRows(rows, {
         search,
-        warehouseId: warehouseFilter,
+        warehouseId: isSeller ? '' : warehouseFilter,
         availability,
         productNames,
       }),
@@ -168,29 +217,33 @@ const InventoryPage = (_props: InventoryPageProps) => {
         </span>
       ),
     },
-    {
-      key: 'actions',
-      header: '',
-      align: 'right',
-      width: '60px',
-      render: (row) => (
-        <RowActionMenu
-          ariaLabel={`Actions for ${productLabel(productNames, row.productId)}`}
-          items={[
-            {
-              key: 'transfer',
-              label: 'Transfer',
-              icon: <ArrowLeftRight size={14} />,
-              onClick: () =>
-                openOperation('transfer', {
-                  warehouseId: row.warehouseId,
-                  productId: row.productId,
-                }),
-            },
-          ]}
-        />
-      ),
-    },
+    ...(canTransfer
+      ? [
+          {
+            key: 'actions',
+            header: '',
+            align: 'right' as const,
+            width: '60px',
+            render: (row: InventoryRow) => (
+              <RowActionMenu
+                ariaLabel={`Actions for ${productLabel(productNames, row.productId)}`}
+                items={[
+                  {
+                    key: 'transfer',
+                    label: 'Transfer',
+                    icon: <ArrowLeftRight size={14} />,
+                    onClick: () =>
+                      openOperation('transfer', {
+                        warehouseId: row.warehouseId,
+                        productId: row.productId,
+                      }),
+                  },
+                ]}
+              />
+            ),
+          },
+        ]
+      : []),
   ]
 
   const operationBody = () => {
@@ -200,10 +253,17 @@ const InventoryPage = (_props: InventoryPageProps) => {
         return (
           <TransferStockForm
             warehouses={warehouses}
-            defaultWarehouseId={context.warehouseId || warehouseFilter || undefined}
+            sellerMode={isSeller}
+            defaultWarehouseId={
+              isSeller ? undefined : context.warehouseId || warehouseFilter || undefined
+            }
             defaultProductId={context.productId}
             onSuccess={() =>
-              handleSuccess('Transfer request submitted — pending warehouse approval.')
+              handleSuccess(
+                isSeller
+                  ? 'Transfer request submitted. The source warehouse manager can complete it.'
+                  : 'Transfer request submitted. It waits for the seller to approve.',
+              )
             }
           />
         )
@@ -224,19 +284,23 @@ const InventoryPage = (_props: InventoryPageProps) => {
         <div>
           <h1 className="text-xl font-bold text-slate-900">Inventory Data</h1>
           <p className="text-sm text-slate-500">
-            On-hand stock across every warehouse, with live availability status.
+            {isSeller
+              ? 'Products you received from warehouse orders. A transfer waits for the destination warehouse manager.'
+              : 'On-hand stock across every warehouse, with live availability status.'}
           </p>
         </div>
-        <div className="flex flex-wrap items-start gap-2">
-          <button
-            type="button"
-            className={primaryButtonClass}
-            onClick={() => openOperation('transfer', { warehouseId: warehouseFilter })}
-          >
-            <ArrowLeftRight size={14} />
-            Transfer
-          </button>
-        </div>
+        {canTransfer && (
+          <div className="flex flex-wrap items-start gap-2">
+            <button
+              type="button"
+              className={primaryButtonClass}
+              onClick={() => openOperation('transfer', { warehouseId: warehouseFilter })}
+            >
+              <ArrowLeftRight size={14} />
+              Transfer
+            </button>
+          </div>
+        )}
       </div>
 
       {notice && (
@@ -252,17 +316,21 @@ const InventoryPage = (_props: InventoryPageProps) => {
           placeholder: 'Search product, variant or warehouse…',
         }}
         selects={[
-          {
-            key: 'warehouse',
-            label: 'Warehouse',
-            value: warehouseFilter,
-            allLabel: 'All warehouses',
-            onChange: setWarehouseFilter,
-            options: warehouses.map((warehouse) => ({
-              value: warehouse.id,
-              label: warehouse.name,
-            })),
-          },
+          ...(!isSeller
+            ? [
+                {
+                  key: 'warehouse',
+                  label: 'Warehouse',
+                  value: warehouseFilter,
+                  allLabel: 'All warehouses',
+                  onChange: setWarehouseFilter,
+                  options: warehouses.map((warehouse) => ({
+                    value: warehouse.id,
+                    label: warehouse.name,
+                  })),
+                },
+              ]
+            : []),
           {
             key: 'availability',
             label: 'Status',
@@ -334,7 +402,11 @@ const InventoryPage = (_props: InventoryPageProps) => {
             setContext({})
           }}
           title={meta.title}
-          subtitle={meta.subtitle}
+          subtitle={
+            isSeller
+              ? 'Move stock from one warehouse to another. The source warehouse manager completes it.'
+              : meta.subtitle
+          }
           variant={meta.variant}
           size={meta.size}
         >

@@ -38,6 +38,8 @@ function App() {
     matchPath({ path: '/seller/*' }, pathname) ||
     matchPath({ path: '/super-admin', end: true }, pathname) ||
     matchPath({ path: '/super-admin/*' }, pathname) ||
+    matchPath({ path: '/warehouse-manager', end: true }, pathname) ||
+    matchPath({ path: '/warehouse-manager/*' }, pathname) ||
     // Invoice print route renders only the invoice document.
     matchPath({ path: '/account/invoices/:invoiceNumber/print', end: true }, pathname)
 
@@ -96,7 +98,9 @@ function App() {
     matchPath({ path: '/seller', end: true }, pathname) ||
     matchPath({ path: '/seller/*' }, pathname) ||
     matchPath({ path: '/super-admin', end: true }, pathname) ||
-    matchPath({ path: '/super-admin/*' }, pathname),
+    matchPath({ path: '/super-admin/*' }, pathname) ||
+    matchPath({ path: '/warehouse-manager', end: true }, pathname) ||
+    matchPath({ path: '/warehouse-manager/*' }, pathname),
   )
   const waitForHomeScreen = isHome && !contentSettled
   const showSplash =

@@ -200,7 +200,7 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { suppliers } = useSuppliers()
-  const { warehouses } = useWarehouses()
+  const { warehouses } = useWarehouses({ catalog: true, status: 'ACTIVE' })
 
   const today = new Date().toISOString().slice(0, 10)
   const initialShipping =
@@ -220,7 +220,21 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
   const [deliveryTerms, setDeliveryTerms] = useState('FOB')
 
   // Section 2 — line items
-  const [items, setItems] = useState<DraftItem[]>([emptyItem()])
+  const orderKind = searchParams.get('kind') === 'warehouse' ? 'WAREHOUSE' : 'SUPPLIER'
+  const prefilledLines = (searchParams.get('lines') ?? '')
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const [productId, quantity] = part.split(':')
+      return {
+        ...emptyItem(),
+        productId: productId ?? '',
+        quantity: quantity && Number(quantity) > 0 ? quantity : '1',
+      }
+    })
+
+  const [items, setItems] = useState<DraftItem[]>(prefilledLines.length > 0 ? prefilledLines : [emptyItem()])
 
   // Section 3 — delivery stages
   const [stages, setStages] = useState<DraftStage[]>(() => {
@@ -412,9 +426,11 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
     return null
   }
 
-  const buildPayload = (): PurchaseOrderPayload => ({
+  const buildPayload = (asDraft = false): PurchaseOrderPayload => ({
     supplierId,
     warehouseId,
+    orderKind,
+    asDraft,
     currency,
     exchangeRate: num(exchangeRate) || 1,
     paymentTerms: paymentTerms || null,
@@ -479,9 +495,9 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
     }
     setSaving(true)
     try {
-      const response = await purchaseApi.createPurchaseOrder(buildPayload())
+      const response = await purchaseApi.createPurchaseOrder(buildPayload(mode === 'draft'))
       const created = response.data?.data
-      if (mode === 'approval' && created?.id) {
+      if (mode === 'approval' && orderKind !== 'SUPPLIER' && created?.id) {
         await purchaseApi.updatePurchaseOrderStatus(created.id, 'PENDING_APPROVAL')
       }
       navigate(paths.orders)
@@ -510,7 +526,9 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
         <div className="min-w-0">
           <h1 className="text-xl font-bold text-slate-900">Create Purchase Order</h1>
           <p className="text-sm text-slate-500">
-            Build the order, plan multi-stage freight and submit for approval.
+            {orderKind === 'SUPPLIER'
+              ? 'Place an order from the supplier. The warehouse manager receives it before the stock is stored.'
+              : 'Order from a warehouse. The warehouse must already have the stock you request.'}
           </p>
         </div>
         <Link to={paths.orders} className={secondaryButtonClass}>
@@ -665,6 +683,7 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
                 <tr key={item.key} className="border-b border-slate-100">
                   <td className="min-w-0 px-2 py-2">
                     <ProductSearchSelect
+                      ownedOnly
                       value={item.productId}
                       onChange={(productId) => updateItem(item.key, { productId })}
                     />
@@ -1131,21 +1150,23 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
               >
                 Discard
               </button>
-              <button
-                type="button"
-                className={secondaryButtonClass}
-                disabled={saving}
-                onClick={() => void submit('draft')}
-              >
-                Save Draft
-              </button>
+              {orderKind !== 'SUPPLIER' && (
+                <button
+                  type="button"
+                  className={secondaryButtonClass}
+                  disabled={saving}
+                  onClick={() => void submit('draft')}
+                >
+                  Save Draft
+                </button>
+              )}
               <button
                 type="button"
                 className={primaryButtonClass}
                 disabled={saving}
                 onClick={() => void submit('approval')}
               >
-                {saving ? 'Saving…' : 'Submit for Approval'}
+                {saving ? 'Saving…' : orderKind === 'SUPPLIER' ? 'Place order' : 'Submit for Approval'}
               </button>
             </div>
           </div>

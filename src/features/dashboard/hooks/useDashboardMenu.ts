@@ -4,7 +4,7 @@ import { selectRoleCapabilities } from '@/app/rbac/selectors'
 import { purchaseApi } from '@/features/purchase/api/purchaseApi'
 import { ORDERED_RECEIPT_COUNT_EVENT } from '@/features/purchase/orderedReceiptCount'
 import { selectUnreadNotificationCount } from '@/features/notifications/selectors'
-import { DASHBOARD_MENU_SELLER, DASHBOARD_MENU_ADMIN } from '../config/dashboardMenu'
+import { DASHBOARD_MENU_SELLER, DASHBOARD_MENU_ADMIN, DASHBOARD_MENU_WAREHOUSE_MANAGER } from '../config/dashboardMenu'
 import type { DashboardArea, DashboardMenuSection } from '../types/dashboardTypes'
 
 const hasAnyRequiredCapability = (
@@ -18,21 +18,33 @@ const hasAnyRequiredCapability = (
 export const useDashboardMenu = (area: DashboardArea): DashboardMenuSection[] => {
   const roleCapabilities = useAppSelector(selectRoleCapabilities)
   const unreadCount = useAppSelector(selectUnreadNotificationCount)
-  const sections = area === 'seller' ? DASHBOARD_MENU_SELLER : DASHBOARD_MENU_ADMIN
+  const sections =
+    area === 'seller'
+      ? DASHBOARD_MENU_SELLER
+      : area === 'warehouse_manager'
+        ? DASHBOARD_MENU_WAREHOUSE_MANAGER
+        : DASHBOARD_MENU_ADMIN
   const [orderedCount, setOrderedCount] = useState(0)
+  const [supplierReceiveCount, setSupplierReceiveCount] = useState(0)
 
   useEffect(() => {
-    if (area !== 'super_admin') return
+    if (area !== 'warehouse_manager') return
     let cancelled = false
 
     const load = () => {
       void purchaseApi
         .listPurchaseOrders({ status: 'ORDERED' })
         .then((response) => {
-          if (!cancelled) setOrderedCount(response.data?.data?.length ?? 0)
+          if (cancelled) return
+          const waiting = response.data?.data ?? []
+          setOrderedCount(waiting.filter((order) => order.orderKind !== 'SUPPLIER').length)
+          setSupplierReceiveCount(waiting.filter((order) => order.orderKind === 'SUPPLIER').length)
         })
         .catch(() => {
-          if (!cancelled) setOrderedCount(0)
+          if (!cancelled) {
+            setOrderedCount(0)
+            setSupplierReceiveCount(0)
+          }
         })
     }
 
@@ -61,10 +73,13 @@ export const useDashboardMenu = (area: DashboardArea): DashboardMenuSection[] =>
               if (item.key.endsWith('warehouse-receipts')) {
                 return { ...item, badge: orderedCount > 0 ? orderedCount : undefined }
               }
+              if (item.key.endsWith('warehouse-supplier-receive')) {
+                return { ...item, badge: supplierReceiveCount > 0 ? supplierReceiveCount : undefined }
+              }
               return item
             }),
         }))
         .filter((section) => section.items.length > 0),
-    [area, orderedCount, roleCapabilities, sections, unreadCount],
+    [area, orderedCount, roleCapabilities, sections, supplierReceiveCount, unreadCount],
   )
 }

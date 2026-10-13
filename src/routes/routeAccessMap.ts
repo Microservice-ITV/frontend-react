@@ -43,6 +43,7 @@ export const ROUTE_ACCESS = {
   superAdminWarehouse: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   /** Purchasing — platform wide scope */
   superAdminPurchase: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+  warehouseManager: [CAPABILITIES.WAREHOUSE_DASHBOARD_VIEW],
   superAdminAnalytics: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   superAdminShops: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   superAdminShipping: [CAPABILITIES.PLATFORM_ADMIN_VIEW],

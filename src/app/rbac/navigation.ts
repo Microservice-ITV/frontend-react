@@ -2,6 +2,7 @@ import type { AppRole } from './types'
 
 export const getDefaultLandingPathByRole = (role: AppRole): string => {
   if (role === 'SUPER_ADMIN') return '/super-admin'
+  if (role === 'WAREHOUSE_MANAGER') return '/warehouse-manager'
   if (role === 'SHOP_OWNER' || role === 'SHOP_ADMIN') return '/seller'
   return '/'
 }
@@ -10,9 +11,10 @@ const NEVER_REDIRECT_PATHS = new Set(['/login', '/register', '/forbidden', '/oau
 
 const DISALLOWED_PREFIXES_BY_ROLE: Record<AppRole, string[]> = {
   SUPER_ADMIN: [],
-  SHOP_OWNER: ['/super-admin'],
-  SHOP_ADMIN: ['/super-admin'],
-  USER: ['/seller', '/super-admin'],
+  WAREHOUSE_MANAGER: ['/seller', '/super-admin'],
+  SHOP_OWNER: ['/super-admin', '/warehouse-manager'],
+  SHOP_ADMIN: ['/super-admin', '/warehouse-manager'],
+  USER: ['/seller', '/super-admin', '/warehouse-manager'],
 }
 
 const startsWithPrefix = (path: string, prefix: string) =>

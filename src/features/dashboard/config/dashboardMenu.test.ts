@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DASHBOARD_MENU_ADMIN, DASHBOARD_MENU_SELLER } from './dashboardMenu'
+import { DASHBOARD_MENU_ADMIN, DASHBOARD_MENU_SELLER, DASHBOARD_MENU_WAREHOUSE_MANAGER } from './dashboardMenu'
 
 const findSellerAccountingItems = () => {
   const items: Array<{ key?: string; label?: string; to?: string; children?: Array<{ key?: string; label?: string; to?: string }> }> = []
@@ -32,13 +32,42 @@ describe('DASHBOARD_MENU warehouse purchasing items', () => {
     expect(sellerLabels).not.toContain('Goods Receipts')
     expect(sellerLabels).not.toContain('Suppliers')
     expect(sellerLabels).toContain('Purchase Orders')
+    expect(sellerLabels).toContain('Inventory Data')
+    expect(sellerLabels).toContain('Transfer')
+    expect(sellerLabels).toContain('Order from Warehouse')
+    expect(sellerLabels).not.toContain('Receive from Supplier')
   })
 
-  it('keeps goods receipts and suppliers on the admin menu', () => {
+  it('keeps suppliers on the admin menu and leaves purchasing to the warehouse manager', () => {
     const adminLabels = labels(DASHBOARD_MENU_ADMIN)
 
-    expect(adminLabels).toContain('Goods Receipts')
+    expect(adminLabels).not.toContain('Purchase Orders')
+    expect(adminLabels).not.toContain('Goods Receipts')
+    expect(adminLabels).not.toContain('Purchase Returns')
+    expect(adminLabels).not.toContain('Transfer')
+    expect(adminLabels).not.toContain('Order from Warehouse')
+    expect(adminLabels).not.toContain('Receive from Supplier')
     expect(adminLabels).toContain('Suppliers')
+    expect(adminLabels).toContain('Assign Warehouse Manager')
+  })
+
+  it('gives the warehouse manager only the warehouse menus', () => {
+    const managerLabels = labels(DASHBOARD_MENU_WAREHOUSE_MANAGER)
+
+    expect(managerLabels).toEqual([
+      'Overview',
+      'Warehouses',
+      'Inventory Data',
+      'Transfer',
+      'Inventory Movements',
+      'Purchase Orders',
+      'Receive from Supplier',
+      'Goods Receipts',
+      'Purchase Returns',
+    ])
+    expect(managerLabels).not.toContain('Suppliers')
+    expect(managerLabels).not.toContain('Assign Warehouse Manager')
+    expect(managerLabels).not.toContain('Shops')
   })
 })
 
