@@ -8,6 +8,13 @@ export const CAPABILITIES = {
   CHECKOUT_PLACE_ORDER: 'checkout.place_order',
   SELLER_DASHBOARD_VIEW: 'seller.dashboard.view',
   PLATFORM_ADMIN_VIEW: 'platform.admin.view',
+  WAREHOUSE_DASHBOARD_VIEW: 'warehouse.dashboard.view',
+  /** Delivery agent shell + overview */
+  DELIVERY_DASHBOARD_VIEW: 'delivery.dashboard.view',
+  /** @deprecated use DELIVERY_DASHBOARD_VIEW */
+  DELIVERY_AGENT_DASHBOARD_VIEW: 'delivery.dashboard.view',
+  DELIVERY_PARCELS_VIEW: 'delivery.parcels.view',
+  DELIVERY_DAMAGE_REPORTS_VIEW: 'delivery.damage_reports.view',
   SELLER_PERMISSIONS_VIEW: 'seller.permissions.view',
   SELLER_PERMISSIONS_MANAGE: 'seller.permissions.manage',
   /** Browse platform categories (list + detail) — shop roles */

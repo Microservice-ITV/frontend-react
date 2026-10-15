@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import SearchableSelect, {
   type SearchableSelectOption,
 } from '@/components/ui/SearchableSelect'
+import { useAppSelector } from '@/app/hooks'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { productClient } from '@/lib/api/productClient'
 import { productServiceAssetUrl } from '@/lib/api/apiConfig'
@@ -10,6 +11,7 @@ type ProductRow = {
   id: string
   name?: string
   title?: string
+  sku?: string | null
   price?: number | string
   images?: string[]
 }
@@ -27,11 +29,60 @@ type ProductsResponse = {
 
 export type ProductSearchSelectProps = {
   value: string
-  onChange: (productId: string) => void
+  onChange: (productId: string, option?: SearchableSelectOption) => void
   placeholder?: string
   disabled?: boolean
   className?: string
   ariaInvalid?: boolean
+  /** Limit the list and search to products owned by the signed-in seller. */
+  ownedOnly?: boolean
+}
+
+const OWNED_PAGE_LIMIT = 100
+const ownedProductsCache = new Map<string, { at: number; promise: Promise<SearchableSelectOption[]> }>()
+const OWNED_PRODUCTS_TTL = 30_000
+
+const toOption = (row: ProductRow): SearchableSelectOption => ({
+  value: row.id,
+  label: row.name ?? row.title ?? row.id,
+  image: row.images?.[0] ? productServiceAssetUrl(row.images[0]) : null,
+})
+
+/** All products for the seller’s active shop (or every shop they own). */
+const loadOwnedProductOptions = (cacheKey: string, shopId?: string) => {
+  const cached = ownedProductsCache.get(cacheKey)
+  if (cached && Date.now() - cached.at < OWNED_PRODUCTS_TTL) return cached.promise
+
+  const promise = (async () => {
+    const collected: ProductRow[] = []
+    let page = 1
+    let totalPages = 1
+    do {
+      const response = await productClient.get<ProductsResponse>('/products', {
+        params: shopId
+          ? { shopId, page, limit: OWNED_PAGE_LIMIT }
+          : { owned: 'true', page, limit: OWNED_PAGE_LIMIT },
+      })
+      collected.push(...(response.data?.data ?? []))
+      totalPages = Math.max(1, response.data?.pagination?.totalPages ?? 1)
+      page += 1
+    } while (page <= totalPages && page <= 20)
+
+    const seen = new Set<string>()
+    return collected
+      .filter((row) => {
+        if (seen.has(row.id)) return false
+        seen.add(row.id)
+        return true
+      })
+      .map(toOption)
+  })().catch((error: unknown) => {
+    ownedProductsCache.delete(cacheKey)
+    throw error
+  })
+
+  ownedProductsCache.set(cacheKey, { at: Date.now(), promise })
+  return promise
 }
 
 const ProductSearchSelect = ({
@@ -41,13 +92,43 @@ const ProductSearchSelect = ({
   disabled = false,
   className,
   ariaInvalid,
+  ownedOnly = false,
 }: ProductSearchSelectProps) => {
+  const userId = useAppSelector((state) => state.auth.user?.id ?? '')
+  const activeShopId = useAppSelector(
+    (state) => state.auth.user?.active_shop_id?.trim() ?? '',
+  )
   const [query, setQuery] = useState('')
   const [options, setOptions] = useState<SearchableSelectOption[]>([])
   const [loading, setLoading] = useState(false)
   const debouncedQuery = useDebouncedValue(query, 350)
 
   useEffect(() => {
+    if (!ownedOnly) return
+    if (!userId && !activeShopId) {
+      setOptions([])
+      return
+    }
+    const cacheKey = activeShopId ? `shop:${activeShopId}` : `user:${userId}`
+    let cancelled = false
+    setLoading(true)
+    void loadOwnedProductOptions(cacheKey, activeShopId || undefined)
+      .then((rows) => {
+        if (!cancelled) setOptions(rows)
+      })
+      .catch(() => {
+        if (!cancelled) setOptions([])
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [ownedOnly, userId, activeShopId])
+
+  useEffect(() => {
+    if (ownedOnly) return
     let cancelled = false
 
     const search = async () => {
@@ -88,13 +169,7 @@ const ProductSearchSelect = ({
     return () => {
       cancelled = true
     }
-  }, [debouncedQuery])
-
-  const toOption = (row: ProductRow): SearchableSelectOption => ({
-    value: row.id,
-    label: row.name ?? row.title ?? row.id,
-    image: row.images?.[0] ? productServiceAssetUrl(row.images[0]) : null,
-  })
+  }, [debouncedQuery, ownedOnly])
 
   const [pinnedOption, setPinnedOption] = useState<SearchableSelectOption | null>(
     null,
@@ -138,12 +213,15 @@ const ProductSearchSelect = ({
     <SearchableSelect
       options={mergedOptions}
       value={value}
-      onChange={onChange}
-      onQueryChange={setQuery}
+      onChange={(nextId) => {
+        const option = mergedOptions.find((entry) => entry.value === nextId)
+        onChange(nextId, option)
+      }}
+      onQueryChange={ownedOnly ? undefined : setQuery}
       loading={loading}
-      filterLocally={false}
-      mode="search-only"
-      placeholder={placeholder}
+      filterLocally={ownedOnly}
+      mode={ownedOnly ? 'search-and-scroll' : 'search-only'}
+      placeholder={ownedOnly ? 'Search your products…' : placeholder}
       emptyLabel="Search a product…"
       disabled={disabled}
       className={className}

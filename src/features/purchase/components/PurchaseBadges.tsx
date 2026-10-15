@@ -15,10 +15,20 @@ export const PURCHASE_ORDER_STATUS_TONES: Record<PurchaseOrderStatus, BadgeTone>
   PENDING: 'warning',
   APPROVED: 'info',
   ORDERED: 'info',
+  IN_TRANSIT: 'info',
+  ARRIVED: 'success',
   PARTIALLY_RECEIVED: 'warning',
   RECEIVED: 'success',
   CLOSED: 'neutral',
   CANCELLED: 'danger',
+  LOW_STOCK: 'danger',
+  RESTOCK_REQUESTED: 'warning',
+  RESTOCK_APPROVED: 'info',
+  DELIVERY_PICKED_UP: 'info',
+  AWAITING_WAREHOUSE_RECEIPT: 'warning',
+  AWAITING_SELLER_RECEIPT: 'warning',
+  SELLER_RECEIVED: 'success',
+  WAREHOUSE_RECEIVED: 'success',
 }
 
 export const PURCHASE_DOCUMENT_STATUS_TONES: Record<

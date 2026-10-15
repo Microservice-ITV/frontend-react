@@ -8,6 +8,8 @@ const ROLE_ALIASES: Record<string, AppRole> = {
   PLATFORM_DIRECTOR: 'SUPER_ADMIN',
   PLATFORM_CFO: 'SUPER_ADMIN',
   CFO: 'SUPER_ADMIN',
+  WAREHOUSE_MANAGER: 'WAREHOUSE_MANAGER',
+  DELIVERY_AGENT: 'DELIVERY_AGENT',
   SHOP_OWNER: 'SHOP_OWNER',
   SHOP_ADMIN: 'SHOP_ADMIN',
   SELLER: 'SHOP_ADMIN',
@@ -45,7 +47,14 @@ export const extractRoleFromUser = (user: User | null): AppRole => {
   }
 
   // Keep a deterministic precedence so privileged roles win if multiple roles exist.
-  const precedence: AppRole[] = ['SUPER_ADMIN', 'SHOP_OWNER', 'SHOP_ADMIN', 'USER']
+  const precedence: AppRole[] = [
+    'SUPER_ADMIN',
+    'WAREHOUSE_MANAGER',
+    'DELIVERY_AGENT',
+    'SHOP_OWNER',
+    'SHOP_ADMIN',
+    'USER',
+  ]
 
   const resolved = candidates
     .map((candidate) => normalizeRoleString(candidate))

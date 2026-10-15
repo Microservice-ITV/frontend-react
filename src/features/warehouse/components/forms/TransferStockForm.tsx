@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
+import SearchableSelect from '@/components/ui/SearchableSelect'
 import ProductSearchSelect from '../ProductSearchSelect'
 import { warehouseApi, warehouseErrorMessage } from '../../api/warehouseApi'
-import type { Warehouse } from '../../types/warehouseTypes'
+import { warehouseCapacityLabel, type Warehouse } from '../../types/warehouseTypes'
 import {
   FormField,
   invalidTextInputClass,
@@ -14,6 +15,10 @@ export type TransferStockFormProps = {
   warehouses: Warehouse[]
   defaultWarehouseId?: string
   defaultProductId?: string
+  defaultVariantId?: string
+  sellerMode?: boolean
+  /** Seller warehouse→warehouse: no seller approval step. */
+  skipSellerApprovalHint?: boolean
   onSuccess: () => void
 }
 
@@ -27,6 +32,9 @@ const TransferStockForm = ({
   warehouses,
   defaultWarehouseId,
   defaultProductId,
+  defaultVariantId,
+  sellerMode = false,
+  skipSellerApprovalHint = false,
   onSuccess,
 }: TransferStockFormProps) => {
   const selectableWarehouses = useMemo(
@@ -40,31 +48,71 @@ const TransferStockForm = ({
   const [fromWarehouseId, setFromWarehouseId] = useState('')
   const [toWarehouseId, setToWarehouseId] = useState('')
   const [productId, setProductId] = useState('')
+  const [variantId, setVariantId] = useState('')
   const [quantity, setQuantity] = useState('')
   const [referenceId, setReferenceId] = useState('')
+  const [destinations, setDestinations] = useState<Warehouse[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
-    const first = defaultWarehouseId ?? selectableWarehouses[0]?.id ?? ''
+    let cancelled = false
+    void warehouseApi
+      .listWarehouses({ catalog: true, status: 'ACTIVE' })
+      .then((response) => {
+        if (!cancelled) setDestinations(response.data?.data ?? [])
+      })
+      .catch(() => {
+        if (!cancelled) setDestinations([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    const first = sellerMode ? '' : defaultWarehouseId || selectableWarehouses[0]?.id || ''
     setFromWarehouseId(first)
-    setToWarehouseId(selectableWarehouses.find((item) => item.id !== first)?.id ?? '')
+    setToWarehouseId('')
     setProductId(defaultProductId ?? '')
+    setVariantId(defaultVariantId ?? '')
     setReferenceId(buildReferenceId())
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [defaultWarehouseId, defaultProductId])
+  }, [defaultWarehouseId, defaultProductId, defaultVariantId, selectableWarehouses, sellerMode])
+
+  const destinationWarehouses = useMemo(() => {
+    const pool = destinations.length > 0 ? destinations : selectableWarehouses
+    return pool.filter(
+      (warehouse) =>
+        warehouse.status !== 'INACTIVE' && (!sellerMode ? warehouse.id !== fromWarehouseId : true),
+    )
+  }, [destinations, selectableWarehouses, fromWarehouseId, sellerMode])
+
+  const sourceWarehouses = useMemo(() => {
+    const pool = selectableWarehouses
+    return pool.filter((warehouse) => warehouse.status !== 'INACTIVE')
+  }, [selectableWarehouses])
 
   const submit = async () => {
     const errors: Record<string, string> = {}
-    if (!fromWarehouseId) errors.fromWarehouseId = 'Select a source warehouse.'
+    if (!sellerMode && !fromWarehouseId) errors.fromWarehouseId = 'Select a source warehouse.'
     if (!toWarehouseId) errors.toWarehouseId = 'Select a destination warehouse.'
-    if (fromWarehouseId && fromWarehouseId === toWarehouseId) {
+    if (!sellerMode && fromWarehouseId && fromWarehouseId === toWarehouseId) {
       errors.toWarehouseId = 'Source and destination must be different.'
+    }
+    const destination = destinationWarehouses.find((warehouse) => warehouse.id === toWarehouseId)
+    if (destination?.isAtCapacity) {
+      errors.toWarehouseId = `${destination.name} is at full capacity. Choose another warehouse.`
     }
     if (!productId) errors.productId = 'Search and select a product.'
     if (!Number.isInteger(Number(quantity)) || Number(quantity) <= 0) {
       errors.quantity = 'Quantity must be a whole number above 0.'
+    } else if (
+      destination?.capacityUnits != null &&
+      destination.remainingUnits != null &&
+      Number(quantity) > destination.remainingUnits
+    ) {
+      errors.quantity = `${destination.name} only has ${destination.remainingUnits} units of capacity remaining.`
     }
     if (referenceId.trim().length < 2) errors.referenceId = 'Reference ID is required.'
 
@@ -74,14 +122,28 @@ const TransferStockForm = ({
     setSubmitting(true)
     setError(null)
     try {
-      await warehouseApi.transferStock({
-        fromWarehouseId,
-        toWarehouseId,
-        productId,
-        quantity: Number(quantity),
-        referenceId: referenceId.trim(),
-        referenceType: 'TRANSFER',
-      })
+      if (sellerMode) {
+        await warehouseApi.transferStock({
+          fromSeller: true,
+          toWarehouseId,
+          productId,
+          variantId: variantId || undefined,
+          quantity: Number(quantity),
+          referenceId: referenceId.trim(),
+          referenceType: 'SELLER_TRANSFER',
+        })
+      } else {
+        await warehouseApi.transferStock({
+          fromWarehouseId,
+          toWarehouseId,
+          productId,
+          variantId: variantId || undefined,
+          quantity: Number(quantity),
+          referenceId: referenceId.trim(),
+          referenceType: 'TRANSFER',
+          sellerInitiated: skipSellerApprovalHint || undefined,
+        })
+      }
       setQuantity('')
       setReferenceId(buildReferenceId())
       onSuccess()
@@ -101,46 +163,49 @@ const TransferStockForm = ({
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <FormField label="From warehouse" required error={fieldErrors.fromWarehouseId}>
-          <select
-            value={fromWarehouseId}
-            onChange={(event) => setFromWarehouseId(event.target.value)}
-            className={`${textInputClass} cursor-pointer ${
-              fieldErrors.fromWarehouseId ? invalidTextInputClass : ''
-            }`}
-          >
-            <option value="">Select source…</option>
-            {selectableWarehouses.map((warehouse) => (
-              <option key={warehouse.id} value={warehouse.id}>
-                {warehouse.name}
-              </option>
-            ))}
-          </select>
-        </FormField>
+        {sellerMode ? (
+          <FormField label="From">
+            <div className={`${textInputClass} bg-slate-50 text-slate-700`}>My inventory</div>
+          </FormField>
+        ) : (
+          <FormField label="From warehouse" required error={fieldErrors.fromWarehouseId}>
+            <SearchableSelect
+              mode="scroll-only"
+              value={fromWarehouseId}
+              onChange={(next) => {
+                setFromWarehouseId(next)
+                if (next === toWarehouseId) setToWarehouseId('')
+              }}
+              emptyLabel="Select source…"
+              aria-invalid={Boolean(fieldErrors.fromWarehouseId)}
+              options={sourceWarehouses.map((warehouse) => ({
+                value: warehouse.id,
+                label: warehouse.name,
+              }))}
+            />
+          </FormField>
+        )}
 
         <FormField label="To warehouse" required error={fieldErrors.toWarehouseId}>
-          <select
+          <SearchableSelect
+            mode="scroll-only"
             value={toWarehouseId}
-            onChange={(event) => setToWarehouseId(event.target.value)}
-            className={`${textInputClass} cursor-pointer ${
-              fieldErrors.toWarehouseId ? invalidTextInputClass : ''
-            }`}
-          >
-            <option value="">Select destination…</option>
-            {selectableWarehouses
-              .filter((warehouse) => warehouse.id !== fromWarehouseId)
-              .map((warehouse) => (
-                <option key={warehouse.id} value={warehouse.id}>
-                  {warehouse.name}
-                </option>
-              ))}
-          </select>
+            onChange={setToWarehouseId}
+            emptyLabel="Select destination…"
+            aria-invalid={Boolean(fieldErrors.toWarehouseId)}
+            options={destinationWarehouses.map((warehouse) => ({
+              value: warehouse.id,
+              label: `${warehouse.name} (${warehouseCapacityLabel(warehouse)})`,
+              disabled: Boolean(warehouse.isAtCapacity),
+            }))}
+          />
         </FormField>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField label="Product" required error={fieldErrors.productId}>
           <ProductSearchSelect
+            ownedOnly={sellerMode}
             value={productId}
             onChange={setProductId}
             aria-invalid={Boolean(fieldErrors.productId)}
@@ -175,8 +240,23 @@ const TransferStockForm = ({
       </FormField>
 
       <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-        Transfers start as <span className="font-semibold">pending</span> and only move
-        stock after a warehouse approves them.
+        {sellerMode ? (
+          <>
+            Stock leaves your inventory after the warehouse manager approves and clicks{' '}
+            <span className="font-semibold">Received</span>.
+          </>
+        ) : skipSellerApprovalHint ? (
+          <>
+            No seller approval needed — status is set to <span className="font-semibold">Approved</span>.
+            The warehouse manager must click <span className="font-semibold">Complete transfer</span>{' '}
+            to move stock.
+          </>
+        ) : (
+          <>
+            Transfers start as <span className="font-semibold">pending</span>. The seller approves
+            the request, then you complete the transfer.
+          </>
+        )}
       </div>
 
       <div className="flex justify-end gap-3 border-t border-[var(--dni-border)] pt-4">
@@ -198,7 +278,7 @@ const TransferStockForm = ({
           className={primaryButtonClass}
           disabled={submitting}
         >
-          {submitting ? 'Submitting…' : 'Submit transfer request'}
+          {submitting ? 'Submitting…' : sellerMode ? 'Send to warehouse' : 'Submit transfer request'}
         </button>
       </div>
     </div>

@@ -1,16 +1,28 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Pencil, Trash2 } from 'lucide-react'
 import { usePageTitle } from '@/components/routing/PageTitle'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
+import { adminUsersApi } from '@/features/admin/api/adminUsersApi'
 import { warehouseApi, warehouseErrorMessage } from '../api/warehouseApi'
 import { WarehouseStatusBadge } from '../components/StockStatusBadge'
 import { warehousePaths, type WarehouseAreaBase } from '../config/warehousePaths'
-import { WAREHOUSE_STATUS_LABELS, type Warehouse } from '../types/warehouseTypes'
+import {
+  WAREHOUSE_STATUS_LABELS,
+  warehouseCapacityLabel,
+  type Warehouse,
+} from '../types/warehouseTypes'
 
 export type WarehouseDetailPageProps = {
   base: WarehouseAreaBase
 }
+
+const DetailRow = ({ label, value }: { label: string; value: ReactNode }) => (
+  <div className="grid min-w-0 grid-cols-[9.5rem_minmax(0,1fr)] items-start gap-x-3 border-b border-slate-100 py-2.5 last:border-b-0 sm:grid-cols-[10.5rem_minmax(0,1fr)]">
+    <p className="text-xs font-medium text-slate-500">{label}</p>
+    <div className="break-words text-sm font-semibold text-slate-900">{value}</div>
+  </div>
+)
 
 const WarehouseDetailPage = ({ base }: WarehouseDetailPageProps) => {
   const { id } = useParams<{ id: string }>()
@@ -20,6 +32,7 @@ const WarehouseDetailPage = ({ base }: WarehouseDetailPageProps) => {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [warehouse, setWarehouse] = useState<Warehouse | null>(null)
+  const [managerName, setManagerName] = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) {
@@ -32,12 +45,23 @@ const WarehouseDetailPage = ({ base }: WarehouseDetailPageProps) => {
       setLoading(true)
       setLoadError('')
       try {
-        const response = await warehouseApi.getWarehouse(id)
-        const data = response.data?.data ?? null
-        if (!cancelled) {
-          setWarehouse(data)
-          if (!data) setLoadError('Warehouse not found.')
+        const [warehouseResponse, managersResponse] = await Promise.all([
+          warehouseApi.getWarehouse(id),
+          adminUsersApi.listWarehouseManagers().catch(() => null),
+        ])
+        const data = warehouseResponse.data?.data ?? null
+        if (cancelled) return
+        setWarehouse(data)
+        if (!data) {
+          setLoadError('Warehouse not found.')
+          setManagerName(null)
+          return
         }
+        const managers = managersResponse?.data?.data?.users ?? []
+        const match = data.createdBy
+          ? managers.find((user) => user.id === data.createdBy)
+          : undefined
+        setManagerName(match?.name?.trim() || match?.email || null)
       } catch (error) {
         if (!cancelled) setLoadError(warehouseErrorMessage(error))
       } finally {
@@ -120,31 +144,30 @@ const WarehouseDetailPage = ({ base }: WarehouseDetailPageProps) => {
             </div>
           </div>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
-            <h2 className="text-base font-bold text-slate-900">Warehouse details</h2>
-            <div className="mt-5 space-y-5">
-              <div>
-                <p className="text-xs font-medium text-slate-500">Name</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">{warehouse.name}</p>
-              </div>
-              <div className="h-px bg-slate-200" />
-              <div>
-                <p className="text-xs font-medium text-slate-500">Code</p>
-                <p className="mt-1 font-mono text-sm text-slate-900">{warehouse.code || '—'}</p>
-              </div>
-              <div className="h-px bg-slate-200" />
-              <div>
-                <p className="text-xs font-medium text-slate-500">Address</p>
-                <p className="mt-1 text-sm text-slate-900">{warehouse.address?.trim() || '—'}</p>
-              </div>
-              <div className="h-px bg-slate-200" />
-              <div>
-                <p className="text-xs font-medium text-slate-500">Status</p>
-                <div className="mt-1">
-                  <WarehouseStatusBadge status={warehouse.status} />
-                  <span className="sr-only">{WAREHOUSE_STATUS_LABELS[warehouse.status]}</span>
-                </div>
-              </div>
+          <section className="space-y-2">
+            <h2 className="text-sm font-semibold text-slate-800">Warehouse details</h2>
+            <div className="rounded-lg border border-slate-200 bg-white px-3 sm:px-4">
+              <DetailRow label="Name" value={warehouse.name} />
+              <DetailRow label="Code" value={warehouse.code || '—'} />
+              <DetailRow label="Address" value={warehouse.address?.trim() || '—'} />
+              <DetailRow label="Warehouse manager" value={managerName || '—'} />
+              <DetailRow
+                label="Capacity"
+                value={
+                  <span className={warehouse.isAtCapacity ? 'text-rose-700' : undefined}>
+                    {warehouseCapacityLabel(warehouse)}
+                  </span>
+                }
+              />
+              <DetailRow
+                label="Status"
+                value={
+                  <>
+                    <WarehouseStatusBadge status={warehouse.status} />
+                    <span className="sr-only">{WAREHOUSE_STATUS_LABELS[warehouse.status]}</span>
+                  </>
+                }
+              />
             </div>
           </section>
         </>

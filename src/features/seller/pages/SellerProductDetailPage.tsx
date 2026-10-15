@@ -120,10 +120,23 @@ const SellerProductDetailPage = () => {
   const displayStatus = item?.isActive ? 'Active' : 'Inactive'
   const displayDate = formatDate(item?.createdAt)
   const displayUpdated = formatDate(item?.updatedAt)
-  const totalStock = variants.reduce((sum, variant) => {
-    const stock = Number(variant.stock ?? variant.shopStock ?? 0)
-    return sum + (Number.isFinite(stock) ? stock : 0)
-  }, 0)
+  const variantAvailable = (variant: (typeof variants)[number]) => {
+    const explicit = Number(variant.availableStock)
+    if (Number.isFinite(explicit)) return explicit
+    const shop = Number(variant.stock ?? variant.shopStock ?? 0)
+    const warehouse = Number(variant.warehouseStockMirror ?? 0)
+    return (Number.isFinite(shop) ? shop : 0) + (Number.isFinite(warehouse) ? warehouse : 0)
+  }
+  const totalStock = (() => {
+    const productAvailable = Number(item?.availableStock)
+    if (Number.isFinite(productAvailable)) return productAvailable
+    const shop = Number(item?.stock ?? 0)
+    const warehouse = Number(item?.warehouseStockMirror ?? 0)
+    if (Number.isFinite(shop) || Number.isFinite(warehouse)) {
+      return (Number.isFinite(shop) ? shop : 0) + (Number.isFinite(warehouse) ? warehouse : 0)
+    }
+    return variants.reduce((sum, variant) => sum + variantAvailable(variant), 0)
+  })()
   const imageUrls = useMemo(() => (item ? normalizeProductImages(item) : []), [item])
   const imageUrl = imageUrls[0] ?? ''
 
@@ -273,9 +286,17 @@ const SellerProductDetailPage = () => {
                   </div>
                 </div>
                 <div className="h-px bg-slate-200" />
-                <div className="grid grid-cols-2 gap-3 sm:max-w-xs">
+                <div className="grid grid-cols-2 gap-3 sm:max-w-lg sm:grid-cols-4">
                   <DetailField label="Variants" value={String(variants.length)} />
-                  <DetailField label="Total stock" value={String(totalStock)} />
+                  <DetailField
+                    label="Shop stock"
+                    value={String(Number(item.stock ?? 0) || 0)}
+                  />
+                  <DetailField
+                    label="Warehouse"
+                    value={String(Number(item.warehouseStockMirror ?? 0) || 0)}
+                  />
+                  <DetailField label="Available" value={String(totalStock)} />
                 </div>
               </div>
             </section>
@@ -332,11 +353,18 @@ const SellerProductDetailPage = () => {
                   const sizeName = variant.size?.name?.trim() || '—'
                   const withCode = (name: string, code?: string) =>
                     code?.trim() ? `${name} (${code.trim()})` : name
+                  const shopQty = Number(variant.stock ?? variant.shopStock ?? 0)
+                  const warehouseQty = Number(variant.warehouseStockMirror ?? 0)
                   const fields: Array<[string, string]> = [
                     ['Color', withCode(colorName, variant.color?.code)],
                     ['Size', withCode(sizeName, variant.size?.code)],
                     ['SKU', variant.sku?.trim() || '—'],
-                    ['Stock', String(variant.stock ?? variant.shopStock ?? '—')],
+                    ['Shop stock', Number.isFinite(shopQty) ? String(shopQty) : '—'],
+                    [
+                      'Warehouse',
+                      Number.isFinite(warehouseQty) ? String(warehouseQty) : '—',
+                    ],
+                    ['Available', String(variantAvailable(variant))],
                     ['Base price', formatKs(variant.basePrice)],
                     ['Selling price', formatKs(variant.listPrice ?? variant.sellingPrice)],
                     ['Markup', formatPercent(variant.profitThresholdPercent)],

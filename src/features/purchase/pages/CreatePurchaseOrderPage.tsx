@@ -10,15 +10,16 @@ import {
 } from 'lucide-react'
 import ProductSearchSelect from '@/features/warehouse/components/ProductSearchSelect'
 import { useWarehouses } from '@/features/warehouse/hooks/useWarehouseData'
+import { productApi } from '@/features/products/api/productApi'
+import { sellerProductApi } from '@/features/seller/api/sellerProductApi'
 import { productClient } from '@/lib/api/productClient'
+import { sanitizeIntegerInput } from '@/utils/decimalInput'
 import { purchaseApi, purchaseErrorMessage } from '../api/purchaseApi'
 import { useSuppliers } from '../hooks/usePurchaseData'
 import { purchasePaths, type PurchaseAreaBase } from '../config/purchasePaths'
 import {
   ADDITIONAL_COST_CATEGORIES,
   ADDITIONAL_COST_CATEGORY_LABELS,
-  COST_ALLOCATION_METHODS,
-  COST_ALLOCATION_METHOD_LABELS,
   COST_STATUS_LABELS,
   formatMoney,
   type AdditionalCostCategory,
@@ -73,16 +74,24 @@ type DraftItem = {
   key: string
   productId: string
   unit: string
+  colorId: string
+  sizeId: string
+  length: string
+  width: string
+  height: string
   quantity: string
   unitCost: string
   discount: string
   weightPerUnit: string
   volumePerUnit: string
+  /** Prefills from product catalog; variant fields stay read-only. */
+  fromCatalog: boolean
 }
 
 type DraftStage = {
   key: string
-  name: string
+  fromLocation: string
+  toLocation: string
   carrier: string
   feeAmount: string
   allocationMethod: CostAllocationMethod
@@ -106,6 +115,22 @@ type AttachmentRow = {
   contentBase64: string
 }
 
+type ProductVariantRow = {
+  id?: string
+  colorId?: string
+  sizeId?: string
+  basePrice?: number | string
+  stock?: number | string
+  warehouseStockMirror?: number | string
+  availableStock?: number | string
+  length?: number | string | null
+  width?: number | string | null
+  height?: number | string | null
+  weight?: number | string | null
+  color?: { id?: string; name?: string }
+  size?: { id?: string; name?: string }
+}
+
 type ProductRow = {
   id: string
   name?: string
@@ -113,31 +138,198 @@ type ProductRow = {
   sku?: string
   description?: string
   price?: number | string
+  variants?: ProductVariantRow[]
 }
 type ProductEnvelope = { success?: boolean; data?: ProductRow | ProductRow[] }
+
+type ProductVariantSnapshot = {
+  id: string
+  colorId: string
+  sizeId: string
+  colorName: string | null
+  sizeName: string | null
+  length: number | null
+  width: number | null
+  height: number | null
+  weight: number | null
+  basePrice: number | null
+  /** Catalog sellable qty (shop + warehouse mirror) when destination stock is unavailable. */
+  availableStock: number
+}
 
 type ProductSnapshot = {
   name: string
   sku: string | null
   description: string | null
+  variants: ProductVariantSnapshot[]
 }
+
+const dimText = (value: number | string | null | undefined): string => {
+  if (value === null || value === undefined || value === '') return ''
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? String(parsed) : ''
+}
+
+const mapProductVariants = (rows: ProductVariantRow[] | undefined): ProductVariantSnapshot[] =>
+  (rows ?? [])
+    .map((variant) => {
+      const colorId = variant.colorId ?? variant.color?.id ?? ''
+      const sizeId = variant.sizeId ?? variant.size?.id ?? ''
+      if (!colorId || !sizeId) return null
+      const base = Number(variant.basePrice)
+      const available =
+        Number(variant.availableStock) ||
+        Math.max(0, Number(variant.stock) || 0) +
+          Math.max(0, Number(variant.warehouseStockMirror) || 0)
+      return {
+        id: variant.id ?? `${colorId}:${sizeId}`,
+        colorId,
+        sizeId,
+        colorName: variant.color?.name ?? null,
+        sizeName: variant.size?.name ?? null,
+        length: variant.length != null && variant.length !== '' ? Number(variant.length) : null,
+        width: variant.width != null && variant.width !== '' ? Number(variant.width) : null,
+        height: variant.height != null && variant.height !== '' ? Number(variant.height) : null,
+        weight: variant.weight != null && variant.weight !== '' ? Number(variant.weight) : null,
+        basePrice: Number.isFinite(base) ? base : null,
+        availableStock: Number.isFinite(available) ? available : 0,
+      } satisfies ProductVariantSnapshot
+    })
+    .filter((row): row is ProductVariantSnapshot => row != null)
+
+const snapshotFromProductRow = (id: string, row?: ProductRow | null): ProductSnapshot => ({
+  name: row?.name ?? row?.title ?? id,
+  sku: row?.sku ?? null,
+  description: row?.description ?? null,
+  variants: mapProductVariants(row?.variants),
+})
 
 const emptyItem = (): DraftItem => ({
   key: nextKey(),
   productId: '',
   unit: 'pcs',
+  colorId: '',
+  sizeId: '',
+  length: '',
+  width: '',
+  height: '',
   quantity: '1',
   unitCost: '0',
   discount: '0',
   weightPerUnit: '0',
   volumePerUnit: '0',
+  fromCatalog: false,
 })
 
+const draftFromVariant = (
+  productId: string,
+  variant: ProductVariantSnapshot,
+  quantity = '1',
+): DraftItem => ({
+  ...emptyItem(),
+  productId,
+  colorId: variant.colorId,
+  sizeId: variant.sizeId,
+  length: dimText(variant.length),
+  width: dimText(variant.width),
+  height: dimText(variant.height),
+  weightPerUnit: dimText(variant.weight) || '0',
+  unitCost: variant.basePrice != null ? String(variant.basePrice) : '0',
+  quantity,
+  fromCatalog: true,
+})
+
+const variantPairKey = (productId: string, colorId: string, sizeId: string) =>
+  `${productId}:${colorId}:${sizeId}`
+
+/** Expand bare product rows into one line per catalog variant (skipping pairs already present). */
+const expandItemsWithVariants = (
+  rows: DraftItem[],
+  meta: Record<string, ProductSnapshot>,
+): DraftItem[] => {
+  const result: DraftItem[] = []
+  const covered = new Set<string>()
+
+  for (const item of rows) {
+    if (item.productId && (item.colorId || item.sizeId)) {
+      covered.add(variantPairKey(item.productId, item.colorId, item.sizeId))
+    }
+  }
+
+  for (const item of rows) {
+    if (!item.productId || item.colorId || item.sizeId) {
+      result.push(item)
+      continue
+    }
+    const variants = meta[item.productId]?.variants ?? []
+    if (variants.length === 0) {
+      result.push(item)
+      continue
+    }
+    let added = 0
+    for (const variant of variants) {
+      const pair = variantPairKey(item.productId, variant.colorId, variant.sizeId)
+      if (covered.has(pair)) continue
+      covered.add(pair)
+      result.push(draftFromVariant(item.productId, variant, item.quantity))
+      added += 1
+    }
+    if (added === 0) result.push(item)
+  }
+
+  return result.length > 0 ? result : rows
+}
+
 const defaultStages = (): DraftStage[] => [
-  { key: nextKey(), name: 'Pickup', carrier: '', feeAmount: '0', allocationMethod: 'QUANTITY', applicableProductIds: [] },
-  { key: nextKey(), name: 'Main Freight', carrier: '', feeAmount: '0', allocationMethod: 'QUANTITY', applicableProductIds: [] },
-  { key: nextKey(), name: 'Final Delivery', carrier: '', feeAmount: '0', allocationMethod: 'QUANTITY', applicableProductIds: [] },
+  {
+    key: nextKey(),
+    fromLocation: 'China',
+    toLocation: 'Lashio',
+    carrier: '',
+    feeAmount: '0',
+    allocationMethod: 'QUANTITY',
+    applicableProductIds: [],
+  },
+  {
+    key: nextKey(),
+    fromLocation: 'Lashio',
+    toLocation: 'Mandalay',
+    carrier: '',
+    feeAmount: '0',
+    allocationMethod: 'QUANTITY',
+    applicableProductIds: [],
+  },
+  {
+    key: nextKey(),
+    fromLocation: 'Mandalay',
+    toLocation: 'Yangon (AungMingalar)',
+    carrier: '',
+    feeAmount: '0',
+    allocationMethod: 'QUANTITY',
+    applicableProductIds: [],
+  },
 ]
+
+const stageRouteLabel = (stage: DraftStage) => {
+  const from = stage.fromLocation.trim()
+  const to = stage.toLocation.trim()
+  if (from && to) return `${from} → ${to}`
+  return from || to || ''
+}
+
+/** Build ordered checkpoints from chained delivery legs (from → to). */
+const routeStopsFromStages = (rows: DraftStage[]): string[] => {
+  const stops: string[] = []
+  for (const stage of rows) {
+    const from = stage.fromLocation.trim()
+    const to = stage.toLocation.trim()
+    if (!from || !to) continue
+    if (stops.length === 0) stops.push(from)
+    else if (stops[stops.length - 1] !== from) stops.push(from)
+    if (stops[stops.length - 1] !== to) stops.push(to)
+  }
+  return stops
+}
 
 const defaultCosts = (): DraftCost[] => [
   { key: nextKey(), name: 'Handling', category: 'HANDLING', amount: '0', status: 'ESTIMATED', allocationMethod: 'QUANTITY', applicableProductIds: [] },
@@ -165,15 +357,15 @@ const SectionCard = ({
   children: ReactNode
 }) => (
   <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-    <header className="flex flex-wrap items-center gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3">
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--dni-primary)] text-[11px] font-semibold text-white">
+    <header className="flex items-start gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3">
+      <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--dni-primary)] text-[11px] font-semibold text-white">
         {index}
       </span>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-        {subtitle && <p className="text-xs text-slate-500">{subtitle}</p>}
+        {subtitle && <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>}
       </div>
-      {action && <div className="ml-auto">{action}</div>}
+      {action && <div className="shrink-0 pt-0.5">{action}</div>}
     </header>
     <div className="p-4">{children}</div>
   </section>
@@ -182,25 +374,35 @@ const SectionCard = ({
 const Field = ({
   label,
   hint,
+  required,
+  error,
   children,
 }: {
   label: string
   hint?: string
+  required?: boolean
+  error?: string
   children: ReactNode
 }) => (
   <div className="min-w-0">
-    <label className={labelClass}>{label}</label>
+    <label className={labelClass}>
+      {label}
+      {required ? <span className="text-rose-500"> *</span> : null}
+    </label>
     {children}
-    {hint && <p className="mt-1 text-[11px] text-slate-400">{hint}</p>}
+    {error ? <p className="mt-1 text-xs text-rose-600">{error}</p> : null}
+    {hint && !error ? <p className="mt-1 text-[11px] text-slate-400">{hint}</p> : null}
   </div>
 )
+
+const invalidInputClass = 'border-rose-400 focus:border-rose-500'
 
 const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
   const paths = purchasePaths(base)
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { suppliers } = useSuppliers()
-  const { warehouses } = useWarehouses()
+  const { warehouses } = useWarehouses({ catalog: true, status: 'ACTIVE' })
 
   const today = new Date().toISOString().slice(0, 10)
   const initialShipping =
@@ -220,9 +422,44 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
   const [deliveryTerms, setDeliveryTerms] = useState('FOB')
 
   // Section 2 — line items
-  const [items, setItems] = useState<DraftItem[]>([emptyItem()])
+  const orderKind = 'SUPPLIER' as const
+  const prefilledLines = (searchParams.get('lines') ?? '')
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const [productId, quantity] = part.split(':')
+      return {
+        ...emptyItem(),
+        productId: productId ?? '',
+        quantity: quantity && Number(quantity) > 0 ? quantity : '1',
+      }
+    })
 
-  // Section 3 — delivery stages
+  const [items, setItems] = useState<DraftItem[]>(prefilledLines.length > 0 ? prefilledLines : [emptyItem()])
+  const [colorOptions, setColorOptions] = useState<Array<{ id: string; name: string }>>([])
+  const [sizeOptions, setSizeOptions] = useState<Array<{ id: string; name: string }>>([])
+
+  useEffect(() => {
+    let cancelled = false
+    void Promise.all([sellerProductApi.listColors(), sellerProductApi.listSizes()])
+      .then(([colors, sizes]) => {
+        if (cancelled) return
+        setColorOptions(colors.data?.data ?? [])
+        setSizeOptions(sizes.data?.data ?? [])
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setColorOptions([])
+          setSizeOptions([])
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // Section 3 — delivery stages (transit legs + freight charges)
   const [stages, setStages] = useState<DraftStage[]>(() => {
     const rows = defaultStages()
     if (initialShipping > 0 && rows[0]) {
@@ -240,14 +477,79 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
 
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [showHeaderErrors, setShowHeaderErrors] = useState(false)
 
   const [productMeta, setProductMeta] = useState<Record<string, ProductSnapshot>>({})
+  const [loadingProductId, setLoadingProductId] = useState<string | null>(null)
   const lastSupplierRef = useRef('')
+  const initialVariantExpandDone = useRef(false)
 
   const sourceRoute = searchParams.get('source_route') ?? searchParams.get('origin_route') ?? ''
 
   const lineNet = (item: DraftItem) =>
     round2(num(item.quantity) * num(item.unitCost) - num(item.discount))
+
+  const resolveColorName = (item: DraftItem) =>
+    productMeta[item.productId]?.variants.find((variant) => variant.colorId === item.colorId)
+      ?.colorName ??
+    colorOptions.find((color) => color.id === item.colorId)?.name ??
+    null
+
+  const resolveSizeName = (item: DraftItem) =>
+    productMeta[item.productId]?.variants.find((variant) => variant.sizeId === item.sizeId)
+      ?.sizeName ??
+    sizeOptions.find((size) => size.id === item.sizeId)?.name ??
+    null
+
+  /** Existing stock from ecommerce-read (same source as storefront product UI). */
+  const existingStockFor = (item: DraftItem): number => {
+    if (!item.productId || !item.colorId || !item.sizeId) return 0
+    const catalog = productMeta[item.productId]?.variants.find(
+      (variant) => variant.colorId === item.colorId && variant.sizeId === item.sizeId,
+    )
+    return catalog?.availableStock ?? 0
+  }
+
+  const fetchProductSnapshot = async (id: string): Promise<ProductSnapshot> => {
+    let snapshot = snapshotFromProductRow(id, null)
+    try {
+      const response = await productClient.get<ProductEnvelope>(`/products/${id}`)
+      const payload = response.data?.data
+      const row = Array.isArray(payload) ? payload[0] : payload
+      snapshot = snapshotFromProductRow(id, row)
+    } catch {
+      // Keep empty meta if product-service is unavailable.
+    }
+
+    // Prefer ecommerce-read stock (warehouseStock + shopStock), same as product detail UI.
+    try {
+      const detail = await productApi.getDetail(id)
+      const catalogVariants = detail.data?.data?.variants ?? []
+      if (catalogVariants.length === 0) return snapshot
+
+      const stockByPair = new Map<string, number>()
+      for (const variant of catalogVariants) {
+        const colorId = variant.colorId ?? ''
+        const sizeId = variant.sizeId ?? ''
+        if (!colorId || !sizeId) continue
+        const sellable =
+          Math.max(0, Number(variant.shopStock) || 0) +
+          Math.max(0, Number(variant.warehouseStock) || 0)
+        stockByPair.set(`${colorId}:${sizeId}`, sellable)
+      }
+
+      return {
+        ...snapshot,
+        variants: snapshot.variants.map((variant) => ({
+          ...variant,
+          availableStock:
+            stockByPair.get(`${variant.colorId}:${variant.sizeId}`) ?? variant.availableStock,
+        })),
+      }
+    } catch {
+      return snapshot
+    }
+  }
 
   const stageFeeTotal = useMemo(
     () => round2(stages.reduce((sum, stage) => sum + num(stage.feeAmount), 0)),
@@ -267,16 +569,6 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
   const otherCostsTotal = additionalCostsTotal
   const totalAmount = round2(subtotal + deliveryTotal + otherCostsTotal)
 
-  const selectableProducts = useMemo(() => {
-    const seen = new Set<string>()
-    return items
-      .filter((item) => item.productId && !seen.has(item.productId))
-      .map((item) => {
-        seen.add(item.productId)
-        return { id: item.productId, label: productMeta[item.productId]?.name ?? item.productId }
-      })
-  }, [items, productMeta])
-
   useEffect(() => {
     if (!supplierId || supplierId === lastSupplierRef.current) return
     const supplier = suppliers.find((entry) => entry.id === supplierId)
@@ -290,7 +582,7 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
     setCurrency(supplier.currency || 'USD')
   }, [suppliers, supplierId])
 
-  // Resolve product snapshots (name, SKU, description) for selected products.
+  // Resolve product snapshots (name, SKU, description, variants) for selected products.
   useEffect(() => {
     const missing = Array.from(
       new Set(
@@ -303,26 +595,12 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
     let cancelled = false
     void (async () => {
       for (const id of missing) {
-        try {
-          const response = await productClient.get<ProductEnvelope>(`/products/${id}`)
-          const payload = response.data?.data
-          const row = Array.isArray(payload) ? payload[0] : payload
-          if (cancelled) return
-          setProductMeta((current) => ({
-            ...current,
-            [id]: {
-              name: row?.name ?? row?.title ?? id,
-              sku: row?.sku ?? null,
-              description: row?.description ?? null,
-            },
-          }))
-        } catch {
-          if (cancelled) return
-          setProductMeta((current) => ({
-            ...current,
-            [id]: { name: id, sku: null, description: null },
-          }))
-        }
+        const snapshot = await fetchProductSnapshot(id)
+        if (cancelled) return
+        setProductMeta((current) => ({
+          ...current,
+          [id]: snapshot,
+        }))
       }
     })()
     return () => {
@@ -330,43 +608,129 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
     }
   }, [items, productMeta])
 
+  // Prefill / deep-link rows: expand catalog variants once metadata is ready.
+  useEffect(() => {
+    if (initialVariantExpandDone.current) return
+    const bare = items.filter((item) => item.productId && !item.colorId && !item.sizeId)
+    if (bare.length === 0) {
+      initialVariantExpandDone.current = true
+      return
+    }
+    if (bare.some((item) => !productMeta[item.productId])) return
+    initialVariantExpandDone.current = true
+    setItems((current) => expandItemsWithVariants(current, productMeta))
+  }, [items, productMeta])
+
   const updateItem = (key: string, patch: Partial<DraftItem>) =>
     setItems((current) => current.map((row) => (row.key === key ? { ...row, ...patch } : row)))
 
   const removeItem = (key: string) =>
-    setItems((current) => (current.length > 1 ? current.filter((row) => row.key !== key) : current))
+    setItems((current) => {
+      const next = current.filter((row) => row.key !== key)
+      return next.length > 0 ? next : [emptyItem()]
+    })
+
+  const removeProductGroup = (productId: string, anchorKey: string) =>
+    setItems((current) => {
+      const next = productId
+        ? current.filter((row) => row.productId !== productId)
+        : current.filter((row) => row.key !== anchorKey)
+      return next.length > 0 ? next : [emptyItem()]
+    })
+
+  /** One product picker per product; variants render as table rows under it. */
+  const productGroups = useMemo(() => {
+    const groups: Array<{ productId: string; anchorKey: string; rows: DraftItem[] }> = []
+    const indexByProduct = new Map<string, number>()
+    for (const item of items) {
+      if (!item.productId) {
+        groups.push({ productId: '', anchorKey: item.key, rows: [item] })
+        continue
+      }
+      const existing = indexByProduct.get(item.productId)
+      if (existing === undefined) {
+        indexByProduct.set(item.productId, groups.length)
+        groups.push({ productId: item.productId, anchorKey: item.key, rows: [item] })
+      } else {
+        groups[existing]?.rows.push(item)
+      }
+    }
+    return groups
+  }, [items])
+
+  const handleProductChange = async (rowKey: string, productId: string) => {
+    const replaceProductGroup = (
+      current: DraftItem[],
+      nextRows: DraftItem[],
+    ): DraftItem[] => {
+      const index = current.findIndex((row) => row.key === rowKey)
+      if (index < 0) return current
+      const previousProductId = current[index]?.productId ?? ''
+
+      // Drop the whole previous product's variant group (not just this row),
+      // and any existing rows for the newly selected product to avoid duplicates.
+      const removeIds = new Set(
+        [previousProductId, productId].filter((id): id is string => Boolean(id)),
+      )
+      const firstRemovedIndex =
+        previousProductId
+          ? current.findIndex((row) => row.productId === previousProductId)
+          : index
+      const kept = current.filter((row) => {
+        if (row.key === rowKey) return false
+        if (row.productId && removeIds.has(row.productId)) return false
+        return true
+      })
+      const insertAt = Math.max(
+        0,
+        Math.min(firstRemovedIndex >= 0 ? firstRemovedIndex : index, kept.length),
+      )
+      const merged = [...kept.slice(0, insertAt), ...nextRows, ...kept.slice(insertAt)]
+      return merged.length > 0 ? merged : [emptyItem()]
+    }
+
+    if (!productId) {
+      setItems((current) => replaceProductGroup(current, [emptyItem()]))
+      return
+    }
+
+    setLoadingProductId(productId)
+    try {
+      let snapshot = productMeta[productId]
+      if (!snapshot) {
+        snapshot = await fetchProductSnapshot(productId)
+        setProductMeta((current) => ({ ...current, [productId]: snapshot }))
+      }
+
+      setItems((current) => {
+        const index = current.findIndex((row) => row.key === rowKey)
+        const quantity = current[index]?.quantity ?? '1'
+        const variants = snapshot.variants ?? []
+        const variantRows =
+          variants.length > 0
+            ? variants.map((variant) => draftFromVariant(productId, variant, quantity))
+            : [{ ...emptyItem(), productId, quantity }]
+        return replaceProductGroup(current, variantRows)
+      })
+    } finally {
+      setLoadingProductId((current) => (current === productId ? null : current))
+    }
+  }
 
   const updateStage = (key: string, patch: Partial<DraftStage>) =>
-    setStages((current) =>
-      current.map((row) => (row.key === key ? { ...row, ...patch } : row)),
-    )
+    setStages((current) => {
+      const index = current.findIndex((row) => row.key === key)
+      if (index < 0) return current
+      const next = current.map((row, i) => (i === index ? { ...row, ...patch } : row))
+      // Keep the next leg's From in sync when this leg's To changes.
+      if (typeof patch.toLocation === 'string' && next[index + 1]) {
+        next[index + 1] = { ...next[index + 1], fromLocation: patch.toLocation }
+      }
+      return next
+    })
 
   const updateCost = (key: string, patch: Partial<DraftCost>) =>
     setCosts((current) => current.map((row) => (row.key === key ? { ...row, ...patch } : row)))
-
-  const toggleScope = (key: string, productId: string, kind: 'stage' | 'cost') => {
-    const nextScope = (scope: string[]) =>
-      scope.includes(productId)
-        ? scope.filter((id) => id !== productId)
-        : [...scope, productId]
-    if (kind === 'stage') {
-      setStages((current) =>
-        current.map((row) =>
-          row.key === key
-            ? { ...row, applicableProductIds: nextScope(row.applicableProductIds) }
-            : row,
-        ),
-      )
-      return
-    }
-    setCosts((current) =>
-      current.map((row) =>
-        row.key === key
-          ? { ...row, applicableProductIds: nextScope(row.applicableProductIds) }
-          : row,
-      ),
-    )
-  }
 
   const addFiles = async (fileList: FileList | null) => {
     if (!fileList) return
@@ -402,19 +766,88 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
     })
   }
 
+  const headerFieldErrors = useMemo(() => {
+    const errors: Partial<
+      Record<
+        | 'orderDate'
+        | 'supplierId'
+        | 'contact'
+        | 'currency'
+        | 'exchangeRate'
+        | 'expectedAt'
+        | 'paymentTerms'
+        | 'warehouseId'
+        | 'deliveryTerms',
+        string
+      >
+    > = {}
+    if (!orderDate.trim()) errors.orderDate = 'Order date is required.'
+    if (!supplierId) errors.supplierId = 'Supplier is required.'
+    if (!contact.trim()) errors.contact = 'Supplier contact is required.'
+    if (!currency.trim()) errors.currency = 'Currency is required.'
+    if (!(num(exchangeRate) > 0)) errors.exchangeRate = 'Exchange rate must be greater than zero.'
+    if (!expectedAt.trim()) errors.expectedAt = 'Expected arrival is required.'
+    if (!paymentTerms.trim()) errors.paymentTerms = 'Payment terms are required.'
+    if (!warehouseId) errors.warehouseId = 'Destination warehouse is required.'
+    if (!deliveryTerms.trim()) errors.deliveryTerms = 'Delivery terms are required.'
+    return errors
+  }, [
+    orderDate,
+    supplierId,
+    contact,
+    currency,
+    exchangeRate,
+    expectedAt,
+    paymentTerms,
+    warehouseId,
+    deliveryTerms,
+  ])
+
+  const headerError = (field: keyof typeof headerFieldErrors) =>
+    showHeaderErrors ? headerFieldErrors[field] : undefined
+
   const validate = (): string | null => {
-    if (!supplierId) return 'Select a supplier.'
-    if (!warehouseId) return 'Select a destination warehouse.'
+    const firstHeaderError = Object.values(headerFieldErrors)[0]
+    if (firstHeaderError) return firstHeaderError
+    const selectedWarehouse = warehouses.find((warehouse) => warehouse.id === warehouseId)
+    if (selectedWarehouse?.isAtCapacity) {
+      return `${selectedWarehouse.name} is at full capacity. Choose another warehouse or free space before ordering.`
+    }
     const validItems = items.filter((item) => item.productId)
     if (validItems.length === 0) return 'Add at least one product line item.'
+    if (validItems.some((item) => !item.fromCatalog || !item.colorId || !item.sizeId)) {
+      return 'Only existing product variants can be ordered. Choose a product that already has color/size variants.'
+    }
     if (validItems.some((item) => num(item.quantity) <= 0))
       return 'Every line item needs a quantity greater than zero.'
+    const incompleteLeg = stages.find(
+      (stage) => !stage.fromLocation.trim() || !stage.toLocation.trim(),
+    )
+    if (stages.length === 0 || incompleteLeg) {
+      return 'Fill From and To for every delivery stage (transit route).'
+    }
+    if (routeStopsFromStages(stages).length < 2) {
+      return 'Add at least one transit leg with From and To locations.'
+    }
+    if (
+      selectedWarehouse?.capacityUnits != null &&
+      selectedWarehouse.remainingUnits != null
+    ) {
+      const orderedUnits = validItems.reduce((sum, item) => sum + num(item.quantity), 0)
+      if (orderedUnits > selectedWarehouse.remainingUnits) {
+        return `${selectedWarehouse.name} only has ${selectedWarehouse.remainingUnits} units of capacity remaining. Reduce the order quantity or choose another warehouse.`
+      }
+    }
     return null
   }
 
-  const buildPayload = (): PurchaseOrderPayload => ({
+  const filledRouteStops = routeStopsFromStages(stages)
+
+  const buildPayload = (asDraft = false): PurchaseOrderPayload => ({
     supplierId,
     warehouseId,
+    orderKind,
+    asDraft,
     currency,
     exchangeRate: num(exchangeRate) || 1,
     paymentTerms: paymentTerms || null,
@@ -426,6 +859,7 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
     discountAmount: 0,
     taxAmount: 0,
     shippingAmount: deliveryTotal,
+    routeStops: filledRouteStops,
     items: items
       .filter((item) => item.productId)
       .map((item) => ({
@@ -434,6 +868,13 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
         sku: productMeta[item.productId]?.sku ?? null,
         description: productMeta[item.productId]?.description ?? null,
         unit: item.unit || null,
+        colorId: item.colorId || null,
+        sizeId: item.sizeId || null,
+        colorName: resolveColorName(item),
+        sizeName: resolveSizeName(item),
+        length: item.length ? num(item.length) : null,
+        width: item.width ? num(item.width) : null,
+        height: item.height ? num(item.height) : null,
         quantity: Math.max(1, Math.round(num(item.quantity))),
         unitCost: num(item.unitCost),
         discountAmount: num(item.discount),
@@ -441,10 +882,10 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
         volumePerUnit: num(item.volumePerUnit),
       })),
     deliveryStages: stages
-      .filter((stage) => stage.name.trim() && num(stage.feeAmount) > 0)
+      .filter((stage) => stage.fromLocation.trim() && stage.toLocation.trim())
       .map((stage, index) => ({
         sequence: index + 1,
-        name: stage.name.trim(),
+        name: stageRouteLabel(stage),
         carrier: stage.carrier.trim() || null,
         feeAmount: num(stage.feeAmount),
         currency,
@@ -472,6 +913,7 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
 
   const submit = async (mode: 'draft' | 'approval') => {
     setFormError(null)
+    setShowHeaderErrors(true)
     const error = validate()
     if (error) {
       setFormError(error)
@@ -479,9 +921,9 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
     }
     setSaving(true)
     try {
-      const response = await purchaseApi.createPurchaseOrder(buildPayload())
+      const response = await purchaseApi.createPurchaseOrder(buildPayload(mode === 'draft'))
       const created = response.data?.data
-      if (mode === 'approval' && created?.id) {
+      if (mode === 'approval' && orderKind !== 'SUPPLIER' && created?.id) {
         await purchaseApi.updatePurchaseOrderStatus(created.id, 'PENDING_APPROVAL')
       }
       navigate(paths.orders)
@@ -507,13 +949,15 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
       </nav>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
+        <div className="min-w-0 max-w-xl">
           <h1 className="text-xl font-bold text-slate-900">Create Purchase Order</h1>
           <p className="text-sm text-slate-500">
-            Build the order, plan multi-stage freight and submit for approval.
+            {orderKind === 'SUPPLIER'
+              ? 'Order from a supplier, set the transit route, then track arrivals.'
+              : 'Order from a warehouse that already has the stock.'}
           </p>
         </div>
-        <Link to={paths.orders} className={secondaryButtonClass}>
+        <Link to={paths.orders} className={`${secondaryButtonClass} shrink-0 gap-1.5 whitespace-nowrap`}>
           <ArrowLeft size={15} />
           Back to list
         </Link>
@@ -532,17 +976,17 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
           <Field label="PO Number" hint="System assigns the final number on save.">
             <input className={inputClass} value={poNumber} disabled readOnly />
           </Field>
-          <Field label="Order date">
+          <Field label="Order date" required error={headerError('orderDate')}>
             <input
               type="date"
-              className={inputClass}
+              className={`${inputClass} ${headerError('orderDate') ? invalidInputClass : ''}`}
               value={orderDate}
               onChange={(event) => setOrderDate(event.target.value)}
             />
           </Field>
-          <Field label="Supplier">
+          <Field label="Supplier" required error={headerError('supplierId')}>
             <select
-              className={inputClass}
+              className={`${inputClass} ${headerError('supplierId') ? invalidInputClass : ''}`}
               value={supplierId}
               onChange={(event) => setSupplierId(event.target.value)}
             >
@@ -554,17 +998,17 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
               ))}
             </select>
           </Field>
-          <Field label="Supplier contact">
+          <Field label="Supplier contact" required error={headerError('contact')}>
             <input
-              className={inputClass}
+              className={`${inputClass} ${headerError('contact') ? invalidInputClass : ''}`}
               placeholder="Name, email or phone"
               value={contact}
               onChange={(event) => setContact(event.target.value)}
             />
           </Field>
-          <Field label="Currency">
+          <Field label="Currency" required error={headerError('currency')}>
             <select
-              className={inputClass}
+              className={`${inputClass} ${headerError('currency') ? invalidInputClass : ''}`}
               value={currency}
               onChange={(event) => setCurrency(event.target.value)}
             >
@@ -575,49 +1019,67 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
               ))}
             </select>
           </Field>
-          <Field label="Exchange rate">
+          <Field label="Exchange rate" required error={headerError('exchangeRate')}>
             <input
               type="number"
               min={0}
               step="0.000001"
-              className={inputClass}
+              className={`${inputClass} ${headerError('exchangeRate') ? invalidInputClass : ''}`}
               value={exchangeRate}
               onChange={(event) => setExchangeRate(event.target.value)}
             />
           </Field>
-          <Field label="Expected arrival">
+          <Field label="Expected arrival" required error={headerError('expectedAt')}>
             <input
               type="date"
-              className={inputClass}
+              className={`${inputClass} ${headerError('expectedAt') ? invalidInputClass : ''}`}
               value={expectedAt}
               onChange={(event) => setExpectedAt(event.target.value)}
             />
           </Field>
-          <Field label="Payment terms">
+          <Field label="Payment terms" required error={headerError('paymentTerms')}>
             <input
-              className={inputClass}
+              className={`${inputClass} ${headerError('paymentTerms') ? invalidInputClass : ''}`}
               placeholder="e.g. Net 30"
               value={paymentTerms}
               onChange={(event) => setPaymentTerms(event.target.value)}
             />
           </Field>
-          <Field label="Destination warehouse">
+          <Field label="Destination warehouse" required error={headerError('warehouseId')}>
             <select
-              className={inputClass}
+              className={`${inputClass} ${headerError('warehouseId') ? invalidInputClass : ''}`}
               value={warehouseId}
               onChange={(event) => setWarehouseId(event.target.value)}
             >
               <option value="">Select warehouse…</option>
-              {warehouses.map((warehouse) => (
-                <option key={warehouse.id} value={warehouse.id}>
-                  {warehouse.name}
-                </option>
-              ))}
+              {warehouses.map((warehouse) => {
+                const capacity =
+                  warehouse.capacityUnits != null
+                    ? ` · ${warehouse.usedUnits ?? 0}/${warehouse.capacityUnits}${
+                        warehouse.isAtCapacity ? ' full' : ''
+                      }`
+                    : ''
+                return (
+                  <option
+                    key={warehouse.id}
+                    value={warehouse.id}
+                    disabled={Boolean(warehouse.isAtCapacity)}
+                  >
+                    {warehouse.name}
+                    {capacity}
+                  </option>
+                )
+              })}
             </select>
+            {warehouses.some((warehouse) => warehouse.isAtCapacity) && (
+              <p className="mt-1 text-xs text-rose-600">
+                Warehouses marked full cannot receive purchase orders until space is available.
+              </p>
+            )}
           </Field>
-          <Field label="Delivery terms">
+          <Field label="Delivery terms" required error={headerError('deliveryTerms')}>
             <select
-              className={inputClass}
+              className={`${inputClass} ${headerError('deliveryTerms') ? invalidInputClass : ''}`}
               value={deliveryTerms}
               onChange={(event) => setDeliveryTerms(event.target.value)}
             >
@@ -635,7 +1097,7 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
       <SectionCard
         index={2}
         title="Products Line Items"
-        subtitle="Products, pricing, weight and volume per unit"
+        subtitle="Select a product, then set order stock for each variant."
         action={
           <button
             type="button"
@@ -643,130 +1105,195 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
             onClick={() => setItems((current) => [...current, emptyItem()])}
           >
             <Plus size={13} />
-            Add item
+            Add product
           </button>
         }
       >
-        <table className="w-full table-fixed border-collapse">
-          <thead>
-            <tr className="border-b border-slate-200 bg-slate-50">
-              <th className={`${thClass} w-[18%]`}>Product</th>
-              <th className={`${thClass} w-[10%] text-right`}>Qty</th>
-              <th className={`${thClass} w-[13%] text-right`}>Unit price</th>
-              <th className={`${thClass} w-[11%] text-right`}>Discount</th>
-              <th className={`${thClass} w-[13%] text-right`}>Net amount</th>
-              <th className={`${thClass} w-[15%] text-right`}>Weight/unit (kg)</th>
-              <th className={`${thClass} w-[15%] text-right`}>Volume/unit (m³)</th>
-              <th className={`${thClass} w-[5%]`} />
-            </tr>
-          </thead>
-            <tbody>
-              {items.map((item) => (
-                <tr key={item.key} className="border-b border-slate-100">
-                  <td className="min-w-0 px-2 py-2">
-                    <ProductSearchSelect
-                      value={item.productId}
-                      onChange={(productId) => updateItem(item.key, { productId })}
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <input
-                      type="number"
-                      min={1}
-                      className={`${cellInputClass} text-right`}
-                      value={item.quantity}
-                      onChange={(event) => updateItem(item.key, { quantity: event.target.value })}
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <input
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      className={`${cellInputClass} text-right`}
-                      value={item.unitCost}
-                      onChange={(event) => updateItem(item.key, { unitCost: event.target.value })}
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <input
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      className={`${cellInputClass} text-right`}
-                      value={item.discount}
-                      onChange={(event) => updateItem(item.key, { discount: event.target.value })}
-                    />
-                  </td>
-                  <td className="px-3 py-2 text-right text-xs font-medium text-slate-800">
-                    {formatMoney(lineNet(item))}
-                  </td>
-                  <td className="px-3 py-2">
-                    <input
-                      type="number"
-                      min={0}
-                      step="0.0001"
-                      className={`${cellInputClass} text-right`}
-                      value={item.weightPerUnit}
-                      onChange={(event) =>
-                        updateItem(item.key, { weightPerUnit: event.target.value })
-                      }
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <input
-                      type="number"
-                      min={0}
-                      step="0.000001"
-                      className={`${cellInputClass} text-right`}
-                      value={item.volumePerUnit}
-                      onChange={(event) =>
-                        updateItem(item.key, { volumePerUnit: event.target.value })
-                      }
-                    />
-                  </td>
-                  <td className="px-3 py-2 text-right">
+        <div className="space-y-4">
+          {productGroups.map((group) => {
+            const catalogVariantCount = productMeta[group.productId]?.variants.length ?? 0
+            const hasNoVariants =
+              Boolean(group.productId) &&
+              productMeta[group.productId] != null &&
+              catalogVariantCount === 0
+            const groupSubtotal = group.rows.reduce((sum, row) => sum + lineNet(row), 0)
+            return (
+              <div
+                key={group.anchorKey}
+                className="overflow-hidden rounded-lg border border-slate-200"
+              >
+                <div className="flex flex-col gap-2 border-b border-slate-100 bg-slate-50/80 px-3 py-2.5 sm:flex-row sm:items-end sm:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <Field label="Product">
+                      <ProductSearchSelect
+                        ownedOnly
+                        value={group.productId}
+                        disabled={loadingProductId === group.productId}
+                        onChange={(productId) =>
+                          void handleProductChange(group.anchorKey, productId)
+                        }
+                      />
+                    </Field>
+                  </div>
+                  <div className="flex shrink-0 items-center justify-end gap-3 pb-0.5">
+                    {group.productId && group.rows.some((row) => row.fromCatalog) && (
+                      <p className="text-sm text-slate-600">
+                        {group.rows.length} variant{group.rows.length === 1 ? '' : 's'} ·{' '}
+                        {formatMoney(groupSubtotal)}
+                      </p>
+                    )}
                     <button
                       type="button"
-                      aria-label="Remove line"
+                      aria-label="Remove product"
                       className="text-slate-400 hover:text-rose-600 disabled:opacity-40"
-                      disabled={items.length === 1}
-                      onClick={() => removeItem(item.key)}
+                      disabled={productGroups.length === 1 && !group.productId}
+                      onClick={() => removeProductGroup(group.productId, group.anchorKey)}
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={15} />
                     </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
+                </div>
+
+                {hasNoVariants && (
+                  <p className="px-3 py-3 text-[11px] text-amber-700">
+                    This product has no catalog variants yet. Add color/size variants on the
+                    product before ordering stock.
+                  </p>
+                )}
+
+                {!group.productId && (
+                  <p className="px-3 py-3 text-[11px] text-slate-500">
+                    Select a product to load its catalog variants.
+                  </p>
+                )}
+
+                {group.productId && group.rows.some((row) => row.fromCatalog) && (
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[860px] border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-100 bg-white">
+                          <th className={thClass}>Color</th>
+                          <th className={thClass}>Size</th>
+                          <th className={`${thClass} whitespace-nowrap`}>Dimensions (cm)</th>
+                          <th className={`${thClass} whitespace-nowrap`}>Weight / unit</th>
+                          <th className={`${thClass} w-28 text-right`}>Existing stock</th>
+                          <th className={`${thClass} w-28 text-right`}>Order stock</th>
+                          <th className={`${thClass} w-28 text-right`}>Unit price</th>
+                          <th className={`${thClass} w-28 text-right`}>Line total</th>
+                          <th className={`${thClass} w-10`} />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {group.rows.map((item) => {
+                          const colorLabel = resolveColorName(item) || '—'
+                          const sizeLabel = resolveSizeName(item) || '—'
+                          const dimensions =
+                            item.length || item.width || item.height
+                              ? `${item.length || '0'} × ${item.width || '0'} × ${item.height || '0'}`
+                              : '—'
+                          const existingStock = existingStockFor(item)
+                          return (
+                            <tr
+                              key={item.key}
+                              className="border-b border-slate-50 last:border-b-0"
+                            >
+                              <td className="px-3 py-2.5">
+                                <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-sm font-medium text-slate-700">
+                                  {colorLabel}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2.5">
+                                <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-sm font-medium text-slate-700">
+                                  {sizeLabel}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2.5 text-sm text-slate-600">{dimensions}</td>
+                              <td className="px-3 py-2.5 text-sm text-slate-600">
+                                {item.weightPerUnit ? (
+                                  <>
+                                    {item.weightPerUnit}{' '}
+                                    <span className="text-slate-400">kg</span>
+                                  </>
+                                ) : (
+                                  '—'
+                                )}
+                              </td>
+                              <td className="px-3 py-2.5 text-right text-sm font-medium text-slate-700">
+                                {existingStock}
+                              </td>
+                              <td className="px-3 py-2.5">
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  autoComplete="off"
+                                  className={`${cellInputClass} text-right text-sm`}
+                                  value={item.quantity}
+                                  onChange={(event) =>
+                                    updateItem(item.key, {
+                                      quantity: sanitizeIntegerInput(event.target.value),
+                                    })
+                                  }
+                                  aria-label={`Order stock for ${colorLabel} / ${sizeLabel}`}
+                                />
+                              </td>
+                              <td className="px-3 py-2.5 text-right text-sm font-medium text-slate-700">
+                                {formatMoney(num(item.unitCost))}
+                              </td>
+                              <td className="px-3 py-2.5 text-right text-sm font-medium text-slate-800">
+                                {formatMoney(lineNet(item))}
+                              </td>
+                              <td className="px-3 py-2.5 text-right">
+                                <button
+                                  type="button"
+                                  aria-label={`Remove ${colorLabel} / ${sizeLabel}`}
+                                  className="text-slate-400 hover:text-rose-600"
+                                  onClick={() => removeItem(item.key)}
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
         <div className="mt-3 flex items-center justify-end gap-2 text-xs text-slate-500">
           <span>Subtotal</span>
           <span className="font-semibold text-slate-800">{formatMoney(subtotal)}</span>
         </div>
       </SectionCard>
 
-      {/* Section 3 — delivery stages & charges */}
+      {/* Section 3 — delivery stages (transit route + charges) */}
       <SectionCard
         index={3}
         title="Delivery Stages & Charges"
-        subtitle="Multi-stage freight legs, carrier and how each leg is allocated"
+        subtitle="Each row is a transit leg (From → To). Confirm arrivals later in Purchase Order Tracking."
         action={
           <button
             type="button"
             className={subtleButtonClass}
             onClick={() =>
-              setStages((current) => [
-                ...current,
-                {
-                  key: nextKey(),
-                  name: '',
-                  carrier: '',
-                  feeAmount: '0',
-                  allocationMethod: 'QUANTITY',
-                  applicableProductIds: [],
-                },
-              ])
+              setStages((current) => {
+                const prevTo = current[current.length - 1]?.toLocation?.trim() ?? ''
+                return [
+                  ...current,
+                  {
+                    key: nextKey(),
+                    fromLocation: prevTo,
+                    toLocation: '',
+                    carrier: '',
+                    feeAmount: '0',
+                    allocationMethod: 'QUANTITY' as CostAllocationMethod,
+                    applicableProductIds: [],
+                  },
+                ]
+              })
             }
           >
             <Plus size={13} />
@@ -775,14 +1302,13 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
         }
       >
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] border-collapse">
+          <table className="w-full min-w-[640px] border-collapse">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
-                <th className={thClass}>Route</th>
-                <th className={`${thClass} w-44`}>Carrier</th>
-                <th className={`${thClass} w-32 text-right`}>Charge fee</th>
-                <th className={`${thClass} w-44`}>Allocation method</th>
-                <th className={`${thClass} w-56`}>Applicable products</th>
+                <th className={`${thClass} w-40`}>From</th>
+                <th className={`${thClass} w-40`}>To</th>
+                <th className={`${thClass} w-40`}>Carrier</th>
+                <th className={`${thClass} w-28 text-right`}>Charge fee</th>
                 <th className={`${thClass} w-10`} />
               </tr>
             </thead>
@@ -792,9 +1318,21 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
                   <td className="px-3 py-2">
                     <input
                       className={cellInputClass}
-                      placeholder="e.g. Shenzhen → Ho Chi Minh"
-                      value={stage.name}
-                      onChange={(event) => updateStage(stage.key, { name: event.target.value })}
+                      placeholder="e.g. China"
+                      value={stage.fromLocation}
+                      onChange={(event) =>
+                        updateStage(stage.key, { fromLocation: event.target.value })
+                      }
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <input
+                      className={cellInputClass}
+                      placeholder="e.g. Lashio"
+                      value={stage.toLocation}
+                      onChange={(event) =>
+                        updateStage(stage.key, { toLocation: event.target.value })
+                      }
                     />
                   </td>
                   <td className="px-3 py-2">
@@ -815,54 +1353,6 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
                       onChange={(event) => updateStage(stage.key, { feeAmount: event.target.value })}
                     />
                   </td>
-                  <td className="px-3 py-2">
-                    <select
-                      className={cellInputClass}
-                      value={stage.allocationMethod}
-                      onChange={(event) =>
-                        updateStage(stage.key, {
-                          allocationMethod: event.target.value as CostAllocationMethod,
-                        })
-                      }
-                    >
-                      {COST_ALLOCATION_METHODS.map((method) => (
-                        <option key={method} value={method}>
-                          {COST_ALLOCATION_METHOD_LABELS[method]}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="max-h-24 space-y-1 overflow-y-auto pr-1">
-                      <label className="flex items-center gap-1.5 text-[11px] text-slate-500">
-                        <input
-                          type="checkbox"
-                          checked={stage.applicableProductIds.length === 0}
-                          onChange={() => updateStage(stage.key, { applicableProductIds: [] })}
-                        />
-                        All products
-                      </label>
-                      {selectableProducts.length === 0 ? (
-                        <p className="text-[11px] text-slate-400">Add products first</p>
-                      ) : (
-                        selectableProducts.map((product) => (
-                          <label
-                            key={product.id}
-                            className="flex items-center gap-1.5 text-[11px] text-slate-600"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={stage.applicableProductIds.includes(product.id)}
-                              onChange={() => toggleScope(stage.key, product.id, 'stage')}
-                            />
-                            <span className="truncate" title={product.label}>
-                              {product.label}
-                            </span>
-                          </label>
-                        ))
-                      )}
-                    </div>
-                  </td>
                   <td className="px-3 py-2 text-right">
                     <button
                       type="button"
@@ -879,6 +1369,12 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
             </tbody>
           </table>
         </div>
+        {filledRouteStops.length >= 2 && (
+          <p className="mt-3 text-xs text-slate-500">
+            Route preview:{' '}
+            <span className="font-medium text-slate-700">{filledRouteStops.join(' → ')}</span>
+          </p>
+        )}
         <div className="mt-3 flex items-center justify-end gap-2 text-xs text-slate-500">
           <span>Total freight</span>
           <span className="font-semibold text-slate-800">{formatMoney(stageFeeTotal)}</span>
@@ -915,14 +1411,13 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
         }
       >
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] border-collapse">
+          <table className="w-full min-w-[640px] border-collapse">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
                 <th className={thClass}>Cost item</th>
                 <th className={`${thClass} w-40`}>Category</th>
                 <th className={`${thClass} w-32 text-right`}>Amount</th>
                 <th className={`${thClass} w-40`}>Mode</th>
-                <th className={`${thClass} w-44`}>Allocation method</th>
                 <th className={`${thClass} w-10`} />
               </tr>
             </thead>
@@ -981,23 +1476,6 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
                         </button>
                       ))}
                     </div>
-                  </td>
-                  <td className="px-3 py-2">
-                    <select
-                      className={cellInputClass}
-                      value={cost.allocationMethod}
-                      onChange={(event) =>
-                        updateCost(cost.key, {
-                          allocationMethod: event.target.value as CostAllocationMethod,
-                        })
-                      }
-                    >
-                      {COST_ALLOCATION_METHODS.map((method) => (
-                        <option key={method} value={method}>
-                          {COST_ALLOCATION_METHOD_LABELS[method]}
-                        </option>
-                      ))}
-                    </select>
                   </td>
                   <td className="px-3 py-2 text-right">
                     <button
@@ -1133,19 +1611,11 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
               </button>
               <button
                 type="button"
-                className={secondaryButtonClass}
-                disabled={saving}
-                onClick={() => void submit('draft')}
-              >
-                Save Draft
-              </button>
-              <button
-                type="button"
                 className={primaryButtonClass}
                 disabled={saving}
                 onClick={() => void submit('approval')}
               >
-                {saving ? 'Saving…' : 'Submit for Approval'}
+                {saving ? 'Saving…' : 'Place order'}
               </button>
             </div>
           </div>

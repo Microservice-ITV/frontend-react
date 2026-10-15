@@ -33,11 +33,15 @@ describe('resolvePageTitle', () => {
     expect(resolvePageTitle('/seller/warehouse')).toBe('Warehouse Overview')
     expect(resolvePageTitle('/seller/warehouse/movements')).toBe('Inventory Movements')
     expect(resolvePageTitle('/seller/warehouse/purchase-orders/new')).toBe('Create Purchase Order')
+    expect(resolvePageTitle('/seller/warehouse/orders/new')).toBe('Order from Warehouse')
+    expect(resolvePageTitle('/seller/warehouse/from-warehouse')).toBe('Orders from warehouse')
     expect(resolvePageTitle('/super-admin/warehouse/warehouses/new')).toBe('New Warehouse')
     expect(resolvePageTitle('/super-admin/warehouse/warehouses/abc')).toBe('Warehouse')
     expect(resolvePageTitle('/super-admin/warehouse/warehouses/abc/edit')).toBe('Edit Warehouse')
     expect(resolvePageTitle('/super-admin/warehouse/suppliers/abc/edit')).toBe('Edit Supplier')
-    expect(resolvePageTitle('/super-admin/warehouse/receipts')).toBe('Goods Receipts')
+    expect(resolvePageTitle('/warehouse-manager/warehouse/receipts')).toBe('Goods Receipts')
+    expect(resolvePageTitle('/warehouse-manager/warehouse/movements')).toBe('Inventory Movements')
+    expect(resolvePageTitle('/super-admin/warehouse/assign-manager')).toBe('Assign Warehouse Manager')
   })
 
   it('includes the search query', () => {

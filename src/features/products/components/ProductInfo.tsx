@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import ProductActions from './ProductActions'
 import ProductVariantSelector, { pickDefaultVariant } from './ProductVariantSelector'
 import type { ProductDetail, ProductFlashDeal, ProductVariant } from '@/features/products/types/productTypes'
+import { variantSellableStock } from '@/features/products/utils/variantStock'
 import { getGalleryImagesForVariant } from '@/features/products/utils/variantGallery'
 import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
 import { productServiceAssetUrl } from '@/lib/api/apiConfig'
@@ -181,9 +182,11 @@ const ProductInfo = ({ product, onSelectedVariantChange }: Props) => {
           : 0
 
   const stockLabel = useMemo(() => {
-    const n = activeVariant?.shopStock ?? product.stock ?? 0
+    const n = activeVariant
+      ? variantSellableStock(activeVariant)
+      : Math.max(0, Number(product.stock ?? 0))
     return n > 0 ? `${n} in stock` : 'Out of stock'
-  }, [activeVariant?.shopStock, product.stock])
+  }, [activeVariant, product.stock])
 
   const handleWishlist = useCallback(() => {
     dispatch(toggleWishlist(product.id))

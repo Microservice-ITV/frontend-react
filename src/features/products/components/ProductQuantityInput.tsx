@@ -1,15 +1,14 @@
 import type { ProductDetail, ProductVariant } from '@/features/products/types/productTypes'
-import { pickDefaultVariant } from './ProductVariantSelector'
+import { productSellableStock } from '@/features/products/utils/variantStock'
 
 const QTY_CAP = 99
 
-/** Same stock read as the product detail page. */
+/** Same stock read as the product detail page (shop + warehouse). */
 export function productDetailMaxStock(
     product: ProductDetail,
     selectedVariant: ProductVariant | null,
 ): number {
-    const effective = selectedVariant ?? pickDefaultVariant(product.variants)
-    return effective ? effective.shopStock : (product.stock ?? 0)
+    return productSellableStock(product, selectedVariant)
 }
 
 /** Same cap as the product detail quantity control. */

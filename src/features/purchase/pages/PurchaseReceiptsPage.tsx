@@ -4,11 +4,20 @@ import DataTable, { type DataTableColumn } from '@/components/ui/DataTable'
 import FilterBar from '@/components/ui/FilterBar'
 import ModalDrawer from '@/components/ui/ModalDrawer'
 import { PurchaseReceiptStatusBadge } from '../components/PurchaseBadges'
+import { productLabel, useProductNames } from '@/features/warehouse/hooks/useProductNames'
+import { useWarehouses } from '@/features/warehouse/hooks/useWarehouseData'
 import { purchaseApi, purchaseErrorMessage } from '../api/purchaseApi'
 import { notifyOrderedReceiptCountChanged } from '../orderedReceiptCount'
 import { purchasePaths, type PurchaseAreaBase } from '../config/purchasePaths'
 import { usePurchaseOrders, usePurchaseReceipts } from '../hooks/usePurchaseData'
-import type { PurchaseOrderItem, PurchaseReceipt, PurchaseReceiptStatus } from '../types/purchaseTypes'
+import type {
+  DeliveryHandoff,
+  PurchaseOrder,
+  PurchaseOrderItem,
+  PurchaseReceipt,
+  PurchaseReceiptStatus,
+} from '../types/purchaseTypes'
+import { variantDisplayLabel } from '@/features/warehouse/utils/variantLabel'
 
 const primaryButtonClass =
   'inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--dni-primary)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50'
@@ -36,25 +45,57 @@ export type PurchaseReceiptsPageProps = {
   platform?: boolean
 }
 
+const purchaseOrderLabel = (
+  order: PurchaseOrder,
+  names: Record<string, string>,
+  warehouseName?: string,
+) => {
+  const products = [
+    ...new Set(
+      (order.items ?? [])
+        .map((item) => item.productName?.trim() || productLabel(names, item.productId))
+        .filter(Boolean),
+    ),
+  ]
+  return [order.orderNumber, order.supplier?.name?.trim(), products.join(', '), warehouseName]
+    .filter(Boolean)
+    .join(' · ')
+}
+
 const PurchaseReceiptsPage = ({ base }: PurchaseReceiptsPageProps) => {
   const paths = purchasePaths(base)
+  const warehouseManagerMode = base === '/warehouse-manager'
   const [status, setStatus] = useState<PurchaseReceiptStatus | ''>('')
   const [search, setSearch] = useState('')
   const { receipts, loading, error, reload } = usePurchaseReceipts({ status })
   const { orders, reload: reloadOrders } = usePurchaseOrders()
+  const { warehouses } = useWarehouses(
+    warehouseManagerMode ? { status: 'ACTIVE' } : { catalog: true, status: 'ACTIVE' },
+  )
+  const productNames = useProductNames()
 
   const [modalOpen, setModalOpen] = useState(false)
   const [orderId, setOrderId] = useState('')
   const [lines, setLines] = useState<DraftLine[]>([])
-  const [notes, setNotes] = useState('')
+  const [deliveryHandoff, setDeliveryHandoff] = useState<DeliveryHandoff | null>(null)
   const [loadingItems, setLoadingItems] = useState(false)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
 
-  const orderedOrders = orders.filter((order) => order.status === 'ORDERED')
+  // Goods receipts are for supplier parcels only; warehouse orders are received by the seller.
+  const orderedOrders = orders.filter(
+    (order) =>
+      order.orderKind === 'SUPPLIER' &&
+      (order.status === 'AWAITING_WAREHOUSE_RECEIPT' ||
+        order.status === 'AWAITING_SELLER_RECEIPT'),
+  )
   const receivableOrders = orders.filter(
-    (order) => order.status === 'ORDERED' || order.status === 'PARTIALLY_RECEIVED',
+    (order) =>
+      order.orderKind === 'SUPPLIER' &&
+      (order.status === 'AWAITING_WAREHOUSE_RECEIPT' ||
+        order.status === 'AWAITING_SELLER_RECEIPT' ||
+        order.status === 'PARTIALLY_RECEIVED'),
   )
 
   const term = search.trim().toLowerCase()
@@ -71,7 +112,7 @@ const PurchaseReceiptsPage = ({ base }: PurchaseReceiptsPageProps) => {
   const openCreate = () => {
     setOrderId('')
     setLines([])
-    setNotes('')
+    setDeliveryHandoff(null)
     setFormError(null)
     setModalOpen(true)
   }
@@ -79,22 +120,37 @@ const PurchaseReceiptsPage = ({ base }: PurchaseReceiptsPageProps) => {
   const selectOrder = async (id: string) => {
     setOrderId(id)
     setLines([])
+    setDeliveryHandoff(null)
     if (!id) return
     setLoadingItems(true)
     try {
       const response = await purchaseApi.getPurchaseOrder(id)
-      const items = response.data?.data?.items ?? []
+      const order = response.data?.data
+      const items = order?.items ?? []
+      const handoff = order?.deliveryHandoffs?.[0] ?? null
+      setDeliveryHandoff(handoff)
+      const confirmedByItem = new Map(
+        (handoff?.items ?? []).map((line) => [line.purchaseOrderItemId ?? '', line]),
+      )
       setLines(
         items
           .filter((item) => Number(item.receivedQty) < Number(item.quantity))
-          .map((item) => ({
-            item,
-            quantity: String(Number(item.quantity) - Number(item.receivedQty)),
-            acceptedQty: String(Number(item.quantity) - Number(item.receivedQty)),
-            rejectedQty: '0',
-            batchNumber: '',
-            expiryAt: '',
-          })),
+          .map((item) => {
+            const remaining = Number(item.quantity) - Number(item.receivedQty)
+            const confirmed = confirmedByItem.get(item.id)?.confirmedQty
+            const qty =
+              confirmed != null
+                ? String(Math.max(0, Math.min(remaining, Number(confirmed))))
+                : String(remaining)
+            return {
+              item,
+              quantity: qty,
+              acceptedQty: qty,
+              rejectedQty: '0',
+              batchNumber: '',
+              expiryAt: '',
+            }
+          }),
       )
     } catch (err) {
       setFormError(purchaseErrorMessage(err))
@@ -125,7 +181,9 @@ const PurchaseReceiptsPage = ({ base }: PurchaseReceiptsPageProps) => {
             : 0,
         unitCost: Number(line.item.unitCost),
         batchNumber: line.batchNumber || null,
-        expiryAt: line.expiryAt || null,
+        expiryAt: line.expiryAt
+          ? new Date(`${line.expiryAt}T00:00:00.000Z`).toISOString()
+          : null,
       }))
       .filter((item) => item.quantity > 0)
 
@@ -138,7 +196,6 @@ const PurchaseReceiptsPage = ({ base }: PurchaseReceiptsPageProps) => {
     try {
       const response = await purchaseApi.createPurchaseReceipt({
         purchaseOrderId: orderId,
-        notes: notes || null,
         items,
       })
       const created = response.data?.data
@@ -178,7 +235,15 @@ const PurchaseReceiptsPage = ({ base }: PurchaseReceiptsPageProps) => {
         return (
           <div className="min-w-0">
             <p className="font-medium text-slate-900">{row.receiptNumber}</p>
-            <p className="truncate text-xs text-slate-400">{order?.orderNumber ?? '—'}</p>
+            <p className="truncate text-xs text-slate-400">
+              {order
+                ? purchaseOrderLabel(
+                    order,
+                    productNames,
+                    warehouses.find((warehouse) => warehouse.id === order.warehouseId)?.name,
+                  )
+                : '—'}
+            </p>
           </div>
         )
       },
@@ -219,14 +284,16 @@ const PurchaseReceiptsPage = ({ base }: PurchaseReceiptsPageProps) => {
       </nav>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
+        <div className="min-w-0 max-w-xl">
           <h1 className="text-xl font-bold text-slate-900">Goods Receipts (GRN)</h1>
           <p className="text-sm text-slate-500">
-            Receive ordered goods — confirming a GRN updates inventory.
+            {warehouseManagerMode
+              ? 'Receive parcels the delivery agent sent to your warehouse. Confirming a GRN stores products and notifies the seller on Purchase Order Tracking.'
+              : 'Receive ordered goods — confirming a GRN updates inventory.'}
           </p>
         </div>
-        <div className="relative inline-flex self-start">
-          <button type="button" className={primaryButtonClass} onClick={openCreate}>
+        <div className="relative inline-flex shrink-0 self-start">
+          <button type="button" className={`${primaryButtonClass} whitespace-nowrap`} onClick={openCreate}>
             Receive goods
           </button>
           {orderedOrders.length > 0 && (
@@ -305,30 +372,77 @@ const PurchaseReceiptsPage = ({ base }: PurchaseReceiptsPageProps) => {
               <option value="">Select purchase order…</option>
               {receivableOrders.map((order) => (
                 <option key={order.id} value={order.id}>
-                  {order.orderNumber} — {order.supplier?.name ?? ''}
+                  {purchaseOrderLabel(
+                    order,
+                    productNames,
+                    warehouses.find((warehouse) => warehouse.id === order.warehouseId)?.name,
+                  )}
                 </option>
               ))}
             </select>
             {receivableOrders.length === 0 && (
               <p className="mt-1 text-xs text-slate-500">
-                No ordered purchase orders are ready to receive.
+                {warehouseManagerMode
+                  ? 'No delivery-agent parcels are waiting for a goods receipt.'
+                  : 'No ordered purchase orders are ready to receive.'}
               </p>
             )}
           </div>
 
           {loadingItems && <p className="text-sm text-slate-500">Loading items…</p>}
 
+          {warehouseManagerMode && deliveryHandoff && (
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 px-3 py-2.5">
+              <p className="text-xs font-semibold text-emerald-900">
+                Delivery agent confirmation
+              </p>
+              {deliveryHandoff.notes && (
+                <p className="mt-1 text-xs text-emerald-800">{deliveryHandoff.notes}</p>
+              )}
+              <ul className="mt-2 space-y-1.5">
+                {(deliveryHandoff.items ?? []).map((line) => (
+                  <li
+                    key={line.id}
+                    className="rounded-md border border-emerald-100 bg-white/80 px-2.5 py-1.5 text-xs text-slate-700"
+                  >
+                    <span className="font-medium text-slate-900">
+                      {line.productName?.trim() ||
+                        productLabel(productNames, line.productId)}
+                    </span>
+                    <span className="text-slate-500">
+                      {' '}
+                      ·{' '}
+                      {[line.colorName, line.sizeName].filter(Boolean).join(' / ') ||
+                        variantDisplayLabel(line.variantId, {
+                          colorName: line.colorName,
+                          sizeName: line.sizeName,
+                        }) ||
+                        '—'}
+                    </span>
+                    <span className="ml-1 text-slate-600">
+                      · Ordered {line.orderedQty} · Confirmed {line.confirmedQty}
+                      {line.variationCorrect ? ' · Variation OK' : ' · Variation mismatch'}
+                    </span>
+                    {line.notes ? (
+                      <span className="mt-0.5 block text-slate-500">{line.notes}</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {lines.length > 0 && (
             <div className="space-y-1.5">
               <span className="text-xs font-medium text-slate-600">Receive quantities</span>
               <div className="overflow-x-auto">
-                <div className="min-w-[36rem] space-y-1.5">
-                  <div className="grid grid-cols-[minmax(0,1.5fr)_4.5rem_4.5rem_4.5rem_5.5rem_7.5rem] gap-1.5 px-0.5 text-[11px] font-medium text-slate-500">
+                <div className="min-w-[42rem] space-y-1.5">
+                  <div className="grid grid-cols-[minmax(0,1.5fr)_4.5rem_4.5rem_4.5rem_7.5rem_7.5rem] gap-1.5 px-0.5 text-[11px] font-medium text-slate-500">
                     <span>Product</span>
                     <span>Quantity</span>
                     <span>Accepted</span>
                     <span>Rejected</span>
-                    <span>Batch</span>
+                    <span>Manufactured</span>
                     <span>Expiry</span>
                   </div>
                   {lines.map((line, index) => {
@@ -336,11 +450,12 @@ const PurchaseReceiptsPage = ({ base }: PurchaseReceiptsPageProps) => {
                     return (
                       <div
                         key={line.item.id}
-                        className="grid grid-cols-[minmax(0,1.5fr)_4.5rem_4.5rem_4.5rem_5.5rem_7.5rem] items-center gap-1.5"
+                        className="grid grid-cols-[minmax(0,1.5fr)_4.5rem_4.5rem_4.5rem_7.5rem_7.5rem] items-center gap-1.5"
                       >
                         <div className="min-w-0">
                           <p className="truncate text-sm text-slate-800">
-                            {line.item.productName ?? line.item.productId}
+                            {line.item.productName?.trim() ||
+                              productLabel(productNames, line.item.productId)}
                           </p>
                           <p className="text-[11px] text-slate-400">
                             Ordered {line.item.quantity}
@@ -366,7 +481,8 @@ const PurchaseReceiptsPage = ({ base }: PurchaseReceiptsPageProps) => {
                           onChange={(event) => updateLine(index, { rejectedQty: event.target.value })}
                         />
                         <input
-                          aria-label="Batch"
+                          aria-label="Manufactured"
+                          type="date"
                           className={compactInputClass}
                           value={line.batchNumber}
                           onChange={(event) => updateLine(index, { batchNumber: event.target.value })}
@@ -391,18 +507,6 @@ const PurchaseReceiptsPage = ({ base }: PurchaseReceiptsPageProps) => {
               This purchase order has nothing left to receive.
             </p>
           )}
-
-          <div>
-            <label className={labelClass} htmlFor="receipt-notes">
-              Notes
-            </label>
-            <input
-              id="receipt-notes"
-              className={inputClass}
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-            />
-          </div>
 
           {formError && <p className="text-sm text-red-600">{formError}</p>}
         </div>

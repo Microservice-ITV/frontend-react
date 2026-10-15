@@ -1,4 +1,10 @@
-export type AppRole = 'SUPER_ADMIN' | 'SHOP_OWNER' | 'SHOP_ADMIN' | 'USER'
+export type AppRole =
+  | 'SUPER_ADMIN'
+  | 'WAREHOUSE_MANAGER'
+  | 'DELIVERY_AGENT'
+  | 'SHOP_OWNER'
+  | 'SHOP_ADMIN'
+  | 'USER'
 
 export type Capability =
   | 'account.view'
@@ -10,6 +16,10 @@ export type Capability =
   | 'checkout.place_order'
   | 'seller.dashboard.view'
   | 'platform.admin.view'
+  | 'warehouse.dashboard.view'
+  | 'delivery.dashboard.view'
+  | 'delivery.parcels.view'
+  | 'delivery.damage_reports.view'
   | 'seller.permissions.view'
   | 'seller.permissions.manage'
   | 'categories.view'

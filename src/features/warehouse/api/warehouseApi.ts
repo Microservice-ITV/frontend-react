@@ -52,11 +52,18 @@ export const warehouseErrorMessage = (error: unknown): string => {
  * purchase service.
  */
 export const warehouseApi = {
-  listWarehouses(params?: { status?: WarehouseStatus | ''; shopId?: string }) {
+  listWarehouses(params?: {
+    status?: WarehouseStatus | ''
+    shopId?: string
+    catalog?: boolean
+    includePurchased?: boolean
+  }) {
     return warehouseClient.get<Envelope<Warehouse[]>>('/warehouses', {
       params: {
         ...(params?.status ? { status: params.status } : {}),
         ...(params?.shopId ? { shopId: params.shopId } : {}),
+        ...(params?.catalog ? { catalog: 'true' } : {}),
+        ...(params?.includePurchased ? { includePurchased: 'true' } : {}),
       },
     })
   },
@@ -78,6 +85,22 @@ export const warehouseApi = {
 
   deleteWarehouse(id: string) {
     return warehouseClient.delete<{ success: boolean }>(`/warehouses/${id}`)
+  },
+
+  listSellerStock() {
+    return warehouseClient.get<
+      Envelope<
+        Array<{
+          id: string
+          userId: string
+          productId: string
+          variantId: string
+          onHandQty: number
+          availableQty: number
+          updatedAt: string
+        }>
+      >
+    >('/inventory/seller')
   },
 
   listInventory(warehouseId: string) {
@@ -111,12 +134,19 @@ export const warehouseApi = {
     )
   },
 
+  receiveTransfer(id: string, note?: string) {
+    return warehouseClient.post<Envelope<{ transfer: WarehouseTransfer }>>(
+      `/inventory/transfers/${id}/receive`,
+      note ? { note } : {},
+    )
+  },
+
   approveTransfer(id: string, note?: string) {
     return warehouseClient.post<
       Envelope<{
         transfer: WarehouseTransfer
-        fromWarehouse: InventoryStock
-        toWarehouse: InventoryStock
+        fromWarehouse: InventoryStock | null
+        toWarehouse: InventoryStock | null
       }>
     >(`/inventory/transfers/${id}/approve`, note ? { note } : {})
   },
@@ -196,6 +226,82 @@ export const warehouseApi = {
       `/purchase-orders/${orderId}/attachments/${attachmentId}`,
       { responseType: 'blob' },
     )
+  },
+
+  receiveSupplierOrder(id: string) {
+    return warehouseClient.post<Envelope<PurchaseOrder>>(
+      `/purchase-orders/${id}/receive-supplier`,
+    )
+  },
+
+  markPurchaseOrderRouteArrived(id: string) {
+    return warehouseClient.post<Envelope<PurchaseOrder>>(
+      `/purchase-orders/${id}/route-arrived`,
+    )
+  },
+
+  deliveryPickup(id: string) {
+    return warehouseClient.post<Envelope<PurchaseOrder>>(
+      `/purchase-orders/${id}/delivery-pickup`,
+    )
+  },
+
+  deliveryProcess(
+    id: string,
+    payload: {
+      notes?: string | null
+      items: Array<{
+        purchaseOrderItemId: string
+        confirmedQty: number
+        variationCorrect: boolean
+        notes?: string | null
+      }>
+    },
+  ) {
+    return warehouseClient.post<Envelope<PurchaseOrder>>(
+      `/purchase-orders/${id}/delivery-process`,
+      payload,
+    )
+  },
+
+  sellerReceiveDelivery(id: string) {
+    return warehouseClient.post<Envelope<PurchaseOrder>>(
+      `/purchase-orders/${id}/seller-receive`,
+    )
+  },
+
+  createDamageReport(
+    purchaseOrderId: string,
+    payload: {
+      notes?: string | null
+      items: Array<{
+        purchaseOrderItemId?: string | null
+        productId: string
+        variantId?: string
+        productName?: string | null
+        quantity: number
+        damageType?: string | null
+        notes?: string | null
+      }>
+    },
+  ) {
+    return warehouseClient.post(`/purchase-orders/${purchaseOrderId}/damage-reports`, payload)
+  },
+
+  listDamageReports(params?: { purchaseOrderId?: string }) {
+    return warehouseClient.get('/damage-reports', {
+      params: {
+        ...(params?.purchaseOrderId ? { purchaseOrderId: params.purchaseOrderId } : {}),
+      },
+    })
+  },
+
+  getDamageReport(id: string) {
+    return warehouseClient.get(`/damage-reports/${id}`)
+  },
+
+  confirmDamageReport(id: string) {
+    return warehouseClient.post(`/damage-reports/${id}/confirm`)
   },
 
   updatePurchaseOrderStatus(

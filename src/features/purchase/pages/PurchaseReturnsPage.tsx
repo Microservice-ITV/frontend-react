@@ -284,6 +284,7 @@ const PurchaseReturnsPage = ({ base }: PurchaseReturnsPageProps) => {
               <div key={index} className="grid grid-cols-12 items-center gap-2">
                 <div className="col-span-6">
                   <ProductSearchSelect
+                    ownedOnly={base === '/seller'}
                     value={line.productId}
                     onChange={(productId) => updateLine(index, { productId })}
                   />

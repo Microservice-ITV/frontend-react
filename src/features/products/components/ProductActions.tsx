@@ -43,7 +43,10 @@ const ProductActions = ({
 
   const unitPrice = promoPrice != null ? Math.max(0, promoPrice) : effective?.price ?? product.price;
   const originalUnitPrice = originalPrice != null ? originalPrice : effective?.price ?? product.price;
-  const maxStock = effective ? effective.shopStock : (product.stock ?? 0);
+  const maxStock = effective
+    ? Math.max(0, Number(effective.shopStock ?? 0)) +
+      Math.max(0, Number(effective.warehouseStock ?? 0))
+    : Math.max(0, Number(product.stock ?? 0))
   const maxQty = Math.min(99, Math.max(0, maxStock));
   const outOfStock = maxStock <= 0;
 

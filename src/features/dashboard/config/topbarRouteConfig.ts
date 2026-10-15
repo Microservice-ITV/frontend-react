@@ -18,6 +18,16 @@ const TOPBAR_ROUTE_CONFIG: Record<DashboardArea, TopbarRouteConfig> = {
     settingsPath: '/super-admin/settings',
     notificationsPath: '/super-admin/notifications',
   },
+  warehouse_manager: {
+    newOrderPath: '/warehouse-manager/warehouse',
+    settingsPath: '/warehouse-manager/warehouse',
+    notificationsPath: '/warehouse-manager/warehouse',
+  },
+  delivery_agent: {
+    newOrderPath: '/delivery-agent/parcels',
+    settingsPath: '/delivery-agent/overview',
+    notificationsPath: '/delivery-agent/overview',
+  },
 }
 
 export const getTopbarRouteConfig = (area: DashboardArea): TopbarRouteConfig =>
