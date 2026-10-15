@@ -460,14 +460,6 @@ export const DASHBOARD_MENU_SELLER: DashboardMenuSection[] = [
         icon: Bell,
       },
       {
-        key: "seller-delivery-companies",
-        label: "Delivery Companies",
-        to: "/seller/delivery-companies",
-        area: "seller",
-        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
-        icon: Truck,
-      },
-      {
         key: "seller-settings",
         label: "Settings",
         to: "/seller/settings",

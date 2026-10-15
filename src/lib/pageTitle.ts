@@ -159,7 +159,6 @@ const PAGE_TITLE_RULES: PageTitleRule[] = [
   { path: '/seller/chat', title: 'Chat' },
   { path: '/seller/files', title: 'Files' },
   { path: '/seller/notifications', title: 'Notifications' },
-  { path: '/seller/delivery-companies', title: 'Delivery Companies' },
   { path: '/seller/settings', title: 'Settings' },
   { path: '/seller/help-support', title: 'Help & Support' },
   ...warehousePageTitles('/seller'),
