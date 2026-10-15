@@ -12,7 +12,13 @@ const ROLE_ALIASES: Record<string, AppRole> = {
   SHOP_ADMIN: 'SHOP_ADMIN',
   SELLER: 'SHOP_ADMIN',
   SHOP_SELLER: 'SHOP_ADMIN',
+  // Staff are shop members for the owner, but login/browse as normal customers.
+  STAFF: 'USER',
+  SHOP_STAFF: 'USER',
+  FINANCE_MANAGER: 'SHOP_ADMIN',
+  DIRECTOR: 'SHOP_ADMIN',
   USER: 'USER',
+  CUSTOMER: 'USER',
 }
 
 const normalizeRoleString = (value: string): AppRole | null => {

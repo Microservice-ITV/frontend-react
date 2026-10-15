@@ -33,9 +33,18 @@ export function shippingFeesForCheckout(
     return { feesByShop: feesByShopId, totalShippingFee }
 }
 
-/** Amount shown on payment method when the customer may waive delivery for now. */
-export function amountDueNow(checkout: CheckoutTotals, payDeliveryFeeNow: boolean): number {
-    return payDeliveryFeeNow ? checkout.totalPayment : checkout.merchandiseSubtotal
+/**
+ * Amount shown on payment method when the customer may waive delivery for now.
+ * Includes tax when provided so cash tender matches the order total.
+ */
+export function amountDueNow(
+    checkout: CheckoutTotals,
+    payDeliveryFeeNow: boolean,
+    taxAmount = 0,
+    promotionDiscount = 0,
+): number {
+    const base = payDeliveryFeeNow ? checkout.totalPayment : checkout.merchandiseSubtotal
+    return Math.max(0, base - Math.max(0, promotionDiscount)) + Math.max(0, taxAmount)
 }
 
 export const calculateCheckout = (
