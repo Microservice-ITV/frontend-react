@@ -8,7 +8,10 @@ export const purchasePaths = (base: PurchaseAreaBase) => ({
   supplierEdit: (id: string) => `${base}/warehouse/suppliers/${id}/edit`,
   orders: `${base}/warehouse/purchase-orders`,
   newOrder: `${base}/warehouse/purchase-orders/new`,
+  tracking: `${base}/warehouse/purchase-order-tracking`,
   warehouseOrder: `${base}/warehouse/orders/new`,
+  warehouseOrders: `${base}/warehouse/from-warehouse`,
+  sellerRequests: `${base}/warehouse/seller-requests`,
   receipts: `${base}/warehouse/receipts`,
   returns: `${base}/warehouse/returns`,
 })

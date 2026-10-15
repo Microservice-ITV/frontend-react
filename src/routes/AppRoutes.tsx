@@ -75,16 +75,22 @@ import WarehouseFormPage from "@/features/warehouse/pages/WarehouseFormPage";
 import InventoryPage from "@/features/warehouse/pages/InventoryPage";
 import MovementsPage from "@/features/warehouse/pages/MovementsPage";
 import AssignWarehouseManagerPage from "@/features/warehouse/pages/AssignWarehouseManagerPage";
+import AssignDeliveryAgentPage from "@/features/warehouse/pages/AssignDeliveryAgentPage";
 import StockOperationPage from "@/features/warehouse/pages/StockOperationPage";
 import SuppliersPage from "@/features/purchase/pages/SuppliersPage";
 import SupplierDetailPage from "@/features/purchase/pages/SupplierDetailPage";
 import SupplierFormPage from "@/features/purchase/pages/SupplierFormPage";
 import PurchaseOrdersPage from "@/features/purchase/pages/PurchaseOrdersPage";
 import CreatePurchaseOrderPage from "@/features/purchase/pages/CreatePurchaseOrderPage";
-import WarehouseOrderPage from "@/features/purchase/pages/WarehouseOrderPage";
 import PurchaseReturnsPage from "@/features/purchase/pages/PurchaseReturnsPage";
 import PurchaseReceiptsPage from "@/features/purchase/pages/PurchaseReceiptsPage";
-import ReceiveSupplierPage from "@/features/purchase/pages/ReceiveSupplierPage";
+import PurchaseOrderTrackingPage from "@/features/purchase/pages/PurchaseOrderTrackingPage";
+import WarehouseOrderPage from "@/features/purchase/pages/WarehouseOrderPage";
+import SellerWarehouseRequestsPage from "@/features/purchase/pages/SellerWarehouseRequestsPage";
+import SellerWarehouseOrdersPage from "@/features/purchase/pages/SellerWarehouseOrdersPage";
+import DeliveryParcelsPage from "@/features/purchase/pages/DeliveryParcelsPage";
+import DamageReportsPage from "@/features/purchase/pages/DamageReportsPage";
+import DeliveryOverviewPage from "@/features/purchase/pages/DeliveryOverviewPage";
 import SellerOverviewPage from "@/features/seller/pages/SellerOverviewPage";
 import SellerOrdersPage from "@/features/seller/pages/SellerOrdersPage";
 import SellerOrderDetailPage from "@/features/seller/pages/SellerOrderDetailPage";
@@ -362,14 +368,6 @@ const AppRoutes = () => {
               }
             />
             <Route
-              path="warehouse/orders/new"
-              element={
-                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.purchase}>
-                  <WarehouseOrderPage base="/seller" />
-                </ProtectedRoute>
-              }
-            />
-            <Route
               path="warehouse/purchase-orders/new"
               element={
                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.purchase}>
@@ -378,10 +376,50 @@ const AppRoutes = () => {
               }
             />
             <Route
+              path="warehouse/orders/new"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.purchase}>
+                  <WarehouseOrderPage base="/seller" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="warehouse/from-warehouse"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.purchase}>
+                  <SellerWarehouseOrdersPage base="/seller" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="warehouse/purchase-order-tracking"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.purchase}>
+                  <PurchaseOrderTrackingPage base="/seller" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="warehouse/receipts"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.purchase}>
+                  <PurchaseReceiptsPage base="/seller" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="warehouse/returns"
               element={
                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.purchase}>
                   <PurchaseReturnsPage base="/seller" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="warehouse/damage-reports"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.purchase}>
+                  <DamageReportsPage base="/seller" />
                 </ProtectedRoute>
               }
             />
@@ -930,6 +968,42 @@ const AppRoutes = () => {
             />
           </Route>
         </Route>
+        <Route path="/delivery-agent" element={<DashboardLayout area="delivery_agent" />}>
+          <Route
+            element={
+              <ProtectedRoute
+                requiredCapabilities={ROUTE_ACCESS.deliveryAgent}
+                allowedRoles={["DELIVERY_AGENT"]}
+              />
+            }
+          >
+            <Route index element={<Navigate to="overview" replace />} />
+            <Route
+              path="overview"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.deliveryAgent}>
+                  <DeliveryOverviewPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="parcels"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.deliveryAgentParcels}>
+                  <DeliveryParcelsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="damage-reports"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.deliveryAgentDamageReports}>
+                  <DamageReportsPage base="/delivery-agent" />
+                </ProtectedRoute>
+              }
+            />
+          </Route>
+        </Route>
         <Route path="/warehouse-manager" element={<DashboardLayout area="warehouse_manager" />}>
           <Route
             element={
@@ -1045,10 +1119,10 @@ const AppRoutes = () => {
               }
             />
             <Route
-              path="warehouse/supplier-receipts"
+              path="warehouse/seller-requests"
               element={
                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.warehouseManager}>
-                  <ReceiveSupplierPage base="/warehouse-manager" />
+                  <SellerWarehouseRequestsPage base="/warehouse-manager" />
                 </ProtectedRoute>
               }
             />
@@ -1056,7 +1130,7 @@ const AppRoutes = () => {
               path="warehouse/receipts"
               element={
                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.warehouseManager}>
-                  <PurchaseReceiptsPage base="/warehouse-manager" platform />
+                  <PurchaseReceiptsPage base="/warehouse-manager" />
                 </ProtectedRoute>
               }
             />
@@ -1197,6 +1271,14 @@ const AppRoutes = () => {
               element={
                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminWarehouse}>
                   <AssignWarehouseManagerPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="warehouse/assign-delivery-agent"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminWarehouse}>
+                  <AssignDeliveryAgentPage />
                 </ProtectedRoute>
               }
             />

@@ -246,7 +246,7 @@ export const defaultVariantRow = (): ProductFormValues["variants"][number] => ({
   basePrice: "",
   listPrice: "",
   discountPercent: "0",
-  stock: "",
+  stock: "0",
   length: "",
   width: "",
   height: "",
@@ -1045,13 +1045,16 @@ const ProductForm = ({
                                 </p>
                               )}
                             </div>
-                            <div className="min-w-0">
-                              <label
-                                className="mb-1 block text-xs font-medium text-slate-700"
-                                htmlFor={`stock-${index}`}
-                              >
-                                Stock
-                              </label>
+                          </div>
+
+                          <div className="mt-3">
+                            <label
+                              className="mb-1 block text-xs font-medium text-slate-700"
+                              htmlFor={`stock-${index}`}
+                            >
+                              Stock
+                            </label>
+                            <div className="flex flex-wrap items-center gap-3">
                               <Controller
                                 name={`variants.${index}.stock`}
                                 control={control}
@@ -1062,26 +1065,27 @@ const ProductForm = ({
                                     inputMode="numeric"
                                     autoComplete="off"
                                     spellCheck={false}
+                                    readOnly
                                     placeholder="0"
-                                    className="w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                                    title="Stock is managed by the warehouse and cannot be set here"
+                                    className="w-24 shrink-0 cursor-not-allowed rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 outline-none"
                                     name={field.name}
                                     ref={field.ref}
-                                    value={field.value}
+                                    value={field.value || "0"}
                                     onBlur={field.onBlur}
-                                    onChange={(e) =>
-                                      field.onChange(
-                                        sanitizeIntegerInput(e.target.value),
-                                      )
-                                    }
                                   />
                                 )}
                               />
-                              {errors.variants?.[index]?.stock && (
-                                <p className="mt-1 text-xs text-red-600">
-                                  {errors.variants[index]?.stock?.message}
-                                </p>
-                              )}
+                              <p className="min-w-0 flex-1 text-[11px] leading-snug text-slate-500">
+                                Managed by warehouse — increases when inventory
+                                is received.
+                              </p>
                             </div>
+                            {errors.variants?.[index]?.stock && (
+                              <p className="mt-1 text-xs text-red-600">
+                                {errors.variants[index]?.stock?.message}
+                              </p>
+                            )}
                           </div>
 
                           <div className="mt-3 rounded-lg bg-emerald-50 p-3 border border-emerald-100">

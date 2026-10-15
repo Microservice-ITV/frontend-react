@@ -1,4 +1,4 @@
-import { CheckoutTotals, ZERO_DELIVERY_FEE_LABEL } from '../utils/checkoutCalculator'
+import { amountDueNow, CheckoutTotals, ZERO_DELIVERY_FEE_LABEL } from '../utils/checkoutCalculator'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CardElement, useElements, useStripe } from '@stripe/react-stripe-js'
@@ -18,6 +18,7 @@ import {
   setCheckoutError,
   setCheckoutPaymentStatus,
   setCheckoutPlacingOrder,
+  setCheckoutTaxAmount,
   setItemTaxes,
 } from '../store/checkoutSlice'
 import type { UserAddress } from '@/features/account/types/addressTypes'
@@ -152,7 +153,7 @@ const CheckoutSummary = ({
   const dispatch = useAppDispatch()
   const stripe = useStripe()
   const elements = useElements()
-  const { currentCheckout, currentStatus, clientSecret, paymentStatus, isPlacingOrder, isAwaitingFinalStatus, error, paymentMethod, sessionPaymentMethod, itemTaxes } = useAppSelector(
+  const { currentCheckout, currentStatus, clientSecret, paymentStatus, isPlacingOrder, isAwaitingFinalStatus, error, paymentMethod, sessionPaymentMethod, prepaidProvider, cashTender, itemTaxes } = useAppSelector(
     state => state.checkout
   )
 
@@ -185,6 +186,11 @@ const CheckoutSummary = ({
     () => cartTaxFromKnownRates(cartItems, itemTaxes, promotionDiscount),
     [cartItems, itemTaxes, promotionDiscount],
   )
+  const shownTaxForPayment = scaledTax ?? taxAmount
+
+  useEffect(() => {
+    dispatch(setCheckoutTaxAmount(shownTaxForPayment))
+  }, [dispatch, shownTaxForPayment])
 
   const promotionItems = cartItems.map((item) => ({
     product_id: item.productId,
@@ -361,7 +367,11 @@ const CheckoutSummary = ({
     setPromoCodeMessage(null)
   }
 
-  const buildCheckoutAddressPayload = (address: UserAddress) => {
+  const buildCheckoutAddressPayload = (
+    address: UserAddress,
+    overridePaymentMethod?: 'prepaid' | 'cod',
+    cashAmounts?: { paid: number; refund: number } | null,
+  ) => {
     const quotedShippingTotal = deliveryQuotePendingConfirmation
       ? 0
       : shippingCalculateStatus === 'succeeded' && totalShippingFee != null && totalShippingFee >= 0
@@ -400,7 +410,13 @@ const CheckoutSummary = ({
       shipping_total,
       shop_shippings,
       promo_code: appliedPromoCode,
-      payment_method: sessionPaymentMethod ?? paymentMethod,
+      payment_method: overridePaymentMethod ?? sessionPaymentMethod ?? paymentMethod,
+      ...(cashAmounts
+        ? {
+            cash_paid_amount: cashAmounts.paid,
+            cash_refund_amount: cashAmounts.refund,
+          }
+        : {}),
     }
   }
 
@@ -451,9 +467,24 @@ const CheckoutSummary = ({
 
     const effectivePaymentMethod = sessionPaymentMethod ?? paymentMethod
     const isPrepaid = effectivePaymentMethod === 'prepaid'
+    const isStaffCash = prepaidProvider === 'cash'
     let card: StripeCardElement | null = null
 
-    if (isPrepaid) {
+    if (isStaffCash) {
+      const orderDue = Number(
+        authoritativeTotal ??
+        amountDueNow(checkout, payDeliveryFeeNow, shownTaxForPayment, promotionDiscount),
+      )
+      const income = Number(cashTender?.income ?? 0)
+      if (!cashTender || income < orderDue) {
+        dispatch(setCheckoutError('Enter the cash amount the customer paid. It must cover the order total (including tax).'))
+        return
+      }
+      if (!clientSecret) {
+        dispatch(setCheckoutError('Cash payment is not ready yet. Please wait a moment.'))
+        return
+      }
+    } else if (isPrepaid) {
       if (!stripe || !elements || !clientSecret) {
         dispatch(setCheckoutError('Payment is not ready yet.'))
         return
@@ -476,13 +507,34 @@ const CheckoutSummary = ({
     dispatch(setCheckoutPlacingOrder(true))
 
     try {
+      // Staff cash is collected at the counter — complete via the offline
+      // authorize path (no Stripe). Cash is a prepaid provider, so the checkout
+      // records payment_method=prepaid with the cash tender amounts.
+      const placeOrderPaymentMethod: 'prepaid' | 'cod' = isStaffCash
+        ? 'prepaid'
+        : (effectivePaymentMethod as 'prepaid' | 'cod')
+
+      const cashIncome = cashTender?.income
+      const cashRefund = cashTender?.refund
+      const cashAmounts =
+        isStaffCash && cashIncome != null && Number.isFinite(cashIncome)
+          ? {
+              paid: Number(cashIncome),
+              refund: Number.isFinite(Number(cashRefund)) ? Number(cashRefund) : 0,
+            }
+          : null
+
+      // Staff cash: offline authorize is handled in updateDeliveryAddress (via cod path + cash tender)
+
       console.info('[PlaceOrder] Updating checkout address...')
       const addressResponse = await checkoutApi.updateCheckoutAddress(
         currentCheckout.checkout_id,
-        buildCheckoutAddressPayload(deliveryAddress),
+        buildCheckoutAddressPayload(deliveryAddress, placeOrderPaymentMethod, cashAmounts),
       )
       setPromotionDiscount(Number(addressResponse.data?.promotion_discount_total ?? 0))
-      setTaxAmount(Number(addressResponse.data?.tax_amount ?? 0))
+      const nextTax = Number(addressResponse.data?.tax_amount ?? 0)
+      setTaxAmount(nextTax)
+      dispatch(setCheckoutTaxAmount(nextTax))
       setTaxPreviewError(false)
       setAuthoritativeTotal(addressResponse.data?.grand_total ?? null)
       if (addressResponse.data?.promo_code_status) {
@@ -491,7 +543,13 @@ const CheckoutSummary = ({
       }
       console.info('[PlaceOrder] Address updated...')
 
-      if (isPrepaid) {
+      if (isStaffCash) {
+        console.info('[PlaceOrder] Staff cash order authorised', {
+          income: cashIncome,
+          refund: cashRefund,
+        })
+        dispatch(setCheckoutPaymentStatus('PENDING_PAYMENT'))
+      } else if (isPrepaid) {
         console.info('[PlaceOrder] Confirming payment with Stripe...')
 
         if (addressResponse.data?.already_succeeded) {
@@ -663,9 +721,10 @@ const CheckoutSummary = ({
       return 'Please add your delivery address to continue.'
     }
     if (isAwaitingFinalStatus) {
-      return isPrepaid
-        ? 'Waiting for payment confirmation...'
-        : 'Confirming your Cash on Delivery order...'
+      if (prepaidProvider === 'cash' || !isPrepaid) {
+        return 'Confirming your cash order...'
+      }
+      return 'Waiting for payment confirmation...'
     }
     if (deliveryBlockReason) {
       return deliveryBlockReason
@@ -810,7 +869,30 @@ const CheckoutSummary = ({
           )}
         </div>
 
-        <div className="flex items-end justify-between gap-3 border-t border-[var(--dni-cart-border)] pt-3">
+        {prepaidProvider === 'cash' && cashTender && (
+          <div className="mb-3 space-y-2 border-t border-[var(--dni-cart-border)] pt-3">
+            <div className="flex justify-between gap-3 text-sm">
+              <span className="shrink-0 text-gray-600">Amount Paid by Customer</span>
+              <span className="whitespace-nowrap tabular-nums font-medium text-gray-900">
+                {formatKsPrice(cashTender.income)}
+              </span>
+            </div>
+            <div className="flex justify-between gap-3 text-sm">
+              <span className="shrink-0 text-gray-600">Refund Amount</span>
+              <span className="whitespace-nowrap tabular-nums font-medium text-gray-900">
+                {formatKsPrice(cashTender.refund)}
+              </span>
+            </div>
+          </div>
+        )}
+
+        <div
+          className={`flex items-end justify-between gap-3 ${
+            prepaidProvider === 'cash' && cashTender
+              ? 'pt-1'
+              : 'border-t border-[var(--dni-cart-border)] pt-3'
+          }`}
+        >
           <span className="shrink-0 font-medium text-gray-900">
             Total Payment:
           </span>

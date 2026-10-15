@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Boxes, Eye, Pencil, Plus, Trash2 } from 'lucide-react'
 import DataTable, { type DataTableColumn } from '@/components/ui/DataTable'
 import FilterBar from '@/components/ui/FilterBar'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
 import RowActionMenu from '@/components/ui/RowActionMenu'
+import { adminUsersApi } from '@/features/admin/api/adminUsersApi'
 import { WarehouseStatusBadge } from '../components/StockStatusBadge'
 import { primaryButtonClass } from '../components/forms/FormField'
 import { warehouseApi } from '../api/warehouseApi'
@@ -12,6 +13,7 @@ import { warehousePaths, type WarehouseAreaBase } from '../config/warehousePaths
 import { useWarehouses } from '../hooks/useWarehouseData'
 import {
   WAREHOUSE_STATUSES,
+  warehouseCapacityLabel,
   type Warehouse,
   type WarehouseStatus,
 } from '../types/warehouseTypes'
@@ -27,21 +29,52 @@ const WarehousesPage = ({ base }: WarehousesPageProps) => {
   const { openModal } = useGlobalModal()
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<WarehouseStatus | ''>('')
+  const [managerNames, setManagerNames] = useState<Record<string, string>>({})
   const { warehouses, loading, error, reload } = useWarehouses(
     base === '/seller' ? { catalog: true } : undefined,
   )
+
+  useEffect(() => {
+    let cancelled = false
+    void adminUsersApi
+      .listWarehouseManagers()
+      .then((response) => {
+        if (cancelled) return
+        const map: Record<string, string> = {}
+        for (const user of response.data?.data?.users ?? []) {
+          map[user.id] = user.name?.trim() || user.email
+        }
+        setManagerNames(map)
+      })
+      .catch(() => {
+        if (!cancelled) setManagerNames({})
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const managerLabel = (warehouse: Warehouse) => {
+    const id = warehouse.createdBy?.trim()
+    if (!id) return '—'
+    return managerNames[id] || '—'
+  }
 
   const rows = useMemo(() => {
     const term = search.trim().toLowerCase()
     return warehouses.filter((warehouse) => {
       if (status && warehouse.status !== status) return false
       if (term) {
-        const haystack = `${warehouse.name} ${warehouse.address ?? ''}`.toLowerCase()
+        const manager = warehouse.createdBy
+          ? managerNames[warehouse.createdBy] ?? ''
+          : ''
+        const haystack =
+          `${warehouse.name} ${warehouse.address ?? ''} ${manager}`.toLowerCase()
         if (!haystack.includes(term)) return false
       }
       return true
     })
-  }, [warehouses, search, status])
+  }, [warehouses, search, status, managerNames])
 
   const confirmDelete = (warehouse: Warehouse) => {
     openModal({
@@ -78,7 +111,7 @@ const WarehousesPage = ({ base }: WarehousesPageProps) => {
     {
       key: 'code',
       header: 'Code',
-      width: '140px',
+      width: '120px',
       hideBelow: 'md',
       sortValue: (row) => row.code ?? '',
       render: (row) => (
@@ -86,9 +119,35 @@ const WarehousesPage = ({ base }: WarehousesPageProps) => {
       ),
     },
     {
+      key: 'manager',
+      header: 'Warehouse manager',
+      width: '180px',
+      hideBelow: 'md',
+      sortValue: (row) => managerLabel(row),
+      render: (row) => (
+        <span className="text-sm text-slate-700">{managerLabel(row)}</span>
+      ),
+    },
+    {
+      key: 'capacity',
+      header: 'Capacity',
+      width: '140px',
+      hideBelow: 'lg',
+      sortValue: (row) => row.capacityUnits ?? Number.POSITIVE_INFINITY,
+      render: (row) => (
+        <span
+          className={
+            row.isAtCapacity ? 'text-xs font-medium text-rose-700' : 'text-xs text-slate-600'
+          }
+        >
+          {warehouseCapacityLabel(row)}
+        </span>
+      ),
+    },
+    {
       key: 'status',
       header: 'Status',
-      width: '120px',
+      width: '110px',
       sortValue: (row) => row.status,
       render: (row) => <WarehouseStatusBadge status={row.status} />,
     },
@@ -195,7 +254,7 @@ const WarehousesPage = ({ base }: WarehousesPageProps) => {
         error={error}
         emptyMessage="No warehouses found."
         itemLabel="warehouses"
-        minWidth="860px"
+        minWidth="960px"
         fixedLayout
       />
     </div>

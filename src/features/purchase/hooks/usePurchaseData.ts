@@ -42,6 +42,7 @@ export const usePurchaseOrders = (params?: {
   status?: PurchaseOrderStatus | ''
   supplierId?: string
   warehouseId?: string
+  limit?: number
 }) => {
   const [orders, setOrders] = useState<PurchaseOrder[]>([])
   const [loading, setLoading] = useState(true)
@@ -49,6 +50,7 @@ export const usePurchaseOrders = (params?: {
   const status = params?.status ?? ''
   const supplierId = params?.supplierId ?? ''
   const warehouseId = params?.warehouseId ?? ''
+  const limit = params?.limit
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -58,6 +60,7 @@ export const usePurchaseOrders = (params?: {
         status,
         supplierId,
         warehouseId,
+        limit,
       })
       setOrders(response.data?.data ?? [])
     } catch (err) {
@@ -66,7 +69,7 @@ export const usePurchaseOrders = (params?: {
     } finally {
       setLoading(false)
     }
-  }, [status, supplierId, warehouseId])
+  }, [status, supplierId, warehouseId, limit])
 
   useEffect(() => {
     void load()

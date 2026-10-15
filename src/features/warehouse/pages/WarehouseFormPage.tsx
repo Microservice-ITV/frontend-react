@@ -27,6 +27,7 @@ const WarehouseFormPage = ({ base, mode }: WarehouseFormPageProps) => {
   const [name, setName] = useState('')
   const [code, setCode] = useState('')
   const [address, setAddress] = useState('')
+  const [capacityUnits, setCapacityUnits] = useState('')
   const [status, setStatus] = useState<WarehouseStatus>('ACTIVE')
   const [managerUserId, setManagerUserId] = useState('')
   const [managers, setManagers] = useState<Array<{ id: string; name: string; email: string }>>([])
@@ -68,6 +69,9 @@ const WarehouseFormPage = ({ base, mode }: WarehouseFormPageProps) => {
         setName(warehouse.name)
         setCode(warehouse.code ?? '')
         setAddress(warehouse.address ?? '')
+        setCapacityUnits(
+          warehouse.capacityUnits != null ? String(warehouse.capacityUnits) : '',
+        )
         setStatus(warehouse.status)
       } catch (error) {
         if (!cancelled) setLoadError(warehouseErrorMessage(error))
@@ -92,6 +96,11 @@ const WarehouseFormPage = ({ base, mode }: WarehouseFormPageProps) => {
       setSubmitError('Select a warehouse manager.')
       return
     }
+    const capacity = Number(capacityUnits)
+    if (!Number.isFinite(capacity) || !Number.isInteger(capacity) || capacity < 1) {
+      setSubmitError('Enter a capacity of at least 1 unit.')
+      return
+    }
     setSubmitError('')
     setIsSubmitting(true)
     try {
@@ -99,6 +108,7 @@ const WarehouseFormPage = ({ base, mode }: WarehouseFormPageProps) => {
         name: trimmedName,
         code: code.trim().toUpperCase() || null,
         address: address.trim() || null,
+        capacityUnits: capacity,
         status,
         ...(assignManager ? { managerUserId } : {}),
       }
@@ -240,6 +250,26 @@ const WarehouseFormPage = ({ base, mode }: WarehouseFormPageProps) => {
                   className={inputClass}
                   placeholder="12th Street, Industrial Area"
                 />
+              </div>
+              <div>
+                <label htmlFor="warehouse-capacity" className={labelClass}>
+                  Capacity (units)
+                </label>
+                <input
+                  id="warehouse-capacity"
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={capacityUnits}
+                  onChange={(event) => setCapacityUnits(event.target.value)}
+                  className={inputClass}
+                  placeholder="e.g. 1000"
+                  required
+                />
+                <p className="mt-1 text-xs text-slate-500">
+                  When this limit is full, purchase orders and transfers into this warehouse are
+                  blocked.
+                </p>
               </div>
               <div>
                 <label htmlFor="warehouse-status" className={labelClass}>

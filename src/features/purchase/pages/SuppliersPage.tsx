@@ -8,11 +8,9 @@ import RowActionMenu from '@/components/ui/RowActionMenu'
 import { SupplierStatusBadge } from '../components/PurchaseBadges'
 import { purchaseApi } from '../api/purchaseApi'
 import { purchasePaths, type PurchaseAreaBase } from '../config/purchasePaths'
+import { primaryButtonClass } from '../config/purchaseUiClasses'
 import { useSuppliers } from '../hooks/usePurchaseData'
 import type { Supplier, SupplierStatus } from '../types/purchaseTypes'
-
-const primaryButtonClass =
-  'inline-flex items-center justify-center gap-1.5 rounded-lg bg-[var(--dni-primary)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50'
 
 export type SuppliersPageProps = {
   base: PurchaseAreaBase

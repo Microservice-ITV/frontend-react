@@ -20,7 +20,10 @@ export interface ProductVariant {
   listPrice: number
   compareAtPrice: number | null
   effectiveSellingPrice: number
+  /** Shop/catalog qty only. */
   shopStock: number
+  /** Warehouse available for this color×size. */
+  warehouseStock: number
   length: number | null
   width: number | null
   height: number | null

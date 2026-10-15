@@ -34,6 +34,10 @@ export type CheckoutAddressPayload = {
   /** Optional one-time voucher / promo code */
   promo_code?: string | null
   payment_method?: 'prepaid' | 'cod'
+  /** Staff prepaid cash: amount customer tendered at counter */
+  cash_paid_amount?: number | null
+  /** Staff prepaid cash: change returned to customer */
+  cash_refund_amount?: number | null
 }
 
 export type PromoCodeStatus =

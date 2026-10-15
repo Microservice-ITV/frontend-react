@@ -29,7 +29,7 @@ type ProductsResponse = {
 
 export type ProductSearchSelectProps = {
   value: string
-  onChange: (productId: string) => void
+  onChange: (productId: string, option?: SearchableSelectOption) => void
   placeholder?: string
   disabled?: boolean
   className?: string
@@ -48,8 +48,9 @@ const toOption = (row: ProductRow): SearchableSelectOption => ({
   image: row.images?.[0] ? productServiceAssetUrl(row.images[0]) : null,
 })
 
-const loadOwnedProductOptions = (userId: string) => {
-  const cached = ownedProductsCache.get(userId)
+/** All products for the seller’s active shop (or every shop they own). */
+const loadOwnedProductOptions = (cacheKey: string, shopId?: string) => {
+  const cached = ownedProductsCache.get(cacheKey)
   if (cached && Date.now() - cached.at < OWNED_PRODUCTS_TTL) return cached.promise
 
   const promise = (async () => {
@@ -58,7 +59,9 @@ const loadOwnedProductOptions = (userId: string) => {
     let totalPages = 1
     do {
       const response = await productClient.get<ProductsResponse>('/products', {
-        params: { owned: 'true', page, limit: OWNED_PAGE_LIMIT },
+        params: shopId
+          ? { shopId, page, limit: OWNED_PAGE_LIMIT }
+          : { owned: 'true', page, limit: OWNED_PAGE_LIMIT },
       })
       collected.push(...(response.data?.data ?? []))
       totalPages = Math.max(1, response.data?.pagination?.totalPages ?? 1)
@@ -74,11 +77,11 @@ const loadOwnedProductOptions = (userId: string) => {
       })
       .map(toOption)
   })().catch((error: unknown) => {
-    ownedProductsCache.delete(userId)
+    ownedProductsCache.delete(cacheKey)
     throw error
   })
 
-  ownedProductsCache.set(userId, { at: Date.now(), promise })
+  ownedProductsCache.set(cacheKey, { at: Date.now(), promise })
   return promise
 }
 
@@ -92,6 +95,9 @@ const ProductSearchSelect = ({
   ownedOnly = false,
 }: ProductSearchSelectProps) => {
   const userId = useAppSelector((state) => state.auth.user?.id ?? '')
+  const activeShopId = useAppSelector(
+    (state) => state.auth.user?.active_shop_id?.trim() ?? '',
+  )
   const [query, setQuery] = useState('')
   const [options, setOptions] = useState<SearchableSelectOption[]>([])
   const [loading, setLoading] = useState(false)
@@ -99,13 +105,14 @@ const ProductSearchSelect = ({
 
   useEffect(() => {
     if (!ownedOnly) return
-    if (!userId) {
+    if (!userId && !activeShopId) {
       setOptions([])
       return
     }
+    const cacheKey = activeShopId ? `shop:${activeShopId}` : `user:${userId}`
     let cancelled = false
     setLoading(true)
-    void loadOwnedProductOptions(userId)
+    void loadOwnedProductOptions(cacheKey, activeShopId || undefined)
       .then((rows) => {
         if (!cancelled) setOptions(rows)
       })
@@ -118,7 +125,7 @@ const ProductSearchSelect = ({
     return () => {
       cancelled = true
     }
-  }, [ownedOnly, userId])
+  }, [ownedOnly, userId, activeShopId])
 
   useEffect(() => {
     if (ownedOnly) return
@@ -206,7 +213,10 @@ const ProductSearchSelect = ({
     <SearchableSelect
       options={mergedOptions}
       value={value}
-      onChange={onChange}
+      onChange={(nextId) => {
+        const option = mergedOptions.find((entry) => entry.value === nextId)
+        onChange(nextId, option)
+      }}
       onQueryChange={ownedOnly ? undefined : setQuery}
       loading={loading}
       filterLocally={ownedOnly}

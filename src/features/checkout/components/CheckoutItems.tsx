@@ -33,8 +33,10 @@ interface CheckoutItemsProps {
   /** When false, this order does not charge a delivery fee. The rider is paid on arrival. */
   payDeliveryFeeNow?: boolean
   onPayDeliveryFeeNowChange?: (payNow: boolean) => void
-  /** No company / no route: switch stays off and cannot be turned on. */
+  /** No company / no route / staff cash: switch stays off and cannot be turned on. */
   payDeliveryFeeNowLockedOff?: boolean
+  /** Why the switch is locked off (e.g. staff cash). */
+  payDeliveryFeeNowLockReason?: PayDeliveryLockReason | null
   deliveryCompany: CheckoutDeliveryCompanySelection
 }
 
@@ -268,6 +270,7 @@ const CheckoutItems = ({
   payDeliveryFeeNow = true,
   onPayDeliveryFeeNowChange,
   payDeliveryFeeNowLockedOff = false,
+  payDeliveryFeeNowLockReason = null,
   deliveryCompany,
 }: CheckoutItemsProps) => {
   const { groupedByShop } = checkout
@@ -343,6 +346,7 @@ const CheckoutItems = ({
           noDeliveryCompany,
           noDeliveryRoute,
           checkoutLockedOff: payDeliveryFeeNowLockedOff,
+          checkoutLockReason: payDeliveryFeeNowLockReason,
         })
         const shopLocksPayNow = lockReason != null
         const chargeDeliveryNow = payDeliveryFeeNow && !shopLocksPayNow

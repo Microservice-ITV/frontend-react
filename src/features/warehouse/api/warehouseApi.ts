@@ -234,6 +234,76 @@ export const warehouseApi = {
     )
   },
 
+  markPurchaseOrderRouteArrived(id: string) {
+    return warehouseClient.post<Envelope<PurchaseOrder>>(
+      `/purchase-orders/${id}/route-arrived`,
+    )
+  },
+
+  deliveryPickup(id: string) {
+    return warehouseClient.post<Envelope<PurchaseOrder>>(
+      `/purchase-orders/${id}/delivery-pickup`,
+    )
+  },
+
+  deliveryProcess(
+    id: string,
+    payload: {
+      notes?: string | null
+      items: Array<{
+        purchaseOrderItemId: string
+        confirmedQty: number
+        variationCorrect: boolean
+        notes?: string | null
+      }>
+    },
+  ) {
+    return warehouseClient.post<Envelope<PurchaseOrder>>(
+      `/purchase-orders/${id}/delivery-process`,
+      payload,
+    )
+  },
+
+  sellerReceiveDelivery(id: string) {
+    return warehouseClient.post<Envelope<PurchaseOrder>>(
+      `/purchase-orders/${id}/seller-receive`,
+    )
+  },
+
+  createDamageReport(
+    purchaseOrderId: string,
+    payload: {
+      notes?: string | null
+      items: Array<{
+        purchaseOrderItemId?: string | null
+        productId: string
+        variantId?: string
+        productName?: string | null
+        quantity: number
+        damageType?: string | null
+        notes?: string | null
+      }>
+    },
+  ) {
+    return warehouseClient.post(`/purchase-orders/${purchaseOrderId}/damage-reports`, payload)
+  },
+
+  listDamageReports(params?: { purchaseOrderId?: string }) {
+    return warehouseClient.get('/damage-reports', {
+      params: {
+        ...(params?.purchaseOrderId ? { purchaseOrderId: params.purchaseOrderId } : {}),
+      },
+    })
+  },
+
+  getDamageReport(id: string) {
+    return warehouseClient.get(`/damage-reports/${id}`)
+  },
+
+  confirmDamageReport(id: string) {
+    return warehouseClient.post(`/damage-reports/${id}/confirm`)
+  },
+
   updatePurchaseOrderStatus(
     id: string,
     status: PurchaseOrderStatus,

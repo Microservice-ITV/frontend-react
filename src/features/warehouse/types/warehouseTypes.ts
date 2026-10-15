@@ -49,7 +49,12 @@ export interface Warehouse {
   name: string
   address: string | null
   status: WarehouseStatus
+  capacityUnits?: number | null
+  usedUnits?: number
+  remainingUnits?: number | null
+  isAtCapacity?: boolean
   createdBy?: string | null
+  sellerUserId?: string | null
 }
 
 export interface InventoryStock {
@@ -62,6 +67,15 @@ export interface InventoryStock {
   availableQty: number
   updatedAt: string
   availability?: AvailabilityStatus
+  colorName?: string | null
+  sizeName?: string | null
+  variantLabel?: string | null
+  length?: number | null
+  width?: number | null
+  height?: number | null
+  weightPerUnit?: number | null
+  volumePerUnit?: number | null
+  unit?: string | null
 }
 
 export interface InventoryMovement {
@@ -77,7 +91,14 @@ export interface InventoryMovement {
   referenceId: string | null
   unitCost: string | null
   createdBy: string | null
+  /** Readable actor label resolved by warehouse-service (name or email). */
+  createdByName?: string | null
   createdAt: string
+  /** Transfer routing (enriched from warehouse_transfers when listing). */
+  fromWarehouseId?: string | null
+  toWarehouseId?: string | null
+  fromWarehouseName?: string | null
+  toWarehouseName?: string | null
 }
 
 export interface StockMutationPayload {
@@ -95,6 +116,8 @@ export interface TransferPayload {
   fromWarehouseId?: string
   toWarehouseId: string
   fromSeller?: boolean
+  /** Seller W→W: skip seller approval; warehouse manager completes. */
+  sellerInitiated?: boolean
   productId: string
   variantId?: string
   quantity: number
@@ -118,7 +141,7 @@ export type TransferStatus = (typeof TRANSFER_STATUSES)[number]
 
 export const TRANSFER_STATUS_LABELS: Record<TransferStatus, string> = {
   PENDING: 'Pending',
-  SELLER_APPROVED: 'Seller approved',
+  SELLER_APPROVED: 'Approved',
   AWAITING_RECEIPT: 'Awaiting receipt',
   APPROVED: 'Received',
   REJECTED: 'Rejected',
@@ -128,9 +151,15 @@ export const transferStatusLabel = (row: {
   status: TransferStatus
   approvalSellerUserId?: string | null
   fromSellerUserId?: string | null
+  requestedBy?: string | null
 }) => {
+  // WM-initiated warehouse→warehouse still waiting on the seller.
   if (row.status === 'PENDING' && row.approvalSellerUserId && !row.fromSellerUserId) {
     return 'Waiting for seller'
+  }
+  // Seller-approved or seller-initiated: waiting for warehouse manager to complete.
+  if (row.status === 'SELLER_APPROVED' && !row.fromSellerUserId) {
+    return 'Approved — complete transfer'
   }
   return TRANSFER_STATUS_LABELS[row.status]
 }
@@ -161,7 +190,17 @@ export interface WarehousePayload {
   code?: string | null
   address?: string | null
   status?: WarehouseStatus
+  capacityUnits: number
   managerUserId?: string
+}
+
+export const warehouseCapacityLabel = (warehouse: Pick<
+  Warehouse,
+  'capacityUnits' | 'usedUnits' | 'isAtCapacity'
+>): string => {
+  if (warehouse.capacityUnits == null) return 'Unlimited'
+  const used = warehouse.usedUnits ?? 0
+  return `${used}/${warehouse.capacityUnits} units${warehouse.isAtCapacity ? ' · Full' : ''}`
 }
 
 /** Mirrors the service rule: <= 0 out, <= 5 low, otherwise in stock. */

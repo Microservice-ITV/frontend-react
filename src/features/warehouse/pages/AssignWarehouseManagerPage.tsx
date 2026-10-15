@@ -6,8 +6,12 @@ import FilterBar from '@/components/ui/FilterBar'
 const WAREHOUSE_MANAGER_ROLE = 'warehouse_manager'
 const VISIBLE_ROLE_CODES = new Set(['user', WAREHOUSE_MANAGER_ROLE])
 
-const hasOnlyUserOrManagerRoles = (user: AdminUserDto) =>
-  user.roles.length > 0 && user.roles.every((role) => VISIBLE_ROLE_CODES.has(role.code))
+/** Already assigned, or new register (user only) — exclude sellers and other roles. */
+const isAssignableCandidate = (user: AdminUserDto) => {
+  if (user.roles.some((role) => role.code === WAREHOUSE_MANAGER_ROLE)) return true
+  if (user.has_shop_membership) return false
+  return user.roles.length > 0 && user.roles.every((role) => VISIBLE_ROLE_CODES.has(role.code))
+}
 
 const AssignWarehouseManagerPage = () => {
   const [search, setSearch] = useState('')
@@ -35,7 +39,7 @@ const AssignWarehouseManagerPage = () => {
           page: 1,
         })
         if (!cancelled) {
-          setUsers((response.data?.data?.users ?? []).filter(hasOnlyUserOrManagerRoles))
+          setUsers((response.data?.data?.users ?? []).filter(isAssignableCandidate))
         }
       } catch (err) {
         if (!cancelled) {

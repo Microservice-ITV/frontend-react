@@ -7,3 +7,14 @@ export const warehouseClient = axios.create({
 })
 
 setupAuthInterceptors(warehouseClient)
+
+// Send the signed-in user's display name so warehouse-service can label movements
+// without calling auth-service.
+warehouseClient.interceptors.request.use(async (config) => {
+  const { store } = await import('@/app/store')
+  const name = store.getState().auth.user?.name?.trim()
+  if (name) {
+    config.headers.set('X-Actor-Name', name)
+  }
+  return config
+})
