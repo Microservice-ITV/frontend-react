@@ -145,6 +145,11 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
     const settled = payments.filter((payment) =>
       ['SUCCESS', 'COLLECTED'].includes((payment.status || '').toUpperCase()),
     )
+    const deliveredPendingCod = payments.filter((payment) =>
+      payment.provider.toLowerCase() === 'cod'
+      && payment.status.toUpperCase() === 'PENDING'
+      && (payment.sellerDeliveryStatus ?? payment.deliveryStatus)?.toUpperCase() === 'DELIVERED',
+    )
     const sum = (pick: (payment: PaymentRecord) => number) =>
       Number(settled.reduce((carry, payment) => carry + pick(payment), 0).toFixed(2))
     const scoped = payments.some((payment) => payment.seller)
@@ -153,10 +158,15 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
       collected: sum((payment) => payment.amount),
       share: sum((payment) => payment.seller?.orderShare ?? payment.amount),
       payout: sum((payment) => payment.seller?.payout ?? payment.amount),
+      codDueFromDelivery: Number(deliveredPendingCod.reduce(
+        (carry, payment) => carry + (payment.seller?.payout ?? payment.amount),
+        0,
+      ).toFixed(2)),
+      codDueOrderCount: deliveredPendingCod.length,
       pending: payments.filter((payment) =>
         ['PENDING', 'CREATED', 'PROCESSING'].includes((payment.status || '').toUpperCase()),
       ).length,
-      currency: payments[0]?.currency || 'USD',
+      currency: deliveredPendingCod[0]?.currency || payments[0]?.currency || 'USD',
     }
   }, [payments])
 
@@ -248,7 +258,7 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
       {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
 
       {!admin && payments.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
           <div className="rounded-xl border border-slate-200 bg-white p-4">
             <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
               Collected (your shops)
@@ -265,6 +275,17 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
               {money(stats.payout, stats.currency)}
             </p>
             <p className="mt-0.5 text-[10px] text-slate-400">after platform fees</p>
+          </div>
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-amber-700">
+              COD to Receive from Delivery
+            </p>
+            <p className="mt-1 text-lg font-bold tracking-tight text-amber-800">
+              {money(stats.codDueFromDelivery, stats.currency)}
+            </p>
+            <p className="mt-0.5 text-[10px] text-amber-700">
+              {stats.codDueOrderCount} delivered, pending COD {stats.codDueOrderCount === 1 ? 'order' : 'orders'}
+            </p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-4">
             <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
