@@ -110,6 +110,7 @@ type CatalogVariantGraph = {
     compareAtPrice: number | null
     effectiveSellingPrice: number
     shopStock: number
+    warehouseStock?: number
     isPrimary: boolean
     colorId: string
     colorName: string
@@ -223,6 +224,7 @@ const CATALOG_PRODUCT_BY_ID_QUERY = `
         compareAtPrice
         effectiveSellingPrice
         shopStock
+        warehouseStock
         isPrimary
         colorId
         colorName
@@ -391,6 +393,7 @@ function mapGraphVariant(v: CatalogVariantGraph): ProductVariant {
         compareAtPrice,
         effectiveSellingPrice: Number(v.effectiveSellingPrice ?? v.price ?? 0),
         shopStock: Math.max(0, Math.floor(Number(v.shopStock ?? 0))),
+        warehouseStock: Math.max(0, Math.floor(Number(v.warehouseStock ?? 0))),
         isPrimary: Boolean(v.isPrimary),
         colorId: v.colorId ?? '',
         colorName: v.colorName ?? '',

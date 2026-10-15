@@ -33,15 +33,22 @@ function App() {
     if (ready) setIsHomeScreenReady(true)
   }, [])
   useNotificationRealtime({ userId, accessToken })
-  const hideGlobalChrome =
-    matchPath({ path: '/seller', end: true }, pathname) ||
-    matchPath({ path: '/seller/*' }, pathname) ||
-    matchPath({ path: '/super-admin', end: true }, pathname) ||
-    matchPath({ path: '/super-admin/*' }, pathname) ||
-    matchPath({ path: '/warehouse-manager', end: true }, pathname) ||
-    matchPath({ path: '/warehouse-manager/*' }, pathname) ||
-    // Invoice print route renders only the invoice document.
-    matchPath({ path: '/account/invoices/:invoiceNumber/print', end: true }, pathname)
+  const isDashboardRoute =
+    pathname === '/seller' ||
+    pathname.startsWith('/seller/') ||
+    pathname === '/super-admin' ||
+    pathname.startsWith('/super-admin/') ||
+    pathname === '/warehouse-manager' ||
+    pathname.startsWith('/warehouse-manager/') ||
+    pathname === '/delivery-agent' ||
+    pathname.startsWith('/delivery-agent/')
+  const isInvoicePrintRoute = Boolean(
+    matchPath(
+      { path: '/account/invoices/:invoiceNumber/print', end: true },
+      pathname,
+    ),
+  )
+  const hideGlobalChrome = isDashboardRoute || isInvoicePrintRoute
 
   /**
    * Bootstrap authentication on app load
@@ -89,19 +96,7 @@ function App() {
    * server-verified print token rather than the auth store. Waiting for the
    * auth bootstrap there would stall the PDF render.
    */
-  const isInvoicePrintRoute = matchPath(
-    { path: '/account/invoices/:invoiceNumber/print', end: true },
-    pathname,
-  );
   const isHome = Boolean(matchPath({ path: '/', end: true }, pathname))
-  const isDashboardRoute = Boolean(
-    matchPath({ path: '/seller', end: true }, pathname) ||
-    matchPath({ path: '/seller/*' }, pathname) ||
-    matchPath({ path: '/super-admin', end: true }, pathname) ||
-    matchPath({ path: '/super-admin/*' }, pathname) ||
-    matchPath({ path: '/warehouse-manager', end: true }, pathname) ||
-    matchPath({ path: '/warehouse-manager/*' }, pathname),
-  )
   const waitForHomeScreen = isHome && !contentSettled
   const showSplash =
     !isInvoicePrintRoute &&
@@ -169,15 +164,24 @@ function App() {
 
   return (
     <HomeScreenReadyProvider onReadyChange={handleHomeScreenReady}>
-      <div className="flex min-h-screen flex-col bg-[#f5f5f5]">
+      <div
+        className={
+          isDashboardRoute
+            ? 'min-h-screen bg-slate-50'
+            : 'flex min-h-screen flex-col bg-[#f5f5f5]'
+        }
+      >
         {!hideGlobalChrome && <Navbar />}
 
         <ScrollToTop />
         <GoogleAnalytics />
 
-        {/* Main Content stays mounted so sections and images can finish loading. */}
-        <main ref={mainRef} className="flex-1">
-          <div inert={showSplash}>
+        {/* Dashboard routes skip storefront chrome; main wrapper stays for home loading. */}
+        <main
+          ref={isDashboardRoute || isInvoicePrintRoute ? undefined : mainRef}
+          className={isDashboardRoute || isInvoicePrintRoute ? 'min-h-screen' : 'flex-1'}
+        >
+          <div inert={showSplash || undefined}>
             <AppRoutes />
           </div>
         </main>

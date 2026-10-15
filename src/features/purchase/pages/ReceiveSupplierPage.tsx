@@ -7,14 +7,13 @@ import { useWarehouses } from '@/features/warehouse/hooks/useWarehouseData'
 import { purchaseApi, purchaseErrorMessage } from '../api/purchaseApi'
 import { PurchaseOrderStatusBadge } from '../components/PurchaseBadges'
 import { purchasePaths, type PurchaseAreaBase } from '../config/purchasePaths'
+import { secondaryButtonClass } from '../config/purchaseUiClasses'
 import { notifyOrderedReceiptCountChanged } from '../orderedReceiptCount'
 import { usePurchaseOrders } from '../hooks/usePurchaseData'
 import type { PurchaseOrder } from '../types/purchaseTypes'
 
 const primaryButtonClass =
   'inline-flex cursor-pointer items-center justify-center rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50'
-const secondaryButtonClass =
-  'inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50'
 
 const ReceiveSupplierPage = ({ base }: { base: PurchaseAreaBase }) => {
   const paths = purchasePaths(base)

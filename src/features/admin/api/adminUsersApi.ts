@@ -16,6 +16,8 @@ export type AdminUserDto = {
   email: string
   email_verified_at: string | null
   created_at: string | null
+  /** True when the user belongs to any shop (seller / shop staff). */
+  has_shop_membership?: boolean
   roles: AdminUserRoleDto[]
 }
 

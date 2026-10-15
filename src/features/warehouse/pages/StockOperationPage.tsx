@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeftRight, ArrowRight, Plus, type LucideIcon } from 'lucide-react'
+import { ArrowLeftRight, ArrowRight, Check, Plus, X, type LucideIcon } from 'lucide-react'
 import DataTable, { type DataTableColumn } from '@/components/ui/DataTable'
 import FilterBar from '@/components/ui/FilterBar'
 import ModalDrawer from '@/components/ui/ModalDrawer'
 import StatusBadge, { type BadgeTone } from '@/components/ui/StatusBadge'
+import { useAppSelector } from '@/app/hooks'
 import TransferStockForm from '../components/forms/TransferStockForm'
 import { primaryButtonClass } from '../components/forms/FormField'
+import { notifyDashboardMenuBadgesChanged } from '@/features/dashboard/dashboardMenuBadges'
 import { warehouseApi, warehouseErrorMessage } from '../api/warehouseApi'
 import { warehousePaths, type WarehouseAreaBase } from '../config/warehousePaths'
 import { useWarehouses } from '../hooks/useWarehouseData'
@@ -40,14 +42,19 @@ const OPERATION_COPY: Record<
   transfer: {
     label: 'Transfer',
     title: 'Transfer Stock',
-    subtitle: 'Request a transfer between warehouses — waits for approval.',
+    subtitle: 'Move stock between warehouses.',
     description:
-      'Transfers stay here with their status. A warehouse transfer waits for the seller, then the warehouse manager completes it.',
+      'Seller-started moves are auto-approved; the warehouse manager completes them. Manager requests wait for seller approval.',
     icon: ArrowLeftRight,
     variant: 'drawer',
     size: 'lg',
   },
 }
+
+const actionButtonClass =
+  'inline-flex cursor-pointer items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium disabled:opacity-50'
+const approveActionClass = `${actionButtonClass} bg-emerald-600 text-white hover:bg-emerald-700`
+const rejectActionClass = `${actionButtonClass} border border-slate-200 bg-white text-slate-600 hover:bg-slate-100`
 
 const transferTone = (status: TransferStatus): BadgeTone => {
   if (status === 'APPROVED') return 'success'
@@ -68,10 +75,20 @@ const StockOperationPage = ({ base, kind }: StockOperationPageProps) => {
   const [transfers, setTransfers] = useState<WarehouseTransfer[]>([])
   const [transfersLoading, setTransfersLoading] = useState(true)
   const [transfersError, setTransfersError] = useState<string | null>(null)
+  const [decidingId, setDecidingId] = useState<string | null>(null)
   const { warehouses, loading, error, reload } = useWarehouses(
-    base === '/seller' ? { catalog: true, status: 'ACTIVE' } : undefined,
+    base === '/seller' ? { status: 'ACTIVE', includePurchased: true } : undefined,
   )
   const productNames = useProductNames()
+  const authUser = useAppSelector((state) => state.auth.user)
+  const authUserIds = useMemo(
+    () =>
+      [...new Set([authUser?.id, (authUser as { sub?: string } | null)?.sub].filter(Boolean))] as string[],
+    [authUser],
+  )
+  const authUserId = authUserIds[0] ?? ''
+  const isSeller = base === '/seller'
+  const isWarehouseManager = base === '/warehouse-manager'
 
   const loadTransfers = useCallback(async () => {
     setTransfersLoading(true)
@@ -96,15 +113,40 @@ const StockOperationPage = ({ base, kind }: StockOperationPageProps) => {
     [warehouses],
   )
 
+  const ownedWarehouseIds = useMemo(
+    () => new Set(warehouses.map((warehouse) => warehouse.id)),
+    [warehouses],
+  )
+
+  const pendingApprovals = useMemo(
+    () =>
+      transfers.filter((transfer) => {
+        if (transfer.status !== 'PENDING') return false
+        if (isSeller) {
+          // Only WM-initiated warehouse transfers need seller approval.
+          if (!transfer.approvalSellerUserId || transfer.fromSellerUserId) return false
+          // Seller who requested their own move already skipped approval.
+          if (transfer.requestedBy && authUserIds.includes(transfer.requestedBy)) {
+            return false
+          }
+          return true
+        }
+        if (isWarehouseManager) {
+          return Boolean(transfer.fromSellerUserId) && ownedWarehouseIds.has(transfer.toWarehouseId)
+        }
+        return false
+      }),
+    [transfers, isSeller, isWarehouseManager, ownedWarehouseIds, authUserIds],
+  )
+
   const rows = useMemo(() => {
-    const warehouseIds = new Set(warehouses.map((warehouse) => warehouse.id))
     const term = search.trim().toLowerCase()
     return transfers.filter((transfer) => {
       if (
-        base !== '/seller' &&
+        !isSeller &&
         !loading &&
-        !warehouseIds.has(transfer.fromWarehouseId ?? '') &&
-        !warehouseIds.has(transfer.toWarehouseId)
+        !ownedWarehouseIds.has(transfer.fromWarehouseId ?? '') &&
+        !ownedWarehouseIds.has(transfer.toWarehouseId)
       ) {
         return false
       }
@@ -113,36 +155,128 @@ const StockOperationPage = ({ base, kind }: StockOperationPageProps) => {
       const haystack = `${transfer.referenceId ?? ''} ${productLabel(productNames, transfer.productId)} ${transfer.fromSellerUserId ? 'seller inventory' : warehouseName(transfer.fromWarehouseId ?? '')} ${warehouseName(transfer.toWarehouseId)} ${transfer.status}`.toLowerCase()
       return haystack.includes(term)
     })
-  }, [transfers, warehouses, loading, search, status, productNames, warehouseName, base])
+  }, [
+    transfers,
+    loading,
+    search,
+    status,
+    productNames,
+    warehouseName,
+    isSeller,
+    ownedWarehouseIds,
+  ])
 
-  const completeTransfer = async (transfer: WarehouseTransfer) => {
+  const decideTransfer = async (
+    transfer: WarehouseTransfer,
+    action: 'approve' | 'reject' | 'receive' | 'complete',
+  ) => {
     const label = transfer.referenceId ?? transfer.id.slice(0, 8)
+    setDecidingId(transfer.id)
     setNotice(null)
     try {
-      const response = await warehouseApi.approveTransfer(transfer.id)
-      const nextStatus = response.data?.data?.transfer?.status
-      setNotice(
-        nextStatus === 'AWAITING_RECEIPT'
-          ? `Transfer ${label} sent. The destination warehouse manager can receive it.`
-          : `Transfer ${label} completed — stock moved.`,
-      )
+      if (action === 'receive') {
+        await warehouseApi.receiveTransfer(transfer.id)
+        setNotice(`Transfer ${label} received — stock is in the destination warehouse.`)
+      } else if (action === 'reject') {
+        await warehouseApi.rejectTransfer(transfer.id, 'Rejected from transfer page')
+        setNotice(`Transfer ${label} rejected.`)
+      } else {
+        const response = await warehouseApi.approveTransfer(transfer.id)
+        const nextStatus = response.data?.data?.transfer?.status
+        if (action === 'complete' || nextStatus === 'AWAITING_RECEIPT') {
+          setNotice(
+            nextStatus === 'AWAITING_RECEIPT'
+              ? `Transfer ${label} sent. The destination warehouse manager can receive it.`
+              : `Transfer ${label} completed — stock moved.`,
+          )
+        } else {
+          setNotice(
+            nextStatus === 'SELLER_APPROVED'
+              ? `Transfer ${label} approved. The warehouse manager can complete it.`
+              : `Transfer ${label} approved — stock moved.`,
+          )
+        }
+      }
       await loadTransfers()
+      notifyDashboardMenuBadgesChanged()
     } catch (err) {
-      setNotice(null)
       setTransfersError(warehouseErrorMessage(err))
+    } finally {
+      setDecidingId(null)
     }
   }
 
-  const receiveTransfer = async (transfer: WarehouseTransfer) => {
-    const label = transfer.referenceId ?? transfer.id.slice(0, 8)
-    setNotice(null)
-    try {
-      await warehouseApi.receiveTransfer(transfer.id)
-      setNotice(`Transfer ${label} received — stock is in the destination warehouse.`)
-      await loadTransfers()
-    } catch (err) {
-      setTransfersError(warehouseErrorMessage(err))
+  const renderActions = (row: WarehouseTransfer) => {
+    const busy = decidingId === row.id
+    const sellerCanDecide =
+      isSeller &&
+      row.status === 'PENDING' &&
+      Boolean(row.approvalSellerUserId) &&
+      !row.fromSellerUserId &&
+      !(row.requestedBy && authUserIds.includes(row.requestedBy))
+    if (
+      row.status === 'PENDING' &&
+      (sellerCanDecide ||
+        (isWarehouseManager &&
+          Boolean(row.fromSellerUserId) &&
+          ownedWarehouseIds.has(row.toWarehouseId)))
+    ) {
+      return (
+        <div className="flex justify-end gap-1.5">
+          <button
+            type="button"
+            className={approveActionClass}
+            disabled={busy}
+            onClick={() => void decideTransfer(row, 'approve')}
+          >
+            <Check size={13} />
+            Approve
+          </button>
+          <button
+            type="button"
+            className={rejectActionClass}
+            disabled={busy}
+            onClick={() => void decideTransfer(row, 'reject')}
+          >
+            <X size={13} />
+            Reject
+          </button>
+        </div>
+      )
     }
+    if (
+      isWarehouseManager &&
+      row.status === 'SELLER_APPROVED' &&
+      ownedWarehouseIds.has(row.fromWarehouseId ?? '')
+    ) {
+      return (
+        <button
+          type="button"
+          className={`${approveActionClass} whitespace-nowrap`}
+          disabled={busy}
+          onClick={() => void decideTransfer(row, 'complete')}
+        >
+          Complete transfer
+        </button>
+      )
+    }
+    if (
+      isWarehouseManager &&
+      row.status === 'AWAITING_RECEIPT' &&
+      ownedWarehouseIds.has(row.toWarehouseId)
+    ) {
+      return (
+        <button
+          type="button"
+          className={approveActionClass}
+          disabled={busy}
+          onClick={() => void decideTransfer(row, 'receive')}
+        >
+          Received
+        </button>
+      )
+    }
+    return null
   }
 
   const columns: Array<DataTableColumn<WarehouseTransfer>> = [
@@ -202,29 +336,8 @@ const StockOperationPage = ({ base, kind }: StockOperationPageProps) => {
       key: 'actions',
       header: '',
       align: 'right',
-      width: '200px',
-      render: (row) =>
-        base === '/warehouse-manager' &&
-        row.status === 'SELLER_APPROVED' &&
-        warehouses.some((warehouse) => warehouse.id === row.fromWarehouseId) ? (
-          <button
-            type="button"
-            className={`${primaryButtonClass} whitespace-nowrap`}
-            onClick={() => void completeTransfer(row)}
-          >
-            Complete transfer
-          </button>
-        ) : base === '/warehouse-manager' &&
-          row.status === 'AWAITING_RECEIPT' &&
-          warehouses.some((warehouse) => warehouse.id === row.toWarehouseId) ? (
-          <button
-            type="button"
-            className={primaryButtonClass}
-            onClick={() => void receiveTransfer(row)}
-          >
-            Received
-          </button>
-        ) : null,
+      width: '210px',
+      render: (row) => renderActions(row),
     },
     {
       key: 'created',
@@ -239,9 +352,65 @@ const StockOperationPage = ({ base, kind }: StockOperationPageProps) => {
     },
   ]
 
+  const pendingColumns: Array<DataTableColumn<WarehouseTransfer>> = [
+    {
+      key: 'reference',
+      header: 'Reference',
+      width: '170px',
+      render: (row) => (
+        <span className="text-xs text-slate-700">{row.referenceId ?? row.id.slice(0, 8)}</span>
+      ),
+    },
+    {
+      key: 'route',
+      header: 'Route',
+      render: (row) => (
+        <span className="inline-flex items-center gap-1.5 text-sm text-slate-700">
+          {row.fromSellerUserId ? 'Seller inventory' : warehouseName(row.fromWarehouseId ?? '')}
+          <ArrowRight size={13} className="text-slate-400" />
+          {warehouseName(row.toWarehouseId)}
+        </span>
+      ),
+    },
+    {
+      key: 'product',
+      header: 'Product',
+      render: (row) => (
+        <span className="block max-w-[220px] truncate text-sm text-slate-700">
+          {productLabel(productNames, row.productId)}
+        </span>
+      ),
+    },
+    {
+      key: 'quantity',
+      header: 'Qty',
+      align: 'right',
+      width: '80px',
+      render: (row) => <span className="font-medium text-slate-900">{row.quantity}</span>,
+    },
+    {
+      key: 'requested',
+      header: 'Requested',
+      width: '170px',
+      render: (row) => (
+        <span className="text-xs text-slate-500">
+          {new Date(row.createdAt).toLocaleString()}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: '',
+      align: 'right',
+      width: '190px',
+      render: (row) => renderActions(row),
+    },
+  ]
+
   const handleSuccess = (message: string) => {
     void reload()
     void loadTransfers()
+    notifyDashboardMenuBadgesChanged()
     setNotice(message)
     setOpen(false)
   }
@@ -262,11 +431,12 @@ const StockOperationPage = ({ base, kind }: StockOperationPageProps) => {
         return (
           <TransferStockForm
             warehouses={warehouses}
-            sellerMode={base === '/seller'}
+            sellerMode={false}
+            skipSellerApprovalHint={isSeller}
             onSuccess={() =>
               handleSuccess(
-                base === '/seller'
-                  ? 'Transfer request submitted. The source warehouse manager can complete it.'
+                isSeller
+                  ? 'Transfer submitted as Approved. The warehouse manager can complete it.'
                   : 'Transfer request submitted. It waits for the seller to approve.',
               )
             }
@@ -290,7 +460,11 @@ const StockOperationPage = ({ base, kind }: StockOperationPageProps) => {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-900">{copy.title}</h1>
-          <p className="text-sm text-slate-500">{copy.description}</p>
+          <p className="text-sm text-slate-500">
+            {base === '/seller'
+              ? 'Move received stock between warehouses. Approve warehouse-manager requests here.'
+              : copy.description}
+          </p>
         </div>
         <button
           type="button"
@@ -309,6 +483,31 @@ const StockOperationPage = ({ base, kind }: StockOperationPageProps) => {
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
           {notice}
         </div>
+      )}
+
+      {pendingApprovals.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold text-slate-800">
+              {isSeller ? 'Warehouse transfer requests' : 'Pending transfer approvals'}
+            </h2>
+            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700">
+              {pendingApprovals.length} pending
+            </span>
+          </div>
+          <DataTable<WarehouseTransfer>
+            columns={pendingColumns}
+            rows={pendingApprovals}
+            rowKey={(row) => row.id}
+            loading={transfersLoading || loading}
+            emptyMessage="No transfers waiting for approval."
+            emptyIcon={Check}
+            initialRowsPerPage={5}
+            itemLabel="transfers"
+            minWidth="860px"
+            fixedLayout
+          />
+        </section>
       )}
 
       <FilterBar

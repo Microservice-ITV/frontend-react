@@ -43,6 +43,9 @@ export type ProductServiceProductListItem = {
   slug: string;
   price: number | string;
   stock?: number;
+  warehouseStockMirror?: number;
+  /** Shop + warehouse available (from product-service). */
+  availableStock?: number;
   categoryId: string;
   category?: { id?: string; name?: string; title?: string };
   isActive: boolean;
@@ -135,6 +138,8 @@ export type ProductDetailReadItem = {
   images?: string[];
   tags?: string[];
   stock?: number | string;
+  warehouseStockMirror?: number | string;
+  availableStock?: number | string;
   createdAt?: string;
   updatedAt?: string;
   variants?: Array<{
@@ -155,6 +160,8 @@ export type ProductDetailReadItem = {
     price?: number | string;
     stock?: number | string;
     shopStock?: number | string;
+    warehouseStockMirror?: number | string;
+    availableStock?: number | string;
     length?: number | string | null;
     width?: number | string | null;
     height?: number | string | null;

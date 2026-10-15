@@ -36,6 +36,8 @@ export const PURCHASE_ORDER_STATUSES = [
   'PENDING',
   'APPROVED',
   'ORDERED',
+  'IN_TRANSIT',
+  'ARRIVED',
   'PARTIALLY_RECEIVED',
   'RECEIVED',
   'CLOSED',
@@ -43,6 +45,11 @@ export const PURCHASE_ORDER_STATUSES = [
   'LOW_STOCK',
   'RESTOCK_REQUESTED',
   'RESTOCK_APPROVED',
+  'DELIVERY_PICKED_UP',
+  'AWAITING_WAREHOUSE_RECEIPT',
+  'AWAITING_SELLER_RECEIPT',
+  'SELLER_RECEIVED',
+  'WAREHOUSE_RECEIVED',
 ] as const
 export type PurchaseOrderStatus = (typeof PURCHASE_ORDER_STATUSES)[number]
 
@@ -52,6 +59,8 @@ export const PURCHASE_ORDER_STATUS_LABELS: Record<PurchaseOrderStatus, string> =
   PENDING: 'Pending',
   APPROVED: 'Approved',
   ORDERED: 'Ordered',
+  IN_TRANSIT: 'In transit',
+  ARRIVED: 'Arrived',
   PARTIALLY_RECEIVED: 'Partially received',
   RECEIVED: 'Received',
   CLOSED: 'Closed',
@@ -59,6 +68,22 @@ export const PURCHASE_ORDER_STATUS_LABELS: Record<PurchaseOrderStatus, string> =
   LOW_STOCK: 'Low stock',
   RESTOCK_REQUESTED: 'Restock requested',
   RESTOCK_APPROVED: 'Restock approved',
+  DELIVERY_PICKED_UP: 'Delivery picked up',
+  AWAITING_WAREHOUSE_RECEIPT: 'Awaiting warehouse receipt',
+  AWAITING_SELLER_RECEIPT: 'Awaiting seller receipt',
+  SELLER_RECEIVED: 'Seller received',
+  WAREHOUSE_RECEIVED: 'Warehouse received',
+}
+
+export type PurchaseOrderRouteStop = {
+  id: string
+  purchaseOrderId: string
+  sequence: number
+  location: string
+  arrivedAt: string | null
+  arrivedBy: string | null
+  createdAt: string
+  updatedAt: string
 }
 
 export const COST_ALLOCATION_METHODS = [
@@ -126,6 +151,13 @@ export type PurchaseOrderItem = {
   productName: string | null
   description: string | null
   unit: string | null
+  colorId?: string | null
+  sizeId?: string | null
+  colorName?: string | null
+  sizeName?: string | null
+  length?: string | null
+  width?: string | null
+  height?: string | null
   quantity: number
   unitCost: string
   discountAmount: string
@@ -245,16 +277,64 @@ export type PurchaseOrder = {
   createdBy: string | null
   orderKind?: 'WAREHOUSE' | 'SUPPLIER'
   createdAt: string
+  routeLegIndex?: number
   updatedAt: string
   supplier?: Supplier
   warehouse?: { id: string; name: string; code?: string | null } | null
   items?: PurchaseOrderItem[]
   receipts?: PurchaseReceipt[]
   statusHistory?: PurchaseOrderStatusHistory[]
+  routeStops?: PurchaseOrderRouteStop[]
   deliveryStages?: PurchaseDeliveryStage[]
   additionalCosts?: PurchaseAdditionalCost[]
   costAdjustments?: PurchaseCostAdjustment[]
   attachments?: PurchaseOrderAttachment[]
+  deliveryHandoffs?: DeliveryHandoff[]
+  damageReports?: DamageReport[]
+}
+
+export type DeliveryHandoffItem = {
+  id: string
+  deliveryHandoffId: string
+  purchaseOrderItemId: string | null
+  productId: string
+  variantId: string
+  productName: string | null
+  colorName: string | null
+  sizeName: string | null
+  orderedQty: number
+  confirmedQty: number
+  variationCorrect: boolean
+  notes: string | null
+}
+
+export type DeliveryHandoff = {
+  id: string
+  purchaseOrderId: string
+  confirmedBy: string
+  notes: string | null
+  createdAt: string
+  items?: DeliveryHandoffItem[]
+}
+
+export type DamageReportItem = {
+  id: string
+  productId: string
+  variantId: string
+  productName: string | null
+  quantity: number
+  damageType: string | null
+  notes: string | null
+}
+
+export type DamageReport = {
+  id: string
+  reportNumber: string
+  purchaseOrderId: string
+  status: string
+  notes: string | null
+  createdAt: string
+  items?: DamageReportItem[]
 }
 
 export type PurchaseOrderAttachment = {
@@ -272,6 +352,13 @@ export type PurchaseOrderItemPayload = {
   productName?: string | null
   description?: string | null
   unit?: string | null
+  colorId?: string | null
+  sizeId?: string | null
+  colorName?: string | null
+  sizeName?: string | null
+  length?: number | null
+  width?: number | null
+  height?: number | null
   quantity: number
   unitCost: number
   discountAmount?: number
@@ -296,6 +383,7 @@ export type PurchaseOrderPayload = {
   taxAmount?: number
   shippingAmount?: number
   items: PurchaseOrderItemPayload[]
+  routeStops?: string[]
   deliveryStages?: PurchaseDeliveryStagePayload[]
   additionalCosts?: PurchaseAdditionalCostPayload[]
   attachments?: Array<{
@@ -336,7 +424,6 @@ export type PurchaseReceipt = {
   purchaseOrderId: string
   warehouseId: string
   status: PurchaseReceiptStatus
-  notes: string | null
   receivedAt: string | null
   createdBy: string | null
   createdAt: string
@@ -359,7 +446,6 @@ export type PurchaseReceiptItemPayload = {
 export type PurchaseReceiptPayload = {
   purchaseOrderId: string
   warehouseId?: string
-  notes?: string | null
   items: PurchaseReceiptItemPayload[]
 }
 

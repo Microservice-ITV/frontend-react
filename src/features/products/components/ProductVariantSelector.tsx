@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { productClient } from '@/lib/api/productClient'
 import type { ProductVariant } from '@/features/products/types/productTypes'
+import { variantSellableStock as sellable } from '@/features/products/utils/variantStock'
 
 type SizeOption = { id: string; code: string; name: string }
 
@@ -14,11 +15,14 @@ function hasLabel(value: string | undefined | null): boolean {
 }
 
 function sizeButtonClass(onProduct: boolean, outOfStock: boolean, active: boolean): string {
-    const tone = !onProduct || outOfStock ? 'text-gray-300' : 'text-gray-900'
+    // Only sizes not sold on this product look disabled. In-stock vs OOS is shown
+    // in the Stock row — gray text made XL look unavailable even when it has colors.
+    const tone = !onProduct ? 'text-gray-300' : 'text-gray-900'
     const border = active ? 'relative z-10 border-gray-800' : 'border-gray-200'
     const hover = onProduct && !active ? 'hover:border-gray-300' : ''
     const cursor = onProduct ? 'cursor-pointer' : 'cursor-not-allowed'
-    return `flex h-12 w-16 shrink-0 items-center justify-center border bg-white text-sm ${cursor} ${tone} ${border} ${hover}`
+    const strike = onProduct && outOfStock && !active ? 'line-through decoration-gray-300' : ''
+    return `flex h-12 w-16 shrink-0 items-center justify-center border bg-white text-sm ${cursor} ${tone} ${border} ${hover} ${strike}`
 }
 
 function uniqBySize(variants: ProductVariant[]): ProductVariant[] {
@@ -42,9 +46,9 @@ function uniqByColorForSize(variants: ProductVariant[], sizeId: string): Product
 
 export function pickDefaultVariant(variants: ProductVariant[]): ProductVariant | null {
     if (variants.length === 0) return null
-    const primaryOk = variants.find((v) => v.isPrimary && v.shopStock > 0)
+    const primaryOk = variants.find((v) => v.isPrimary && sellable(v) > 0)
     if (primaryOk) return primaryOk
-    const inStock = variants.find((v) => v.shopStock > 0)
+    const inStock = variants.find((v) => sellable(v) > 0)
     return inStock ?? variants[0] ?? null
 }
 
@@ -269,7 +273,7 @@ const ProductVariantSelector = ({
         const preferColor = cur?.colorId
         const sameColor =
             preferColor &&
-            withSize.find((v) => v.colorId === preferColor && v.shopStock > 0)
+            withSize.find((v) => v.colorId === preferColor && sellable(v) > 0)
         const pick = sameColor || pickDefaultVariant(withSize) || withSize[0]
         setSelectedVariantId(pick.variantId)
     }
@@ -313,7 +317,7 @@ const ProductVariantSelector = ({
                     <span className="w-20 shrink-0 pt-2 text-gray-500 sm:w-24">Option</span>
                     <div className="flex flex-wrap gap-2">
                         {variants.map((v) => {
-                            const disabled = v.shopStock <= 0
+                            const disabled = sellable(v) <= 0
                             const active = v.variantId === selected?.variantId
                             const label = variantDisplayLabel(v)
                             return (
@@ -342,7 +346,7 @@ const ProductVariantSelector = ({
                             const onProduct = variants.some((x) => x.sizeId === size.id)
                             const outOfStock =
                                 onProduct &&
-                                !variants.some((x) => x.sizeId === size.id && x.shopStock > 0)
+                                !variants.some((x) => x.sizeId === size.id && sellable(x) > 0)
                             const active = onProduct && size.id === currentSizeId
                             const label = size.code.trim() || size.name.trim() || 'Size'
                             const tip = size.name.trim() || label
@@ -374,14 +378,14 @@ const ProductVariantSelector = ({
                     <span className="w-20 shrink-0 text-sm font-medium text-gray-900 sm:w-24">Color:</span>
                     <div className="flex flex-wrap items-center gap-3">
                         {colorOptions.map((v) => {
-                            const anyInColor = variants.some(
+                            const inStock = variants.some(
                                 (x) =>
                                     x.colorId === v.colorId &&
                                     x.sizeId === currentSizeId &&
-                                    x.shopStock > 0,
+                                    sellable(x) > 0,
                             )
-                            const disabled = !anyInColor
-                            const active = v.colorId === selected?.colorId && selected?.sizeId === currentSizeId
+                            const active =
+                                v.colorId === selected?.colorId && selected?.sizeId === currentSizeId
                             const label = v.colorName || v.colorCode || 'Option'
                             const fill = swatchColor(v.colorName, v.colorCode)
                             const light = isLightSwatch(fill)
@@ -389,23 +393,18 @@ const ProductVariantSelector = ({
                                 <HoverTip key={v.colorId} label={label}>
                                     <button
                                         type="button"
-                                        disabled={disabled}
                                         aria-label={label}
                                         aria-pressed={active}
-                                        onClick={() => !disabled && handleColor(v.colorId)}
+                                        onClick={() => handleColor(v.colorId)}
                                         className={[
-                                            'relative h-8 w-8 rounded-full border transition',
+                                            'relative h-8 w-8 rounded-full border transition cursor-pointer',
                                             light ? 'border-gray-300' : 'border-transparent',
-                                            disabled
-                                                ? 'cursor-not-allowed opacity-40'
-                                                : 'cursor-pointer',
-                                            active && !disabled
-                                                ? 'ring-2 ring-gray-400 ring-offset-2'
-                                                : '',
+                                            !inStock ? 'opacity-45' : '',
+                                            active ? 'ring-2 ring-gray-400 ring-offset-2' : '',
                                         ].join(' ')}
                                         style={{ backgroundColor: fill }}
                                     >
-                                        {active && !disabled ? (
+                                        {active ? (
                                             <span
                                                 className={`pointer-events-none absolute inset-0 flex items-center justify-center text-sm font-bold leading-none ${
                                                     light ? 'text-gray-900' : 'text-white'

@@ -111,7 +111,17 @@ const DashboardSidebar = ({
                     }`
                   }
                 >
-                  {Icon && <Icon size={18} className="shrink-0" />}
+                  {Icon && (
+                    <span className="relative shrink-0">
+                      <Icon size={18} />
+                      {item.badge != null && (
+                        <span
+                          className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-white"
+                          aria-hidden
+                        />
+                      )}
+                    </span>
+                  )}
 
                   {!isCollapsed && (
                     <>
