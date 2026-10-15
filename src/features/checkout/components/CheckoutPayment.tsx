@@ -1,12 +1,27 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CardElement } from "@stripe/react-stripe-js";
 import { useDispatch, useSelector } from "react-redux";
+import { useAppSelector } from "@/app/hooks";
+import { selectCartItems } from "@/features/cart/store/cartSelectors";
 import { checkoutApi } from "../api/checkoutApi";
 import {
-  setPaymentMethod,
+  selectCashTender,
+  selectCheckoutTaxAmount,
   selectPaymentMethod,
+  selectPrepaidProvider,
+  setCashTender,
+  setPaymentMethod,
+  setPrepaidProvider,
   type PaymentMethod,
+  type PrepaidProvider,
 } from "../store/checkoutSlice";
+import {
+  calculateCashRefund,
+  formatCashIncomeDisplay,
+  normalizeCashDigits,
+  parseCashAmount,
+} from "../utils/cashTender";
+import { canUseStaffCheckoutCash } from "../utils/staffCheckoutCash";
 import { visaIcon } from "@/assets/icons";
 import { formatKsPrice } from "@/features/products/utils/formatProductPrice";
 import { Banknote, CreditCard } from "lucide-react";
@@ -18,10 +33,19 @@ type CheckoutPaymentProps = {
 const CheckoutPayment = ({ totalAmount }: CheckoutPaymentProps) => {
   const dispatch = useDispatch();
   const selectedPaymentMethod = useSelector(selectPaymentMethod);
+  const selectedProvider = useSelector(selectPrepaidProvider);
+  const cashTender = useSelector(selectCashTender);
+  const taxAmount = useSelector(selectCheckoutTaxAmount);
+  const authUser = useAppSelector((state) => state.auth.user);
+  const cartItems = useAppSelector(selectCartItems);
   const checkoutId = useSelector(
     (state: { checkout: { currentCheckout: { checkout_id?: string } | null } }) =>
       state.checkout.currentCheckout?.checkout_id,
   );
+
+  // Payment `totalAmount` is merchandise (+ shipping when pay-now). Add tax for cash tender.
+  const orderTotal = Math.max(0, Number(totalAmount) || 0) + Math.max(0, Number(taxAmount) || 0);
+  const [incomeInput, setIncomeInput] = useState("");
 
   const handlePaymentMethodChange = useCallback(
     (method: PaymentMethod) => {
@@ -33,44 +57,124 @@ const CheckoutPayment = ({ totalAmount }: CheckoutPaymentProps) => {
   );
 
   const isPrepaid = selectedPaymentMethod === "prepaid";
-  const [selectedProvider, setSelectedProvider] = useState("card");
 
-  const paymentProviders = [
-    {
-      id: "card",
-      label: "Card",
-      logo: visaIcon,
-      logoClassName: "h-8",
+  const cartShopIds = useMemo(
+    () => cartItems.map((item) => item.shopId).filter(Boolean),
+    [cartItems],
+  );
+
+  const showStaffCash = canUseStaffCheckoutCash({
+    staffShopIds: authUser?.staff_shop_ids,
+    cartShopIds,
+  });
+
+  const paymentProviders = useMemo(() => {
+    const providers: Array<{
+      id: PrepaidProvider;
+      label: string;
+      logo: string;
+      logoClassName: string;
+    }> = [
+      {
+        id: "card",
+        label: "Card",
+        logo: visaIcon,
+        logoClassName: "h-8",
+      },
+      {
+        id: "kpay",
+        label: "KBZ Pay",
+        logo: "/payment-kpay.svg",
+        logoClassName: "h-8 w-[88px]",
+      },
+      {
+        id: "wavepay",
+        label: "Wave Pay",
+        logo: "/payment-wavepay.svg",
+        logoClassName: "h-8 w-[88px]",
+      },
+      {
+        id: "ayapay",
+        label: "AYA Pay",
+        logo: "/payment-ayapay.svg",
+        logoClassName: "h-8 w-[88px]",
+      },
+      {
+        id: "cash",
+        label: "Cash",
+        logo: "/payment-cash.png",
+        logoClassName: "h-8 w-[88px]",
+      },
+      {
+        id: "cbpay",
+        label: "CB pay",
+        logo: "/payment-cbpay.svg",
+        logoClassName: "h-8 w-[88px]",
+      },
+    ];
+
+    return showStaffCash
+      ? providers
+      : providers.filter((provider) => provider.id !== "cash");
+  }, [showStaffCash]);
+
+  const handleSelectProvider = useCallback(
+    (providerId: PrepaidProvider) => {
+      dispatch(setPrepaidProvider(providerId));
+      if (providerId === "cash") {
+        const income = orderTotal;
+        setIncomeInput(normalizeCashDigits(String(income || "")));
+        dispatch(
+          setCashTender({
+            income,
+            refund: calculateCashRefund(income, orderTotal),
+          }),
+        );
+        return;
+      }
+      setIncomeInput("");
+      dispatch(setCashTender(null));
+      if (checkoutId && selectedPaymentMethod === "prepaid") {
+        void checkoutApi.updatePaymentMethod(checkoutId, "prepaid");
+      }
     },
-    {
-      id: "kpay",
-      label: "KBZ Pay",
-      logo: "/payment-kpay.svg",
-      logoClassName: "h-8 w-[88px]",
-    },
-    {
-      id: "wavepay",
-      label: "Wave Pay",
-      logo: "/payment-wavepay.svg",
-      logoClassName: "h-8 w-[88px]",
-    },
-    {
-      id: "ayapay",
-      label: "AYA Pay",
-      logo: "/payment-ayapay.svg",
-      logoClassName: "h-8 w-[88px]",
-    },
-    {
-      id: "cbpay",
-      label: "CB pay",
-      logo: "/payment-cbpay.svg",
-      logoClassName: "h-8 w-[88px]",
-    },
-  ];
+    [dispatch, orderTotal, checkoutId, selectedPaymentMethod],
+  );
+
+  useEffect(() => {
+    if (!showStaffCash && selectedProvider === "cash") {
+      dispatch(setPrepaidProvider("card"));
+      dispatch(setCashTender(null));
+      setIncomeInput("");
+    }
+  }, [showStaffCash, selectedProvider, dispatch]);
+
+  useEffect(() => {
+    if (selectedProvider !== "cash") return;
+    // Prefill was base total before tax resolved — lift income once tax is included.
+    const income = parseCashAmount(incomeInput);
+    const baseWithoutTax = Math.max(0, orderTotal - Math.max(0, taxAmount));
+    if (taxAmount > 0 && income === baseWithoutTax && baseWithoutTax !== orderTotal) {
+      setIncomeInput(normalizeCashDigits(String(Math.round(orderTotal))));
+      return;
+    }
+    const refund = calculateCashRefund(income, orderTotal);
+    if (
+      cashTender?.income === income &&
+      cashTender?.refund === refund
+    ) {
+      return;
+    }
+    dispatch(setCashTender({ income, refund }));
+  }, [selectedProvider, incomeInput, orderTotal, taxAmount, cashTender, dispatch]);
 
   const selectedProviderInfo =
     paymentProviders.find((provider) => provider.id === selectedProvider) ??
     paymentProviders[0];
+
+  const cashIncome = parseCashAmount(incomeInput);
+  const cashRefund = calculateCashRefund(cashIncome, orderTotal);
+  const cashShortfall = Math.max(0, orderTotal - cashIncome);
 
   return (
     <div className="rounded-sm border border-[var(--dni-cart-border)] bg-white">
@@ -122,7 +226,7 @@ const CheckoutPayment = ({ totalAmount }: CheckoutPaymentProps) => {
                   <button
                     key={provider.id}
                     type="button"
-                    onClick={() => setSelectedProvider(provider.id)}
+                    onClick={() => handleSelectProvider(provider.id)}
                     aria-label={provider.label}
                     className={`group relative flex h-11 min-w-0 flex-1 items-center justify-center px-0.5 transition-colors cursor-pointer ${selected ? "bg-[#f0f8f5]" : "bg-transparent hover:bg-gray-50"}`}
                   >
@@ -202,6 +306,82 @@ const CheckoutPayment = ({ totalAmount }: CheckoutPaymentProps) => {
             </div>
           </div>
         )}
+
+          {showStaffCash && selectedProvider === "cash" && (
+            <div className="px-3 pb-4 sm:px-4">
+              <div className="mt-1 max-w-full rounded-sm border border-[var(--dni-cart-border)] p-3 sm:p-4">
+                <div className="mb-3 flex items-center gap-3 text-sm font-medium text-gray-900">
+                  <img
+                    src={selectedProviderInfo.logo}
+                    alt={selectedProviderInfo.label}
+                    className={`object-contain ${selectedProviderInfo.logoClassName}`}
+                  />
+                  Pay with Cash
+                </div>
+
+                <p className="mb-3 rounded bg-[#f0eff5] px-4 py-2 text-xs text-gray-700">
+                  Order total{" "}
+                  <span className="font-semibold">{formatKsPrice(orderTotal)}</span>
+                  {taxAmount > 0 ? (
+                    <span className="text-gray-500">
+                      {" "}
+                      (includes tax {formatKsPrice(taxAmount)})
+                    </span>
+                  ) : null}
+                </p>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block text-sm text-gray-700">
+                    <span className="mb-1.5 block text-xs font-medium text-gray-500">
+                      Amount Paid by Customer
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={formatCashIncomeDisplay(incomeInput)}
+                      onChange={(event) => {
+                        setIncomeInput(normalizeCashDigits(event.target.value));
+                      }}
+                      placeholder="Ks 0"
+                      className="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus:border-[#5f8f80]"
+                    />
+                  </label>
+
+                  <label className="block text-sm text-gray-700">
+                    <span className="mb-1.5 block text-xs font-medium text-gray-500">
+                      Refund Amount
+                    </span>
+                    <input
+                      type="text"
+                      readOnly
+                      value={formatKsPrice(cashRefund)}
+                      className="h-10 w-full cursor-default rounded-lg border border-gray-300 bg-slate-50 px-3 text-sm font-medium text-gray-900 outline-none"
+                    />
+                  </label>
+                </div>
+
+                {cashShortfall > 0 ? (
+                  <p className="mt-3 text-xs text-amber-700">
+                    Customer still needs to pay{" "}
+                    <span className="font-semibold">{formatKsPrice(cashShortfall)}</span>.
+                  </p>
+                ) : (
+                  <p className="mt-3 text-xs text-gray-600">
+                    Customer pays{" "}
+                    <span className="font-semibold">{formatKsPrice(cashIncome)}</span>
+                    {cashRefund > 0 ? (
+                      <>
+                        {" "}
+                        · refund{" "}
+                        <span className="font-semibold">{formatKsPrice(cashRefund)}</span>
+                      </>
+                    ) : null}
+                    .
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
         </>
       )}
 

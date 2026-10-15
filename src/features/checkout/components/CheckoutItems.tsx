@@ -20,7 +20,7 @@ import { Truck } from 'lucide-react'
 import CheckoutDeliveryCompanySelect from './CheckoutDeliveryCompanySelect'
 
 export type CheckoutDeliveryCompanySelection = {
-  companies: CheckoutDeliveryCompany[]
+  companiesByShopId: Record<string, CheckoutDeliveryCompany[]>
   selectedByShopId: Record<string, string>
   unavailableCompanyIdsByShop: Record<string, string[]>
   loading: boolean
@@ -33,8 +33,10 @@ interface CheckoutItemsProps {
   /** When false, this order does not charge a delivery fee. The rider is paid on arrival. */
   payDeliveryFeeNow?: boolean
   onPayDeliveryFeeNowChange?: (payNow: boolean) => void
-  /** No company / no route: switch stays off and cannot be turned on. */
+  /** No company / no route / staff cash: switch stays off and cannot be turned on. */
   payDeliveryFeeNowLockedOff?: boolean
+  /** Why the switch is locked off (e.g. staff cash). */
+  payDeliveryFeeNowLockReason?: PayDeliveryLockReason | null
   deliveryCompany: CheckoutDeliveryCompanySelection
 }
 
@@ -268,6 +270,7 @@ const CheckoutItems = ({
   payDeliveryFeeNow = true,
   onPayDeliveryFeeNowChange,
   payDeliveryFeeNowLockedOff = false,
+  payDeliveryFeeNowLockReason = null,
   deliveryCompany,
 }: CheckoutItemsProps) => {
   const { groupedByShop } = checkout
@@ -322,12 +325,13 @@ const CheckoutItems = ({
           0
         )
         const feeRow = feesByShopId[shopId]
+        const shopCompanies = deliveryCompany.companiesByShopId[shopId] ?? []
         const unavailableIds = deliveryCompany.unavailableCompanyIdsByShop[shopId] ?? []
         const companyLoadFailed = !deliveryCompany.loading && Boolean(deliveryCompany.error)
         const noDeliveryCompany =
-          !deliveryCompany.loading && !companyLoadFailed && deliveryCompany.companies.length === 0
+          !deliveryCompany.loading && !companyLoadFailed && shopCompanies.length === 0
         const noDeliveryRoute = shopHasNoDeliveryRoute(
-          deliveryCompany.companies.length,
+          shopCompanies.length,
           unavailableIds,
         )
         const serviceUnavailable = companyLoadFailed || calculateStatus === 'failed'
@@ -342,6 +346,7 @@ const CheckoutItems = ({
           noDeliveryCompany,
           noDeliveryRoute,
           checkoutLockedOff: payDeliveryFeeNowLockedOff,
+          checkoutLockReason: payDeliveryFeeNowLockReason,
         })
         const shopLocksPayNow = lockReason != null
         const chargeDeliveryNow = payDeliveryFeeNow && !shopLocksPayNow
@@ -468,9 +473,9 @@ const CheckoutItems = ({
                 <span>Delivery Method</span>
               </div>
               <CheckoutDeliveryCompanySelect
-                companies={deliveryCompany.companies}
+                companies={shopCompanies}
                 selectedId={deliveryCompany.selectedByShopId[shopId] ?? ''}
-                disabledCompanyIds={deliveryCompany.unavailableCompanyIdsByShop[shopId] ?? []}
+                disabledCompanyIds={unavailableIds}
                 loading={deliveryCompany.loading}
                 error={deliveryCompany.error}
                 onSelect={(companyId) => deliveryCompany.onSelect(shopId, companyId)}

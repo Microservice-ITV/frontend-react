@@ -132,6 +132,7 @@ import AdminIncomePage from "@/features/admin/pages/AdminIncomePage";
 import AdminExpensePage from "@/features/admin/pages/AdminExpensePage";
 import AdminExpenseCategoriesPage from "@/features/admin/pages/AdminExpenseCategoriesPage";
 import SellerDeliveryCompanyFeesPage from "@/features/seller/pages/SellerDeliveryCompanyFeesPage";
+import SellerDeliveryCompaniesPage from "@/features/seller/pages/SellerDeliveryCompaniesPage";
 import CommonNotificationsPage from "@/features/common/pages/CommonNotificationsPage";
 import CommonChatPage from "@/features/common/pages/CommonChatPage";
 import CommonHelpSupportPage from "@/features/common/pages/CommonHelpSupportPage";
@@ -725,6 +726,14 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.sellerAccounting}
                 >
                   <SellerAccountingOverviewPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="delivery-companies"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerDeliveryCompanies}>
+                  <SellerDeliveryCompaniesPage />
                 </ProtectedRoute>
               }
             />

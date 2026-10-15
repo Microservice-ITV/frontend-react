@@ -117,17 +117,22 @@ const CheckoutPage = () => {
         return next
     }, [deliveryCompany.companyByShopId, deliveryCompany.unavailableCompanyIdsByShop, shopIds])
     const hasQuotableCompany = Object.keys(quotableCompanyByShopId).length > 0
+    const prepaidProvider = useAppSelector((state) => state.checkout.prepaidProvider)
+    const staffCashSelected = prepaidProvider === 'cash'
     const {
         payDeliveryFeeNow,
         setPayDeliveryFeeNow,
         payDeliveryFeeNowLockedOff,
+        payDeliveryFeeNowLockReason,
         deliveryQuotePendingConfirmation,
     } = usePayDeliveryFeeNow({
         shopIds,
-        companiesCount: deliveryCompany.companies.length,
+        companiesCountByShop: deliveryCompany.companiesCountByShop,
         unavailableCompanyIdsByShop: deliveryCompany.unavailableCompanyIdsByShop,
         loading: deliveryCompany.loading,
         routesReady: deliveryCompany.routesReady,
+        forceOff: staffCashSelected,
+        forceOffReason: 'cash',
     })
 
     const shippingCalculateCacheKey = useMemo(() => {
@@ -572,8 +577,9 @@ const CheckoutPage = () => {
                                 payDeliveryFeeNow={payDeliveryFeeNow}
                                 onPayDeliveryFeeNowChange={setPayDeliveryFeeNow}
                                 payDeliveryFeeNowLockedOff={payDeliveryFeeNowLockedOff}
+                                payDeliveryFeeNowLockReason={payDeliveryFeeNowLockReason}
                                 deliveryCompany={{
-                                    companies: deliveryCompany.companies,
+                                    companiesByShopId: deliveryCompany.companiesByShopId,
                                     selectedByShopId: deliveryCompany.selectedByShopId,
                                     unavailableCompanyIdsByShop: deliveryCompany.unavailableCompanyIdsByShop,
                                     loading: deliveryCompany.loading,

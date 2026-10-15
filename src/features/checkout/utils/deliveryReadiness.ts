@@ -24,19 +24,34 @@ export function shopHasNoDeliveryRoute(
 
 export type DeliveryAvailabilityParams = {
     shopIds: readonly string[]
-    companiesCount: number
+    /** Per-shop count of companies the shop admin enabled for checkout. */
+    companiesCountByShop: Record<string, number>
     unavailableCompanyIdsByShop: Record<string, string[]>
     loading: boolean
     routesReady: boolean
 }
 
-export type PayDeliveryLockReason = 'company' | 'route'
+export type PayDeliveryLockReason = 'company' | 'route' | 'cash'
+
+function shopCompanyCount(
+    companiesCountByShop: Record<string, number>,
+    shopId: string,
+): number {
+    return companiesCountByShop[shopId] ?? 0
+}
 
 /** True when no shop in the checkout has a company with a district route. */
 export function checkoutHasNoDeliveryRoute(params: DeliveryAvailabilityParams): boolean {
-    const { shopIds, companiesCount, unavailableCompanyIdsByShop, loading, routesReady } = params
-    if (loading || !routesReady || companiesCount === 0 || shopIds.length === 0) return false
-    return shopIds.every((shopId) => shopHasNoDeliveryRoute(companiesCount, unavailableCompanyIdsByShop[shopId]))
+    const { shopIds, companiesCountByShop, unavailableCompanyIdsByShop, loading, routesReady } = params
+    if (loading || !routesReady || shopIds.length === 0) return false
+    const anyCompanies = shopIds.some((shopId) => shopCompanyCount(companiesCountByShop, shopId) > 0)
+    if (!anyCompanies) return false
+    return shopIds.every((shopId) =>
+        shopHasNoDeliveryRoute(
+            shopCompanyCount(companiesCountByShop, shopId),
+            unavailableCompanyIdsByShop[shopId],
+        ),
+    )
 }
 
 /**
@@ -45,16 +60,35 @@ export function checkoutHasNoDeliveryRoute(params: DeliveryAvailabilityParams): 
  * - companies exist but none have a route for this checkout.
  */
 export function mustWaiveDeliveryFeeNow(params: DeliveryAvailabilityParams): boolean {
-    const { companiesCount, loading } = params
+    const { shopIds, companiesCountByShop, loading } = params
     if (loading) return false
-    if (companiesCount === 0) return true
+    const totalCompanies = shopIds.reduce(
+        (sum, shopId) => sum + shopCompanyCount(companiesCountByShop, shopId),
+        0,
+    )
+    if (totalCompanies === 0) return true
     return checkoutHasNoDeliveryRoute(params)
+}
+
+/**
+ * True when the checkout can quote and charge delivery now:
+ * delivery companies exist AND at least one shop has a usable route.
+ * False while companies/routes are still loading.
+ */
+export function canPayDeliveryFeeNow(params: DeliveryAvailabilityParams): boolean {
+    const { companiesCount, loading, routesReady, shopIds } = params
+    if (loading || !routesReady || shopIds.length === 0) return false
+    if (companiesCount === 0) return false
+    return !checkoutHasNoDeliveryRoute(params)
 }
 
 /** Tooltip / hint when the pay-now switch is forced off. */
 export function payDeliveryFeeNowLockMessage(reason: PayDeliveryLockReason): string {
     if (reason === 'route') {
         return 'No delivery route for this address. You cannot pay the delivery fee now.'
+    }
+    if (reason === 'cash') {
+        return 'Cash checkout does not charge delivery now. Pay the delivery fee when the order arrives.'
     }
     return 'No delivery company is available. You cannot pay the delivery fee now.'
 }
@@ -64,9 +98,11 @@ export function shopPayDeliveryLockReason(params: {
     noDeliveryCompany: boolean
     noDeliveryRoute: boolean
     checkoutLockedOff?: boolean
+    checkoutLockReason?: PayDeliveryLockReason | null
 }): PayDeliveryLockReason | null {
     if (params.noDeliveryRoute) return 'route'
-    if (params.noDeliveryCompany || params.checkoutLockedOff) return 'company'
+    if (params.noDeliveryCompany) return 'company'
+    if (params.checkoutLockedOff) return params.checkoutLockReason ?? 'company'
     return null
 }
 

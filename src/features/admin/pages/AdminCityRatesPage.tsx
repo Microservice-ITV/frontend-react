@@ -24,6 +24,7 @@ import {
   selectAdminDeliveryCityRatesStatus,
   selectAdminDeliveryCityRatesTotal,
 } from "../store/adminDeliveryCityRatesSelectors";
+import { confirmStatusToggle } from "../utils/confirmStatusToggle";
 
 const formatDate = (value: string | null): string => {
   if (!value) return "—";
@@ -110,22 +111,36 @@ const AdminCityRatesPage = () => {
     );
   };
 
-  const toggleStatus = async (rate: AdminDeliveryCityRateDto) => {
+  const confirmToggleStatus = (rate: AdminDeliveryCityRateDto) => {
     const next: DeliveryCityRateStatus = rate.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
-    try {
-      await adminShippingApi.updateDeliveryCityRateStatus(rate.id, next);
-      refresh();
-    } catch (updateError: unknown) {
-      openModal({
-        title: "Could not update status",
-        content: (
-          <p className="text-sm text-slate-600">
-            {adminShippingApi.getApiErrorMessage(updateError, "Please try again.")}
-          </p>
-        ),
-        primaryLabel: "Close",
-      });
-    }
+    const routeLabel = `${districtName(rate.fromDistrictId)} → ${districtName(rate.toDistrictId)}`;
+    const amountLabel = formatMoney(rate.amount, rate.currency);
+    confirmStatusToggle({
+      openModal,
+      subject: "this route rate",
+      isActive: rate.status === "ACTIVE",
+      deactivateContent: (
+        <p>
+          The route rate for {routeLabel} ({amountLabel}) will no longer be used for quotes until
+          you activate it again.
+        </p>
+      ),
+      activateContent: (
+        <p>
+          The route rate for {routeLabel} ({amountLabel}) will become available for quotes again.
+        </p>
+      ),
+      onConfirm: async () => {
+        try {
+          await adminShippingApi.updateDeliveryCityRateStatus(rate.id, next);
+          refresh();
+        } catch (updateError: unknown) {
+          throw new Error(
+            adminShippingApi.getApiErrorMessage(updateError, "Please try again."),
+          );
+        }
+      },
+    });
   };
 
   const confirmDelete = (rate: AdminDeliveryCityRateDto) => {
@@ -345,7 +360,7 @@ const AdminCityRatesPage = () => {
                               ) : (
                                 <CheckCircle2 size={16} className="text-slate-500" />
                               ),
-                            onClick: () => void toggleStatus(rate),
+                            onClick: () => confirmToggleStatus(rate),
                           },
                           {
                             key: "delete",

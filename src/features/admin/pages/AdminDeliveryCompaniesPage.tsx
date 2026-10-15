@@ -9,6 +9,7 @@ import {
   type DeliveryCompanyDto,
   type DeliveryCompanyStatus,
 } from "../api/adminShippingApi";
+import { confirmStatusToggle } from "../utils/confirmStatusToggle";
 
 const statusBadgeClass = (status: DeliveryCompanyStatus): string =>
   status === "ACTIVE"
@@ -59,22 +60,31 @@ const AdminDeliveryCompaniesPage = () => {
   const refresh = () => setReloadKey((value) => value + 1);
   const totalPages = Math.max(1, Math.ceil(total / rowsPerPage));
 
-  const toggleStatus = async (company: DeliveryCompanyDto) => {
+  const confirmToggleStatus = (company: DeliveryCompanyDto) => {
     const next: DeliveryCompanyStatus = company.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
-    try {
-      await adminShippingApi.updateDeliveryCompanyStatus(company.id, next);
-      refresh();
-    } catch (updateError: unknown) {
-      openModal({
-        title: "Could not update status",
-        content: (
-          <p className="text-sm text-slate-600">
-            {adminShippingApi.getApiErrorMessage(updateError, "Please try again.")}
-          </p>
-        ),
-        primaryLabel: "Close",
-      });
-    }
+    confirmStatusToggle({
+      openModal,
+      subject: `“${company.name}”`,
+      isActive: company.status === "ACTIVE",
+      deactivateContent: (
+        <p>
+          This company will no longer be available for checkout until you activate it again.
+        </p>
+      ),
+      activateContent: (
+        <p>This company will become available for shops and checkout again.</p>
+      ),
+      onConfirm: async () => {
+        try {
+          await adminShippingApi.updateDeliveryCompanyStatus(company.id, next);
+          refresh();
+        } catch (updateError: unknown) {
+          throw new Error(
+            adminShippingApi.getApiErrorMessage(updateError, "Please try again."),
+          );
+        }
+      },
+    });
   };
 
   return (
@@ -225,7 +235,7 @@ const AdminDeliveryCompaniesPage = () => {
                               ) : (
                                 <CheckCircle2 size={16} className="text-slate-500" />
                               ),
-                            onClick: () => void toggleStatus(company),
+                            onClick: () => confirmToggleStatus(company),
                           },
                         ]}
                       />
