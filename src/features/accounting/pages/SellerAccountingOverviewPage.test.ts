@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getDeliveryFeeTotals, getPostedExpenseTotal } from './SellerAccountingOverviewPage'
+import { getDeliveryFeeTotal, getPostedExpenseTotal } from './SellerAccountingOverviewPage'
 
 describe('accounting overview posted expense total', () => {
   it('excludes rejected and pending expenses', () => {
@@ -11,8 +11,8 @@ describe('accounting overview posted expense total', () => {
   })
 
   describe('accounting overview delivery fee total', () => {
-    it('totals shipping payable lines by currency and ignores unrelated journal lines', () => {
-      expect(getDeliveryFeeTotals([
+    it('totals shipping payable lines together regardless of ledger currency', () => {
+      expect(getDeliveryFeeTotal([
         {
           direction: 'CREDIT',
           amount: '300',
@@ -33,7 +33,7 @@ describe('accounting overview posted expense total', () => {
           memo: 'Revenue recognized (MMK) (shop=shop-1)',
           account: { code: '4000', name: 'Sales Revenue', type: 'INCOME' },
         },
-      ])).toEqual({ MMK: 300, USD: 2 })
+      ])).toBe(302)
     })
   })
 })
