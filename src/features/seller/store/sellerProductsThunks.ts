@@ -49,14 +49,6 @@ const mapProductServiceRowToUi = (item: ProductServiceProductListItem): Product 
       : Number.isFinite(Number(item.warehouseStockMirror))
         ? Number(item.warehouseStockMirror)
         : 0
-  const availableRaw = item.availableStock
-  const stock =
-    typeof availableRaw === 'number' && Number.isFinite(availableRaw)
-      ? availableRaw
-      : Number.isFinite(Number(availableRaw))
-        ? Number(availableRaw)
-        : shopStock + warehouseMirror
-
   return {
     id: item.id,
     title: item.name || item.slug,
@@ -64,7 +56,9 @@ const mapProductServiceRowToUi = (item: ProductServiceProductListItem): Product 
     categoryId: resolvedCategoryId,
     categoryName: resolvedCategoryName,
     status: computedStatus,
-    stock,
+    shopStock,
+    warehouseStock: warehouseMirror,
+    stock: shopStock,
     price: formatPrice(Number(item.price ?? 0), 'USD'),
     created: formatCreatedDate(item.createdAt),
   }

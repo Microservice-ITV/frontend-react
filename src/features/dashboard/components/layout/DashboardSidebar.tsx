@@ -16,8 +16,17 @@ type DashboardSidebarProps = {
 type TooltipState = {
   label: string;
   badge?: string | number | null;
+  badgeTone?: "default" | "alert";
   top: number;
 };
+
+const badgeClasses = (tone?: "default" | "alert") =>
+  tone === "alert"
+    ? "bg-red-600 text-white"
+    : "bg-emerald-600 text-white";
+
+const badgeDotClasses = (tone?: "default" | "alert") =>
+  tone === "alert" ? "bg-red-500" : "bg-emerald-500";
 
 const DashboardSidebar = ({
   area,
@@ -40,10 +49,11 @@ const DashboardSidebar = ({
     e: React.MouseEvent<HTMLElement>,
     label: string,
     badge?: string | number | null,
+    badgeTone?: "default" | "alert",
   ) => {
     if (!isCollapsed) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    setTooltip({ label, badge, top: rect.top + rect.height / 2 });
+    setTooltip({ label, badge, badgeTone, top: rect.top + rect.height / 2 });
   };
 
   const hideTooltip = () => setTooltip(null);
@@ -95,7 +105,9 @@ const DashboardSidebar = ({
                   to={item.to}
                   end={isParentPath(item.to)}
                   onClick={onClose}
-                  onMouseEnter={(e) => showTooltip(e, item.label, item.badge)}
+                  onMouseEnter={(e) =>
+                    showTooltip(e, item.label, item.badge, item.badgeTone)
+                  }
                   onMouseLeave={hideTooltip}
                   className={({ isActive }) =>
                     `group relative flex min-w-0 flex-1 items-center rounded-md py-1.5 text-xs transition-colors ${
@@ -116,7 +128,7 @@ const DashboardSidebar = ({
                       <Icon size={18} />
                       {item.badge != null && (
                         <span
-                          className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-white"
+                          className={`absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full ring-2 ring-white ${badgeDotClasses(item.badgeTone)}`}
                           aria-hidden
                         />
                       )}
@@ -129,7 +141,9 @@ const DashboardSidebar = ({
                         {item.label}
                       </span>
                       {item.badge != null && (
-                        <span className="shrink-0 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-medium text-white">
+                        <span
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${badgeClasses(item.badgeTone)}`}
+                        >
                           {item.badge}
                         </span>
                       )}
@@ -286,7 +300,9 @@ const DashboardSidebar = ({
           >
             {tooltip.label}
             {tooltip.badge != null && (
-              <span className="rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px]">
+              <span
+                className={`rounded-full px-1.5 py-0.5 text-[10px] ${badgeClasses(tooltip.badgeTone)}`}
+              >
                 {tooltip.badge}
               </span>
             )}
