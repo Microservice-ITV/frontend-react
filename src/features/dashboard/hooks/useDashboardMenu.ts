@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useAppSelector } from '@/app/hooks'
+import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { selectRoleCapabilities } from '@/app/rbac/selectors'
 import { purchaseApi } from '@/features/purchase/api/purchaseApi'
 import { ORDERED_RECEIPT_COUNT_EVENT } from '@/features/purchase/orderedReceiptCount'
 import { warehouseApi } from '@/features/warehouse/api/warehouseApi'
 import { selectUnreadNotificationCount } from '@/features/notifications/selectors'
+import {
+  fetchSellerProductsByShop,
+  selectSellerStockAlertCount,
+} from '@/features/seller/store'
 import { DASHBOARD_MENU_BADGE_EVENT } from '../dashboardMenuBadges'
 import {
   DASHBOARD_MENU_SELLER,
@@ -23,8 +27,11 @@ const hasAnyRequiredCapability = (
 }
 
 export const useDashboardMenu = (area: DashboardArea): DashboardMenuSection[] => {
+  const dispatch = useAppDispatch()
   const roleCapabilities = useAppSelector(selectRoleCapabilities)
   const unreadCount = useAppSelector(selectUnreadNotificationCount)
+  const stockAlertCount = useAppSelector(selectSellerStockAlertCount)
+  const activeShopId = useAppSelector((state) => state.auth.user?.active_shop_id ?? null)
   const sections =
     area === 'seller'
       ? DASHBOARD_MENU_SELLER
@@ -108,6 +115,10 @@ export const useDashboardMenu = (area: DashboardArea): DashboardMenuSection[] =>
           .catch(() => {
             if (!cancelled) setTransferCount(0)
           })
+
+        if (activeShopId) {
+          void dispatch(fetchSellerProductsByShop({ shopId: activeShopId }))
+        }
         return
       }
 
@@ -199,7 +210,7 @@ export const useDashboardMenu = (area: DashboardArea): DashboardMenuSection[] =>
       window.removeEventListener(ORDERED_RECEIPT_COUNT_EVENT, load)
       window.removeEventListener(DASHBOARD_MENU_BADGE_EVENT, load)
     }
-  }, [area])
+  }, [activeShopId, area, dispatch])
 
   return useMemo(
     () =>
@@ -244,6 +255,13 @@ export const useDashboardMenu = (area: DashboardArea): DashboardMenuSection[] =>
                     warehouseOrderActionCount > 0 ? warehouseOrderActionCount : undefined,
                 }
               }
+              if (item.key === 'seller-products') {
+                return {
+                  ...item,
+                  badge: stockAlertCount > 0 ? stockAlertCount : undefined,
+                  badgeTone: stockAlertCount > 0 ? 'alert' : undefined,
+                }
+              }
               return item
             }),
         }))
@@ -257,6 +275,7 @@ export const useDashboardMenu = (area: DashboardArea): DashboardMenuSection[] =>
       sellerRequestCount,
       trackingCount,
       transferCount,
+      stockAlertCount,
       unreadCount,
       warehouseOrderActionCount,
     ],

@@ -23,6 +23,7 @@ export type DashboardMenuItem = {
   requiredCapabilities: readonly Capability[]
   icon?: LucideIcon
   badge?: string | number
+  badgeTone?: 'default' | 'alert'
   children?: DashboardMenuItem[]
   search?: SearchConfig
 }
