@@ -15,6 +15,7 @@ import {
 import type { ProfitLossCurrencyReport, ProfitLossOverviewResponse } from "../types/accountingTypes";
 import type { AccountingExpense } from "../types/expenseTypes";
 import { accountingExpensesAdapter } from "../adapters/accountingExpensesAdapter";
+import { mergeProfitLossReports } from "../utils/profitLossFormatting";
 import DataTablePagination from "@/components/ui/DataTablePagination";
 import { accountingClient } from "@/lib/api/accountingClient";
 import { Download, RefreshCw, TrendingUp, Wallet, CircleDollarSign, ChartColumnIncreasing, CalendarDays } from "lucide-react";
@@ -148,8 +149,7 @@ const getExpenseSlices = (
       expense.status !== "APPROVED" ||
       expense.scope === "PLATFORM" ||
       expense.expenseDate.slice(0, 10) < from ||
-      expense.expenseDate.slice(0, 10) > to ||
-      (report && expense.currency !== report.currency)
+      expense.expenseDate.slice(0, 10) > to
     ) continue;
 
     const label = getExpenseSliceName(expense);
@@ -173,7 +173,6 @@ const SellerProfitLossPage = () => {
   const [report, setReport] = useState<ProfitLossOverviewResponse | null>(null);
   const [previousReport, setPreviousReport] = useState<ProfitLossOverviewResponse | null>(null);
   const [expenses, setExpenses] = useState<AccountingExpense[]>([]);
-  const [selectedCurrency, setSelectedCurrency] = useState("");
   const [status, setStatus] = useState<"loading" | "succeeded" | "failed">("loading");
   const [error, setError] = useState<string | null>(null);
   const [comparisonError, setComparisonError] = useState(false);
@@ -224,16 +223,15 @@ const SellerProfitLossPage = () => {
     void loadReport();
   }, [fromDate, toDate]);
 
-  const currencyReports = report?.reports ?? [];
-  const activeCurrency = currencyReports.some((item) => item.currency === selectedCurrency)
-    ? selectedCurrency
-    : currencyReports[0]?.currency ?? "";
+  const activeReport = useMemo(
+    () => mergeProfitLossReports(report?.reports ?? []),
+    [report],
+  );
+  const activeCurrency = "MMK";
   useEffect(() => {
     setBreakdownPage(1);
-  }, [activeCurrency, fromDate, toDate]);
-  const availableCurrencies = currencyReports.map((item) => item.currency);
-  const activeReport = currencyReports.find((item) => item.currency === activeCurrency);
-  const previousCurrencyReport = previousReport?.reports.find((item) => item.currency === activeCurrency);
+  }, [fromDate, toDate]);
+  const previousCurrencyReport = mergeProfitLossReports(previousReport?.reports ?? []);
   const totals = reportTotal(activeReport);
   const priorTotals = reportTotal(previousCurrencyReport);
   const comparisonText = (current: number, previous: number) =>
@@ -324,20 +322,6 @@ const SellerProfitLossPage = () => {
               className="min-w-0 bg-transparent outline-none"
             />
           </label>
-          {availableCurrencies.length > 1 && (
-            <label className="sr-only" htmlFor="profit-loss-currency">Currency</label>
-          )}
-          {availableCurrencies.length > 1 && (
-            <select
-              id="profit-loss-currency"
-              aria-label="Currency"
-              value={activeCurrency}
-              onChange={(event) => setSelectedCurrency(event.target.value)}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700"
-            >
-              {availableCurrencies.map((currency) => <option key={currency} value={currency}>{currency}</option>)}
-            </select>
-          )}
           <button
             type="button"
             onClick={exportReport}
@@ -368,7 +352,7 @@ const SellerProfitLossPage = () => {
       )}
       {report && (
         <p className="rounded-lg border border-blue-100 bg-blue-50/70 px-4 py-3 text-xs leading-5 text-blue-900">
-          This is a partial profit and loss report. Refunds, tax, cost of goods sold, payment fees, commission, and shipping costs are not yet included; currencies are reported separately and are not converted.
+          This is a partial profit and loss report. All amounts are shown in MMK. Refunds, tax, cost of goods sold, payment fees, commission, and shipping costs are not yet included.
         </p>
       )}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
