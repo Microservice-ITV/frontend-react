@@ -81,6 +81,24 @@ describe('seller order fulfillment status', () => {
     expect(sellerOrderStatus(order)).toBe('PARTIALLY_FULFILLED')
     expect(canSellerShip(order)).toBe(true)
   })
+
+  it('keeps delivered seller orders labeled DELIVERED instead of SHIPPED', () => {
+    const order = makeOrder({
+      status: 'DELIVERED',
+      shopBreakdown: [{
+        shopOrderId: 'shop-order-1',
+        shopId: 'shop-1',
+        subtotal: 100,
+        discount: 0,
+        shipping: 0,
+        total: 100,
+        currency: 'MMK',
+        status: 'SHIPPED',
+      }],
+    })
+
+    expect(sellerOrderStatus(order)).toBe('DELIVERED')
+  })
 })
 
 describe('fetchOrdersAcrossOwnedShops', () => {
@@ -96,7 +114,16 @@ describe('fetchOrdersAcrossOwnedShops', () => {
     await expect(fetchOrdersAcrossOwnedShops('seller-1')).resolves.toEqual(orders)
 
     expect(shopOrders).toHaveBeenCalledTimes(1)
-    expect(shopOrders).toHaveBeenCalledWith('shop-1', 'seller-1', ['shop-1', 'shop-2', 'shop-3'])
+    expect(shopOrders).toHaveBeenCalledWith('shop-1', 'seller-1', ['shop-1', 'shop-2', 'shop-3'], 'all')
+  })
+
+  it('passes the selected seller status filter to ecommerce-read', async () => {
+    vi.spyOn(sellerOrderApi, 'listShopsByUser').mockResolvedValue([{ id: 'shop-1' }])
+    const shopOrders = vi.spyOn(sellerOrderApi, 'shopOrders').mockResolvedValue([])
+
+    await fetchOrdersAcrossOwnedShops('seller-1', undefined, 'to-ship')
+
+    expect(shopOrders).toHaveBeenCalledWith('shop-1', 'seller-1', ['shop-1'], 'to-ship')
   })
 })
 

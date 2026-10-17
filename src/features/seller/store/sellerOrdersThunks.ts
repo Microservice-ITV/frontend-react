@@ -1,8 +1,12 @@
 import { createAsyncThunk } from '@reduxjs/toolkit'
-import { fetchOrdersAcrossOwnedShops, type SellerOrder } from '../api/sellerOrderApi'
+import {
+  fetchOrdersAcrossOwnedShops,
+  type SellerOrder,
+  type SellerOrderStatusFilter,
+} from '../api/sellerOrderApi'
 
 /**
- * Fetch all orders across every shop owned by the seller.
+ * Fetch orders across every shop owned by the seller, optionally filtered by fulfillment status.
  *
  * Resolves the caller's owned shops via product-service, then merges the
  * `shopOrders` projections per shop (dedup by orderId). Falls back to the
@@ -11,17 +15,17 @@ import { fetchOrdersAcrossOwnedShops, type SellerOrder } from '../api/sellerOrde
  */
 export const fetchSellerOrdersByShop = createAsyncThunk<
   SellerOrder[],
-  { userId?: string | null; activeShopId?: string | null },
+  { userId?: string | null; activeShopId?: string | null; statusFilter?: SellerOrderStatusFilter },
   { rejectValue: string }
 >(
   'sellerOrders/fetchByShop',
-  async ({ userId, activeShopId }, { rejectWithValue }) => {
+  async ({ userId, activeShopId, statusFilter }, { rejectWithValue }) => {
     if (!userId && !activeShopId) {
       return rejectWithValue('No active shop context found for this account.')
     }
 
     try {
-      return await fetchOrdersAcrossOwnedShops(userId, activeShopId)
+      return await fetchOrdersAcrossOwnedShops(userId, activeShopId, statusFilter)
     } catch (error: any) {
       const message =
         error?.response?.data?.message ||
