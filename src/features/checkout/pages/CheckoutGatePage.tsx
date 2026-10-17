@@ -15,14 +15,12 @@ import CheckoutAddress from '../components/CheckoutAddress'
 import GuestCheckoutAnnouncementBanner from '../components/GuestCheckoutAnnouncementBanner'
 import CheckoutPayment from '../components/CheckoutPayment'
 import CheckoutSummary from '../components/CheckoutSummary'
-import CheckoutSummarySkeleton from '../components/CheckoutSummarySkeleton'
 import { SagaStatusDisplay } from '../components/SagaStatusDisplay'
 import { fetchCheckoutStatus, fetchSagaStatus } from '../store/checkoutThunks'
 import { fetchCheckoutShippingCalculation, fetchShopProfilesForCurrentCart } from '@/features/shipping/store/shippingThunks'
 import { useCheckoutDeliveryCompany } from '@/features/shipping/hooks/useCheckoutDeliveryCompany'
 import { clearShippingCalculate } from '@/features/shipping/store/shippingSlice'
 import { clearCheckout, setCurrentCheckout } from '../store/checkoutSlice'
-import { hasConfirmedStock, isStockReadinessConfirmed } from '../utils/checkoutStatus'
 import { usePayDeliveryFeeNow } from '../hooks/usePayDeliveryFeeNow'
 
 const AuthCheckout = () => {
@@ -41,7 +39,6 @@ const GuestCheckoutPayment = () => {
 
   const items = useAppSelector(selectSelectedItems)
   const { currentCheckout, loading, paymentStatus, sagaId, sagaStatus } = useAppSelector((state) => state.checkout)
-  const [stockConfirmedSessionKey, setStockConfirmedSessionKey] = useState<string | null>(null)
 
   // If nothing selected, checkout shouldn't be reachable.
   if (items.length === 0) {
@@ -224,20 +221,6 @@ const GuestCheckoutPayment = () => {
     [],
   )
   const terminalSagaStatuses = useMemo(() => new Set(['COMPLETED', 'FAILED', 'TIMEOUT']), [])
-  const stockReadinessKey = currentCheckout?.checkout_id
-    ? `${currentCheckout.checkout_id}|${currentCartKey}`
-    : null
-  const isStockReady = isStockReadinessConfirmed({
-    paymentStatus,
-    confirmedReadinessKey: stockConfirmedSessionKey,
-  })
-
-  useEffect(() => {
-    if (stockReadinessKey && hasConfirmedStock(paymentStatus)) {
-      setStockConfirmedSessionKey(stockReadinessKey)
-    }
-  }, [paymentStatus, stockReadinessKey])
-
   useEffect(() => {
     if (!currentCheckout?.checkout_id) return
     if (paymentStatus && terminalCheckoutStatuses.has(paymentStatus)) return
@@ -301,20 +284,16 @@ const GuestCheckoutPayment = () => {
             <aside className="space-y-3 lg:sticky lg:top-4">
             <CheckoutPayment totalAmount={amountDueNow(checkoutTotals, payDeliveryFeeNow)} />
 
-              {isStockReady ? (
-                <CheckoutSummary
-                  checkout={checkoutTotals}
-                  payDeliveryFeeNow={payDeliveryFeeNow}
-                  hasDeliveryAddress={true}
-                  onRequireAddress={goToGuestForm}
-                  deliveryAddress={paymentDeliveryAddress}
-                  cartItems={items}
-                  deliveryQuotePendingConfirmation={deliveryQuotePendingConfirmation}
-                  deliveryCompanyIdByShopId={deliveryCompany.companyByShopId}
-                />
-              ) : (
-                <CheckoutSummarySkeleton />
-              )}
+              <CheckoutSummary
+                checkout={checkoutTotals}
+                payDeliveryFeeNow={payDeliveryFeeNow}
+                hasDeliveryAddress={true}
+                onRequireAddress={goToGuestForm}
+                deliveryAddress={paymentDeliveryAddress}
+                cartItems={items}
+                deliveryQuotePendingConfirmation={deliveryQuotePendingConfirmation}
+                deliveryCompanyIdByShopId={deliveryCompany.companyByShopId}
+              />
             </aside>
           </div>
 

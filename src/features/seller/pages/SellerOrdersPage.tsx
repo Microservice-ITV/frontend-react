@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
@@ -105,9 +105,37 @@ const SellerOrdersPage = () => {
     setPage(1)
   }, [activeShopId, orders.length])
 
+  const missingShopContext = !activeShopId && !authUserId
+  const isLoading = ordersStatus === 'loading'
+  const effectiveError = missingShopContext
+    ? 'No active shop context found for this account.'
+    : ordersError
+
+  const filteredOrders = useMemo(() => {
+    const keyword = search.trim().toLowerCase()
+    return orders.filter((order) => {
+      const matchesFilter = isOrderInTab(order, activeFilter)
+      const matchesSearch =
+        !keyword ||
+        order.orderId.toLowerCase().includes(keyword) ||
+        order.items.some((item) => item.name.toLowerCase().includes(keyword))
+      return matchesFilter && matchesSearch
+    })
+  }, [orders, activeFilter, search])
+
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / rowsPerPage))
+  const paginatedOrders = useMemo(
+    () => filteredOrders.slice((page - 1) * rowsPerPage, page * rowsPerPage),
+    [filteredOrders, page, rowsPerPage],
+  )
+  const visibleCustomerIds = useMemo(
+    () => paginatedOrders.map((order) => order.customerId),
+    [paginatedOrders],
+  )
+
   useEffect(() => {
     let cancelled = false
-    void fetchCustomerAvatars(orders.map((order) => order.customerId))
+    void fetchCustomerAvatars(visibleCustomerIds)
       .then((next) => {
         if (!cancelled) setAvatars(next)
       })
@@ -117,29 +145,7 @@ const SellerOrdersPage = () => {
     return () => {
       cancelled = true
     }
-  }, [orders])
-
-  const missingShopContext = !activeShopId && !authUserId
-  const isLoading = ordersStatus === 'loading'
-  const effectiveError = missingShopContext
-    ? 'No active shop context found for this account.'
-    : ordersError
-
-  const filteredOrders = orders.filter((order) => {
-    const matchesFilter = isOrderInTab(order, activeFilter)
-    const keyword = search.trim().toLowerCase()
-    const matchesSearch =
-      !keyword ||
-      order.orderId.toLowerCase().includes(keyword) ||
-      order.items.some((item) => item.name.toLowerCase().includes(keyword))
-    return matchesFilter && matchesSearch
-  })
-
-  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / rowsPerPage))
-  const paginatedOrders = filteredOrders.slice(
-    (page - 1) * rowsPerPage,
-    page * rowsPerPage,
-  )
+  }, [visibleCustomerIds])
 
   const handleShipOrder = async (order: SellerOrder) => {
     // Multi-shop orders: ship each of this seller's own ready shops
