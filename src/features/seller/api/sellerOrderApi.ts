@@ -214,9 +214,18 @@ export type SellerOrder = {
  * are the source of truth for the seller's actions.
  */
 export const sellerOrderStatus = (order: SellerOrder): string => {
+  const orderStatus = (order.status || '').toUpperCase()
+  if (orderStatus === 'DELIVERED' || orderStatus === 'COMPLETED') {
+    return orderStatus
+  }
+
   const rows = (order.shopBreakdown ?? []).filter((row) => row.status)
   if (rows.length > 0) {
     const statuses = rows.map((row) => (row.status || '').toUpperCase())
+    const deliveredLike = ['DELIVERED', 'COMPLETED']
+    if (statuses.every((status) => deliveredLike.includes(status))) {
+      return statuses.includes('DELIVERED') ? 'DELIVERED' : 'COMPLETED'
+    }
     const shippedLike = ['SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETED', 'FULFILLED']
     if (statuses.every((s) => shippedLike.includes(s))) {
       return 'SHIPPED'
@@ -226,7 +235,7 @@ export const sellerOrderStatus = (order: SellerOrder): string => {
     }
     return statuses[0]
   }
-  return (order.status || '').toUpperCase()
+  return orderStatus
 }
 
 /** True when this seller's shops still have unshipped portions of the order. */
@@ -260,8 +269,8 @@ export async function fetchCustomerAvatars(
 }
 
 const SHOP_ORDERS_QUERY = `
-  query ShopOrders($shopId: ID!, $shopIds: [ID!], $userId: ID) {
-    shopOrders(shopId: $shopId, shopIds: $shopIds, userId: $userId) {
+  query ShopOrders($shopId: ID!, $shopIds: [ID!], $userId: ID, $statusFilter: String) {
+    shopOrders(shopId: $shopId, shopIds: $shopIds, userId: $userId, statusFilter: $statusFilter) {
       orderId
       customerId
       status
@@ -377,6 +386,8 @@ export type OwnedShop = {
   name?: string
 }
 
+export type SellerOrderStatusFilter = 'all' | 'to-ship' | 'shipped' | 'completed' | 'cancelled'
+
 /**
  * Fetch all orders across every shop owned by the seller in one read-service
  * request. Falls back to activeShopId when ownership lookup is unavailable.
@@ -384,6 +395,7 @@ export type OwnedShop = {
 export async function fetchOrdersAcrossOwnedShops(
   userId?: string | null,
   activeShopId?: string | null,
+  statusFilter: SellerOrderStatusFilter = 'all',
 ): Promise<SellerOrder[]> {
   let shopIds: string[] = []
 
@@ -409,7 +421,7 @@ export async function fetchOrdersAcrossOwnedShops(
   // The read-service resolver expands an authenticated seller's shop scope
   // server-side. Send all known shop IDs once for its fallback path instead of
   // issuing the same full seller-order query once per shop.
-  const orders = await sellerOrderApi.shopOrders(shopIds[0], userId ?? undefined, shopIds)
+  const orders = await sellerOrderApi.shopOrders(shopIds[0], userId ?? undefined, shopIds, statusFilter)
 
   return orders.sort((a, b) => {
     const aTime = new Date(a.placedAt || a.createdAt || 0).getTime()
@@ -426,10 +438,15 @@ export const sellerOrderApi = {
     return response.data.data ?? []
   },
 
-  async shopOrders(shopId: string, userId?: string, shopIds?: string[]): Promise<SellerOrder[]> {
+  async shopOrders(
+    shopId: string,
+    userId?: string,
+    shopIds?: string[],
+    statusFilter: SellerOrderStatusFilter = 'all',
+  ): Promise<SellerOrder[]> {
     const response = await ecommerceReadClient.post<ShopOrdersResponse>('', {
       query: SHOP_ORDERS_QUERY,
-      variables: { shopId, shopIds, userId },
+      variables: { shopId, shopIds, userId, statusFilter },
     })
 
     if (response.data.errors?.length) {

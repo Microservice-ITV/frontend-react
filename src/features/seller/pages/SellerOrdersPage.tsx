@@ -5,15 +5,18 @@ import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
 import DataTablePagination from '@/components/ui/DataTablePagination'
 import RowActionMenu from '@/components/ui/RowActionMenu'
 import { fetchSellerOrdersByShop } from '../store'
-import { sellerOrderApi, canSellerShip, fetchCustomerAvatars, sellerOrderStatus, type SellerOrder } from '../api/sellerOrderApi'
-import CustomerAvatar from '../components/CustomerAvatar'
 import {
-  Search,
-  Eye,
-  Truck,
-} from 'lucide-react'
+  sellerOrderApi,
+  canSellerShip,
+  fetchCustomerAvatars,
+  sellerOrderStatus,
+  type SellerOrder,
+  type SellerOrderStatusFilter,
+} from '../api/sellerOrderApi'
+import CustomerAvatar from '../components/CustomerAvatar'
+import { Search, Eye, Truck, RefreshCw } from 'lucide-react'
 
-type SellerOrderTab = 'all' | 'to-ship' | 'shipped' | 'completed' | 'cancelled'
+type SellerOrderTab = SellerOrderStatusFilter
 
 const TABS: { key: SellerOrderTab; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -38,17 +41,17 @@ const STATUS_STYLES: Record<string, string> = {
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  READY_FOR_FULFILLMENT: 'To Ship',
-  PARTIALLY_FULFILLED: 'Partially Shipped',
-  SHIPPED: 'Shipped',
-  FULFILLED: 'Shipped',
-  IN_TRANSIT: 'In Transit',
-  OUT_FOR_DELIVERY: 'Out for Delivery',
-  DELIVERED: 'Delivered',
-  COMPLETED: 'Completed',
-  CANCELLED: 'Cancelled',
-  FAILED: 'Failed',
-  FAILED_PAYMENT: 'Payment Failed',
+  READY_FOR_FULFILLMENT: 'TO SHIP',
+  PARTIALLY_FULFILLED: 'PARTIALLY SHIPPED',
+  SHIPPED: 'SHIPPED',
+  FULFILLED: 'SHIPPED',
+  IN_TRANSIT: 'IN TRANSIT',
+  OUT_FOR_DELIVERY: 'OUT FOR DELIVERY',
+  DELIVERED: 'DELIVERED',
+  COMPLETED: 'COMPLETED',
+  CANCELLED: 'CANCELLED',
+  FAILED: 'FAILED',
+  FAILED_PAYMENT: 'PAYMENT FAILED',
 }
 
 const isOrderInTab = (order: SellerOrder, tab: SellerOrderTab): boolean => {
@@ -90,7 +93,7 @@ const SellerOrdersPage = () => {
   const ordersStatus = useAppSelector((state) => state.sellerOrders.status)
   const ordersError = useAppSelector((state) => state.sellerOrders.error)
 
-  const [activeFilter, setActiveFilter] = useState<SellerOrderTab>('all')
+  const [activeFilter, setActiveFilter] = useState<SellerOrderTab>('to-ship')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [rowsPerPage, setRowsPerPage] = useState(10)
@@ -98,8 +101,8 @@ const SellerOrdersPage = () => {
 
   useEffect(() => {
     if (!activeShopId && !authUserId) return
-    dispatch(fetchSellerOrdersByShop({ userId: authUserId, activeShopId }))
-  }, [activeShopId, authUserId, dispatch, location.pathname])
+    dispatch(fetchSellerOrdersByShop({ userId: authUserId, activeShopId, statusFilter: activeFilter }))
+  }, [activeShopId, activeFilter, authUserId, dispatch, location.pathname])
 
   useEffect(() => {
     setPage(1)
@@ -193,7 +196,11 @@ const SellerOrdersPage = () => {
             throw first.reason
           }
           if (activeShopId || authUserId) {
-            await dispatch(fetchSellerOrdersByShop({ userId: authUserId, activeShopId })).unwrap()
+            await dispatch(fetchSellerOrdersByShop({
+              userId: authUserId,
+              activeShopId,
+              statusFilter: activeFilter,
+            })).unwrap()
           }
         } catch (error: any) {
           openModal({
@@ -230,38 +237,52 @@ const SellerOrdersPage = () => {
             Manage and fulfill orders containing your products.
           </p>
         </div>
+        <button
+          type="button"
+          onClick={() => {
+            if (activeShopId || authUserId) {
+              void dispatch(fetchSellerOrdersByShop({ userId: authUserId, activeShopId, statusFilter: activeFilter }))
+            }
+          }}
+          disabled={isLoading || missingShopContext}
+          className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <RefreshCw size={16} className={isLoading ? 'animate-spin' : undefined} />
+          Refresh
+        </button>
       </div>
 
-      {/* Filter tabs */}
-      <div className="flex flex-wrap gap-1">
-        {TABS.map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            onClick={() => setActiveFilter(tab.key)}
-            className={`rounded-lg px-4 py-2 text-xs font-medium transition-colors ${
-              activeFilter === tab.key
-                ? 'bg-slate-200 text-slate-900'
-                : 'bg-white text-slate-600 hover:bg-slate-100'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Search */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full max-w-md">
-          <Search
-            size={18}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-          />
+      {/* Status filters and search share a row on desktop. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap gap-1">
+          {TABS.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => {
+                setActiveFilter(tab.key)
+                setPage(1)
+              }}
+              className={`rounded-lg px-4 py-2 text-xs font-medium transition-colors ${
+                activeFilter === tab.key
+                  ? 'bg-slate-200 text-slate-900'
+                  : 'bg-white text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <div className="relative w-full sm:max-w-md">
+          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="search"
             placeholder="Search orders..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setPage(1)
+            }}
             className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm outline-none placeholder:text-slate-400 focus:border-emerald-500"
           />
         </div>
@@ -313,7 +334,9 @@ const SellerOrdersPage = () => {
               ) : paginatedOrders.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-500">
-                    No orders found for this shop.
+                    {activeFilter === 'to-ship' && !search.trim()
+                      ? 'No orders to ship.'
+                      : 'No orders found for this shop.'}
                   </td>
                 </tr>
               ) : (
