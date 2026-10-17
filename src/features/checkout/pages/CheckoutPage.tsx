@@ -5,7 +5,6 @@ import CheckoutItems from '../components/CheckoutItems'
 import CartBundleBanner from '@/features/bundles/components/CartBundleBanner'
 import CheckoutPayment from '../components/CheckoutPayment'
 import CheckoutSummary from '../components/CheckoutSummary'
-import CheckoutSummarySkeleton from '../components/CheckoutSummarySkeleton'
 import { SagaStatusDisplay } from '../components/SagaStatusDisplay'
 import { selectSelectedItems } from '@/features/cart/store/cartSelectors'
 import { useSyncCartAvailableStock } from '@/features/cart/hooks/useSyncCartAvailableStock'
@@ -592,22 +591,17 @@ const CheckoutPage = () => {
                         <aside className="space-y-3 lg:sticky lg:top-4">
                         <CheckoutPayment totalAmount={amountDueNow(checkout, payDeliveryFeeNow)} />
 
-                            {isStockReady ? (
-                                <CheckoutSummary
-                                    checkout={checkout}
-                                    payDeliveryFeeNow={payDeliveryFeeNow}
-                                    hasDeliveryAddress={hasDeliveryAddress}
-                                    onRequireAddress={openAddressSelectionModal}
-                                    deliveryAddress={selectedDeliveryAddress}
-                                    cartItems={items}
-                                    deliveryQuotePendingConfirmation={deliveryQuotePendingConfirmation}
-                                    deliveryCompanyIdByShopId={deliveryCompany.companyByShopId}
-                                />
-                            ) : checkoutError ? (
-                                <div role="alert" className="rounded-sm border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                                    {checkoutError}
-                                </div>
-                            ) : checkoutPreparationTimedOut ? (
+                            <CheckoutSummary
+                                checkout={checkout}
+                                payDeliveryFeeNow={payDeliveryFeeNow}
+                                hasDeliveryAddress={hasDeliveryAddress}
+                                onRequireAddress={openAddressSelectionModal}
+                                deliveryAddress={selectedDeliveryAddress}
+                                cartItems={items}
+                                deliveryQuotePendingConfirmation={deliveryQuotePendingConfirmation}
+                                deliveryCompanyIdByShopId={deliveryCompany.companyByShopId}
+                            />
+                            {checkoutPreparationTimedOut && !isStockReady && (
                                 <div role="alert" className="rounded-sm border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                                     <p>Checkout preparation is taking longer than expected.</p>
                                     <button
@@ -618,8 +612,6 @@ const CheckoutPage = () => {
                                         Retry checkout
                                     </button>
                                 </div>
-                            ) : (
-                                <CheckoutSummarySkeleton />
                             )}
                         </aside>
                     </div>

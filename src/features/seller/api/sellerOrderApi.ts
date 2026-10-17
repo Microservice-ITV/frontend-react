@@ -82,6 +82,18 @@ export type PaymentRecord = {
   seller?: PaymentSellerShare | null
 }
 
+/** COD amounts awaiting remittance for a seller's already-delivered orders. */
+export const isDeliveredPendingCodPayment = (payment: PaymentRecord): boolean =>
+  payment.provider.trim().toLowerCase() === 'cod'
+  && payment.status.trim().toUpperCase() === 'PENDING'
+  && (payment.sellerDeliveryStatus ?? payment.deliveryStatus)?.trim().toUpperCase() === 'DELIVERED'
+
+/** Prefer the seller's net payout allocation; legacy rows fall back to payment amount. */
+export const sellerPaymentAmountDue = (payment: PaymentRecord): number => {
+  const amount = Number(payment.seller?.payout ?? payment.amount)
+  return Number.isFinite(amount) ? amount : 0
+}
+
 /** Owned amounts (seller's shops only) for one payment record. */
 export type PaymentSellerShare = {
   /** Σ shop grand totals for the seller's shops. */
@@ -248,8 +260,8 @@ export async function fetchCustomerAvatars(
 }
 
 const SHOP_ORDERS_QUERY = `
-  query ShopOrders($shopId: ID!, $userId: ID) {
-    shopOrders(shopId: $shopId, userId: $userId) {
+  query ShopOrders($shopId: ID!, $shopIds: [ID!], $userId: ID) {
+    shopOrders(shopId: $shopId, shopIds: $shopIds, userId: $userId) {
       orderId
       customerId
       status
@@ -366,8 +378,8 @@ export type OwnedShop = {
 }
 
 /**
- * Fetch all orders across every shop owned by the seller, merged and deduped.
- * Falls back to activeShopId when ownership lookup is unavailable.
+ * Fetch all orders across every shop owned by the seller in one read-service
+ * request. Falls back to activeShopId when ownership lookup is unavailable.
  */
 export async function fetchOrdersAcrossOwnedShops(
   userId?: string | null,
@@ -394,20 +406,12 @@ export async function fetchOrdersAcrossOwnedShops(
     return []
   }
 
-  const results = await Promise.all(
-    shopIds.map((shopId) => sellerOrderApi.shopOrders(shopId, userId ?? undefined).catch(() => [] as SellerOrder[])),
-  )
+  // The read-service resolver expands an authenticated seller's shop scope
+  // server-side. Send all known shop IDs once for its fallback path instead of
+  // issuing the same full seller-order query once per shop.
+  const orders = await sellerOrderApi.shopOrders(shopIds[0], userId ?? undefined, shopIds)
 
-  const merged = new Map<string, SellerOrder>()
-  for (const orders of results) {
-    for (const order of orders) {
-      if (!merged.has(order.orderId)) {
-        merged.set(order.orderId, order)
-      }
-    }
-  }
-
-  return [...merged.values()].sort((a, b) => {
+  return orders.sort((a, b) => {
     const aTime = new Date(a.placedAt || a.createdAt || 0).getTime()
     const bTime = new Date(b.placedAt || b.createdAt || 0).getTime()
     return bTime - aTime
@@ -422,10 +426,10 @@ export const sellerOrderApi = {
     return response.data.data ?? []
   },
 
-  async shopOrders(shopId: string, userId?: string): Promise<SellerOrder[]> {
+  async shopOrders(shopId: string, userId?: string, shopIds?: string[]): Promise<SellerOrder[]> {
     const response = await ecommerceReadClient.post<ShopOrdersResponse>('', {
       query: SHOP_ORDERS_QUERY,
-      variables: { shopId, userId },
+      variables: { shopId, shopIds, userId },
     })
 
     if (response.data.errors?.length) {

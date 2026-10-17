@@ -683,6 +683,7 @@ const CheckoutSummary = ({
     checkoutShopsHaveDeliveryCompanies(requiredShopMappings, deliveryCompanyIdByShopId)
 
   const canPlaceOrder =
+    !!currentCheckout?.checkout_id &&
     !!clientSecret &&
     hasDeliveryCompanyForEveryShop &&
     deliveryBlockReason === null &&
