@@ -27,6 +27,7 @@ export const searchProducts = createAsyncThunk<
         images: product.images ?? [],
         categoryId: product.categoryId,
         tags: product.tags ?? [],
+        ...(typeof product.stock === "number" ? { stock: product.stock } : {}),
       }));
     } catch (error: unknown) {
       const message =
@@ -55,6 +56,7 @@ export const fetchProductsByCategory = createAsyncThunk<
             images: product.images ?? [],
             categoryId: product.categoryId,
             tags: product.tags ?? [],
+            ...(typeof product.stock === 'number' ? { stock: product.stock } : {}),
         }))
         return products
     } catch (error: unknown) {
@@ -74,16 +76,29 @@ export const fetchRecentProducts = createAsyncThunk<
         const response = await productApi.getRecentProducts(RECENT_PRODUCTS_LIMIT, cursor)
 
         return {
-            items: response.items.map((product) => ({
-                id: product.id,
-                name: product.name,
-                price: Number(product.price),
-                images: product.image
-                    ? [productServiceAssetUrl(product.image)]
-                    : (product.images ?? []).map((image) => productServiceAssetUrl(image)),
-                categoryId: product.categoryId ?? '',
-                tags: product.tags ?? [],
-            })),
+            items: response.items.map((product) => {
+                const stock =
+                    String(product.availabilityStatus ?? '').toUpperCase() === 'OUT_OF_STOCK'
+                        ? 0
+                        : typeof product.totalAvailableStock === 'number'
+                          ? Math.max(0, product.totalAvailableStock)
+                          : typeof product.shopAvailableStock === 'number'
+                            ? Math.max(0, product.shopAvailableStock)
+                            : typeof product.stock === 'number'
+                              ? Math.max(0, product.stock)
+                              : undefined
+                return {
+                    id: product.id,
+                    name: product.name,
+                    price: Number(product.price),
+                    images: product.image
+                        ? [productServiceAssetUrl(product.image)]
+                        : (product.images ?? []).map((image) => productServiceAssetUrl(image)),
+                    categoryId: product.categoryId ?? '',
+                    tags: product.tags ?? [],
+                    ...(stock != null ? { stock } : {}),
+                }
+            }),
             hasNextPage: response.hasNextPage,
             nextCursor: response.nextCursor,
         }

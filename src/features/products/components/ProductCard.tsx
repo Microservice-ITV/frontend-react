@@ -158,7 +158,7 @@ function ProductName({ name }: { name: string }) {
 
 interface ProductCardProps {
   product: Product;
-  /** @deprecated Kept for callers; card always shows Add to Cart. */
+  /** @deprecated Kept for callers; card shows Add to Cart (disabled when out of stock). */
   showFindSimilar?: boolean;
 }
 
@@ -173,6 +173,8 @@ const ProductCard = ({ product }: ProductCardProps) => {
     () => formatBadgeLabel(product.tags?.[0]) || meta.badge.label,
     [product.tags, meta.badge.label],
   )
+  const outOfStock =
+    typeof product.stock === "number" && product.stock <= 0;
 
   const handleWishlist = (e: MouseEvent) => {
     e.preventDefault();
@@ -183,6 +185,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
   const handleAddToCart = (e: MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (outOfStock) return;
     void (async () => {
       const shop = await resolveProductShop(product.id);
       dispatch(
@@ -302,25 +305,31 @@ const ProductCard = ({ product }: ProductCardProps) => {
         </div>
       </Link>
 
-      {/* CTA — always visible, flush to card bottom */}
+      {/* CTA — flush to card bottom; disabled when out of stock */}
       <button
         type="button"
         onClick={handleAddToCart}
-        className="
-          mt-1 flex h-10 w-full items-center justify-center gap-1.5
-          bg-[var(--dni-primary)] text-sm font-semibold text-white
-          transition-[background-color,transform] hover:bg-[var(--dni-primary-hover)]
-          active:scale-[0.99]
-        "
+        disabled={outOfStock}
+        aria-disabled={outOfStock}
+        aria-label={
+          outOfStock
+            ? `${product.name} is out of stock`
+            : `Add ${product.name} to cart`
+        }
+        className={[
+          "mt-1 flex h-10 w-full items-center justify-center gap-1.5",
+          "text-sm font-semibold text-white",
+          "transition-[background-color,transform]",
+          outOfStock
+            ? "cursor-not-allowed bg-slate-300"
+            : "bg-[var(--dni-primary)] hover:bg-[var(--dni-primary-hover)] active:scale-[0.99]",
+        ].join(" ")}
       >
         <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden>
           <path d="M7 4h-2l-1 2v1h2l3.6 7.6-1.4 2.4A1 1 0 0 0 9 19h11v-2H9.4l.9-1.5h6.9a1 1 0 0 0 .9-.55L22 8H8.2l-.6-1.3L6.8 4H7zm2 16a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm9 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z" />
         </svg>
-        Add to Cart
+        {outOfStock ? "Out of Stock" : "Add to Cart"}
       </button>
-      {/*
-      )}
-      */}
     </article>
   );
 };
