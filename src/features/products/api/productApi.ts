@@ -14,6 +14,8 @@ interface ProductsApiResponse {
         price: string | number
         images?: string[]
         categoryId: string
+        tags?: string[]
+        stock?: number
     }[]
 }
 
@@ -61,6 +63,10 @@ export interface RecentProductApiItem {
     categoryId?: string
     createdAt: string
     tags?: string[]
+    shopAvailableStock?: number | null
+    totalAvailableStock?: number | null
+    stock?: number | null
+    availabilityStatus?: string | null
 }
 
 export interface RecentProductsApiResponse {
@@ -84,6 +90,8 @@ type CatalogProductGraphItem = {
     categoryName?: string
     parentCategoryName?: string
     shopId?: string
+    shopAvailableStock?: number | null
+    totalAvailableStock?: number | null
 }
 
 type CatalogProductsGraphQLData = {
@@ -179,6 +187,8 @@ const CATALOG_PRODUCTS_BY_CATEGORY_QUERY = `
         categorySlug
         parentCategoryName
         shopId
+        shopAvailableStock
+        totalAvailableStock
       }
       page
       limit
@@ -186,6 +196,28 @@ const CATALOG_PRODUCTS_BY_CATEGORY_QUERY = `
     }
   }
 `
+
+/** Sellable list stock from ecommerce-read (shop + warehouse total when present). */
+function mapListStock(item: {
+  totalAvailableStock?: number | null
+  shopAvailableStock?: number | null
+  stock?: number | null
+  availabilityStatus?: string | null
+}): number | undefined {
+  if (String(item.availabilityStatus ?? '').toUpperCase() === 'OUT_OF_STOCK') {
+    return 0
+  }
+  if (typeof item.totalAvailableStock === 'number') {
+    return Math.max(0, item.totalAvailableStock)
+  }
+  if (typeof item.shopAvailableStock === 'number') {
+    return Math.max(0, item.shopAvailableStock)
+  }
+  if (typeof item.stock === 'number') {
+    return Math.max(0, item.stock)
+  }
+  return undefined
+}
 
 const CATALOG_PRODUCT_BY_ID_QUERY = `
   query CatalogProductById($productId: ID!) {
@@ -442,15 +474,19 @@ export const productApi = {
     });
     const data: ProductsApiResponse = {
       success: true,
-      data: visibleRows.map((row) => ({
-        id: row.productId,
-        name: row.title,
-        price: row.price,
-        tags: normalizeTags(row.tags),
-        images: buildCatalogListImages(row),
-        categoryId: row.categoryId ?? "",
-        shopId: row.shopId?.trim() || undefined,
-      })),
+      data: visibleRows.map((row) => {
+        const stock = mapListStock(row)
+        return {
+          id: row.productId,
+          name: row.title,
+          price: row.price,
+          tags: normalizeTags(row.tags),
+          images: buildCatalogListImages(row),
+          categoryId: row.categoryId ?? "",
+          shopId: row.shopId?.trim() || undefined,
+          ...(stock != null ? { stock } : {}),
+        }
+      }),
     };
 
     return {
@@ -495,15 +531,19 @@ export const productApi = {
     const rows = await fetchCatalogProductsGraphQL(normalized, undefined, sort);
     const data: ProductsApiResponse = {
       success: true,
-      data: rows.map((row) => ({
-        id: row.productId,
-        name: row.title,
-        price: row.price,
-        tags: normalizeTags(row.tags),
-        images: buildCatalogListImages(row),
-        categoryId: row.categoryId ?? "",
-        shopId: row.shopId?.trim() || undefined,
-      })),
+      data: rows.map((row) => {
+        const stock = mapListStock(row)
+        return {
+          id: row.productId,
+          name: row.title,
+          price: row.price,
+          tags: normalizeTags(row.tags),
+          images: buildCatalogListImages(row),
+          categoryId: row.categoryId ?? "",
+          shopId: row.shopId?.trim() || undefined,
+          ...(stock != null ? { stock } : {}),
+        }
+      }),
     };
 
     return {
