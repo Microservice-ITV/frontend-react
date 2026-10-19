@@ -28,7 +28,7 @@ const PAYMENT_STATUS_STYLES: Record<string, string> = {
 }
 
 const DELIVERY_STATUS_STYLES: Record<string, string> = {
-  DELIVERED: 'bg-emerald-100 text-emerald-700',
+    DELIVERED: 'bg-emerald-100 text-emerald-700',
   SHIPPED: 'bg-sky-100 text-sky-700',
   IN_TRANSIT: 'bg-blue-100 text-blue-700',
   OUT_FOR_DELIVERY: 'bg-indigo-100 text-indigo-700',
