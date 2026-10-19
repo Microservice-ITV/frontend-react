@@ -101,6 +101,7 @@ const SellerOrderDetailPage = () => {
   const [shopNames, setShopNames] = useState<Record<string, string>>({})
   const [allocations, setAllocations] = useState<PaymentAllocation[]>([])
   const [customerAvatar, setCustomerAvatar] = useState<string | null>(null)
+  const [wayBillNo, setWayBillNo] = useState('')
 
   // Payment allocation (payout split) restricted to this seller's shops.
   useEffect(() => {
@@ -184,6 +185,7 @@ const SellerOrderDetailPage = () => {
         const found = orders.find((o) => o.orderId === id)
         if (!cancelled) {
           setOrder(found ?? null)
+          setWayBillNo(found?.wayBillNo ?? '')
           if (!found) setLoadError('Order not found.')
         }
       } catch (error: any) {
@@ -201,6 +203,8 @@ const SellerOrderDetailPage = () => {
 
   const handleShipOrder = async (shopId?: string, shopName?: string) => {
     if (!order) return
+    const submittedWayBillNo = wayBillNo.trim()
+    if (!submittedWayBillNo) return
 
     openModal({
       title: 'Ship Order',
@@ -220,9 +224,10 @@ const SellerOrderDetailPage = () => {
           </p>
           <p className="text-xs text-slate-500">
             {shopId
-              ? 'Only this shop’s items will be shipped using its configured Delivery Company — other shops ship separately with their own tracking numbers.'
+              ? 'Only this shop’s items will be shipped using its configured Delivery Company. The order waybill is shared with any remaining shop shipments.'
               : 'The shop’s configured Delivery Company will be used. A tracking number will be automatically generated.'}
           </p>
+          <p className="text-xs font-medium text-slate-700">Waybill: {submittedWayBillNo}</p>
         </div>
       ),
       primaryLabel: 'Ship Order',
@@ -230,15 +235,27 @@ const SellerOrderDetailPage = () => {
       secondaryLabel: 'Cancel',
       onPrimary: async () => {
         try {
-          await sellerOrderApi.createShipment(order.orderId, {
+          const shipment = await sellerOrderApi.createShipment(order.orderId, {
             ...(shopId ? { shop_id: shopId } : {}),
+            way_bill_no: submittedWayBillNo,
           })
+          const savedWayBillNo = shipment.way_bill_no || submittedWayBillNo
+          setWayBillNo(savedWayBillNo)
+          setOrder((current) => current ? { ...current, wayBillNo: savedWayBillNo } : current)
           if (activeShopId || authUserId) {
             const updated = await fetchOrdersAcrossOwnedShops(authUserId, activeShopId)
             const found = updated.find((o) => o.orderId === id)
-            if (found) setOrder(found)
+            if (found) {
+              setOrder({ ...found, wayBillNo: found.wayBillNo || savedWayBillNo })
+              setWayBillNo(found.wayBillNo || savedWayBillNo)
+            }
           }
         } catch (error: any) {
+          const existingWayBillNo = error?.response?.data?.way_bill_no
+          if (typeof existingWayBillNo === 'string' && existingWayBillNo.trim()) {
+            setWayBillNo(existingWayBillNo)
+            setOrder((current) => current ? { ...current, wayBillNo: existingWayBillNo } : current)
+          }
           openModal({
             title: 'Shipment Failed',
             content: (
@@ -506,6 +523,28 @@ const SellerOrderDetailPage = () => {
                 </div>
 
                 <div className="mt-4 space-y-4">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                    <label htmlFor="order-way-bill-no" className="block text-sm font-semibold text-slate-800">
+                      Waybill Number
+                    </label>
+                    <input
+                      id="order-way-bill-no"
+                      type="text"
+                      value={wayBillNo}
+                      onChange={(event) => setWayBillNo(event.target.value)}
+                      placeholder="e.g. YGN9125345TKI/AAF362660"
+                      maxLength={128}
+                      autoComplete="off"
+                      readOnly={Boolean(order.wayBillNo)}
+                      className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 read-only:bg-slate-100"
+                      aria-describedby="order-way-bill-help"
+                    />
+                    <p id="order-way-bill-help" className="mt-1.5 text-xs text-slate-500">
+                      {order.wayBillNo
+                        ? 'Saved to this order and used for its remaining shop shipments.'
+                        : 'Enter the delivery company waybill before creating a shipment. It will be saved to this order.'}
+                    </p>
+                  </div>
                   {shopGroups.map(([shopId, groupItems]) => {
                     const shopTotals = breakdownForShop(shopId, groupItems)
                     const shopPromos = [...(promotionsByShop.get(shopId)?.values() ?? [])]
@@ -543,7 +582,8 @@ const SellerOrderDetailPage = () => {
                             <button
                               type="button"
                               onClick={() => handleShipOrder(shopId || undefined, shopId ? shopLabel(shopId) : undefined)}
-                              className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-700 cursor-pointer"
+                              disabled={!wayBillNo.trim()}
+                              className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
                             >
                               <Truck size={13} />
                               Ship this shop

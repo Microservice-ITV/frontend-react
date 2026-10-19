@@ -122,6 +122,7 @@ export type PaymentDetailOrder = {
   reservationId: string | null
   orderStatusId: number
   orderStatus: string
+  wayBillNo?: string | null
   trackingNumber?: string | null
   trackingUrl?: string | null
   courierCode?: string | null
@@ -175,6 +176,7 @@ export type SellerOrder = {
   orderId: string
   customerId: string
   status: string
+  wayBillNo?: string | null
   createdAt?: string | null
   placedAt?: string | null
   items: SellerOrderItem[]
@@ -274,6 +276,7 @@ const SHOP_ORDERS_QUERY = `
       orderId
       customerId
       status
+      wayBillNo
       createdAt
       placedAt
       items {
@@ -476,6 +479,7 @@ export const sellerOrderApi = {
       courier_name?: string
       courier_phone?: string
       tracking_number?: string
+      way_bill_no: string
       tracking_url?: string
       /** Ship only this shop's portion (multi-owner order, per-shop fulfillment). */
       shop_id?: string
@@ -485,6 +489,7 @@ export const sellerOrderApi = {
     order_status?: string
     status?: string
     tracking_number?: string
+    way_bill_no: string
     tracking_url?: string
     courier: { code: string; name: string; phone: string }
   }> {

@@ -1,12 +1,10 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
-import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
 import DataTablePagination from '@/components/ui/DataTablePagination'
 import RowActionMenu from '@/components/ui/RowActionMenu'
 import { fetchSellerOrdersByShop } from '../store'
 import {
-  sellerOrderApi,
   canSellerShip,
   fetchCustomerAvatars,
   sellerOrderStatus,
@@ -85,7 +83,6 @@ const SellerOrdersPage = () => {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const location = useLocation()
-  const { openModal } = useGlobalModal()
   const authUser = useAppSelector((state) => state.auth.user)
   const activeShopId = authUser?.active_shop_id ?? null
   const authUserId = authUser?.id ?? null
@@ -93,7 +90,7 @@ const SellerOrdersPage = () => {
   const ordersStatus = useAppSelector((state) => state.sellerOrders.status)
   const ordersError = useAppSelector((state) => state.sellerOrders.error)
 
-  const [activeFilter, setActiveFilter] = useState<SellerOrderTab>('to-ship')
+  const [activeFilter, setActiveFilter] = useState<SellerOrderTab>('all')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [rowsPerPage, setRowsPerPage] = useState(10)
@@ -149,74 +146,6 @@ const SellerOrdersPage = () => {
       cancelled = true
     }
   }, [visibleCustomerIds])
-
-  const handleShipOrder = async (order: SellerOrder) => {
-    // Multi-shop orders: ship each of this seller's own ready shops
-    // Ship each ready shop separately; its Delivery Company was selected at
-    // checkout and is already stored on the shop order. Keep a legacy
-    // single-shipment fallback for orders without per-shop rows.
-    const readyShopIds = (order.shopBreakdown ?? [])
-      .filter((row) => (row.status || '').toUpperCase() === 'READY_FOR_FULFILLMENT')
-      .map((row) => row.shopId)
-      .filter(Boolean)
-    openModal({
-      title: 'Ship Order',
-      content: (
-        <div className="space-y-3 text-sm text-slate-700">
-          <p>
-            Create a shipment for order <strong className="text-slate-900">{order.orderId}</strong>?
-          </p>
-          <p className="text-xs text-slate-500">
-            {readyShopIds.length > 1
-              ? `${readyShopIds.length} of your shops are ready — each uses its configured Delivery Company and gets its own tracking number.`
-              : 'The shop’s configured Delivery Company will be used. A tracking number will be automatically generated.'}
-          </p>
-        </div>
-      ),
-      primaryLabel: 'Ship Order',
-      primaryVariant: 'success',
-      secondaryLabel: 'Cancel',
-      onPrimary: async () => {
-        try {
-          const targets = readyShopIds.length > 0 ? readyShopIds : [undefined]
-          const results = await Promise.allSettled(
-            targets.map((shopId) =>
-              sellerOrderApi.createShipment(order.orderId, {
-                ...(shopId ? { shop_id: shopId } : {}),
-              }),
-            ),
-          )
-          const hardFailures = results.filter(
-            (r) =>
-              r.status === 'rejected' &&
-              ![409, 404].includes(r.reason?.response?.status ?? 0),
-          )
-          if (hardFailures.length === results.length) {
-            const first = hardFailures[0] as PromiseRejectedResult
-            throw first.reason
-          }
-          if (activeShopId || authUserId) {
-            await dispatch(fetchSellerOrdersByShop({
-              userId: authUserId,
-              activeShopId,
-              statusFilter: activeFilter,
-            })).unwrap()
-          }
-        } catch (error: any) {
-          openModal({
-            title: 'Shipment Failed',
-            content: (
-              <p className="text-sm text-red-600">
-                {error?.response?.data?.error || error?.message || 'Failed to create shipment. Please try again.'}
-              </p>
-            ),
-            primaryLabel: 'OK',
-            primaryVariant: 'success',
-          })
-        }
-      },
-    })
-  }
 
   return (
     <div className="space-y-6">
@@ -408,7 +337,7 @@ const SellerOrdersPage = () => {
                           {canSellerShip(order) && (
                             <button
                               type="button"
-                              onClick={() => handleShipOrder(order)}
+                              onClick={() => navigate(`/seller/orders/${order.orderId}`)}
                               className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-50"
                               aria-label={`Ship order ${order.orderId}`}
                             >
