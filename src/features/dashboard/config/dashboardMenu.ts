@@ -363,7 +363,7 @@ export const DASHBOARD_MENU_SELLER: DashboardMenuSection[] = [
       },
       {
         key: "seller-accounting-income",
-        label: "Income",
+        label: "Revenue",
         to: "/seller/accounting/income",
         area: "seller",
         requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
@@ -379,7 +379,7 @@ export const DASHBOARD_MENU_SELLER: DashboardMenuSection[] = [
       },
       {
         key: "seller-accounting-delivery-company-fees",
-        label: "Delivery Expense Fees",
+        label: "Delivery Costs",
         to: "/seller/accounting/delivery-company-fees",
         area: "seller",
         requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
@@ -387,7 +387,7 @@ export const DASHBOARD_MENU_SELLER: DashboardMenuSection[] = [
       },
       {
         key: "seller-accounting-pending-approvals",
-        label: "Pending Approvals",
+        label: "Approvals Queues",
         to: "/seller/accounting/pending-approvals",
         area: "seller",
         requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],

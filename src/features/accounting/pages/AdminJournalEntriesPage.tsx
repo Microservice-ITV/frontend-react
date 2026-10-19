@@ -19,6 +19,10 @@ import * as XLSX from 'xlsx'
 import DataTablePagination from '@/components/ui/DataTablePagination'
 import { ecommerceReadRestClient } from '@/lib/api/ecommerceReadRestClient'
 import AccountingStatusBadge from '../components/AccountingStatusBadge'
+import {
+  accountingReferenceKey,
+  formatAccountingReferences,
+} from '../utils/accountingReferenceFormatting'
 
 type JournalLine = {
   id: string
@@ -110,6 +114,22 @@ const AdminJournalEntriesPage = ({
 
   useEffect(() => { void loadEntries() }, [])
 
+  const formattedJournalReferences = useMemo(() => {
+    const references = formatAccountingReferences(entries.map((entry) => ({
+      referenceType: entry.referenceType,
+      referenceId: entry.referenceId,
+      date: entry.entryDate,
+    })))
+    return new Map(entries.map((entry) => [
+      entry.id,
+      references.get(accountingReferenceKey({
+        referenceType: entry.referenceType,
+        referenceId: entry.referenceId,
+        date: entry.entryDate,
+      })) ?? `${entry.referenceType} · ${entry.referenceId}`,
+    ]))
+  }, [entries])
+
   const accounts = useMemo(() => {
     const unique = new Map<string, string>()
     entries.forEach((entry) => entry.lines.forEach((line) => {
@@ -136,6 +156,7 @@ const AdminJournalEntriesPage = ({
       const matchesSearch = !query || [
         entry.referenceType,
         entry.referenceId,
+        formattedJournalReferences.get(entry.id) ?? '',
         entry.narration ?? '',
         entry.status,
         lineText,
@@ -150,7 +171,7 @@ const AdminJournalEntriesPage = ({
         && (!fromDate || dateValue >= fromDate)
         && (!toDate || dateValue <= toDate)
     })
-  }, [accountFilter, entries, entryTypeFilter, fromDate, search, statusFilter, toDate])
+  }, [accountFilter, entries, entryTypeFilter, formattedJournalReferences, fromDate, search, statusFilter, toDate])
 
   const totalPages = Math.max(1, Math.ceil(filteredEntries.length / rowsPerPage))
   const currentPage = Math.min(page, totalPages)
@@ -177,7 +198,7 @@ const AdminJournalEntriesPage = ({
     const rows = [
       ['Reference', 'Entry Date', 'Account', 'Description', 'Narration', 'Debit', 'Credit', 'Status'],
       ...filteredEntries.flatMap((entry) => entry.lines.map((line, lineIndex) => [
-        lineIndex === 0 ? `${entry.referenceType} · ${entry.referenceId}` : '(same ref)',
+        lineIndex === 0 ? (formattedJournalReferences.get(entry.id) ?? entry.referenceId) : '(same ref)',
         entry.entryDate.slice(0, 10),
         `${line.account.code} · ${line.account.name}`,
         entry.narration ?? '',
@@ -195,7 +216,9 @@ const AdminJournalEntriesPage = ({
 
   const copyReference = async (entry: JournalEntry) => {
     try {
-      await navigator.clipboard.writeText(entry.referenceId)
+      await navigator.clipboard.writeText(
+        formattedJournalReferences.get(entry.id) ?? entry.referenceId,
+      )
       setNotice('Reference copied to clipboard.')
     } catch {
       setNotice('Could not copy the reference. Select and copy it from the entry details.')
@@ -395,13 +418,15 @@ const AdminJournalEntriesPage = ({
                     <td className="relative max-w-[180px] px-3 py-3 text-xs font-semibold text-blue-700">
                       {lineIndex === 0 ? (
                         <>
-                          <span className="block truncate pr-5" title={entry.referenceId}>{entry.referenceId}</span>
-                          <span className="mt-1 inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-blue-600">
-                            {entry.referenceType}
+                          <span
+                            className="block truncate pr-5"
+                            title={formattedJournalReferences.get(entry.id) ?? entry.referenceId}
+                          >
+                            {formattedJournalReferences.get(entry.id) ?? entry.referenceId}
                           </span>
                           <button
                             type="button"
-                            aria-label={`Actions for ${entry.referenceId}`}
+                            aria-label={`Actions for ${formattedJournalReferences.get(entry.id) ?? entry.referenceId}`}
                             title="Entry actions: view details or copy reference"
                             aria-expanded={openActionsId === entry.id}
                             onClick={() => setOpenActionsId(openActionsId === entry.id ? null : entry.id)}
@@ -471,7 +496,9 @@ const AdminJournalEntriesPage = ({
             <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4">
               <div>
                 <h2 id="journal-entry-details-title" className="text-base font-bold text-slate-900">Journal Entry Details</h2>
-                <p className="mt-1 break-all text-xs text-slate-500">{selectedEntry.referenceType} · {selectedEntry.referenceId}</p>
+                <p className="mt-1 break-all text-xs text-slate-500">
+                  {formattedJournalReferences.get(selectedEntry.id) ?? selectedEntry.referenceId}
+                </p>
               </div>
               <button type="button" aria-label="Close details" onClick={() => setSelectedEntry(null)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={17} /></button>
             </div>

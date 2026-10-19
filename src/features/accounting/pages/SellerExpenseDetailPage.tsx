@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useLocation, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, CheckCircle2, Clock3, ReceiptText, Undo2, XCircle } from 'lucide-react'
 import { useAppSelector } from '@/app/hooks'
 import { authClient } from '@/lib/api/authClient'
 import AccountingStatusBadge from '../components/AccountingStatusBadge'
 import { accountingExpensesAdapter } from '../adapters/accountingExpensesAdapter'
 import { compressReceiptFile } from '../utils/receiptImage'
+import {
+  accountingReferenceKey,
+  formatAccountingReferences,
+  toExpenseReferenceInput,
+} from '../utils/accountingReferenceFormatting'
 import type {
   AccountingExpense,
   ExpenseActionResponse,
@@ -33,6 +38,8 @@ const approvalStatusLabel = (approval: ExpenseApprovalSummary) =>
   approval.action === 'RETURNED' ? 'RETURNED' : approval.status
 
 const normalizeShopId = (value: string) => value.trim().toLowerCase()
+const isFormattedExpenseReference = (value: string | null): value is string =>
+  Boolean(value && /^[A-Z0-9-]+-\d{6}-\d{4}$/i.test(value))
 
 type AccessContextResponse = {
   data?: {
@@ -62,16 +69,20 @@ type ActionKind = 'approve' | 'reject' | 'return'
 const SellerExpenseDetailPage = () => {
   const { expenseId } = useParams<{ expenseId: string }>()
   const location = useLocation()
+  const [searchParams] = useSearchParams()
+  const linkedDisplayId = searchParams.get('displayId')
   const isPlatformExpense = location.pathname.includes('/super-admin/accounting/platform-expenses')
   const expensesPath = isPlatformExpense ? '/super-admin/accounting/platform-expenses' : '/seller/accounting/expenses'
   const actorUserId = useAppSelector((state) => state.auth.user?.id)
   const [expense, setExpense] = useState<AccountingExpense | null>(null)
+  const [relatedExpenses, setRelatedExpenses] = useState<AccountingExpense[]>([])
   const [shopNames, setShopNames] = useState<Record<string, string>>({})
   const [userNames, setUserNames] = useState<Record<string, string>>({})
   const [approvals, setApprovals] = useState<ExpenseApprovalSummary[]>([])
   const [approvalStatus, setApprovalStatus] = useState<ExpenseApprovalStatusResponse | null>(null)
   const [status, setStatus] = useState<'loading' | 'succeeded' | 'failed'>('loading')
   const [error, setError] = useState<string | null>(null)
+  const [referenceWarning, setReferenceWarning] = useState<string | null>(null)
   const [httpStatus, setHttpStatus] = useState<number | null>(null)
   const [submitting, setSubmitting] = useState<Record<ActionKind, boolean>>({
     approve: false,
@@ -93,6 +104,33 @@ const SellerExpenseDetailPage = () => {
   const isCurrentApprover = Boolean(
     currentApproval && actorUserId && currentApproval.approverUserId === actorUserId,
   )
+  const calculatedExpenseNo = useMemo(() => {
+    if (!expense) return ''
+    const expensesToFormat = [...relatedExpenses, expense].filter(
+      (candidate, index, all) =>
+        all.findIndex((item) => item.expenseNo === candidate.expenseNo) === index,
+    )
+    const inputs = expensesToFormat.map((candidate) =>
+      toExpenseReferenceInput({
+        expenseNo: candidate.expenseNo,
+        expenseDate: candidate.expenseDate,
+        categoryCode: candidate.expenseType?.code,
+        description: candidate.description,
+      }),
+    )
+    const formatted = formatAccountingReferences(inputs)
+    const input = toExpenseReferenceInput({
+      expenseNo: expense.expenseNo,
+      expenseDate: expense.expenseDate,
+      categoryCode: expense.expenseType?.code,
+      description: expense.description,
+    })
+    return formatted.get(accountingReferenceKey(input)) ?? expense.expenseNo
+  }, [expense, relatedExpenses])
+  const displayExpenseNo =
+    isFormattedExpenseReference(linkedDisplayId)
+      ? linkedDisplayId
+      : calculatedExpenseNo
   const creatorUserId = expense?.createdByUserId ?? expense?.sellerUserId ?? null
   const isExpenseCreator = Boolean(creatorUserId && actorUserId && creatorUserId === actorUserId)
 
@@ -126,6 +164,20 @@ const SellerExpenseDetailPage = () => {
         accountingExpensesAdapter.getByReference(expenseId),
         authClient.get<AccessContextResponse>('/me/access-context').catch(() => null),
       ])
+      if (isFormattedExpenseReference(linkedDisplayId)) {
+        setRelatedExpenses([])
+        setReferenceWarning(null)
+      } else {
+        try {
+          setRelatedExpenses(await accountingExpensesAdapter.list())
+          setReferenceWarning(null)
+        } catch (cause) {
+          setRelatedExpenses([])
+          setReferenceWarning(
+            `Could not load related expenses to determine the delivery sequence: ${errorMessage(cause)}`,
+          )
+        }
+      }
 
       setShopNames(
         Object.fromEntries(
@@ -180,7 +232,7 @@ const SellerExpenseDetailPage = () => {
 
   useEffect(() => {
     void load()
-  }, [expenseId])
+  }, [expenseId, linkedDisplayId])
 
   const submitForApproval = async () => {
     if (!expense || expense.status !== 'DRAFT') return
@@ -290,7 +342,7 @@ const SellerExpenseDetailPage = () => {
             <div>
               <h1 className="flex items-center gap-2 text-xl font-bold text-slate-900">
                 <ReceiptText size={22} className="text-orange-600" />
-                {expense.expenseNo}
+                {displayExpenseNo}
               </h1>
               <p className="mt-1 text-sm text-slate-600">Shop expense detail and approval status.</p>
             </div>
@@ -314,6 +366,11 @@ const SellerExpenseDetailPage = () => {
           {error && (
             <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
               {error}
+            </p>
+          )}
+          {referenceWarning && (
+            <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              {referenceWarning}
             </p>
           )}
 
@@ -354,7 +411,7 @@ const SellerExpenseDetailPage = () => {
             <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-6 xl:col-span-2">
               <h2 className="text-base font-bold text-slate-900">Expense details</h2>
               <dl className="mt-5 grid gap-4 sm:grid-cols-2">
-                <Detail label="Expense No" value={expense.expenseNo} />
+                <Detail label="Expense No" value={displayExpenseNo} />
                 <Detail label="Shop" value={expense.shopId ? (shopNames[normalizeShopId(expense.shopId)] ?? expense.shopId) : '—'} />
                 <Detail label="Amount" value={Number(expense.amount).toLocaleString()} />
                 <Detail label="Currency" value={expense.currency} />

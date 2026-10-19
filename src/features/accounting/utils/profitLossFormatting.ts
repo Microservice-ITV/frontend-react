@@ -5,6 +5,35 @@ export const formatProfitLossValue = (value: number | null) =>
     ? 'Not available'
     : value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
+export const getProfitSummaryCardColors = (profit: number | null) => {
+  if (profit === null) {
+    return {
+      card: 'border-slate-200 bg-gradient-to-br from-slate-50/80 to-white',
+      icon: 'text-slate-500',
+      value: 'text-slate-900',
+    }
+  }
+  if (profit < 0) {
+    return {
+      card: 'border-red-100 bg-gradient-to-br from-red-50/80 to-white',
+      icon: 'text-red-600',
+      value: 'text-red-700',
+    }
+  }
+  if (profit > 0) {
+    return {
+      card: 'border-emerald-100 bg-gradient-to-br from-emerald-50/80 to-white',
+      icon: 'text-emerald-600',
+      value: 'text-emerald-700',
+    }
+  }
+  return {
+    card: 'border-slate-200 bg-gradient-to-br from-slate-50/80 to-white',
+    icon: 'text-slate-500',
+    value: 'text-slate-900',
+  }
+}
+
 const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
 
 const sumNullable = (values: Array<number | null>) =>

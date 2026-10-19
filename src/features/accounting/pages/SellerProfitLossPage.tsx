@@ -15,7 +15,10 @@ import {
 import type { ProfitLossCurrencyReport, ProfitLossOverviewResponse } from "../types/accountingTypes";
 import type { AccountingExpense } from "../types/expenseTypes";
 import { accountingExpensesAdapter } from "../adapters/accountingExpensesAdapter";
-import { mergeProfitLossReports } from "../utils/profitLossFormatting";
+import {
+  getProfitSummaryCardColors,
+  mergeProfitLossReports,
+} from "../utils/profitLossFormatting";
 import DataTablePagination from "@/components/ui/DataTablePagination";
 import { accountingClient } from "@/lib/api/accountingClient";
 import { Download, RefreshCw, TrendingUp, Wallet, CircleDollarSign, ChartColumnIncreasing, CalendarDays } from "lucide-react";
@@ -233,6 +236,9 @@ const SellerProfitLossPage = () => {
   }, [fromDate, toDate]);
   const previousCurrencyReport = mergeProfitLossReports(previousReport?.reports ?? []);
   const totals = reportTotal(activeReport);
+  const netProfitColors = getProfitSummaryCardColors(
+    activeReport ? totals.profit : null,
+  );
   const priorTotals = reportTotal(previousCurrencyReport);
   const comparisonText = (current: number, previous: number) =>
     comparisonError
@@ -382,7 +388,8 @@ const SellerProfitLossPage = () => {
           value={status === "loading" ? "Loading…" : activeReport ? money(totals.profit, activeCurrency) : "—"}
           comparison={comparisonText(totals.profit, priorTotals.profit)}
           icon={Wallet}
-          colors="border-pink-100 bg-gradient-to-br from-pink-50/80 to-white text-pink-500"
+          colors={`${netProfitColors.card} ${netProfitColors.icon}`}
+          valueColor={netProfitColors.value}
         />
       </div>
 
@@ -539,19 +546,21 @@ const SummaryCard = ({
   comparison,
   icon: Icon,
   colors,
+  valueColor,
 }: {
   label: string;
   value: string;
   comparison: string;
   icon: typeof TrendingUp;
   colors: string;
+  valueColor?: string;
 }) => (
   <div className={`rounded-xl border p-4 ${colors}`}>
     <div className="flex items-start gap-3">
       <span className="rounded-full bg-white/75 p-2.5"><Icon size={17} /></span>
       <div className="min-w-0 pt-0.5">
         <p className="text-[11px] font-medium text-slate-600">{label}</p>
-        <p className="mt-1 truncate text-xl font-bold text-slate-900">{value}</p>
+        <p className={`mt-1 truncate text-xl font-bold ${valueColor ?? "text-slate-900"}`}>{value}</p>
         <p className="mt-1 text-[10px] text-slate-500">{comparison}</p>
       </div>
     </div>

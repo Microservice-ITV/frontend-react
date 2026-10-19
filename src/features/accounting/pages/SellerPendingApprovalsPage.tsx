@@ -5,6 +5,11 @@ import { useAppSelector } from '@/app/hooks'
 import { authClient } from '@/lib/api/authClient'
 import AccountingStatusBadge from '../components/AccountingStatusBadge'
 import { accountingExpensesAdapter } from '../adapters/accountingExpensesAdapter'
+import {
+  accountingReferenceKey,
+  formatAccountingReferences,
+  toExpenseReferenceInput,
+} from '../utils/accountingReferenceFormatting'
 import type { AccountingExpense, PendingApprovalRecord } from '../types/expenseTypes'
 
 const errorMessage = (error: unknown) => {
@@ -69,6 +74,17 @@ const SellerPendingApprovalsPage = () => {
   useEffect(() => {
     void load()
   }, [authUser?.id])
+
+  const formattedExpenseIds = formatAccountingReferences(
+    approvals.map(({ expense }) =>
+      toExpenseReferenceInput({
+        expenseNo: expense.expenseNo,
+        expenseDate: expense.expenseDate,
+        categoryCode: expense.expenseType?.code,
+        description: expense.description,
+      }),
+    ),
+  )
 
   return (
     <section className="space-y-6">
@@ -139,10 +155,19 @@ const SellerPendingApprovalsPage = () => {
               {status === 'succeeded' && approvals.map((approval) => {
                 const expense = approval.expense as AccountingExpense
                 const shopName = expense.shopId ? (shopNames[normalizeShopId(expense.shopId)] ?? expense.shopId) : '—'
+                const expenseReferenceInput = toExpenseReferenceInput({
+                  expenseNo: expense.expenseNo,
+                  expenseDate: expense.expenseDate,
+                  categoryCode: expense.expenseType?.code,
+                  description: expense.description,
+                })
+                const displayExpenseNo = formattedExpenseIds.get(
+                  accountingReferenceKey(expenseReferenceInput),
+                ) ?? expense.expenseNo
 
                 return (
                   <tr key={approval.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-                    <td className="px-4 py-3 text-xs font-semibold text-slate-900">{expense.expenseNo}</td>
+                    <td className="px-4 py-3 text-xs font-semibold text-slate-900" title={displayExpenseNo}>{displayExpenseNo}</td>
                     <td className="px-4 py-3 text-xs text-slate-600">{shopName}</td>
                     <td className="px-4 py-3 text-xs text-slate-600">{formatDate(expense.expenseDate)}</td>
                     <td className="px-4 py-3 text-xs text-slate-600">{categoryNames[expense.expenseTypeId] ?? expense.expenseTypeId}</td>
@@ -152,7 +177,7 @@ const SellerPendingApprovalsPage = () => {
                     <td className="px-4 py-3"><AccountingStatusBadge status={approval.status} /></td>
                     <td className="px-4 py-3">
                       <Link
-                        to={`/seller/accounting/expenses/${encodeURIComponent(expense.expenseNo)}`}
+                        to={`/seller/accounting/expenses/${encodeURIComponent(expense.expenseNo)}?displayId=${encodeURIComponent(displayExpenseNo)}`}
                         className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:text-emerald-800"
                       >
                         <ReceiptText size={12} />
