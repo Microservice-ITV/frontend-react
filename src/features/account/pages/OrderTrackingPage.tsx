@@ -50,6 +50,7 @@ const ORDER_BY_ID_QUERY = `
       }
       payment {
         status
+        method
         transactionId
       }
       shopBreakdown {
@@ -255,6 +256,16 @@ const StatusChip = ({ status }: { status?: string | null }) => {
       {label}
     </span>
   )
+}
+
+const paymentStatusForSummary = (order: PurchasedOrder): string => {
+  const paymentMethod = (order.payment?.method || '').trim().toUpperCase()
+  if (paymentMethod === 'COD' || paymentMethod === 'CASH_ON_DELIVERY') {
+    return (order.status || '').trim().toUpperCase() === 'DELIVERED'
+      ? 'COMPLETED'
+      : 'PENDING'
+  }
+  return order.payment?.status || 'PENDING'
 }
 
 const OrderTrackingPage = () => {
@@ -1167,7 +1178,7 @@ const OrderTrackingPage = () => {
                   <div className="border-t border-gray-100 px-5 py-3 text-xs">
                     <div className="flex items-center justify-between py-1">
                       <span className="text-gray-500">Payment status</span>
-                      <StatusChip status={order.payment.status} />
+                      <StatusChip status={paymentStatusForSummary(order)} />
                     </div>
                     {order.payment.transactionId && (
                       <div className="flex items-center justify-between gap-2 py-1">
