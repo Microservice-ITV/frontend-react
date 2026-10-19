@@ -46,6 +46,22 @@ describe('DASHBOARD_MENU warehouse purchasing items', () => {
     expect(sellerLabels).toContain('Damage Reports')
   })
 
+  it('shows Orders, Cancel Orders, and Return Orders as flat SALES items', () => {
+    const sales = DASHBOARD_MENU_SELLER.find((section) => section.title === 'SALES')
+    const salesItems = sales?.items ?? []
+
+    expect(salesItems.map((item) => item.label)).toEqual([
+      'Orders',
+      'Cancel Orders',
+      'Return Orders',
+      'Payments',
+      'Invoices',
+    ])
+    expect(salesItems.find((item) => item.key === 'seller-orders')?.children).toBeUndefined()
+    expect(salesItems.find((item) => item.key === 'seller-cancel-orders')?.to).toBe('/seller/orders/cancelled')
+    expect(salesItems.find((item) => item.key === 'seller-return-orders')?.to).toBe('/seller/orders/returns')
+  })
+
   it('keeps suppliers on the admin menu and leaves purchasing to the warehouse manager', () => {
     const adminLabels = labels(DASHBOARD_MENU_ADMIN)
 
