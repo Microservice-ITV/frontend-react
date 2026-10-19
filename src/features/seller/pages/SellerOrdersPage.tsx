@@ -220,11 +220,14 @@ const SellerOrdersPage = () => {
       {/* Table */}
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[800px]">
+          <table className="w-full min-w-[960px]">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
                   Order ID
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
+                  Waybill No
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
                   Customer
@@ -250,19 +253,19 @@ const SellerOrdersPage = () => {
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-500">
+                  <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-500">
                     Loading orders...
                   </td>
                 </tr>
               ) : effectiveError ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-red-600">
+                  <td colSpan={8} className="px-4 py-8 text-center text-sm text-red-600">
                     {effectiveError}
                   </td>
                 </tr>
               ) : paginatedOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-500">
+                  <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-500">
                     {activeFilter === 'to-ship' && !search.trim()
                       ? 'No orders to ship.'
                       : 'No orders found for this shop.'}
@@ -289,6 +292,14 @@ const SellerOrdersPage = () => {
                     >
                       <td className="px-4 py-3 text-xs font-medium text-slate-900">
                         {order.orderId}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-700">
+                        <span
+                          className="block max-w-[180px] truncate font-mono"
+                          title={order.wayBillNo || undefined}
+                        >
+                          {order.wayBillNo?.trim() || '—'}
+                        </span>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
