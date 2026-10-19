@@ -25,6 +25,7 @@ export interface PurchasedOrderTotals {
 
 export interface PurchasedOrderPayment {
   status: string
+  method?: string | null
   transactionId: string
   failedReason: string
 }
