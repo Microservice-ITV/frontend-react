@@ -436,6 +436,22 @@ const AppRoutes = () => {
               }
             />
             <Route
+              path="orders/cancelled"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerOrders}>
+                  <SellerOrdersPage fixedFilter="cancelled" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="orders/returns"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerOrders}>
+                  <SellerOrdersPage fixedFilter="returned" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="orders"
               element={
                 <ProtectedRoute
@@ -2217,4 +2233,3 @@ const AppRoutes = () => {
 };
 
 export default AppRoutes;
-

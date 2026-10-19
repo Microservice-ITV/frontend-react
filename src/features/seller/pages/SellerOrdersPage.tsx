@@ -4,6 +4,7 @@ import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import DataTablePagination from '@/components/ui/DataTablePagination'
 import RowActionMenu from '@/components/ui/RowActionMenu'
 import { fetchSellerOrdersByShop } from '../store'
+import CopyToClipboardButton from '../components/CopyToClipboardButton'
 import {
   canSellerShip,
   fetchCustomerAvatars,
@@ -12,7 +13,7 @@ import {
   type SellerOrderStatusFilter,
 } from '../api/sellerOrderApi'
 import CustomerAvatar from '../components/CustomerAvatar'
-import { Search, Eye, Truck, RefreshCw } from 'lucide-react'
+import { Search, Eye, Truck, RefreshCw, XCircle, PackageCheck } from 'lucide-react'
 
 type SellerOrderTab = SellerOrderStatusFilter
 
@@ -22,6 +23,7 @@ const TABS: { key: SellerOrderTab; label: string }[] = [
   { key: 'shipped', label: 'Shipped' },
   { key: 'completed', label: 'Completed' },
   { key: 'cancelled', label: 'Cancelled' },
+  { key: 'returned', label: 'Returned' },
 ]
 
 const STATUS_STYLES: Record<string, string> = {
@@ -34,6 +36,7 @@ const STATUS_STYLES: Record<string, string> = {
   DELIVERED: 'bg-emerald-100 text-emerald-700',
   COMPLETED: 'bg-emerald-100 text-emerald-700',
   CANCELLED: 'bg-red-100 text-red-700',
+  RETURNED: 'bg-violet-100 text-violet-700',
   FAILED: 'bg-red-100 text-red-700',
   FAILED_PAYMENT: 'bg-red-100 text-red-700',
 }
@@ -48,6 +51,7 @@ const STATUS_LABELS: Record<string, string> = {
   DELIVERED: 'DELIVERED',
   COMPLETED: 'COMPLETED',
   CANCELLED: 'CANCELLED',
+  RETURNED: 'RETURNED',
   FAILED: 'FAILED',
   FAILED_PAYMENT: 'PAYMENT FAILED',
 }
@@ -59,6 +63,7 @@ const isOrderInTab = (order: SellerOrder, tab: SellerOrderTab): boolean => {
   if (tab === 'shipped') return ['SHIPPED', 'FULFILLED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'].includes(status)
   if (tab === 'completed') return ['DELIVERED', 'COMPLETED'].includes(status)
   if (tab === 'cancelled') return ['CANCELLED', 'FAILED', 'FAILED_PAYMENT', 'EXPIRED'].includes(status)
+  if (tab === 'returned') return status === 'RETURNED'
   return false
 }
 
@@ -79,7 +84,9 @@ const formatDate = (value?: string | null): string => {
 }
 
 
-const SellerOrdersPage = () => {
+type SellerOrdersPageProps = { fixedFilter?: 'cancelled' | 'returned' }
+
+const SellerOrdersPage = ({ fixedFilter }: SellerOrdersPageProps) => {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const location = useLocation()
@@ -90,7 +97,8 @@ const SellerOrdersPage = () => {
   const ordersStatus = useAppSelector((state) => state.sellerOrders.status)
   const ordersError = useAppSelector((state) => state.sellerOrders.error)
 
-  const [activeFilter, setActiveFilter] = useState<SellerOrderTab>('all')
+  const [selectedFilter, setSelectedFilter] = useState<SellerOrderTab>('all')
+  const activeFilter = fixedFilter ?? selectedFilter
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [rowsPerPage, setRowsPerPage] = useState(10)
@@ -155,15 +163,21 @@ const SellerOrdersPage = () => {
           Dashboard
         </Link>
         <span className="mx-1">/</span>
-        <span className="text-slate-900">Orders</span>
+          <span className="text-slate-900">{fixedFilter === 'cancelled' ? 'Cancel Orders' : fixedFilter === 'returned' ? 'Return Orders' : 'Orders'}</span>
       </nav>
 
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Orders</h1>
+          <h1 className="text-xl font-bold text-slate-900">
+            {fixedFilter === 'cancelled' ? 'Cancel Orders' : fixedFilter === 'returned' ? 'Return Orders' : 'Orders'}
+          </h1>
           <p className="mt-0.5 text-sm text-slate-600">
-            Manage and fulfill orders containing your products.
+            {fixedFilter === 'cancelled'
+              ? 'Review shipped orders cancelled by the customer.'
+              : fixedFilter === 'returned'
+                ? 'Review returned orders and their recorded reasons.'
+                : 'Manage and fulfill orders containing your products.'}
           </p>
         </div>
         <button
@@ -183,13 +197,13 @@ const SellerOrdersPage = () => {
 
       {/* Status filters and search share a row on desktop. */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap gap-1">
+        {!fixedFilter && <div className="flex flex-wrap gap-1">
           {TABS.map((tab) => (
             <button
               key={tab.key}
               type="button"
               onClick={() => {
-                setActiveFilter(tab.key)
+                setSelectedFilter(tab.key)
                 setPage(1)
               }}
               className={`rounded-lg px-4 py-2 text-xs font-medium transition-colors ${
@@ -201,8 +215,8 @@ const SellerOrdersPage = () => {
               {tab.label}
             </button>
           ))}
-        </div>
-        <div className="relative w-full sm:max-w-md">
+        </div>}
+        <div className={`relative w-full ${fixedFilter ? '' : 'sm:max-w-md'}`}>
           <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="search"
@@ -265,10 +279,38 @@ const SellerOrdersPage = () => {
                 </tr>
               ) : paginatedOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-500">
-                    {activeFilter === 'to-ship' && !search.trim()
-                      ? 'No orders to ship.'
-                      : 'No orders found for this shop.'}
+                  <td colSpan={8} className="px-4 py-12 text-center">
+                    <div className="mx-auto flex max-w-lg flex-col items-center">
+                      <div className={`mb-3 flex h-11 w-11 items-center justify-center rounded-full ${fixedFilter === 'cancelled' ? 'bg-rose-50 text-rose-600' : fixedFilter === 'returned' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+                        {fixedFilter === 'cancelled'
+                          ? <XCircle size={21} />
+                          : fixedFilter === 'returned'
+                            ? <PackageCheck size={21} />
+                            : <Search size={20} />}
+                      </div>
+                      <p className="text-sm font-semibold text-slate-800">
+                        {search.trim()
+                          ? 'No matching orders'
+                          : fixedFilter === 'cancelled'
+                            ? 'No cancelled orders yet'
+                            : fixedFilter === 'returned'
+                              ? 'No returns recorded yet'
+                              : activeFilter === 'to-ship'
+                                ? 'No orders to ship'
+                                : 'No orders found'}
+                      </p>
+                      <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                        {search.trim()
+                          ? 'Try a different order ID or product name.'
+                          : fixedFilter === 'cancelled'
+                            ? 'Shipped orders you cancel will appear here with the cancellation reason and return deadline.'
+                            : fixedFilter === 'returned'
+                              ? 'Orders will appear here after the delivery company returns the product and you record the return reason.'
+                              : activeFilter === 'to-ship'
+                                ? 'Orders ready for fulfillment will appear here.'
+                                : 'Orders matching this status will appear here.'}
+                      </p>
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -291,15 +333,18 @@ const SellerOrdersPage = () => {
                       className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
                     >
                       <td className="px-4 py-3 text-xs font-medium text-slate-900">
-                        {order.orderId}
+                        <div className="inline-flex max-w-[190px] items-center gap-1">
+                          <span className="min-w-0 truncate font-mono" title={order.orderId}>{order.orderId}</span>
+                          <CopyToClipboardButton value={order.orderId} label="order ID" />
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-xs text-slate-700">
-                        <span
-                          className="block max-w-[180px] truncate font-mono"
-                          title={order.wayBillNo || undefined}
-                        >
-                          {order.wayBillNo?.trim() || '—'}
-                        </span>
+                        <div className="inline-flex max-w-[210px] items-center gap-1">
+                          <span className="min-w-0 truncate font-mono" title={order.wayBillNo || undefined}>
+                            {order.wayBillNo?.trim() || '—'}
+                          </span>
+                          <CopyToClipboardButton value={order.wayBillNo?.trim() ?? ''} label="waybill number" />
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">

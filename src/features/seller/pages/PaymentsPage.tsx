@@ -7,6 +7,7 @@ import { adminShopApi } from '@/features/admin/api/adminShopApi'
 import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
 import { shippingApi } from '@/features/shipping/api/shippingApi'
 import DataTablePagination from '@/components/ui/DataTablePagination'
+import CopyToClipboardButton from '../components/CopyToClipboardButton'
 import {
   isDeliveredPendingCodPayment,
   sellerOrderApi,
@@ -256,6 +257,7 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
       .map((payment) => ({
         'Invoice No': payment.invoiceNo ?? '',
         'Order ID': payment.orderId,
+        'Waybill No': payment.wayBillNo ?? '',
         'Payment Provider': payment.provider,
         'Payment Status': payment.status,
         'Order Status': orderStatusLabel(payment.sellerDeliveryStatus ?? payment.deliveryStatus),
@@ -422,12 +424,13 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1040px]">
+          <table className="w-full min-w-[1200px]">
             <thead>
               <tr className="border-b border-slate-100">
                 <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Select</th>
                 <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Invoice</th>
-                <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Order</th>
+                <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Order ID</th>
+                <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Waybill No</th>
                 <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Payment Provider</th>
                 <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Delivery Provider</th>
                 <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Amount</th>
@@ -439,13 +442,13 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-2 py-8 text-center text-sm text-slate-500">
+                  <td colSpan={10} className="px-2 py-8 text-center text-sm text-slate-500">
                     Loading payments…
                   </td>
                 </tr>
               ) : paginatedPayments.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-2 py-8 text-center text-sm text-slate-500">
+                  <td colSpan={10} className="px-2 py-8 text-center text-sm text-slate-500">
                     No payments found.
                   </td>
                 </tr>
@@ -466,7 +469,18 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
                       {payment.invoiceNo || '—'}
                     </td>
                     <td className="px-2 py-3 text-xs text-slate-600">
-                      <span className="font-mono">{payment.orderId}</span>
+                      <div className="inline-flex max-w-[180px] items-center gap-1">
+                        <span className="min-w-0 truncate font-mono" title={payment.orderId}>{payment.orderId}</span>
+                        <CopyToClipboardButton value={payment.orderId} label="order ID" />
+                      </div>
+                    </td>
+                    <td className="px-2 py-3 text-xs text-slate-600">
+                      <div className="inline-flex max-w-[210px] items-center gap-1">
+                        <span className="min-w-0 truncate font-mono" title={payment.wayBillNo || undefined}>
+                          {payment.wayBillNo?.trim() || '—'}
+                        </span>
+                        <CopyToClipboardButton value={payment.wayBillNo?.trim() ?? ''} label="waybill number" />
+                      </div>
                     </td>
                     <td className="px-2 py-3">
                       <p className="text-xs font-medium capitalize text-slate-900">{payment.provider}</p>

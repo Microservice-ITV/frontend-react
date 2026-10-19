@@ -296,6 +296,22 @@ export const DASHBOARD_MENU_SELLER: DashboardMenuSection[] = [
         icon: ShoppingCart,
       }),
       withSearch({
+        key: "seller-cancel-orders",
+        label: "Cancel Orders",
+        to: "/seller/orders/cancelled",
+        area: "seller",
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: XCircle,
+      }),
+      withSearch({
+        key: "seller-return-orders",
+        label: "Return Orders",
+        to: "/seller/orders/returns",
+        area: "seller",
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: PackageCheck,
+      }),
+      withSearch({
         key: "seller-payments",
         label: "Payments",
         to: "/seller/payments",

@@ -63,6 +63,7 @@ export type SellerOrderPayment = {
 export type PaymentRecord = {
   id: string
   orderId: string
+  wayBillNo?: string | null
   invoiceNo?: string | null
   amount: number
   currency: string
@@ -177,6 +178,11 @@ export type SellerOrder = {
   customerId: string
   status: string
   wayBillNo?: string | null
+  cancellationReason?: string | null
+  cancelledAt?: string | null
+  returnDeadlineAt?: string | null
+  returnReason?: string | null
+  returnedAt?: string | null
   createdAt?: string | null
   placedAt?: string | null
   items: SellerOrderItem[]
@@ -217,7 +223,7 @@ export type SellerOrder = {
  */
 export const sellerOrderStatus = (order: SellerOrder): string => {
   const orderStatus = (order.status || '').toUpperCase()
-  if (orderStatus === 'DELIVERED' || orderStatus === 'COMPLETED') {
+  if (['DELIVERED', 'COMPLETED', 'CANCELLED', 'RETURNED'].includes(orderStatus)) {
     return orderStatus
   }
 
@@ -277,6 +283,11 @@ const SHOP_ORDERS_QUERY = `
       customerId
       status
       wayBillNo
+      cancellationReason
+      cancelledAt
+      returnDeadlineAt
+      returnReason
+      returnedAt
       createdAt
       placedAt
       items {
@@ -389,7 +400,7 @@ export type OwnedShop = {
   name?: string
 }
 
-export type SellerOrderStatusFilter = 'all' | 'to-ship' | 'shipped' | 'completed' | 'cancelled'
+export type SellerOrderStatusFilter = 'all' | 'to-ship' | 'shipped' | 'completed' | 'cancelled' | 'returned'
 
 /**
  * Fetch all orders across every shop owned by the seller in one read-service
@@ -494,6 +505,28 @@ export const sellerOrderApi = {
     courier: { code: string; name: string; phone: string }
   }> {
     const response = await orderClient.post(`/orders/${orderId}/create-shipment`, payload)
+    return response.data
+  },
+
+  async cancelShippedOrder(
+    orderId: string,
+    reason: string,
+  ): Promise<{
+    order_id: string
+    status: string
+    cancellation_reason: string
+    cancelled_at: string
+    return_deadline_at: string
+  }> {
+    const response = await orderClient.post(`/orders/${orderId}/cancel`, { reason })
+    return response.data
+  },
+
+  async markOrderReturned(
+    orderId: string,
+    reason: string,
+  ): Promise<{ order_id: string; status: string; return_reason: string; returned_at: string }> {
+    const response = await orderClient.post(`/orders/${orderId}/return`, { reason })
     return response.data
   },
 
