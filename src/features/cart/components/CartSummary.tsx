@@ -3,7 +3,8 @@ import { voucherIcon } from '@/assets/icons'
 import { selectIsAllSelected, selectSelectedItems } from '../store/cartSelectors'
 import { removeSelectedItems, toggleAllSelection } from '../store/cartSlice'
 import { useNavigate } from 'react-router-dom'
-import { selectIsAuthenticated } from '@/features/auth/store/authSelectors'
+import { selectAuthUser, selectIsAuthenticated } from '@/features/auth/store/authSelectors'
+import { isShopStaffUser } from '@/features/checkout/utils/staffCheckoutCustomer'
 import { formatProductPrice } from '@/features/products/utils/formatProductPrice'
 import type { BundleMatchDiscount } from '@/features/bundles/types/bundleTypes'
 import { X } from 'lucide-react'
@@ -82,6 +83,8 @@ const CartSummary = ({ total, bundleSavings = [], onGuestCheckout }: CartSummary
   const selectedCount = useAppSelector(selectSelectedItems).length
   const itemLabel = selectedCount <= 1 ? 'item' : 'items'
   const isAuthenticated = useAppSelector(selectIsAuthenticated)
+  const authUser = useAppSelector(selectAuthUser)
+  const staffCheckout = isShopStaffUser(authUser)
   const isCheckoutDisabled = selectedCount === 0
   const navigate = useNavigate()
   const savings = bundleSavings.reduce((sum, row) => sum + row.amount, 0)
@@ -90,7 +93,7 @@ const CartSummary = ({ total, bundleSavings = [], onGuestCheckout }: CartSummary
   const onCheckoutClick = () => {
     if (isCheckoutDisabled) return
     if (isAuthenticated) {
-      navigate('/checkout')
+      navigate(staffCheckout ? '/checkout/customer' : '/checkout')
       return
     }
     onGuestCheckout?.()

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   checkoutShopsHaveDeliveryCompanies,
+  distributeShippingFee,
   mapCheckoutShopIdsToCartShopIds,
 } from './checkoutShopShipping'
 
@@ -48,5 +49,35 @@ describe('checkout shop delivery-company validation', () => {
     expect(checkoutShopsHaveDeliveryCompanies([
       { checkoutShopId: 'shop-1', cartShopId: 'shop-1' },
     ], { 'shop-1': '  ' })).toBe(false)
+  })
+
+  it('allows shops that have no selectable delivery company', () => {
+    expect(checkoutShopsHaveDeliveryCompanies([
+      { checkoutShopId: 'shop-1', cartShopId: 'shop-1' },
+      { checkoutShopId: 'shop-2', cartShopId: 'shop-2' },
+    ], {
+      'shop-2': 'company-2',
+    }, new Set(['shop-1']))).toBe(true)
+
+    expect(checkoutShopsHaveDeliveryCompanies([
+      { checkoutShopId: 'shop-1', cartShopId: 'shop-1' },
+    ], {}, new Set(['shop-1']))).toBe(true)
+  })
+})
+
+describe('distributeShippingFee', () => {
+  it('puts the whole fee on a single shop', () => {
+    expect(distributeShippingFee([{ shipping_fee: 0 }], 1500)).toEqual([{ shipping_fee: 1500 }])
+  })
+
+  it('splits an uneven fee without losing cents', () => {
+    expect(distributeShippingFee(
+      [{ shipping_fee: 0 }, { shipping_fee: 0 }, { shipping_fee: 0 }],
+      10,
+    )).toEqual([
+      { shipping_fee: 3.34 },
+      { shipping_fee: 3.33 },
+      { shipping_fee: 3.33 },
+    ])
   })
 })
