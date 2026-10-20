@@ -13,6 +13,7 @@ import {
   selectSellerProductsError,
   selectSellerProductsStatus,
 } from '../store'
+import { shopStockWarning } from '../utils/shopStockWarning'
 import {
   Plus,
   Search,
@@ -327,7 +328,7 @@ const SellerProductsPage = () => {
       {/* Table */}
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px]">
+          <table className="w-full min-w-[1000px] [&_td]:align-middle [&_th]:align-middle">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
                 <th className="w-12 px-4 py-3 text-left">
@@ -353,15 +354,11 @@ const SellerProductsPage = () => {
                     Status
                   </span>
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
-                  <span className="flex items-center gap-1">
-                    Stock
-                  </span>
+                <th className="px-4 py-3 text-center text-xs font-medium text-slate-600">
+                  Shop Stock
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
-                  <span className="flex items-center gap-1">
-                    Created
-                  </span>
+                <th className="px-4 py-3 text-center text-xs font-medium text-slate-600">
+                  Warehouse Stock
                 </th>
                 <th className="w-16 px-2 py-3 text-left text-xs font-medium text-slate-600">
                   <span className="flex items-center gap-1">
@@ -391,6 +388,7 @@ const SellerProductsPage = () => {
                 </tr>
               ) : paginatedProducts.map((product, index) => {
                 const openUpward = index >= paginatedProducts.length - 2
+                const shopWarning = shopStockWarning(product.shopStock)
                 return (
                   <tr
                     key={product.id}
@@ -433,11 +431,22 @@ const SellerProductsPage = () => {
                         {product.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-xs text-slate-700">
-                      {product.stock}
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex min-h-[1.5rem] flex-wrap items-center justify-center gap-2">
+                        {product.shopStock > 0 ? (
+                          <span className="text-xs text-slate-700">{product.shopStock}</span>
+                        ) : null}
+                        {shopWarning ? (
+                          <span
+                            className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${shopWarning.className}`}
+                          >
+                            {shopWarning.label}
+                          </span>
+                        ) : null}
+                      </div>
                     </td>
-                    <td className="px-4 py-3 text-xs text-slate-600">
-                      {product.created}
+                    <td className="px-4 py-3 text-center text-xs text-slate-700">
+                      {product.warehouseStock}
                     </td>
                     <td className="relative w-16 px-2 py-3">
                       <div

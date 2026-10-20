@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
@@ -13,7 +13,7 @@ import {
 } from '../api/sellerOrderApi'
 import CustomerAvatar from '../components/CustomerAvatar'
 import OrderProductImage from '@/features/account/components/OrderProductImage'
-import { Truck, MapPin, Package, CreditCard, Mail, Store, Tag, Check, Home, type LucideIcon } from 'lucide-react'
+import { Truck, MapPin, Package, CreditCard, Mail, Store, Tag, Check, Home, XCircle, PackageCheck, type LucideIcon } from 'lucide-react'
 import { StepConnector } from '@/components/ui/StepConnector'
 import PaymentAllocationCard from '../components/PaymentAllocationCard'
 
@@ -36,6 +36,7 @@ const STATUS_STYLES: Record<string, string> = {
   DELIVERED: 'bg-emerald-100 text-emerald-700',
   COMPLETED: 'bg-emerald-100 text-emerald-700',
   CANCELLED: 'bg-red-100 text-red-700',
+  RETURNED: 'bg-violet-100 text-violet-700',
   FAILED: 'bg-red-100 text-red-700',
   FAILED_PAYMENT: 'bg-red-100 text-red-700',
 }
@@ -50,6 +51,7 @@ const STATUS_LABELS: Record<string, string> = {
   DELIVERED: 'Delivered',
   COMPLETED: 'Completed',
   CANCELLED: 'Cancelled',
+  RETURNED: 'RETURNED',
   FAILED: 'Failed',
   FAILED_PAYMENT: 'Payment Failed',
 }
@@ -101,6 +103,9 @@ const SellerOrderDetailPage = () => {
   const [shopNames, setShopNames] = useState<Record<string, string>>({})
   const [allocations, setAllocations] = useState<PaymentAllocation[]>([])
   const [customerAvatar, setCustomerAvatar] = useState<string | null>(null)
+  const [wayBillNo, setWayBillNo] = useState('')
+  const cancellationReasonRef = useRef('')
+  const returnReasonRef = useRef('')
 
   // Payment allocation (payout split) restricted to this seller's shops.
   useEffect(() => {
@@ -184,6 +189,7 @@ const SellerOrderDetailPage = () => {
         const found = orders.find((o) => o.orderId === id)
         if (!cancelled) {
           setOrder(found ?? null)
+          setWayBillNo(found?.wayBillNo ?? '')
           if (!found) setLoadError('Order not found.')
         }
       } catch (error: any) {
@@ -201,6 +207,8 @@ const SellerOrderDetailPage = () => {
 
   const handleShipOrder = async (shopId?: string, shopName?: string) => {
     if (!order) return
+    const submittedWayBillNo = wayBillNo.trim()
+    if (!submittedWayBillNo) return
 
     openModal({
       title: 'Ship Order',
@@ -220,9 +228,10 @@ const SellerOrderDetailPage = () => {
           </p>
           <p className="text-xs text-slate-500">
             {shopId
-              ? 'Only this shop’s items will be shipped using its configured Delivery Company — other shops ship separately with their own tracking numbers.'
+              ? 'Only this shop’s items will be shipped using its configured Delivery Company. The order waybill is shared with any remaining shop shipments.'
               : 'The shop’s configured Delivery Company will be used. A tracking number will be automatically generated.'}
           </p>
+          <p className="text-xs font-medium text-slate-700">Waybill: {submittedWayBillNo}</p>
         </div>
       ),
       primaryLabel: 'Ship Order',
@@ -230,15 +239,27 @@ const SellerOrderDetailPage = () => {
       secondaryLabel: 'Cancel',
       onPrimary: async () => {
         try {
-          await sellerOrderApi.createShipment(order.orderId, {
+          const shipment = await sellerOrderApi.createShipment(order.orderId, {
             ...(shopId ? { shop_id: shopId } : {}),
+            way_bill_no: submittedWayBillNo,
           })
+          const savedWayBillNo = shipment.way_bill_no || submittedWayBillNo
+          setWayBillNo(savedWayBillNo)
+          setOrder((current) => current ? { ...current, wayBillNo: savedWayBillNo } : current)
           if (activeShopId || authUserId) {
             const updated = await fetchOrdersAcrossOwnedShops(authUserId, activeShopId)
             const found = updated.find((o) => o.orderId === id)
-            if (found) setOrder(found)
+            if (found) {
+              setOrder({ ...found, wayBillNo: found.wayBillNo || savedWayBillNo })
+              setWayBillNo(found.wayBillNo || savedWayBillNo)
+            }
           }
         } catch (error: any) {
+          const existingWayBillNo = error?.response?.data?.way_bill_no
+          if (typeof existingWayBillNo === 'string' && existingWayBillNo.trim()) {
+            setWayBillNo(existingWayBillNo)
+            setOrder((current) => current ? { ...current, wayBillNo: existingWayBillNo } : current)
+          }
           openModal({
             title: 'Shipment Failed',
             content: (
@@ -254,10 +275,106 @@ const SellerOrderDetailPage = () => {
     })
   }
 
+  const handleCancelOrder = () => {
+    if (!order) return
+    cancellationReasonRef.current = ''
+    openModal({
+      title: 'Cancel Shipped Order',
+      primaryLabel: 'Cancel Order',
+      primaryVariant: 'danger',
+      content: (
+        <div className="space-y-3 text-sm text-slate-700">
+          <p>Record why order <strong>{order.orderId}</strong> is being cancelled after shipment.</p>
+          <label htmlFor="cancel-order-reason" className="block text-xs font-semibold text-slate-700">
+            Cancellation reason <span className="text-red-600">*</span>
+          </label>
+          <textarea
+            id="cancel-order-reason"
+            rows={4}
+            maxLength={2000}
+            autoFocus
+            onChange={(event) => { cancellationReasonRef.current = event.target.value }}
+            placeholder="Enter the customer's cancellation reason..."
+            className="w-full resize-y rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+          />
+          <p className="text-xs text-slate-500">The delivery company has up to seven days to return the product to you.</p>
+        </div>
+      ),
+      onPrimary: async () => {
+        const reason = cancellationReasonRef.current.trim()
+        if (!reason) throw new Error('Enter a cancellation reason before continuing.')
+        const result = await sellerOrderApi.cancelShippedOrder(order.orderId, reason)
+        setOrder((current) => current ? {
+          ...current,
+          status: 'CANCELLED',
+          cancellationReason: result.cancellation_reason,
+          cancelledAt: result.cancelled_at,
+          returnDeadlineAt: result.return_deadline_at,
+          shopBreakdown: current.shopBreakdown?.map((row) => ({ ...row, status: 'CANCELLED' })),
+        } : current)
+      },
+    })
+  }
+
+  const handleMarkReturned = () => {
+    if (!order) return
+    returnReasonRef.current = ''
+    openModal({
+      title: 'Record Returned Order',
+      primaryLabel: 'Mark Returned',
+      primaryVariant: 'success',
+      content: (
+        <div className="space-y-3 text-sm text-slate-700">
+          <p>Confirm that the delivery company returned order <strong>{order.orderId}</strong> to you.</p>
+          <label htmlFor="return-order-reason" className="block text-xs font-semibold text-slate-700">
+            Return reason <span className="text-red-600">*</span>
+          </label>
+          <textarea
+            id="return-order-reason"
+            rows={4}
+            maxLength={2000}
+            autoFocus
+            onChange={(event) => { returnReasonRef.current = event.target.value }}
+            placeholder="Describe the return condition or reason..."
+            className="w-full resize-y rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+          />
+          <p className="text-xs text-slate-500">Recording the return sets the order to RETURNED and restores its stock.</p>
+        </div>
+      ),
+      onPrimary: async () => {
+        const reason = returnReasonRef.current.trim()
+        if (!reason) throw new Error('Enter a return reason before continuing.')
+        const result = await sellerOrderApi.markOrderReturned(order.orderId, reason)
+        setOrder((current) => current ? {
+          ...current,
+          status: 'RETURNED',
+          returnReason: result.return_reason,
+          returnedAt: result.returned_at,
+          shopBreakdown: current.shopBreakdown?.map((row) => ({ ...row, status: 'RETURNED' })),
+        } : current)
+      },
+    })
+  }
+
   const statusUpper = (order?.status || '').toUpperCase()
   const currentStep = order ? getStepIndex(order.status) : -1
   const orderComplete = ['DELIVERED', 'COMPLETED'].includes(statusUpper)
-  const isCancelled = ['CANCELLED', 'FAILED', 'FAILED_PAYMENT', 'EXPIRED'].includes(statusUpper)
+  const isCancelled = ['CANCELLED', 'RETURNED', 'FAILED', 'FAILED_PAYMENT', 'EXPIRED'].includes(statusUpper)
+  const cancelledAt = order?.cancelledAt ? new Date(order.cancelledAt) : null
+  const storedReturnDeadline = order?.returnDeadlineAt ? new Date(order.returnDeadlineAt) : null
+  const returnDeadline = storedReturnDeadline && !Number.isNaN(storedReturnDeadline.getTime())
+    ? storedReturnDeadline
+    : cancelledAt && !Number.isNaN(cancelledAt.getTime())
+      ? new Date(cancelledAt.getTime() + 7 * 24 * 60 * 60 * 1000)
+      : null
+  const returnWindowOpen = Boolean(
+    statusUpper === 'CANCELLED' && returnDeadline && Date.now() <= returnDeadline.getTime(),
+  )
+  const canCancelShippedOrder = Boolean(order && (
+    order.shopBreakdown?.length
+      ? order.shopBreakdown.every((row) => (row.status || '').toUpperCase() === 'SHIPPED')
+      : statusUpper === 'SHIPPED'
+  ))
   // Shops with at least one shipment already on their way (fallback signal
   // when per-shop status rows are missing, e.g. orders projected before
   // per-shop fulfillment existed).
@@ -417,6 +534,26 @@ const SellerOrderDetailPage = () => {
               </p>
             </div>
             <div className="flex items-center gap-2">
+              {canCancelShippedOrder && (
+                <button
+                  type="button"
+                  onClick={handleCancelOrder}
+                  className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+                >
+                  <XCircle size={16} />
+                  Cancel Order
+                </button>
+              )}
+              {returnWindowOpen && (
+                <button
+                  type="button"
+                  onClick={handleMarkReturned}
+                  className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                >
+                  <PackageCheck size={16} />
+                  Record Return
+                </button>
+              )}
               <span
                 className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${STATUS_STYLES[statusUpper] || 'bg-slate-100 text-slate-600'}`}
               >
@@ -424,6 +561,41 @@ const SellerOrderDetailPage = () => {
               </span>
             </div>
           </div>
+
+          {(order.cancellationReason || order.returnReason || returnDeadline) && (
+            <section className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+              <h2 className="text-sm font-bold text-slate-900">Cancellation & Return</h2>
+              <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+                {order.cancellationReason && (
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Cancellation reason</p>
+                    <p className="mt-1 whitespace-pre-wrap text-slate-800">{order.cancellationReason}</p>
+                  </div>
+                )}
+                {returnDeadline && (
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Return due by</p>
+                    <p className="mt-1 text-slate-800">{formatDate(returnDeadline.toISOString())}</p>
+                  </div>
+                )}
+                {order.returnReason && (
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Return reason</p>
+                    <p className="mt-1 whitespace-pre-wrap text-slate-800">{order.returnReason}</p>
+                  </div>
+                )}
+                {order.returnedAt && (
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Returned at</p>
+                    <p className="mt-1 text-slate-800">{formatDate(order.returnedAt)}</p>
+                  </div>
+                )}
+              </div>
+              {statusUpper === 'CANCELLED' && !returnWindowOpen && returnDeadline && (
+                <p className="mt-3 text-xs font-medium text-amber-700">The one-week return period has expired.</p>
+              )}
+            </section>
+          )}
 
           {/* Status timeline */}
           {!isCancelled && (
@@ -506,6 +678,28 @@ const SellerOrderDetailPage = () => {
                 </div>
 
                 <div className="mt-4 space-y-4">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                    <label htmlFor="order-way-bill-no" className="block text-sm font-semibold text-slate-800">
+                      Waybill Number
+                    </label>
+                    <input
+                      id="order-way-bill-no"
+                      type="text"
+                      value={wayBillNo}
+                      onChange={(event) => setWayBillNo(event.target.value)}
+                      placeholder="e.g. YGN9125345TKI/AAF362660"
+                      maxLength={128}
+                      autoComplete="off"
+                      readOnly={Boolean(order.wayBillNo)}
+                      className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 read-only:bg-slate-100"
+                      aria-describedby="order-way-bill-help"
+                    />
+                    <p id="order-way-bill-help" className="mt-1.5 text-xs text-slate-500">
+                      {order.wayBillNo
+                        ? 'Saved to this order and used for its remaining shop shipments.'
+                        : 'Enter the delivery company waybill before creating a shipment. It will be saved to this order.'}
+                    </p>
+                  </div>
                   {shopGroups.map(([shopId, groupItems]) => {
                     const shopTotals = breakdownForShop(shopId, groupItems)
                     const shopPromos = [...(promotionsByShop.get(shopId)?.values() ?? [])]
@@ -543,7 +737,8 @@ const SellerOrderDetailPage = () => {
                             <button
                               type="button"
                               onClick={() => handleShipOrder(shopId || undefined, shopId ? shopLabel(shopId) : undefined)}
-                              className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-700 cursor-pointer"
+                              disabled={!wayBillNo.trim()}
+                              className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
                             >
                               <Truck size={13} />
                               Ship this shop

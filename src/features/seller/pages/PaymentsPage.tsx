@@ -1,15 +1,23 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { RefreshCw, Search, Eye } from 'lucide-react'
+import { RefreshCw, Search, Eye, Download } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import { useAppSelector } from '@/app/hooks'
 import { adminShopApi } from '@/features/admin/api/adminShopApi'
+import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
+import { shippingApi } from '@/features/shipping/api/shippingApi'
 import DataTablePagination from '@/components/ui/DataTablePagination'
-import { sellerOrderApi, type PaymentRecord } from '../api/sellerOrderApi'
+import CopyToClipboardButton from '../components/CopyToClipboardButton'
+import {
+  isDeliveredPendingCodPayment,
+  sellerOrderApi,
+  sellerPaymentAmountDue,
+  type PaymentRecord,
+} from '../api/sellerOrderApi'
 
 type PaymentsPageProps = { admin?: boolean }
 
-const money = (value: number, currency: string) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD' }).format(value || 0)
+const money = (value: number) => formatKsPrice(Number(value) || 0)
 
 const PAYMENT_STATUS_STYLES: Record<string, string> = {
   COLLECTED: 'bg-emerald-100 text-emerald-700',
@@ -20,7 +28,7 @@ const PAYMENT_STATUS_STYLES: Record<string, string> = {
 }
 
 const DELIVERY_STATUS_STYLES: Record<string, string> = {
-  DELIVERED: 'bg-emerald-100 text-emerald-700',
+    DELIVERED: 'bg-emerald-100 text-emerald-700',
   SHIPPED: 'bg-sky-100 text-sky-700',
   IN_TRANSIT: 'bg-blue-100 text-blue-700',
   OUT_FOR_DELIVERY: 'bg-indigo-100 text-indigo-700',
@@ -31,27 +39,7 @@ const DELIVERY_STATUS_STYLES: Record<string, string> = {
   CONFIRMED: 'bg-slate-100 text-slate-600',
 }
 
-const deliveryLabel = (status?: string | null) => {
-  if (!status) return '—'
-  switch (status.toUpperCase()) {
-    case 'DELIVERED':
-      return 'Delivered'
-    case 'SHIPPED':
-      return 'Shipped'
-    case 'IN_TRANSIT':
-      return 'In Transit'
-    case 'OUT_FOR_DELIVERY':
-      return 'Out for Delivery'
-    case 'PARTIALLY_FULFILLED':
-      return 'Partially Shipped'
-    case 'FULFILLED':
-      return 'Shipped'
-    case 'READY_FOR_FULFILLMENT':
-      return 'Ready to fulfil'
-    default:
-      return status.charAt(0) + status.slice(1).toLowerCase()
-  }
-}
+const orderStatusLabel = (status?: string | null) => status?.trim().toUpperCase() || '—'
 
 /** True when this payment co-mingles other owners' shops (share < full). */
 const isSharedPayment = (payment: PaymentRecord) =>
@@ -60,12 +48,14 @@ const isSharedPayment = (payment: PaymentRecord) =>
 export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
   const user = useAppSelector((state) => state.auth.user)
   const [payments, setPayments] = useState<PaymentRecord[]>([])
+  const [deliveryCompanyNames, setDeliveryCompanyNames] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([])
   const [collectingBatch, setCollectingBatch] = useState(false)
 
   const [activeFilter, setActiveFilter] = useState('all')
+  const [codDueOnly, setCodDueOnly] = useState(false)
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [rowsPerPage, setRowsPerPage] = useState(10)
@@ -109,6 +99,30 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
 
   useEffect(() => { void load() }, [admin, user?.id, user?.active_shop_id])
 
+  useEffect(() => {
+    let cancelled = false
+    void shippingApi.listActiveDeliveryCompanies()
+      .then((response) => {
+        const payload = response.data as {
+          data?: { companies?: Array<{ id?: unknown; name?: unknown }> }
+        } | null
+        const names: Record<string, string> = {}
+        for (const company of payload?.data?.companies ?? []) {
+          if (typeof company.id === 'string' && typeof company.name === 'string') {
+            names[company.id] = company.name
+          }
+        }
+        if (!cancelled) setDeliveryCompanyNames(names)
+      })
+      .catch(() => {
+        // Payment records remain useful if the Shipping Service is unavailable.
+        if (!cancelled) setDeliveryCompanyNames({})
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const sortedPayments = useMemo(
     () =>
       [...payments].sort(
@@ -126,6 +140,7 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
     const q = search.toLowerCase()
     return sortedPayments.filter((payment) => {
       const matchesFilter = activeFilter === 'all' || payment.status === activeFilter
+      const matchesCodDue = !codDueOnly || isDeliveredPendingCodPayment(payment)
       const matchesSearch =
         !q ||
         (payment.invoiceNo ?? '').toLowerCase().includes(q) ||
@@ -133,9 +148,9 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
         payment.provider.toLowerCase().includes(q) ||
         (payment.paymentMethod ?? '').toLowerCase().includes(q) ||
         (payment.deliveryStatus ?? '').toLowerCase().includes(q)
-      return matchesFilter && matchesSearch
+      return matchesFilter && matchesCodDue && matchesSearch
     })
-  }, [sortedPayments, activeFilter, search])
+  }, [sortedPayments, activeFilter, codDueOnly, search])
 
   const totalPages = Math.max(1, Math.ceil(filteredPayments.length / rowsPerPage))
   const paginatedPayments = filteredPayments.slice((page - 1) * rowsPerPage, page * rowsPerPage)
@@ -145,6 +160,7 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
     const settled = payments.filter((payment) =>
       ['SUCCESS', 'COLLECTED'].includes((payment.status || '').toUpperCase()),
     )
+    const deliveredPendingCod = payments.filter(isDeliveredPendingCodPayment)
     const sum = (pick: (payment: PaymentRecord) => number) =>
       Number(settled.reduce((carry, payment) => carry + pick(payment), 0).toFixed(2))
     const scoped = payments.some((payment) => payment.seller)
@@ -153,10 +169,14 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
       collected: sum((payment) => payment.amount),
       share: sum((payment) => payment.seller?.orderShare ?? payment.amount),
       payout: sum((payment) => payment.seller?.payout ?? payment.amount),
+      codDueFromDelivery: Number(deliveredPendingCod.reduce(
+        (carry, payment) => carry + sellerPaymentAmountDue(payment),
+        0,
+      ).toFixed(2)),
+      codDueOrderCount: deliveredPendingCod.length,
       pending: payments.filter((payment) =>
         ['PENDING', 'CREATED', 'PROCESSING'].includes((payment.status || '').toUpperCase()),
       ).length,
-      currency: payments[0]?.currency || 'USD',
     }
   }, [payments])
 
@@ -224,6 +244,40 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
     setSelectedOrderIds([...selectedOrderIds, ...candidateOrderIds])
   }
 
+  const toggleCodDueFilter = () => {
+    setCodDueOnly((current) => !current)
+    setActiveFilter('all')
+    setPage(1)
+    setSelectedOrderIds([])
+  }
+
+  const exportCodDueToExcel = () => {
+    const rows = filteredPayments
+      .filter(isDeliveredPendingCodPayment)
+      .map((payment) => ({
+        'Invoice No': payment.invoiceNo ?? '',
+        'Order ID': payment.orderId,
+        'Waybill No': payment.wayBillNo ?? '',
+        'Payment Provider': payment.provider,
+        'Payment Status': payment.status,
+        'Order Status': orderStatusLabel(payment.sellerDeliveryStatus ?? payment.deliveryStatus),
+        'Delivery Company': payment.deliveryCompanyId
+          ? deliveryCompanyNames[payment.deliveryCompanyId] ?? payment.deliveryCompanyId
+          : '',
+        'Order Share (Ks)': payment.seller?.orderShare ?? payment.amount,
+        'Platform Fee (Ks)': payment.seller?.platformFee ?? 0,
+        'Shipping Share (Ks)': payment.seller?.shippingShare ?? 0,
+        'Amount to Receive (Ks)': sellerPaymentAmountDue(payment),
+        Currency: 'Ks',
+        'Created At': payment.createdAt,
+      }))
+
+    const worksheet = XLSX.utils.json_to_sheet(rows)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'COD Due')
+    XLSX.writeFile(workbook, `cod-to-receive-${new Date().toISOString().slice(0, 10)}.xlsx`)
+  }
+
   return (
     <section className="space-y-6">
       <div className="flex items-start justify-between gap-4">
@@ -248,13 +302,13 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
       {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
 
       {!admin && payments.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
           <div className="rounded-xl border border-slate-200 bg-white p-4">
             <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
               Collected (your shops)
             </p>
             <p className="mt-1 text-lg font-bold tracking-tight text-slate-900">
-              {money(stats.scoped ? stats.share : stats.collected, stats.currency)}
+              {money(stats.scoped ? stats.share : stats.collected)}
             </p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-4">
@@ -262,10 +316,30 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
               Net Payouts
             </p>
             <p className="mt-1 text-lg font-bold tracking-tight text-emerald-600">
-              {money(stats.payout, stats.currency)}
+              {money(stats.payout)}
             </p>
             <p className="mt-0.5 text-[10px] text-slate-400">after platform fees</p>
           </div>
+          <button
+            type="button"
+            onClick={toggleCodDueFilter}
+            aria-pressed={codDueOnly}
+            className={`w-full rounded-xl border p-4 text-left transition-colors ${
+              codDueOnly
+                ? 'border-amber-400 bg-amber-100 ring-2 ring-amber-200'
+                : 'border-amber-200 bg-amber-50 hover:border-amber-300 hover:bg-amber-100/70'
+            }`}
+          >
+            <p className="text-[11px] font-medium uppercase tracking-wide text-amber-700">
+              COD to Receive from Delivery
+            </p>
+            <p className="mt-1 text-lg font-bold tracking-tight text-amber-800">
+              {money(stats.codDueFromDelivery)}
+            </p>
+            <p className="mt-0.5 text-[10px] text-amber-700">
+              {stats.codDueOrderCount} delivered, pending COD {stats.codDueOrderCount === 1 ? 'order' : 'orders'}
+            </p>
+          </button>
           <div className="rounded-xl border border-slate-200 bg-white p-4">
             <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
               Payments
@@ -283,8 +357,27 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
 
       <div className="rounded-xl border border-slate-200 bg-white p-4">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm font-semibold text-slate-900">All Payments</p>
+          <div>
+            <p className="text-sm font-semibold text-slate-900">
+              {codDueOnly ? 'COD Due from Delivery' : 'All Payments'}
+            </p>
+            {codDueOnly && (
+              <p className="mt-0.5 text-xs text-slate-500">
+                Delivered orders with pending COD payments.
+              </p>
+            )}
+          </div>
           <div className="flex flex-wrap items-center gap-2">
+            {codDueOnly && (
+              <button
+                type="button"
+                onClick={exportCodDueToExcel}
+                disabled={!filteredPayments.some(isDeliveredPendingCodPayment)}
+                className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Download size={14} /> Export Excel
+              </button>
+            )}
             {selectedOrderIds.length > 0 && (
               <button
                 type="button"
@@ -331,16 +424,17 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1040px]">
+          <table className="w-full min-w-[1200px]">
             <thead>
               <tr className="border-b border-slate-100">
                 <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Select</th>
                 <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Invoice</th>
-                <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Order</th>
+                <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Order ID</th>
+                <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Waybill No</th>
                 <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Payment Provider</th>
                 <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Delivery Provider</th>
                 <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Amount</th>
-                <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Delivery Status</th>
+                <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Order Status</th>
                 <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-500">Payment Status</th>
                 <th className="px-2 py-2 text-right text-[11px] font-medium text-slate-500">Action</th>
               </tr>
@@ -348,13 +442,13 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-2 py-8 text-center text-sm text-slate-500">
+                  <td colSpan={10} className="px-2 py-8 text-center text-sm text-slate-500">
                     Loading payments…
                   </td>
                 </tr>
               ) : paginatedPayments.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-2 py-8 text-center text-sm text-slate-500">
+                  <td colSpan={10} className="px-2 py-8 text-center text-sm text-slate-500">
                     No payments found.
                   </td>
                 </tr>
@@ -375,7 +469,18 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
                       {payment.invoiceNo || '—'}
                     </td>
                     <td className="px-2 py-3 text-xs text-slate-600">
-                      <span className="font-mono">{payment.orderId}</span>
+                      <div className="inline-flex max-w-[180px] items-center gap-1">
+                        <span className="min-w-0 truncate font-mono" title={payment.orderId}>{payment.orderId}</span>
+                        <CopyToClipboardButton value={payment.orderId} label="order ID" />
+                      </div>
+                    </td>
+                    <td className="px-2 py-3 text-xs text-slate-600">
+                      <div className="inline-flex max-w-[210px] items-center gap-1">
+                        <span className="min-w-0 truncate font-mono" title={payment.wayBillNo || undefined}>
+                          {payment.wayBillNo?.trim() || '—'}
+                        </span>
+                        <CopyToClipboardButton value={payment.wayBillNo?.trim() ?? ''} label="waybill number" />
+                      </div>
                     </td>
                     <td className="px-2 py-3">
                       <p className="text-xs font-medium capitalize text-slate-900">{payment.provider}</p>
@@ -384,7 +489,9 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
                       )}
                     </td>
                     <td className="px-2 py-3 text-xs text-slate-600">
-                      {payment.deliveryCompanyId ?? '—'}
+                      {payment.deliveryCompanyId
+                        ? deliveryCompanyNames[payment.deliveryCompanyId] ?? payment.deliveryCompanyId
+                        : '—'}
                     </td>
                     <td className="px-2 py-3 text-xs font-semibold text-slate-900">
                       {(() => {
@@ -394,16 +501,16 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
                           <div
                             title={
                               shared && payment.seller
-                                ? `Full order: ${money(payment.amount, payment.currency)} (other owners' shops excluded) · your payout after fees: ${money(payment.seller.payout, payment.currency)}`
+                                ? `Full order: ${money(payment.amount)} (other owners' shops excluded) · your payout after fees: ${money(payment.seller.payout)}`
                                 : payment.seller
-                                  ? `Payout after platform fee: ${money(payment.seller.payout, payment.currency)}`
+                                  ? `Payout after platform fee: ${money(payment.seller.payout)}`
                                   : undefined
                             }
                           >
-                            <p>{money(share, payment.currency)}</p>
+                            <p>{money(share)}</p>
                             {shared && (
                               <p className="mt-0.5 text-[10px] font-normal text-slate-400">
-                                your share · full {money(payment.amount, payment.currency)}
+                                your share · full {money(payment.amount)}
                               </p>
                             )}
                           </div>
@@ -423,7 +530,7 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
                           <span
                             title={
                               differs
-                                ? `Your shops: ${deliveryLabel(display)} · Full order: ${deliveryLabel(payment.deliveryStatus)}`
+                                ? `Your shops: ${orderStatusLabel(display)} · Full order: ${orderStatusLabel(payment.deliveryStatus)}`
                                 : undefined
                             }
                             className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${
@@ -431,7 +538,7 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
                               'bg-slate-100 text-slate-600'
                             }`}
                           >
-                            {deliveryLabel(display)}
+                            {orderStatusLabel(display)}
                           </span>
                         )
                       })()}
@@ -443,7 +550,7 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
                           'bg-slate-100 text-slate-600'
                         }`}
                       >
-                        {payment.status}
+                        {payment.status.toUpperCase()}
                       </span>
                     </td>
                     <td className="px-2 py-3">

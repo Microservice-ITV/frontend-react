@@ -63,6 +63,7 @@ export type SellerOrderPayment = {
 export type PaymentRecord = {
   id: string
   orderId: string
+  wayBillNo?: string | null
   invoiceNo?: string | null
   amount: number
   currency: string
@@ -80,6 +81,18 @@ export type PaymentRecord = {
   codCollectionBatchId?: string | null
   /** Seller-scoped money split from payment_allocations; null when unknown. */
   seller?: PaymentSellerShare | null
+}
+
+/** COD amounts awaiting remittance for a seller's already-delivered orders. */
+export const isDeliveredPendingCodPayment = (payment: PaymentRecord): boolean =>
+  payment.provider.trim().toLowerCase() === 'cod'
+  && payment.status.trim().toUpperCase() === 'PENDING'
+  && (payment.sellerDeliveryStatus ?? payment.deliveryStatus)?.trim().toUpperCase() === 'DELIVERED'
+
+/** Prefer the seller's net payout allocation; legacy rows fall back to payment amount. */
+export const sellerPaymentAmountDue = (payment: PaymentRecord): number => {
+  const amount = Number(payment.seller?.payout ?? payment.amount)
+  return Number.isFinite(amount) ? amount : 0
 }
 
 /** Owned amounts (seller's shops only) for one payment record. */
@@ -110,6 +123,7 @@ export type PaymentDetailOrder = {
   reservationId: string | null
   orderStatusId: number
   orderStatus: string
+  wayBillNo?: string | null
   trackingNumber?: string | null
   trackingUrl?: string | null
   courierCode?: string | null
@@ -163,6 +177,12 @@ export type SellerOrder = {
   orderId: string
   customerId: string
   status: string
+  wayBillNo?: string | null
+  cancellationReason?: string | null
+  cancelledAt?: string | null
+  returnDeadlineAt?: string | null
+  returnReason?: string | null
+  returnedAt?: string | null
   createdAt?: string | null
   placedAt?: string | null
   items: SellerOrderItem[]
@@ -202,9 +222,18 @@ export type SellerOrder = {
  * are the source of truth for the seller's actions.
  */
 export const sellerOrderStatus = (order: SellerOrder): string => {
+  const orderStatus = (order.status || '').toUpperCase()
+  if (['DELIVERED', 'COMPLETED', 'CANCELLED', 'RETURNED'].includes(orderStatus)) {
+    return orderStatus
+  }
+
   const rows = (order.shopBreakdown ?? []).filter((row) => row.status)
   if (rows.length > 0) {
     const statuses = rows.map((row) => (row.status || '').toUpperCase())
+    const deliveredLike = ['DELIVERED', 'COMPLETED']
+    if (statuses.every((status) => deliveredLike.includes(status))) {
+      return statuses.includes('DELIVERED') ? 'DELIVERED' : 'COMPLETED'
+    }
     const shippedLike = ['SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETED', 'FULFILLED']
     if (statuses.every((s) => shippedLike.includes(s))) {
       return 'SHIPPED'
@@ -214,7 +243,7 @@ export const sellerOrderStatus = (order: SellerOrder): string => {
     }
     return statuses[0]
   }
-  return (order.status || '').toUpperCase()
+  return orderStatus
 }
 
 /** True when this seller's shops still have unshipped portions of the order. */
@@ -248,11 +277,17 @@ export async function fetchCustomerAvatars(
 }
 
 const SHOP_ORDERS_QUERY = `
-  query ShopOrders($shopId: ID!, $userId: ID) {
-    shopOrders(shopId: $shopId, userId: $userId) {
+  query ShopOrders($shopId: ID!, $shopIds: [ID!], $userId: ID, $statusFilter: String) {
+    shopOrders(shopId: $shopId, shopIds: $shopIds, userId: $userId, statusFilter: $statusFilter) {
       orderId
       customerId
       status
+      wayBillNo
+      cancellationReason
+      cancelledAt
+      returnDeadlineAt
+      returnReason
+      returnedAt
       createdAt
       placedAt
       items {
@@ -365,13 +400,16 @@ export type OwnedShop = {
   name?: string
 }
 
+export type SellerOrderStatusFilter = 'all' | 'to-ship' | 'shipped' | 'completed' | 'cancelled' | 'returned'
+
 /**
- * Fetch all orders across every shop owned by the seller, merged and deduped.
- * Falls back to activeShopId when ownership lookup is unavailable.
+ * Fetch all orders across every shop owned by the seller in one read-service
+ * request. Falls back to activeShopId when ownership lookup is unavailable.
  */
 export async function fetchOrdersAcrossOwnedShops(
   userId?: string | null,
   activeShopId?: string | null,
+  statusFilter: SellerOrderStatusFilter = 'all',
 ): Promise<SellerOrder[]> {
   let shopIds: string[] = []
 
@@ -394,20 +432,12 @@ export async function fetchOrdersAcrossOwnedShops(
     return []
   }
 
-  const results = await Promise.all(
-    shopIds.map((shopId) => sellerOrderApi.shopOrders(shopId, userId ?? undefined).catch(() => [] as SellerOrder[])),
-  )
+  // The read-service resolver expands an authenticated seller's shop scope
+  // server-side. Send all known shop IDs once for its fallback path instead of
+  // issuing the same full seller-order query once per shop.
+  const orders = await sellerOrderApi.shopOrders(shopIds[0], userId ?? undefined, shopIds, statusFilter)
 
-  const merged = new Map<string, SellerOrder>()
-  for (const orders of results) {
-    for (const order of orders) {
-      if (!merged.has(order.orderId)) {
-        merged.set(order.orderId, order)
-      }
-    }
-  }
-
-  return [...merged.values()].sort((a, b) => {
+  return orders.sort((a, b) => {
     const aTime = new Date(a.placedAt || a.createdAt || 0).getTime()
     const bTime = new Date(b.placedAt || b.createdAt || 0).getTime()
     return bTime - aTime
@@ -422,10 +452,15 @@ export const sellerOrderApi = {
     return response.data.data ?? []
   },
 
-  async shopOrders(shopId: string, userId?: string): Promise<SellerOrder[]> {
+  async shopOrders(
+    shopId: string,
+    userId?: string,
+    shopIds?: string[],
+    statusFilter: SellerOrderStatusFilter = 'all',
+  ): Promise<SellerOrder[]> {
     const response = await ecommerceReadClient.post<ShopOrdersResponse>('', {
       query: SHOP_ORDERS_QUERY,
-      variables: { shopId, userId },
+      variables: { shopId, shopIds, userId, statusFilter },
     })
 
     if (response.data.errors?.length) {
@@ -455,6 +490,7 @@ export const sellerOrderApi = {
       courier_name?: string
       courier_phone?: string
       tracking_number?: string
+      way_bill_no: string
       tracking_url?: string
       /** Ship only this shop's portion (multi-owner order, per-shop fulfillment). */
       shop_id?: string
@@ -464,10 +500,33 @@ export const sellerOrderApi = {
     order_status?: string
     status?: string
     tracking_number?: string
+    way_bill_no: string
     tracking_url?: string
     courier: { code: string; name: string; phone: string }
   }> {
     const response = await orderClient.post(`/orders/${orderId}/create-shipment`, payload)
+    return response.data
+  },
+
+  async cancelShippedOrder(
+    orderId: string,
+    reason: string,
+  ): Promise<{
+    order_id: string
+    status: string
+    cancellation_reason: string
+    cancelled_at: string
+    return_deadline_at: string
+  }> {
+    const response = await orderClient.post(`/orders/${orderId}/cancel`, { reason })
+    return response.data
+  },
+
+  async markOrderReturned(
+    orderId: string,
+    reason: string,
+  ): Promise<{ order_id: string; status: string; return_reason: string; returned_at: string }> {
+    const response = await orderClient.post(`/orders/${orderId}/return`, { reason })
     return response.data
   },
 

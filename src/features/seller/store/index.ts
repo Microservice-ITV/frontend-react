@@ -5,6 +5,7 @@ export {
   selectSellerProducts,
   selectSellerProductsStatus,
   selectSellerProductsError,
+  selectSellerStockAlertCount,
 } from './sellerProductsSelectors'
 export { default as sellerCategoriesReducer } from './sellerCategoriesSlice'
 export { removeCategoriesLocally } from './sellerCategoriesSlice'
