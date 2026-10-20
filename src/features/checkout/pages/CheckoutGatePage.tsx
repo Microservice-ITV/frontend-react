@@ -22,6 +22,8 @@ import { useCheckoutDeliveryCompany } from '@/features/shipping/hooks/useCheckou
 import { clearShippingCalculate } from '@/features/shipping/store/shippingSlice'
 import { clearCheckout, setCurrentCheckout } from '../store/checkoutSlice'
 import { usePayDeliveryFeeNow } from '../hooks/usePayDeliveryFeeNow'
+import { useCheckoutDeliveryOptions } from '../hooks/useCheckoutDeliveryOptions'
+import { shopIdsWithoutSelectableDeliveryCompany } from '../utils/deliveryReadiness'
 
 const AuthCheckout = () => {
   const items = useAppSelector(selectSelectedItems)
@@ -110,6 +112,22 @@ const GuestCheckoutPayment = () => {
     [paymentDeliveryAddress?.district_id, profilesByShopId, shopIds],
   )
   const deliveryCompany = useCheckoutDeliveryCompany(shopIds, shopRoutes)
+  const cartShopIdsWithoutSelectableCompany = useMemo(
+    () => shopIdsWithoutSelectableDeliveryCompany({
+      shopIds,
+      companiesCountByShop: deliveryCompany.companiesCountByShop,
+      unavailableCompanyIdsByShop: deliveryCompany.unavailableCompanyIdsByShop,
+      loading: deliveryCompany.loading,
+      routesReady: deliveryCompany.routesReady,
+    }),
+    [
+      deliveryCompany.companiesCountByShop,
+      deliveryCompany.loading,
+      deliveryCompany.routesReady,
+      deliveryCompany.unavailableCompanyIdsByShop,
+      shopIds,
+    ],
+  )
   useEffect(() => {
     if (shopIds.length === 0) return
     void dispatch(fetchShopProfilesForCurrentCart())
@@ -127,6 +145,7 @@ const GuestCheckoutPayment = () => {
   const hasQuotableCompany = Object.keys(quotableCompanyByShopId).length > 0
   const prepaidProvider = useAppSelector((state) => state.checkout.prepaidProvider)
   const staffCashSelected = prepaidProvider === 'cash'
+  const showDeliveryCheckoutOptions = useCheckoutDeliveryOptions()
   const {
     payDeliveryFeeNow,
     setPayDeliveryFeeNow,
@@ -139,8 +158,8 @@ const GuestCheckoutPayment = () => {
     unavailableCompanyIdsByShop: deliveryCompany.unavailableCompanyIdsByShop,
     loading: deliveryCompany.loading,
     routesReady: deliveryCompany.routesReady,
-    forceOff: staffCashSelected,
-    forceOffReason: 'cash',
+    forceOff: staffCashSelected || !showDeliveryCheckoutOptions,
+    forceOffReason: !showDeliveryCheckoutOptions ? 'company' : 'cash',
   })
 
   const shippingCalculateCacheKey = useMemo(() => {
@@ -270,6 +289,7 @@ const GuestCheckoutPayment = () => {
                 payDeliveryFeeNow={payDeliveryFeeNow}
                 onPayDeliveryFeeNowChange={setPayDeliveryFeeNow}
                 payDeliveryFeeNowLockedOff={payDeliveryFeeNowLockedOff}
+                showDeliveryCheckoutOptions={showDeliveryCheckoutOptions}
                 deliveryCompany={{
                   companiesByShopId: deliveryCompany.companiesByShopId,
                   selectedByShopId: deliveryCompany.selectedByShopId,
@@ -293,6 +313,10 @@ const GuestCheckoutPayment = () => {
                 cartItems={items}
                 deliveryQuotePendingConfirmation={deliveryQuotePendingConfirmation}
                 deliveryCompanyIdByShopId={deliveryCompany.companyByShopId}
+                deliveryCompanySelectionReady={deliveryCompany.routesReady}
+                cartShopIdsWithoutSelectableCompany={
+                  showDeliveryCheckoutOptions ? cartShopIdsWithoutSelectableCompany : shopIds
+                }
               />
             </aside>
           </div>

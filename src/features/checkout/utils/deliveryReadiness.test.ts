@@ -6,8 +6,10 @@ import {
     deliveryUnavailableMessage,
     getDeliveryBlockReason,
     mustWaiveDeliveryFeeNow,
+    NO_DELIVERY_SERVICE_MESSAGE,
     payDeliveryFeeNowLockMessage,
     shopHasNoDeliveryRoute,
+    shopIdsWithoutSelectableDeliveryCompany,
     shopPayDeliveryLockReason,
 } from './deliveryReadiness'
 
@@ -249,37 +251,66 @@ describe('canPayDeliveryFeeNow', () => {
         expect(
             canPayDeliveryFeeNow({
                 ...base,
-                companiesCount: 2,
+                companiesCountByShop: { 'shop-1': 2 },
                 unavailableCompanyIdsByShop: { 'shop-1': ['a'] },
             }),
         ).toBe(true)
     })
 
     it('is false when there are no delivery companies', () => {
-        expect(canPayDeliveryFeeNow({ ...base, companiesCount: 0 })).toBe(false)
+        expect(canPayDeliveryFeeNow({ ...base, companiesCountByShop: { 'shop-1': 0 } })).toBe(false)
     })
 
     it('is false when companies exist but no shop has a route', () => {
         expect(
             canPayDeliveryFeeNow({
                 ...base,
-                companiesCount: 2,
+                companiesCountByShop: { 'shop-1': 2 },
                 unavailableCompanyIdsByShop: { 'shop-1': ['a', 'b'] },
             }),
         ).toBe(false)
     })
 
     it('is false while loading or routes are not ready', () => {
-        expect(canPayDeliveryFeeNow({ ...base, companiesCount: 2, loading: true })).toBe(false)
-        expect(canPayDeliveryFeeNow({ ...base, companiesCount: 2, routesReady: false })).toBe(false)
+        expect(canPayDeliveryFeeNow({ ...base, companiesCountByShop: { 'shop-1': 2 }, loading: true })).toBe(false)
+        expect(canPayDeliveryFeeNow({ ...base, companiesCountByShop: { 'shop-1': 2 }, routesReady: false })).toBe(false)
+    })
+})
+
+describe('shopIdsWithoutSelectableDeliveryCompany', () => {
+    const base = {
+        shopIds: ['shop-1', 'shop-2'],
+        companiesCountByShop: { 'shop-1': 0, 'shop-2': 2 },
+        unavailableCompanyIdsByShop: { 'shop-2': ['a', 'b'] },
+        loading: false,
+        routesReady: true,
+    }
+
+    it('includes shops with no company and shops whose companies are all unavailable', () => {
+        expect(shopIdsWithoutSelectableDeliveryCompany(base)).toEqual(['shop-1', 'shop-2'])
+    })
+
+    it('leaves out shops that still have a selectable company', () => {
+        expect(
+            shopIdsWithoutSelectableDeliveryCompany({
+                ...base,
+                unavailableCompanyIdsByShop: { 'shop-2': ['a'] },
+            }),
+        ).toEqual(['shop-1'])
+    })
+
+    it('stays empty until routes are ready', () => {
+        expect(shopIdsWithoutSelectableDeliveryCompany({ ...base, routesReady: false })).toEqual([])
+        expect(shopIdsWithoutSelectableDeliveryCompany({ ...base, loading: true })).toEqual([])
     })
 })
 
 describe('payDeliveryFeeNowLockMessage', () => {
     it('explains missing company, missing route, and staff cash', () => {
-        expect(payDeliveryFeeNowLockMessage('company')).toMatch(/company/i)
-        expect(payDeliveryFeeNowLockMessage('route')).toMatch(/route/i)
+        expect(payDeliveryFeeNowLockMessage('company')).toBe(NO_DELIVERY_SERVICE_MESSAGE)
+        expect(payDeliveryFeeNowLockMessage('route')).toBe(NO_DELIVERY_SERVICE_MESSAGE)
         expect(payDeliveryFeeNowLockMessage('cash')).toMatch(/cash/i)
+        expect(payDeliveryFeeNowLockMessage('staff')).toMatch(/separately/i)
     })
 })
 

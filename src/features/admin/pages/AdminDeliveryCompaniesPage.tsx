@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Ban, Building2, CheckCircle2, Pencil, Plus, RefreshCw } from "lucide-react";
 import DataTablePagination from "@/components/ui/DataTablePagination";
 import RowActionMenu from "@/components/ui/RowActionMenu";
+import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { useGlobalModal } from "@/components/ui/GlobalModalProvider";
 import {
   adminShippingApi,
@@ -28,6 +29,42 @@ const AdminDeliveryCompaniesPage = () => {
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [reloadKey, setReloadKey] = useState(0);
+  const [deliveryOptionsEnabled, setDeliveryOptionsEnabled] = useState(true);
+  const [savingDeliveryOptions, setSavingDeliveryOptions] = useState(false);
+  const [deliveryOptionsError, setDeliveryOptionsError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    void adminShippingApi.getShippingSettings()
+      .then((response) => {
+        if (!cancelled) {
+          setDeliveryOptionsEnabled(response.data.data.checkoutDeliveryOptionsEnabled !== false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setDeliveryOptionsError("Could not load the checkout delivery switch.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const toggleDeliveryOptions = async (nextEnabled: boolean) => {
+    setSavingDeliveryOptions(true);
+    setDeliveryOptionsError("");
+    try {
+      const response = await adminShippingApi.updateShippingSettings({
+        checkoutDeliveryOptionsEnabled: nextEnabled,
+      });
+      setDeliveryOptionsEnabled(response.data.data.checkoutDeliveryOptionsEnabled);
+    } catch (toggleError: unknown) {
+      setDeliveryOptionsError(
+        adminShippingApi.getApiErrorMessage(toggleError, "Could not update the checkout delivery switch."),
+      );
+    } finally {
+      setSavingDeliveryOptions(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -121,6 +158,24 @@ const AdminDeliveryCompaniesPage = () => {
             New company
           </Link>
         </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3">
+        <div>
+          <p className="text-sm font-semibold text-slate-900">Checkout delivery options</p>
+          <p className="mt-0.5 text-sm text-slate-600">
+            {deliveryOptionsEnabled
+              ? "Delivery method and pay delivery fee now are shown on checkout."
+              : "Those checkout sections are hidden. Customers pay the delivery fee when the order arrives."}
+          </p>
+          {deliveryOptionsError && <p className="mt-1 text-xs text-red-600">{deliveryOptionsError}</p>}
+        </div>
+        <ToggleSwitch
+          checked={deliveryOptionsEnabled}
+          disabled={savingDeliveryOptions}
+          ariaLabel="Checkout delivery options"
+          onChange={(next) => void toggleDeliveryOptions(next)}
+        />
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">

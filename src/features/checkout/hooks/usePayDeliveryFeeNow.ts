@@ -50,7 +50,7 @@ export function usePayDeliveryFeeNow({
     forceOff,
     availability.loading,
     availability.routesReady,
-    availability.companiesCount,
+    availability.companiesCountByShop,
     availability.shopIds,
     availability.unavailableCompanyIdsByShop,
     canPayNow,

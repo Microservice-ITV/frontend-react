@@ -34,6 +34,7 @@ import WishlistPage from "@/features/wishlist/pages/WishlistPage";
 import CheckoutSuccessPage from "@/features/checkout/pages/CheckoutSuccessPage";
 import CheckoutGatePage from "@/features/checkout/pages/CheckoutGatePage";
 import GuestCheckoutPage from "@/features/checkout/pages/GuestCheckoutPage.tsx";
+import StaffCheckoutDetailsPage from "@/features/checkout/pages/StaffCheckoutDetailsPage";
 import GuestCheckoutSuccessPage from "@/features/checkout/pages/GuestCheckoutSuccessPage";
 import CategoriesPage from "@/features/categories/pages/CategoriesPage";
 import AboutUsPage from "@/features/about/pages/AboutUsPage";
@@ -197,6 +198,14 @@ const AppRoutes = () => {
 
       {/* Unified checkout (guest + logged-in) */}
       <Route path="/checkout" element={<CheckoutGatePage />} />
+      <Route
+        path="/checkout/customer"
+        element={
+          <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.checkout}>
+            <StaffCheckoutDetailsPage />
+          </ProtectedRoute>
+        }
+      />
 
       <Route
         path="/account/invoices/:invoiceNumber/print"
