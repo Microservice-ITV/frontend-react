@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { adminShippingApi, type AdminDeliveryCityRateDto } from "../api/adminShippingApi";
@@ -106,6 +106,17 @@ const AdminCityRateFormPage = ({ mode }: AdminCityRateFormPageProps) => {
     return null;
   };
 
+  const districtOptions = useMemo(
+    () =>
+      districts.map((district) => ({
+        id: district.id,
+        name: district.name,
+        stateId: 0,
+        stateName: district.cityName,
+      })),
+    [districts],
+  );
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setSubmitError("");
@@ -162,13 +173,6 @@ const AdminCityRateFormPage = ({ mode }: AdminCityRateFormPageProps) => {
         </span>
       </nav>
 
-      {citiesLoading && mode === "create" && (
-        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
-          Loading districts...
-        </div>
-      )}
-
       {loading && (
         <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
           Loading route rate...
@@ -196,7 +200,7 @@ const AdminCityRateFormPage = ({ mode }: AdminCityRateFormPageProps) => {
         </div>
       )}
 
-      {!loading && !loadError && !citiesLoading && (
+      {!loading && !loadError && (
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <button
@@ -235,29 +239,21 @@ const AdminCityRateFormPage = ({ mode }: AdminCityRateFormPageProps) => {
                 id="city-rate-from"
                 label="From cities"
                 value={fromDistrictId}
-                cities={districts.map((district) => ({
-                  id: district.id,
-                  name: district.name,
-                  stateId: 0,
-                  stateName: district.cityName,
-                }))}
+                cities={districtOptions}
                 onChange={setFromDistrictId}
                 disabled={mode === "edit"}
-                placeholder="Select from cities"
+                loading={citiesLoading}
+                placeholder={citiesLoading ? "Loading districts..." : "Select from cities"}
               />
               <CitySelectField
                 id="city-rate-to"
                 label="To cities"
                 value={toDistrictId}
-                cities={districts.map((district) => ({
-                  id: district.id,
-                  name: district.name,
-                  stateId: 0,
-                  stateName: district.cityName,
-                }))}
+                cities={districtOptions}
                 onChange={setToDistrictId}
                 disabled={mode === "edit"}
-                placeholder="Select to district"
+                loading={citiesLoading}
+                placeholder={citiesLoading ? "Loading districts..." : "Select to district"}
               />
               {mode === "edit" && (
                 <p className="text-xs text-slate-400 sm:col-span-2">
