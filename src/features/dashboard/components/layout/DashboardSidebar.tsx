@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { NavLink, useLocation } from "react-router-dom";
-import brandLogo from "@/public/brand-logo.svg";
+import shopIcon from "@/public/shop-icon-square.svg";
 import { X, Zap, ChevronDown } from "lucide-react";
 import { useDashboardMenu } from "../../hooks/useDashboardMenu";
 import type { DashboardArea } from "../../types/dashboardTypes";
@@ -185,9 +185,9 @@ const DashboardSidebar = ({
         >
           <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden">
             <img
-              src={brandLogo}
-              alt="Brand Logo"
-              className="w-8 h-8 rounded-sm object-contain"
+              src={shopIcon}
+              alt="Daily Need Items"
+              className="h-8 w-8 object-contain"
             />
           </div>
           {!isCollapsed && (

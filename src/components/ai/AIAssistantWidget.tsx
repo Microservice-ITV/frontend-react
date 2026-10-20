@@ -14,7 +14,7 @@ import {
   toggleAiHistory,
 } from '@/features/ai/store/aiAssistantSlice'
 import { useAIChat } from '@/hooks/useAIChat'
-import brandLogo from '@/public/brand-logo.svg'
+import shopIcon from '@/public/shop-icon-square.svg'
 
 const PROMPTS = [
   'Find a thoughtful gift under my budget',
@@ -136,7 +136,7 @@ export const AIAssistantWidget = () => {
       <header className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--dni-cart-border)] px-3 py-2.5">
         <div className="flex min-w-0 items-center gap-2">
           <img
-            src={brandLogo}
+            src={shopIcon}
             alt=""
             className="h-8 w-8 shrink-0 rounded-sm"
           />
@@ -221,7 +221,7 @@ export const AIAssistantWidget = () => {
           {!hasConversation ? (
             <div className="flex h-full flex-col items-center justify-center px-2 text-center">
               <img
-                src={brandLogo}
+                src={shopIcon}
                 alt=""
                 className="h-9 w-9 shrink-0 rounded-sm"
               />
