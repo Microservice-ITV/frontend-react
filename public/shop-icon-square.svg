@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 444 444" width="444" height="444" role="img" aria-label="Shopping cart icon">
+  <rect width="444" height="444" fill="#059669"/>
+  <g transform="translate(0 30)">
+    <g fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round" stroke-width="17">
+      <!-- speed lines -->
+      <path d="M56 195H128"/>
+      <path d="M80 163H128"/>
+      <path d="M92 228H138"/>
+      <!-- cart handle + basket -->
+      <path d="M114 82 L146 90 Q154 92 157 101 L190 245 H338"/>
+      <path d="M172 134 H352 Q360 134 357 142 L337 245"/>
+    </g>
+    <!-- wheels -->
+    <g fill="#FFFFFF">
+      <circle cx="207" cy="286" r="31"/>
+      <circle cx="302" cy="286" r="31"/>
+    </g>
+    <g fill="#059669">
+      <circle cx="207" cy="286" r="8"/>
+      <circle cx="302" cy="286" r="8"/>
+    </g>
+  </g>
+</svg>
