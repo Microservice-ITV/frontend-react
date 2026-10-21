@@ -1,13 +1,13 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { useAppDispatch, useAppSelector } from '@/app/hooks'
+import { useAppSelector } from '@/app/hooks'
 import DataTablePagination from '@/components/ui/DataTablePagination'
 import RowActionMenu from '@/components/ui/RowActionMenu'
-import { fetchSellerOrdersByShop } from '../store'
 import CopyToClipboardButton from '../components/CopyToClipboardButton'
 import {
   canSellerShip,
   fetchCustomerAvatars,
+  fetchSellerOrderPage,
   sellerOrderStatus,
   type SellerOrderSummary,
   type SellerOrderStatusFilter,
@@ -56,17 +56,6 @@ const STATUS_LABELS: Record<string, string> = {
   FAILED_PAYMENT: 'PAYMENT FAILED',
 }
 
-const isOrderInTab = (order: SellerOrderSummary, tab: SellerOrderTab): boolean => {
-  const status = sellerOrderStatus(order)
-  if (tab === 'all') return true
-  if (tab === 'to-ship') return ['READY_FOR_FULFILLMENT', 'PARTIALLY_FULFILLED'].includes(status)
-  if (tab === 'shipped') return ['SHIPPED', 'FULFILLED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'].includes(status)
-  if (tab === 'completed') return ['DELIVERED', 'COMPLETED'].includes(status)
-  if (tab === 'cancelled') return ['CANCELLED', 'FAILED', 'FAILED_PAYMENT', 'EXPIRED'].includes(status)
-  if (tab === 'returned') return status === 'RETURNED'
-  return false
-}
-
 const formatMoney = (value: number, _currency?: string): string => {
   const amount = Number(value)
   const safe = Number.isFinite(amount) ? amount : 0
@@ -87,15 +76,17 @@ const formatDate = (value?: string | null): string => {
 type SellerOrdersPageProps = { fixedFilter?: 'cancelled' | 'returned' }
 
 const SellerOrdersPage = ({ fixedFilter }: SellerOrdersPageProps) => {
-  const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const location = useLocation()
   const authUser = useAppSelector((state) => state.auth.user)
   const activeShopId = authUser?.active_shop_id ?? null
   const authUserId = authUser?.id ?? null
-  const orders = useAppSelector((state) => state.sellerOrders.items)
-  const ordersStatus = useAppSelector((state) => state.sellerOrders.status)
-  const ordersError = useAppSelector((state) => state.sellerOrders.error)
+  const [orders, setOrders] = useState<SellerOrderSummary[]>([])
+  const [ordersStatus, setOrdersStatus] = useState('idle')
+  const [ordersError, setOrdersError] = useState<string | null>(null)
+  const [total, setTotal] = useState(0)
+  const [refreshVersion, setRefreshVersion] = useState(0)
+  const [debouncedSearch, setDebouncedSearch] = useState('')
 
   const [selectedFilter, setSelectedFilter] = useState<SellerOrderTab>('all')
   const activeFilter = fixedFilter ?? selectedFilter
@@ -105,13 +96,47 @@ const SellerOrdersPage = ({ fixedFilter }: SellerOrdersPageProps) => {
   const [avatars, setAvatars] = useState<Record<string, string | null>>({})
 
   useEffect(() => {
-    if (!activeShopId && !authUserId) return
-    dispatch(fetchSellerOrdersByShop({ userId: authUserId, activeShopId, statusFilter: activeFilter }))
-  }, [activeShopId, activeFilter, authUserId, dispatch, location.pathname])
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300)
+    return () => clearTimeout(timer)
+  }, [search])
 
   useEffect(() => {
-    setPage(1)
-  }, [activeShopId, orders.length])
+    if (!authUserId) {
+      setOrders([])
+      setTotal(0)
+      setOrdersStatus('idle')
+      return
+    }
+    const controller = new AbortController()
+    setOrdersStatus('loading')
+    setOrdersError(null)
+    void fetchSellerOrderPage({
+      userId: authUserId,
+      statusFilter: activeFilter,
+      search: debouncedSearch,
+      page,
+      limit: rowsPerPage,
+    }, controller.signal)
+      .then((result) => {
+        if (controller.signal.aborted) return
+        const lastPage = Math.max(1, Math.ceil(result.total / rowsPerPage))
+        if (page > lastPage) {
+          setPage(lastPage)
+          return
+        }
+        setOrders(result.items)
+        setTotal(result.total)
+        setOrdersStatus('succeeded')
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return
+        setOrders([])
+        setTotal(0)
+        setOrdersError(error instanceof Error ? error.message : 'Unable to load orders')
+        setOrdersStatus('failed')
+      })
+    return () => controller.abort()
+  }, [authUserId, activeShopId, activeFilter, debouncedSearch, page, rowsPerPage, location.pathname, refreshVersion])
 
   const missingShopContext = !activeShopId && !authUserId
   const isLoading = ordersStatus === 'loading'
@@ -119,23 +144,8 @@ const SellerOrdersPage = ({ fixedFilter }: SellerOrdersPageProps) => {
     ? 'No active shop context found for this account.'
     : ordersError
 
-  const filteredOrders = useMemo(() => {
-    const keyword = search.trim().toLowerCase()
-    return orders.filter((order) => {
-      const matchesFilter = isOrderInTab(order, activeFilter)
-      const matchesSearch =
-        !keyword ||
-        order.orderId.toLowerCase().includes(keyword) ||
-        order.items.some((item) => item.name.toLowerCase().includes(keyword))
-      return matchesFilter && matchesSearch
-    })
-  }, [orders, activeFilter, search])
-
-  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / rowsPerPage))
-  const paginatedOrders = useMemo(
-    () => filteredOrders.slice((page - 1) * rowsPerPage, page * rowsPerPage),
-    [filteredOrders, page, rowsPerPage],
-  )
+  const totalPages = Math.max(1, Math.ceil(total / rowsPerPage))
+  const paginatedOrders = orders
   const visibleCustomerIds = useMemo(
     () => paginatedOrders.map((order) => order.customerId),
     [paginatedOrders],
@@ -184,7 +194,7 @@ const SellerOrdersPage = ({ fixedFilter }: SellerOrdersPageProps) => {
           type="button"
           onClick={() => {
             if (activeShopId || authUserId) {
-              void dispatch(fetchSellerOrdersByShop({ userId: authUserId, activeShopId, statusFilter: activeFilter }))
+              setRefreshVersion((value) => value + 1)
             }
           }}
           disabled={isLoading || missingShopContext}
@@ -426,11 +436,11 @@ const SellerOrdersPage = ({ fixedFilter }: SellerOrdersPageProps) => {
           page={page}
           totalPages={totalPages}
           rowsPerPage={rowsPerPage}
-          totalItems={filteredOrders.length}
+          totalItems={total}
           onPageChange={setPage}
           onRowsPerPageChange={(value) => {
-            setRowsPerPage(value)
             setPage(1)
+            setRowsPerPage(value)
           }}
         />
       </div>
