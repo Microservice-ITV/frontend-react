@@ -31,10 +31,11 @@ describe('DASHBOARD_MENU warehouse purchasing items', () => {
   const labels = (sections: typeof DASHBOARD_MENU_SELLER) =>
     sections.flatMap((section) => section.items).map((item) => item.label)
 
-  it('shows purchase tracking for the seller and hides suppliers/goods receipts', () => {
+  it('shows purchase tracking, confirm/pickup, and goods receipts for the seller', () => {
     const sellerLabels = labels(DASHBOARD_MENU_SELLER)
 
-    expect(sellerLabels).not.toContain('Goods Receipts')
+    expect(sellerLabels).toContain('Goods Receipts')
+    expect(sellerLabels).toContain('Confirm and Pickup')
     expect(sellerLabels).toContain('Purchase Order Tracking')
     expect(sellerLabels).not.toContain('Suppliers')
     expect(sellerLabels).toContain('Purchase Orders')

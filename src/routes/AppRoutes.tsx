@@ -408,6 +408,14 @@ const AppRoutes = () => {
               }
             />
             <Route
+              path="warehouse/parcels"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.purchase}>
+                  <DeliveryParcelsPage base="/seller" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="warehouse/receipts"
               element={
                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.purchase}>
