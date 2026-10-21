@@ -418,9 +418,7 @@ const SHOP_ORDERS_QUERY = `
  * ecommerce-read skip the heavy order fields at the storage layer, so the
  * orders page never downloads detail documents.
  */
-const SHOP_ORDER_SUMMARIES_QUERY = `
-  query ShopOrderSummaries($shopId: ID!, $shopIds: [ID!], $userId: ID, $statusFilter: String) {
-    shopOrders(shopId: $shopId, shopIds: $shopIds, userId: $userId, statusFilter: $statusFilter, summary: true) {
+const SELLER_ORDER_SUMMARY_FIELDS = `
       orderId
       customerId
       status
@@ -449,6 +447,12 @@ const SHOP_ORDER_SUMMARIES_QUERY = `
         recipientName
         city
       }
+`
+
+const SHOP_ORDER_SUMMARIES_QUERY = `
+  query ShopOrderSummaries($shopId: ID!, $shopIds: [ID!], $userId: ID, $statusFilter: String) {
+    shopOrders(shopId: $shopId, shopIds: $shopIds, userId: $userId, statusFilter: $statusFilter, summary: true) {
+${SELLER_ORDER_SUMMARY_FIELDS}
     }
   }
 `
@@ -478,6 +482,8 @@ const resolveSellerShopIds = async (
   userId?: string | null,
   activeShopId?: string | null,
 ): Promise<string[]> => {
+  // The read service verifies and expands ownership; an active shop avoids a redundant request.
+  if (activeShopId) return [activeShopId]
   let shopIds: string[] = []
 
   if (userId) {
@@ -540,6 +546,40 @@ export async function fetchSellerOrderByIdAcrossOwnedShops(
     orderId,
   )
   return orders.find((order) => order.orderId === orderId) ?? null
+}
+
+export type SellerOrderPage = {
+  items: SellerOrderSummary[]
+  total: number
+  page: number
+  limit: number
+}
+
+const SELLER_ORDER_PAGE_QUERY = `
+  query SellerOrderPage($userId: ID, $statusFilter: String, $search: String, $page: Int, $limit: Int) {
+    sellerOrderPage(userId: $userId, statusFilter: $statusFilter, search: $search, page: $page, limit: $limit) {
+      total
+      page
+      limit
+      items {
+${SELLER_ORDER_SUMMARY_FIELDS}
+      }
+    }
+  }
+`
+
+export async function fetchSellerOrderPage(
+  params: { userId?: string; statusFilter: SellerOrderStatusFilter; search: string; page: number; limit: number },
+  signal?: AbortSignal,
+): Promise<SellerOrderPage> {
+  const response = await ecommerceReadClient.post<{
+    data?: { sellerOrderPage: SellerOrderPage }; errors?: GraphQLError[]
+  }>('', { query: SELLER_ORDER_PAGE_QUERY, variables: params }, { signal })
+  if (response.data.errors?.length) {
+    throw new Error(response.data.errors[0]?.message ?? 'Unable to load orders')
+  }
+  if (!response.data.data?.sellerOrderPage) throw new Error('Missing seller order page')
+  return response.data.data.sellerOrderPage
 }
 
 export const sellerOrderApi = {

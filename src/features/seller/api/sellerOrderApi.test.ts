@@ -201,3 +201,42 @@ describe('seller COD due payments', () => {
     expect(sellerPaymentAmountDue(makePayment({ seller: null }))).toBe(100)
   })
 })
+
+describe('seller active shop scope', () => {
+  it('skips the frontend ownership lookup when the active shop is available', async () => {
+    const lookup = vi.spyOn(sellerOrderApi, 'listShopsByUser')
+    const summaries = vi.spyOn(sellerOrderApi, 'shopOrderSummaries').mockResolvedValue([])
+    await fetchSellerOrderSummariesAcrossOwnedShops('seller-1', 'active-shop')
+    expect(lookup).not.toHaveBeenCalled()
+    expect(summaries).toHaveBeenCalledWith('active-shop', 'seller-1', ['active-shop'], 'all')
+  })
+})
+
+describe('seller order page transport', () => {
+  it('sends server pagination/search and forwards the cancellation signal', async () => {
+    const { ecommerceReadClient } = await import('@/lib/api/ecommerceReadClient')
+    const { fetchSellerOrderPage } = await import('./sellerOrderApi')
+    const page = { items: [makeOrderSummary()], total: 25, page: 2, limit: 10 }
+    const post = vi.spyOn(ecommerceReadClient, 'post').mockResolvedValue({ data: { data: { sellerOrderPage: page } } })
+    const signal = new AbortController().signal
+    const params = { userId: 'seller-1', page: 2, limit: 10, search: 'shoe', statusFilter: 'all' as const }
+    await expect(fetchSellerOrderPage(params, signal)).resolves.toEqual(page)
+    expect(post).toHaveBeenCalledWith('', {
+      query: expect.stringContaining('sellerOrderPage'), variables: params,
+    }, { signal })
+    const body = post.mock.calls[0][1] as { query: string }
+    expect(body.query).toContain('recipientName')
+    expect(body.query).not.toContain('fulfillment')
+  })
+
+  it('rejects GraphQL errors and missing page data', async () => {
+    const { ecommerceReadClient } = await import('@/lib/api/ecommerceReadClient')
+    const { fetchSellerOrderPage } = await import('./sellerOrderApi')
+    const post = vi.spyOn(ecommerceReadClient, 'post')
+    const params = { page: 1, limit: 10, search: '', statusFilter: 'all' as const }
+    post.mockResolvedValueOnce({ data: { errors: [{ message: 'Ownership unavailable' }] } })
+    await expect(fetchSellerOrderPage(params)).rejects.toThrow('Ownership unavailable')
+    post.mockResolvedValueOnce({ data: { data: {} } })
+    await expect(fetchSellerOrderPage(params)).rejects.toThrow('Missing seller order page')
+  })
+})
