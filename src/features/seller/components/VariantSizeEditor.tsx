@@ -593,11 +593,6 @@ const VariantSizeEditor = ({
                       );
                     })
                   )}
-                  {selectedColorIds.size > 0 && (
-                    <span className="pl-1 text-[11px] font-medium text-slate-500">
-                      {selectedColorIds.size} ticked
-                    </span>
-                  )}
                 </div>
 
                 {showPrimarySelect && (
