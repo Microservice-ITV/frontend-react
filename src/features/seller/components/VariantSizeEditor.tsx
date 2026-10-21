@@ -25,6 +25,7 @@ import {
   type Option,
   type ProductFormValues,
 } from "@/features/seller/components/ProductForm";
+import { isLightSwatch, swatchColor } from "@/utils/colorSwatch";
 
 type VariantRow = ProductFormValues["variants"][number];
 
@@ -57,65 +58,6 @@ type VariantSizeEditorProps = {
   initialValuesKey: string;
 };
 
-const SWATCH_BY_NAME: Record<string, string> = {
-  navy: "#1e3a8a",
-  offwhite: "#f4f1ea",
-  cream: "#fffdd0",
-  ivory: "#fffff0",
-  beige: "#f5f5dc",
-  burgundy: "#800020",
-  maroon: "#800000",
-  teal: "#0f766e",
-  olive: "#808000",
-  gold: "#d4af37",
-  silver: "#c0c0c0",
-  grey: "#9ca3af",
-  gray: "#9ca3af",
-  white: "#ffffff",
-  black: "#111827",
-  red: "#dc2626",
-  blue: "#2563eb",
-  green: "#16a34a",
-  yellow: "#eab308",
-  orange: "#ea580c",
-  pink: "#ec4899",
-  purple: "#9333ea",
-  brown: "#92400e",
-  khaki: "#c3b091",
-  violet: "#7c3aed",
-  magenta: "#c026d3",
-  cyan: "#06b6d4",
-  indigo: "#4f46e5",
-  lime: "#65a30d",
-  tan: "#d2b48c",
-  charcoal: "#36454f",
-  rose: "#e11d48",
-  skyblue: "#38bdf8",
-  lightblue: "#7dd3fc",
-  darkblue: "#1e3a8a",
-  lightgreen: "#86efac",
-  darkgreen: "#166534",
-  lightgrey: "#e5e7eb",
-  lightgray: "#e5e7eb",
-  darkgrey: "#4b5563",
-  darkgray: "#4b5563",
-};
-
-const SWATCH_BY_CODE: Record<string, string> = {
-  blk: "#111827",
-  wht: "#ffffff",
-  red: "#dc2626",
-  nvy: "#1e3a8a",
-  blu: "#2563eb",
-  grn: "#16a34a",
-  ylw: "#eab308",
-  org: "#ea580c",
-  pnk: "#ec4899",
-  pur: "#9333ea",
-  brn: "#92400e",
-  gry: "#9ca3af",
-};
-
 const FIELD_ERROR_KEYS = [
   "colorId",
   "sizeId",
@@ -132,48 +74,6 @@ const FIELD_ERROR_KEYS = [
 const newSlotId = () =>
   globalThis.crypto?.randomUUID?.() ??
   `slot-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-const colorKey = (value: string) => value.trim().toLowerCase().replace(/[\s_-]+/g, "");
-
-const swatchColor = (name: string, code?: string) => {
-  const trimmedCode = code?.trim() ?? "";
-  if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(trimmedCode)) return trimmedCode;
-  const codeAlias = SWATCH_BY_CODE[colorKey(trimmedCode)];
-  if (codeAlias) return codeAlias;
-  const nameAlias = SWATCH_BY_NAME[colorKey(name)];
-  if (nameAlias) return nameAlias;
-  const key = colorKey(name);
-  if (!key) return "#d1d5db";
-  let hash = 0;
-  for (let i = 0; i < key.length; i += 1) {
-    hash = key.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return `hsl(${Math.abs(hash) % 360} 46% 46%)`;
-};
-
-const isLightSwatch = (color: string) => {
-  const value = color.toLowerCase();
-  if (
-    value === "#ffffff" ||
-    value === "#fff" ||
-    value === "#f4f1ea" ||
-    value === "#fffdd0" ||
-    value === "#fffff0" ||
-    value === "#f5f5dc" ||
-    value === "#e5e7eb" ||
-    value === "#eab308" ||
-    value === "#c0c0c0"
-  ) {
-    return true;
-  }
-  const hex = value.match(/^#([0-9a-f]{6})$/);
-  if (!hex) return false;
-  const n = Number.parseInt(hex[1], 16);
-  const r = (n >> 16) & 255;
-  const g = (n >> 8) & 255;
-  const b = n & 255;
-  return (r * 299 + g * 587 + b * 114) / 1000 > 180;
-};
 
 const pendingFromVariants = (variants: { sizeId?: string }[]): PendingSlot[] => {
   const hasSized = variants.some((row) => row.sizeId?.trim());

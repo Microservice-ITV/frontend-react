@@ -224,6 +224,27 @@ const splitDefaultOptions = (options: Option[]) => {
   return { selectable, defaultIds };
 };
 
+const catalogKey = (value?: string | null) =>
+  (value ?? "").trim().toLowerCase().replace(/[\s_-]+/g, "");
+
+/** Drop size rows that collide with a color name/code (e.g. Glacier created under Sizes). */
+const sizesWithoutColorCollisions = (sizes: Option[], colors: Option[]) => {
+  const colorKeys = new Set<string>();
+  for (const color of colors) {
+    const nameKey = catalogKey(color.name);
+    const codeKey = catalogKey(color.code);
+    if (nameKey) colorKeys.add(nameKey);
+    if (codeKey) colorKeys.add(codeKey);
+  }
+  return sizes.filter((size) => {
+    const nameKey = catalogKey(size.name);
+    const codeKey = catalogKey(size.code);
+    if (nameKey && colorKeys.has(nameKey)) return false;
+    if (codeKey && colorKeys.has(codeKey)) return false;
+    return true;
+  });
+};
+
 export const defaultVariantRow = (): ProductFormValues["variants"][number] => ({
   serverVariantId: undefined,
   colorId: "",
@@ -796,7 +817,10 @@ const ProductForm = ({
             variants={variantsWatched ?? []}
             primaryVariantIndex={primaryVariantIndex ?? 0}
             colors={colorCatalog.selectable}
-            sizes={sizeCatalog.selectable}
+            sizes={sizesWithoutColorCollisions(
+              sizeCatalog.selectable,
+              colorCatalog.selectable,
+            )}
             initialValuesKey={initialValuesKey}
           />
         </div>
