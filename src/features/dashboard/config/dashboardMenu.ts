@@ -148,8 +148,6 @@ const warehouseSection = (
     if (entry.key === "warehouse-seller-requests") return area === "warehouse_manager"
     if (entry.key === "warehouse-supplier-receive") return false
     if (entry.key === "warehouse-suppliers" && area === "warehouse_manager") return false
-    // Warehouse manager posts GRNs after delivery agent drop-off; sellers track only.
-    if (entry.key === "warehouse-receipts" && area === "seller") return false
     if (entry.key === "warehouse-purchase-tracking" && area !== "seller") return false
     if (area === "seller") return !ADMIN_ONLY_WAREHOUSE_KEYS.has(entry.key)
     if (area === "super_admin") return !ADMIN_HIDDEN_WAREHOUSE_KEYS.has(entry.key)
@@ -171,19 +169,37 @@ const warehouseSection = (
 
 const sellerWarehouseSection = (): DashboardMenuSection => {
   const section = warehouseSection("/seller", "seller", CAPABILITIES.SELLER_DASHBOARD_VIEW)
+  const receiptsIndex = section.items.findIndex((item) =>
+    item.key.endsWith("warehouse-receipts"),
+  )
+  const confirmPickupItem = {
+    key: "seller-delivery-parcels",
+    label: "Confirm and Pickup",
+    to: "/seller/warehouse/parcels",
+    area: "seller" as const,
+    requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+    icon: Truck,
+  }
+  const damageReportsItem = {
+    key: "seller-damage-reports",
+    label: "Damage Reports",
+    to: "/seller/warehouse/damage-reports",
+    area: "seller" as const,
+    requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+    icon: AlertTriangle,
+  }
+  const items =
+    receiptsIndex >= 0
+      ? [
+          ...section.items.slice(0, receiptsIndex),
+          confirmPickupItem,
+          ...section.items.slice(receiptsIndex),
+          damageReportsItem,
+        ]
+      : [...section.items, confirmPickupItem, damageReportsItem]
   return {
     ...section,
-    items: [
-      ...section.items,
-      {
-        key: "seller-damage-reports",
-        label: "Damage Reports",
-        to: "/seller/warehouse/damage-reports",
-        area: "seller",
-        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
-        icon: AlertTriangle,
-      },
-    ],
+    items,
   }
 }
 

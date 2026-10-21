@@ -22,8 +22,8 @@ export function mapProductFormToVariantsPayload(
   values: ProductFormValues,
 ): SellerProductVariantPayload[] {
   return values.variants.map((v, i) => {
-    const basePrice = Number(v.basePrice)
     const listPrice = Number(v.listPrice)
+    const basePrice = v.basePrice.trim() ? Number(v.basePrice) : listPrice
 
     return {
       ...(v.serverVariantId ? { id: v.serverVariantId } : {}),

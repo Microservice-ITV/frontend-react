@@ -289,7 +289,9 @@ const PurchaseReceiptsPage = ({ base }: PurchaseReceiptsPageProps) => {
           <p className="text-sm text-slate-500">
             {warehouseManagerMode
               ? 'Receive parcels the delivery agent sent to your warehouse. Confirming a GRN stores products and notifies the seller on Purchase Order Tracking.'
-              : 'Receive ordered goods — confirming a GRN updates inventory.'}
+              : base === '/seller'
+                ? 'Confirm goods receipts for parcels after confirm and pickup. Posting a GRN updates inventory and purchase order tracking.'
+                : 'Receive ordered goods — confirming a GRN updates inventory.'}
           </p>
         </div>
         <div className="relative inline-flex shrink-0 self-start">
@@ -384,17 +386,19 @@ const PurchaseReceiptsPage = ({ base }: PurchaseReceiptsPageProps) => {
               <p className="mt-1 text-xs text-slate-500">
                 {warehouseManagerMode
                   ? 'No delivery-agent parcels are waiting for a goods receipt.'
-                  : 'No ordered purchase orders are ready to receive.'}
+                  : base === '/seller'
+                    ? 'No parcels are waiting for a goods receipt. Complete Confirm and Pickup first.'
+                    : 'No ordered purchase orders are ready to receive.'}
               </p>
             )}
           </div>
 
           {loadingItems && <p className="text-sm text-slate-500">Loading items…</p>}
 
-          {warehouseManagerMode && deliveryHandoff && (
+          {(warehouseManagerMode || base === '/seller') && deliveryHandoff && (
             <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 px-3 py-2.5">
               <p className="text-xs font-semibold text-emerald-900">
-                Delivery agent confirmation
+                {base === '/seller' ? 'Confirm and Pickup details' : 'Delivery agent confirmation'}
               </p>
               {deliveryHandoff.notes && (
                 <p className="mt-1 text-xs text-emerald-800">{deliveryHandoff.notes}</p>

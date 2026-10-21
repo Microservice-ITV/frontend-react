@@ -66,6 +66,21 @@ export const useDashboardMenu = (area: DashboardArea): DashboardMenuSection[] =>
                   (order.status === 'IN_TRANSIT' || order.status === 'ORDERED'),
               ).length,
             )
+            setParcelCount(
+              waiting.filter(
+                (order) =>
+                  order.orderKind === 'SUPPLIER' &&
+                  (order.status === 'ARRIVED' || order.status === 'DELIVERY_PICKED_UP'),
+              ).length,
+            )
+            setReceiptCount(
+              waiting.filter(
+                (order) =>
+                  order.orderKind === 'SUPPLIER' &&
+                  (order.status === 'AWAITING_WAREHOUSE_RECEIPT' ||
+                    order.status === 'AWAITING_SELLER_RECEIPT'),
+              ).length,
+            )
             setWarehouseOrderActionCount(
               waiting.filter(
                 (order) =>
@@ -78,11 +93,11 @@ export const useDashboardMenu = (area: DashboardArea): DashboardMenuSection[] =>
                     order.status === 'RESTOCK_APPROVED'),
               ).length,
             )
-            setReceiptCount(0)
           })
           .catch(() => {
             if (!cancelled) {
               setTrackingCount(0)
+              setParcelCount(0)
               setWarehouseOrderActionCount(0)
               setReceiptCount(0)
             }
@@ -233,7 +248,7 @@ export const useDashboardMenu = (area: DashboardArea): DashboardMenuSection[] =>
               if (item.key.endsWith('warehouse-purchase-tracking')) {
                 return { ...item, badge: trackingCount > 0 ? trackingCount : undefined }
               }
-              if (item.key === 'delivery-parcels') {
+              if (item.key === 'delivery-parcels' || item.key === 'seller-delivery-parcels') {
                 return { ...item, badge: parcelCount > 0 ? parcelCount : undefined }
               }
               if (item.key === 'seller-damage-reports') {

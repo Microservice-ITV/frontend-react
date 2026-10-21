@@ -23,6 +23,7 @@ const WAREHOUSE_PAGE_TITLES: PageTitleRule[] = [
   { path: '/warehouse/seller-requests', title: 'Request from seller' },
   { path: '/warehouse/purchase-order-tracking', title: 'Purchase Order Tracking' },
   { path: '/warehouse/damage-reports', title: 'Damage Reports' },
+  { path: '/warehouse/parcels', title: 'Confirm and Pickup' },
   { path: '/warehouse/supplier-receipts', title: 'Receive from Supplier' },
   { path: '/warehouse/receipts', title: 'Goods Receipts' },
   { path: '/warehouse/returns', title: 'Purchase Returns' },
