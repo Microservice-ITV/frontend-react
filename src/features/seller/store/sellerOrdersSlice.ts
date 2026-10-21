@@ -1,9 +1,9 @@
 import { createSlice } from '@reduxjs/toolkit'
-import type { SellerOrder } from '../api/sellerOrderApi'
+import type { SellerOrderSummary } from '../api/sellerOrderApi'
 import { fetchSellerOrdersByShop } from './sellerOrdersThunks'
 
 interface SellerOrdersState {
-  items: SellerOrder[]
+  items: SellerOrderSummary[]
   status: 'idle' | 'loading' | 'succeeded' | 'failed'
   error: string | null
   activeShopId: string | null
