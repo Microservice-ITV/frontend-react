@@ -212,6 +212,27 @@ export type SellerOrder = {
   } | null
 }
 
+/** Lightweight fields used by the seller order table and dashboard summary. */
+export type SellerOrderSummary = {
+  orderId: string
+  customerId: string
+  status: string
+  wayBillNo?: string | null
+  createdAt?: string | null
+  placedAt?: string | null
+  items: Array<Pick<SellerOrderItem, 'productId' | 'name' | 'shopId'>>
+  totals: Pick<SellerOrderTotals, 'total' | 'currency'>
+  shopBreakdown?: Array<Pick<SellerShopBreakdown, 'shopId' | 'status'>>
+  sellerTotals?: Pick<SellerOrderTotals, 'total' | 'currency'> | null
+  scopedToSeller?: boolean
+  deliveryAddress?: Pick<NonNullable<SellerOrder['deliveryAddress']>, 'recipientName' | 'city'> | null
+}
+
+type SellerOrderStatusInfo = {
+  status: string
+  shopBreakdown?: Array<{ status?: string | null }>
+}
+
 /**
  * Seller-visible fulfillment status for an order: derived from the seller's
  * own shops' shop_order statuses when the read model provides them, falling
@@ -221,7 +242,7 @@ export type SellerOrder = {
  * CONFIRMED) while this seller's shop is ready to ship — the per-shop rows
  * are the source of truth for the seller's actions.
  */
-export const sellerOrderStatus = (order: SellerOrder): string => {
+export const sellerOrderStatus = (order: SellerOrderStatusInfo): string => {
   const orderStatus = (order.status || '').toUpperCase()
   if (['DELIVERED', 'COMPLETED', 'CANCELLED', 'RETURNED'].includes(orderStatus)) {
     return orderStatus
@@ -247,7 +268,7 @@ export const sellerOrderStatus = (order: SellerOrder): string => {
 }
 
 /** True when this seller's shops still have unshipped portions of the order. */
-export const canSellerShip = (order: SellerOrder): boolean => {
+export const canSellerShip = (order: SellerOrderStatusInfo): boolean => {
   const rows = order.shopBreakdown ?? []
   if (rows.length > 0) {
     return rows.some((row) => (row.status || '').toUpperCase() === 'READY_FOR_FULFILLMENT')
@@ -276,9 +297,14 @@ export async function fetchCustomerAvatars(
   return avatars
 }
 
+/**
+ * Detail projection for one seller order: everything the order detail page
+ * renders (payment, fulfillment/deliveries, promotions, full address).
+ * Narrowed server-side by the `orderId` argument — never used for lists.
+ */
 const SHOP_ORDERS_QUERY = `
-  query ShopOrders($shopId: ID!, $shopIds: [ID!], $userId: ID, $statusFilter: String) {
-    shopOrders(shopId: $shopId, shopIds: $shopIds, userId: $userId, statusFilter: $statusFilter) {
+  query ShopOrders($shopId: ID!, $shopIds: [ID!], $userId: ID, $statusFilter: String, $orderId: ID) {
+    shopOrders(shopId: $shopId, shopIds: $shopIds, userId: $userId, statusFilter: $statusFilter, orderId: $orderId) {
       orderId
       customerId
       status
@@ -386,10 +412,56 @@ const SHOP_ORDERS_QUERY = `
   }
 `
 
+/**
+ * List projection for the seller order table and dashboard: order id, waybill,
+ * customer, items, status, total and date only. `summary: true` also makes
+ * ecommerce-read skip the heavy order fields at the storage layer, so the
+ * orders page never downloads detail documents.
+ */
+const SHOP_ORDER_SUMMARIES_QUERY = `
+  query ShopOrderSummaries($shopId: ID!, $shopIds: [ID!], $userId: ID, $statusFilter: String) {
+    shopOrders(shopId: $shopId, shopIds: $shopIds, userId: $userId, statusFilter: $statusFilter, summary: true) {
+      orderId
+      customerId
+      status
+      wayBillNo
+      createdAt
+      placedAt
+      items {
+        productId
+        name
+        shopId
+      }
+      totals {
+        total
+        currency
+      }
+      scopedToSeller
+      sellerTotals {
+        total
+        currency
+      }
+      shopBreakdown {
+        shopId
+        status
+      }
+      deliveryAddress {
+        recipientName
+        city
+      }
+    }
+  }
+`
+
 type GraphQLError = { message?: string }
 
 interface ShopOrdersResponse {
   data?: { shopOrders?: SellerOrder[] }
+  errors?: GraphQLError[]
+}
+
+interface ShopOrderSummariesResponse {
+  data?: { shopOrders?: SellerOrderSummary[] }
   errors?: GraphQLError[]
 }
 
@@ -402,15 +474,10 @@ export type OwnedShop = {
 
 export type SellerOrderStatusFilter = 'all' | 'to-ship' | 'shipped' | 'completed' | 'cancelled' | 'returned'
 
-/**
- * Fetch all orders across every shop owned by the seller in one read-service
- * request. Falls back to activeShopId when ownership lookup is unavailable.
- */
-export async function fetchOrdersAcrossOwnedShops(
+const resolveSellerShopIds = async (
   userId?: string | null,
   activeShopId?: string | null,
-  statusFilter: SellerOrderStatusFilter = 'all',
-): Promise<SellerOrder[]> {
+): Promise<string[]> => {
   let shopIds: string[] = []
 
   if (userId) {
@@ -428,20 +495,51 @@ export async function fetchOrdersAcrossOwnedShops(
     shopIds = [activeShopId]
   }
 
-  if (shopIds.length === 0) {
-    return []
-  }
+  return shopIds
+}
+
+/** Fetch compact summary fields for the seller order table and dashboard. */
+export async function fetchSellerOrderSummariesAcrossOwnedShops(
+  userId?: string | null,
+  activeShopId?: string | null,
+  statusFilter: SellerOrderStatusFilter = 'all',
+): Promise<SellerOrderSummary[]> {
+  const shopIds = await resolveSellerShopIds(userId, activeShopId)
+  if (shopIds.length === 0) return []
 
   // The read-service resolver expands an authenticated seller's shop scope
-  // server-side. Send all known shop IDs once for its fallback path instead of
-  // issuing the same full seller-order query once per shop.
-  const orders = await sellerOrderApi.shopOrders(shopIds[0], userId ?? undefined, shopIds, statusFilter)
+  // server-side. Request only the list projection, not order detail fields.
+  const orders = await sellerOrderApi.shopOrderSummaries(
+    shopIds[0],
+    userId ?? undefined,
+    shopIds,
+    statusFilter,
+  )
 
   return orders.sort((a, b) => {
     const aTime = new Date(a.placedAt || a.createdAt || 0).getTime()
     const bTime = new Date(b.placedAt || b.createdAt || 0).getTime()
     return bTime - aTime
   })
+}
+
+/** Fetch one full seller-scoped order instead of downloading the seller's history. */
+export async function fetchSellerOrderByIdAcrossOwnedShops(
+  orderId: string,
+  userId?: string | null,
+  activeShopId?: string | null,
+): Promise<SellerOrder | null> {
+  const shopIds = await resolveSellerShopIds(userId, activeShopId)
+  if (shopIds.length === 0) return null
+
+  const orders = await sellerOrderApi.shopOrders(
+    shopIds[0],
+    userId ?? undefined,
+    shopIds,
+    'all',
+    orderId,
+  )
+  return orders.find((order) => order.orderId === orderId) ?? null
 }
 
 export const sellerOrderApi = {
@@ -452,19 +550,46 @@ export const sellerOrderApi = {
     return response.data.data ?? []
   },
 
+  /**
+   * Full detail projection of the seller's orders. Pass `orderId` to fetch a
+   * single order (detail page); list views should use `shopOrderSummaries`.
+   */
   async shopOrders(
     shopId: string,
     userId?: string,
     shopIds?: string[],
     statusFilter: SellerOrderStatusFilter = 'all',
+    orderId?: string,
   ): Promise<SellerOrder[]> {
     const response = await ecommerceReadClient.post<ShopOrdersResponse>('', {
       query: SHOP_ORDERS_QUERY,
-      variables: { shopId, shopIds, userId, statusFilter },
+      variables: { shopId, shopIds, userId, statusFilter, orderId },
     })
 
     if (response.data.errors?.length) {
       throw new Error(response.data.errors[0]?.message ?? 'Failed to fetch shop orders')
+    }
+
+    return response.data.data?.shopOrders ?? []
+  },
+
+  /**
+   * Compact list projection (order id, waybill, customer, items, status,
+   * total, date) for the seller order table and dashboard summary.
+   */
+  async shopOrderSummaries(
+    shopId: string,
+    userId?: string,
+    shopIds?: string[],
+    statusFilter: SellerOrderStatusFilter = 'all',
+  ): Promise<SellerOrderSummary[]> {
+    const response = await ecommerceReadClient.post<ShopOrderSummariesResponse>('', {
+      query: SHOP_ORDER_SUMMARIES_QUERY,
+      variables: { shopId, shopIds, userId, statusFilter },
+    })
+
+    if (response.data.errors?.length) {
+      throw new Error(response.data.errors[0]?.message ?? 'Failed to fetch seller order summaries')
     }
 
     return response.data.data?.shopOrders ?? []

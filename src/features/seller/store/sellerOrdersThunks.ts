@@ -1,20 +1,22 @@
 import { createAsyncThunk } from '@reduxjs/toolkit'
 import {
-  fetchOrdersAcrossOwnedShops,
-  type SellerOrder,
+  fetchSellerOrderSummariesAcrossOwnedShops,
+  type SellerOrderSummary,
   type SellerOrderStatusFilter,
 } from '../api/sellerOrderApi'
 
 /**
- * Fetch orders across every shop owned by the seller, optionally filtered by fulfillment status.
+ * Fetch the seller's orders as compact summaries (order id, waybill, customer,
+ * items, status, total, date) for the list page and dashboard widgets.
  *
- * Resolves the caller's owned shops via product-service, then merges the
- * `shopOrders` projections per shop (dedup by orderId). Falls back to the
- * provided activeShopId when ownership lookup fails so the dashboard still
- * renders for single-shop sellers.
+ * Resolves the caller's owned shops via product-service, then requests the
+ * list projection once for every shop scope (the read-service resolver scopes
+ * server-side). Falls back to the provided activeShopId when ownership lookup
+ * fails so the dashboard still renders for single-shop sellers. Full order
+ * detail is fetched separately, per order, on the detail page.
  */
 export const fetchSellerOrdersByShop = createAsyncThunk<
-  SellerOrder[],
+  SellerOrderSummary[],
   { userId?: string | null; activeShopId?: string | null; statusFilter?: SellerOrderStatusFilter },
   { rejectValue: string }
 >(
@@ -25,7 +27,7 @@ export const fetchSellerOrdersByShop = createAsyncThunk<
     }
 
     try {
-      return await fetchOrdersAcrossOwnedShops(userId, activeShopId, statusFilter)
+      return await fetchSellerOrderSummariesAcrossOwnedShops(userId, activeShopId, statusFilter)
     } catch (error: any) {
       const message =
         error?.response?.data?.message ||

@@ -9,7 +9,7 @@ import {
   canSellerShip,
   fetchCustomerAvatars,
   sellerOrderStatus,
-  type SellerOrder,
+  type SellerOrderSummary,
   type SellerOrderStatusFilter,
 } from '../api/sellerOrderApi'
 import CustomerAvatar from '../components/CustomerAvatar'
@@ -56,7 +56,7 @@ const STATUS_LABELS: Record<string, string> = {
   FAILED_PAYMENT: 'PAYMENT FAILED',
 }
 
-const isOrderInTab = (order: SellerOrder, tab: SellerOrderTab): boolean => {
+const isOrderInTab = (order: SellerOrderSummary, tab: SellerOrderTab): boolean => {
   const status = sellerOrderStatus(order)
   if (tab === 'all') return true
   if (tab === 'to-ship') return ['READY_FOR_FULFILLMENT', 'PARTIALLY_FULFILLED'].includes(status)

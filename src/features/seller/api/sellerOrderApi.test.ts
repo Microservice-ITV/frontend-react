@@ -1,12 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   canSellerShip,
-  fetchOrdersAcrossOwnedShops,
+  fetchSellerOrderByIdAcrossOwnedShops,
+  fetchSellerOrderSummariesAcrossOwnedShops,
   isDeliveredPendingCodPayment,
   sellerOrderApi,
   sellerPaymentAmountDue,
   sellerOrderStatus,
   type SellerOrder,
+  type SellerOrderSummary,
   type PaymentRecord,
 } from './sellerOrderApi'
 
@@ -28,6 +30,15 @@ const makeOrder = (overrides: Partial<SellerOrder> = {}): SellerOrder => ({
     transactionId: '',
     failedReason: '',
   },
+  ...overrides,
+})
+
+const makeOrderSummary = (overrides: Partial<SellerOrderSummary> = {}): SellerOrderSummary => ({
+  orderId: 'order-1',
+  customerId: 'customer-1',
+  status: 'CONFIRMED',
+  items: [{ productId: 'product-1', name: 'Product', shopId: 'shop-1' }],
+  totals: { total: 100, currency: 'MMK' },
   ...overrides,
 })
 
@@ -101,29 +112,58 @@ describe('seller order fulfillment status', () => {
   })
 })
 
-describe('fetchOrdersAcrossOwnedShops', () => {
-  it('uses one ecommerce-read request for all shops owned by the seller', async () => {
-    const orders = [makeOrder()]
+describe('fetchSellerOrderSummariesAcrossOwnedShops', () => {
+  it('requests the compact list projection once for all shops owned by the seller', async () => {
+    const summaries = [makeOrderSummary()]
     vi.spyOn(sellerOrderApi, 'listShopsByUser').mockResolvedValue([
       { id: 'shop-1' },
       { id: 'shop-2' },
       { id: 'shop-3' },
     ])
-    const shopOrders = vi.spyOn(sellerOrderApi, 'shopOrders').mockResolvedValue(orders)
+    const shopOrderSummaries = vi.spyOn(sellerOrderApi, 'shopOrderSummaries').mockResolvedValue(summaries)
 
-    await expect(fetchOrdersAcrossOwnedShops('seller-1')).resolves.toEqual(orders)
+    await expect(fetchSellerOrderSummariesAcrossOwnedShops('seller-1')).resolves.toEqual(summaries)
 
-    expect(shopOrders).toHaveBeenCalledTimes(1)
-    expect(shopOrders).toHaveBeenCalledWith('shop-1', 'seller-1', ['shop-1', 'shop-2', 'shop-3'], 'all')
+    expect(shopOrderSummaries).toHaveBeenCalledTimes(1)
+    expect(shopOrderSummaries).toHaveBeenCalledWith('shop-1', 'seller-1', ['shop-1', 'shop-2', 'shop-3'], 'all')
   })
 
-  it('passes the selected seller status filter to ecommerce-read', async () => {
+  it('passes the selected seller status filter and sorts the newest orders first', async () => {
     vi.spyOn(sellerOrderApi, 'listShopsByUser').mockResolvedValue([{ id: 'shop-1' }])
-    const shopOrders = vi.spyOn(sellerOrderApi, 'shopOrders').mockResolvedValue([])
+    const shopOrderSummaries = vi.spyOn(sellerOrderApi, 'shopOrderSummaries').mockResolvedValue([
+      makeOrderSummary({ orderId: 'order-older', placedAt: '2026-01-01T00:00:00.000Z' }),
+      makeOrderSummary({ orderId: 'order-newer', placedAt: '2026-06-01T00:00:00.000Z' }),
+    ])
 
-    await fetchOrdersAcrossOwnedShops('seller-1', undefined, 'to-ship')
+    const orders = await fetchSellerOrderSummariesAcrossOwnedShops('seller-1', undefined, 'to-ship')
 
-    expect(shopOrders).toHaveBeenCalledWith('shop-1', 'seller-1', ['shop-1'], 'to-ship')
+    expect(shopOrderSummaries).toHaveBeenCalledWith('shop-1', 'seller-1', ['shop-1'], 'to-ship')
+    expect(orders.map((order) => order.orderId)).toEqual(['order-newer', 'order-older'])
+  })
+})
+
+describe('fetchSellerOrderByIdAcrossOwnedShops', () => {
+  it('requests a single full order by id instead of the seller order history', async () => {
+    const order = makeOrder()
+    vi.spyOn(sellerOrderApi, 'listShopsByUser').mockResolvedValue([
+      { id: 'shop-1' },
+      { id: 'shop-2' },
+    ])
+    const shopOrders = vi.spyOn(sellerOrderApi, 'shopOrders').mockResolvedValue([order])
+
+    await expect(fetchSellerOrderByIdAcrossOwnedShops('order-1', 'seller-1')).resolves.toEqual(order)
+
+    expect(shopOrders).toHaveBeenCalledTimes(1)
+    expect(shopOrders).toHaveBeenCalledWith('shop-1', 'seller-1', ['shop-1', 'shop-2'], 'all', 'order-1')
+  })
+
+  it('resolves null when the order is outside the seller scope', async () => {
+    vi.spyOn(sellerOrderApi, 'listShopsByUser').mockResolvedValue([{ id: 'shop-1' }])
+    vi.spyOn(sellerOrderApi, 'shopOrders').mockResolvedValue([])
+
+    await expect(
+      fetchSellerOrderByIdAcrossOwnedShops('order-missing', 'seller-1'),
+    ).resolves.toBeNull()
   })
 })
 
