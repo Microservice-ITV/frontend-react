@@ -521,7 +521,7 @@ const VariantSizeEditor = ({
                       onChange={(event) =>
                         onSizeChange(group, event.target.value)
                       }
-                      className="h-10 min-w-36 appearance-none rounded-lg border border-slate-200 bg-white pl-3 pr-9 text-sm font-medium text-slate-900 outline-none focus:border-emerald-500"
+                      className="h-8 min-w-36 appearance-none rounded-lg border border-slate-200 bg-white pl-3 pr-9 text-sm font-medium text-slate-900 outline-none focus:border-emerald-500"
                     >
                       <option value="" disabled={Boolean(group.sizeId)}>
                         Select size

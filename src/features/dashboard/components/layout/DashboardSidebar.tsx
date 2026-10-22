@@ -2,7 +2,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { NavLink, useLocation } from "react-router-dom";
 import shopIcon from "@/public/shop-icon-square.svg";
-import { X, Zap, ChevronDown } from "lucide-react";
+import { X, Zap, ChevronDown, Truck } from "lucide-react";
 import { useDashboardMenu } from "../../hooks/useDashboardMenu";
 import type { DashboardArea } from "../../types/dashboardTypes";
 
@@ -17,6 +17,7 @@ type TooltipState = {
   label: string;
   badge?: string | number | null;
   badgeTone?: "default" | "alert";
+  iconMotion?: "transit";
   top: number;
 };
 
@@ -27,6 +28,34 @@ const badgeClasses = (tone?: "default" | "alert") =>
 
 const badgeDotClasses = (tone?: "default" | "alert") =>
   tone === "alert" ? "bg-red-500" : "bg-emerald-500";
+
+const TransitBadge = ({
+  count,
+  tone,
+  compact = false,
+}: {
+  count: string | number;
+  tone?: "default" | "alert";
+  compact?: boolean;
+}) => (
+  <span
+    className={`inline-flex shrink-0 items-center justify-center gap-1 rounded-full font-medium text-white ${
+      compact ? "h-5 min-w-5 px-1" : "px-1.5 py-0.5 text-[10px]"
+    } ${badgeClasses(tone)}`}
+    title={`${count} in transit`}
+    aria-label={`${count} in transit`}
+  >
+    <span className="menu-truck-air relative inline-flex items-center" aria-hidden>
+      <span className="menu-truck-air-lines">
+        <span />
+        <span />
+        <span />
+      </span>
+      <Truck size={compact ? 11 : 12} />
+    </span>
+    {!compact && <span>{count}</span>}
+  </span>
+);
 
 const DashboardSidebar = ({
   area,
@@ -50,10 +79,17 @@ const DashboardSidebar = ({
     label: string,
     badge?: string | number | null,
     badgeTone?: "default" | "alert",
+    iconMotion?: "transit",
   ) => {
     if (!isCollapsed) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    setTooltip({ label, badge, badgeTone, top: rect.top + rect.height / 2 });
+    setTooltip({
+      label,
+      badge,
+      badgeTone,
+      iconMotion,
+      top: rect.top + rect.height / 2,
+    });
   };
 
   const hideTooltip = () => setTooltip(null);
@@ -106,7 +142,13 @@ const DashboardSidebar = ({
                   end={isParentPath(item.to)}
                   onClick={onClose}
                   onMouseEnter={(e) =>
-                    showTooltip(e, item.label, item.badge, item.badgeTone)
+                    showTooltip(
+                      e,
+                      item.label,
+                      item.badge,
+                      item.badgeTone,
+                      item.iconMotion,
+                    )
                   }
                   onMouseLeave={hideTooltip}
                   className={({ isActive }) =>
@@ -126,12 +168,23 @@ const DashboardSidebar = ({
                   {Icon && (
                     <span className="relative shrink-0">
                       <Icon size={18} />
-                      {item.badge != null && (
+                      {item.badge != null && item.iconMotion == null && (
                         <span
                           className={`absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full ring-2 ring-white ${badgeDotClasses(item.badgeTone)}`}
                           aria-hidden
                         />
                       )}
+                      {isCollapsed &&
+                        item.badge != null &&
+                        item.iconMotion === "transit" && (
+                          <span className="absolute -right-2 -top-2">
+                            <TransitBadge
+                              count={item.badge}
+                              tone={item.badgeTone}
+                              compact
+                            />
+                          </span>
+                        )}
                     </span>
                   )}
 
@@ -140,7 +193,10 @@ const DashboardSidebar = ({
                       <span className="min-w-0 flex-1 truncate">
                         {item.label}
                       </span>
-                      {item.badge != null && (
+                      {item.badge != null && item.iconMotion === "transit" && (
+                        <TransitBadge count={item.badge} tone={item.badgeTone} />
+                      )}
+                      {item.badge != null && item.iconMotion == null && (
                         <span
                           className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${badgeClasses(item.badgeTone)}`}
                         >
@@ -299,7 +355,10 @@ const DashboardSidebar = ({
             }}
           >
             {tooltip.label}
-            {tooltip.badge != null && (
+            {tooltip.badge != null && tooltip.iconMotion === "transit" && (
+              <TransitBadge count={tooltip.badge} tone={tooltip.badgeTone} />
+            )}
+            {tooltip.badge != null && tooltip.iconMotion == null && (
               <span
                 className={`rounded-full px-1.5 py-0.5 text-[10px] ${badgeClasses(tooltip.badgeTone)}`}
               >
