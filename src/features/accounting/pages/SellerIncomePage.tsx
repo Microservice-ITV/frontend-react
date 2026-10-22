@@ -87,6 +87,7 @@ export const toIncomeRows = (
       if (!row.shopId) return false 
       return allowedShopIds.has(row.shopId) 
     }) 
+    .sort((left, right) => right.dateValue.localeCompare(left.dateValue))
  
 const SellerIncomePage = () => { 
   const authUser = useAppSelector((state) => state.auth.user) 

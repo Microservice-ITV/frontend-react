@@ -9,21 +9,21 @@ import { Elements } from '@stripe/react-stripe-js'
 import { stripePromise } from '@/lib/stripe'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
-import { calculateCheckout } from '../utils/checkoutCalculator'
+import { amountDueNow, calculateCheckout, shippingFeesForCheckout } from '../utils/checkoutCalculator'
 import CheckoutItems from '../components/CheckoutItems'
 import CheckoutAddress from '../components/CheckoutAddress'
 import GuestCheckoutAnnouncementBanner from '../components/GuestCheckoutAnnouncementBanner'
 import CheckoutPayment from '../components/CheckoutPayment'
 import CheckoutSummary from '../components/CheckoutSummary'
-import CheckoutSummarySkeleton from '../components/CheckoutSummarySkeleton'
 import { SagaStatusDisplay } from '../components/SagaStatusDisplay'
 import { fetchCheckoutStatus, fetchSagaStatus } from '../store/checkoutThunks'
 import { fetchCheckoutShippingCalculation, fetchShopProfilesForCurrentCart } from '@/features/shipping/store/shippingThunks'
 import { useCheckoutDeliveryCompany } from '@/features/shipping/hooks/useCheckoutDeliveryCompany'
 import { clearShippingCalculate } from '@/features/shipping/store/shippingSlice'
 import { clearCheckout, setCurrentCheckout } from '../store/checkoutSlice'
-import { hasConfirmedStock, isStockReadinessConfirmed } from '../utils/checkoutStatus'
-import { checkoutHasNoDeliveryRoute } from '../utils/deliveryReadiness'
+import { usePayDeliveryFeeNow } from '../hooks/usePayDeliveryFeeNow'
+import { useCheckoutDeliveryOptions } from '../hooks/useCheckoutDeliveryOptions'
+import { shopIdsWithoutSelectableDeliveryCompany } from '../utils/deliveryReadiness'
 
 const AuthCheckout = () => {
   const items = useAppSelector(selectSelectedItems)
@@ -41,7 +41,6 @@ const GuestCheckoutPayment = () => {
 
   const items = useAppSelector(selectSelectedItems)
   const { currentCheckout, loading, paymentStatus, sagaId, sagaStatus } = useAppSelector((state) => state.checkout)
-  const [stockConfirmedSessionKey, setStockConfirmedSessionKey] = useState<string | null>(null)
 
   // If nothing selected, checkout shouldn't be reachable.
   if (items.length === 0) {
@@ -88,14 +87,11 @@ const GuestCheckoutPayment = () => {
   const feesByShopId = useAppSelector((state) => state.shipping.feesByShopId)
   const totalShippingFee = useAppSelector((state) => state.shipping.totalShippingFee)
   const shippingCalculateStatus = useAppSelector((state) => state.shipping.calculateStatus)
-
   const checkoutTotals = useMemo(
     () =>
       calculateCheckout(
         items,
-        shippingCalculateStatus === 'succeeded' && Object.keys(feesByShopId).length > 0
-          ? { feesByShop: feesByShopId, totalShippingFee }
-          : undefined,
+        shippingFeesForCheckout(shippingCalculateStatus, feesByShopId, totalShippingFee),
       ),
     [items, shippingCalculateStatus, feesByShopId, totalShippingFee],
   )
@@ -116,6 +112,22 @@ const GuestCheckoutPayment = () => {
     [paymentDeliveryAddress?.district_id, profilesByShopId, shopIds],
   )
   const deliveryCompany = useCheckoutDeliveryCompany(shopIds, shopRoutes)
+  const cartShopIdsWithoutSelectableCompany = useMemo(
+    () => shopIdsWithoutSelectableDeliveryCompany({
+      shopIds,
+      companiesCountByShop: deliveryCompany.companiesCountByShop,
+      unavailableCompanyIdsByShop: deliveryCompany.unavailableCompanyIdsByShop,
+      loading: deliveryCompany.loading,
+      routesReady: deliveryCompany.routesReady,
+    }),
+    [
+      deliveryCompany.companiesCountByShop,
+      deliveryCompany.loading,
+      deliveryCompany.routesReady,
+      deliveryCompany.unavailableCompanyIdsByShop,
+      shopIds,
+    ],
+  )
   useEffect(() => {
     if (shopIds.length === 0) return
     void dispatch(fetchShopProfilesForCurrentCart())
@@ -131,12 +143,23 @@ const GuestCheckoutPayment = () => {
     return next
   }, [deliveryCompany.companyByShopId, deliveryCompany.unavailableCompanyIdsByShop, shopIds])
   const hasQuotableCompany = Object.keys(quotableCompanyByShopId).length > 0
-  const deliveryQuotePendingConfirmation = checkoutHasNoDeliveryRoute({
+  const prepaidProvider = useAppSelector((state) => state.checkout.prepaidProvider)
+  const staffCashSelected = prepaidProvider === 'cash'
+  const showDeliveryCheckoutOptions = useCheckoutDeliveryOptions()
+  const {
+    payDeliveryFeeNow,
+    setPayDeliveryFeeNow,
+    payDeliveryFeeNowLockedOff,
+    payDeliveryFeeNowLockReason,
+    deliveryQuotePendingConfirmation,
+  } = usePayDeliveryFeeNow({
     shopIds,
-    companiesCount: deliveryCompany.companies.length,
+    companiesCountByShop: deliveryCompany.companiesCountByShop,
     unavailableCompanyIdsByShop: deliveryCompany.unavailableCompanyIdsByShop,
     loading: deliveryCompany.loading,
     routesReady: deliveryCompany.routesReady,
+    forceOff: staffCashSelected || !showDeliveryCheckoutOptions,
+    forceOffReason: !showDeliveryCheckoutOptions ? 'company' : 'cash',
   })
 
   const shippingCalculateCacheKey = useMemo(() => {
@@ -190,6 +213,8 @@ const GuestCheckoutPayment = () => {
   }, [currentCheckout?.checkout_id])
 
   useEffect(() => {
+    // Keep the last quote. Turning the switch off only changes what the customer pays now.
+    if (!payDeliveryFeeNow) return
     if (!paymentDeliveryAddress || !hasQuotableCompany || !deliveryCompany.routesReady) {
       dispatch(clearShippingCalculate())
       return
@@ -208,27 +233,13 @@ const GuestCheckoutPayment = () => {
         },
       }),
     )
-  }, [dispatch, paymentDeliveryAddress, items, shippingCalculateCacheKey, hasQuotableCompany, deliveryCompany.routesReady, quotableCompanyByShopId])
+  }, [dispatch, payDeliveryFeeNow, paymentDeliveryAddress, items, shippingCalculateCacheKey, hasQuotableCompany, deliveryCompany.routesReady, quotableCompanyByShopId])
 
   const terminalCheckoutStatuses = useMemo(
     () => new Set(['PAID', 'COMPLETED', 'FAILED', 'FAILED_PAYMENT', 'EXPIRED']),
     [],
   )
   const terminalSagaStatuses = useMemo(() => new Set(['COMPLETED', 'FAILED', 'TIMEOUT']), [])
-  const stockReadinessKey = currentCheckout?.checkout_id
-    ? `${currentCheckout.checkout_id}|${currentCartKey}`
-    : null
-  const isStockReady = isStockReadinessConfirmed({
-    paymentStatus,
-    confirmedReadinessKey: stockConfirmedSessionKey,
-  })
-
-  useEffect(() => {
-    if (stockReadinessKey && hasConfirmedStock(paymentStatus)) {
-      setStockConfirmedSessionKey(stockReadinessKey)
-    }
-  }, [paymentStatus, stockReadinessKey])
-
   useEffect(() => {
     if (!currentCheckout?.checkout_id) return
     if (paymentStatus && terminalCheckoutStatuses.has(paymentStatus)) return
@@ -275,8 +286,12 @@ const GuestCheckoutPayment = () => {
               />
               <CheckoutItems
                 checkout={checkoutTotals}
+                payDeliveryFeeNow={payDeliveryFeeNow}
+                onPayDeliveryFeeNowChange={setPayDeliveryFeeNow}
+                payDeliveryFeeNowLockedOff={payDeliveryFeeNowLockedOff}
+                showDeliveryCheckoutOptions={showDeliveryCheckoutOptions}
                 deliveryCompany={{
-                  companies: deliveryCompany.companies,
+                  companiesByShopId: deliveryCompany.companiesByShopId,
                   selectedByShopId: deliveryCompany.selectedByShopId,
                   unavailableCompanyIdsByShop: deliveryCompany.unavailableCompanyIdsByShop,
                   loading: deliveryCompany.loading,
@@ -287,21 +302,22 @@ const GuestCheckoutPayment = () => {
             </div>
 
             <aside className="space-y-3 lg:sticky lg:top-4">
-            <CheckoutPayment totalAmount={checkoutTotals.totalPayment} />
+            <CheckoutPayment totalAmount={amountDueNow(checkoutTotals, payDeliveryFeeNow)} />
 
-              {isStockReady ? (
-                <CheckoutSummary
-                  checkout={checkoutTotals}
-                  hasDeliveryAddress={true}
-                  onRequireAddress={goToGuestForm}
-                  deliveryAddress={paymentDeliveryAddress}
-                  cartItems={items}
-                  deliveryQuotePendingConfirmation={deliveryQuotePendingConfirmation}
-                  deliveryCompanyIdByShopId={deliveryCompany.companyByShopId}
-                />
-              ) : (
-                <CheckoutSummarySkeleton />
-              )}
+              <CheckoutSummary
+                checkout={checkoutTotals}
+                payDeliveryFeeNow={payDeliveryFeeNow}
+                hasDeliveryAddress={true}
+                onRequireAddress={goToGuestForm}
+                deliveryAddress={paymentDeliveryAddress}
+                cartItems={items}
+                deliveryQuotePendingConfirmation={deliveryQuotePendingConfirmation}
+                deliveryCompanyIdByShopId={deliveryCompany.companyByShopId}
+                deliveryCompanySelectionReady={deliveryCompany.routesReady}
+                cartShopIdsWithoutSelectableCompany={
+                  showDeliveryCheckoutOptions ? cartShopIdsWithoutSelectableCompany : shopIds
+                }
+              />
             </aside>
           </div>
 

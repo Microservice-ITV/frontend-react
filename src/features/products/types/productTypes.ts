@@ -9,6 +9,8 @@ export interface Product {
   /** Catalog list includes the owning shop id. Name is loaded from the product when adding to cart. */
   shopId?: string
   tags?: string[]
+  /** Sellable units (shop + warehouse). Omit when the feed has no stock. */
+  stock?: number
 }
 
 /** One SKU row from ecommerce-read `product_reads.variants`. */
@@ -20,7 +22,10 @@ export interface ProductVariant {
   listPrice: number
   compareAtPrice: number | null
   effectiveSellingPrice: number
+  /** Shop/catalog qty only. */
   shopStock: number
+  /** Warehouse available for this color×size. */
+  warehouseStock: number
   length: number | null
   width: number | null
   height: number | null

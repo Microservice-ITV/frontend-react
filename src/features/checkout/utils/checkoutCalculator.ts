@@ -9,13 +9,47 @@ export interface CheckoutTotals {
     groupedByShop: Record<string, CartItem[]>
 }
 
+export type CheckoutShippingFeeOpts = {
+    feesByShop?: Record<string, Pick<ShopCalculatedShipping, 'amount'>>
+    /** Prefer API aggregate when provided (matches payment summary). */
+    totalShippingFee?: number | null
+}
+
+/** Fixed label for waived / pay-on-arrival delivery (keep two decimals). */
+export const ZERO_DELIVERY_FEE_LABEL = 'Ks 0.00'
+
+/**
+ * Build calculateCheckout fee opts from a successful shipping quote.
+ * The pay-now switch only changes display and place-order payload — not this quote.
+ */
+export function shippingFeesForCheckout(
+    calculateStatus: string,
+    feesByShopId: Record<string, Pick<ShopCalculatedShipping, 'amount'>>,
+    totalShippingFee: number | null,
+): CheckoutShippingFeeOpts | undefined {
+    if (calculateStatus !== 'succeeded' || Object.keys(feesByShopId).length === 0) {
+        return undefined
+    }
+    return { feesByShop: feesByShopId, totalShippingFee }
+}
+
+/**
+ * Amount shown on payment method when the customer may waive delivery for now.
+ * Includes tax when provided so cash tender matches the order total.
+ */
+export function amountDueNow(
+    checkout: CheckoutTotals,
+    payDeliveryFeeNow: boolean,
+    taxAmount = 0,
+    promotionDiscount = 0,
+): number {
+    const base = payDeliveryFeeNow ? checkout.totalPayment : checkout.merchandiseSubtotal
+    return Math.max(0, base - Math.max(0, promotionDiscount)) + Math.max(0, taxAmount)
+}
+
 export const calculateCheckout = (
     items: CartItem[],
-    opts?: {
-        feesByShop?: Record<string, Pick<ShopCalculatedShipping, 'amount'>>
-        /** Prefer API aggregate when provided (matches payment summary). */
-        totalShippingFee?: number | null
-    },
+    opts?: CheckoutShippingFeeOpts,
 ): CheckoutTotals => {
     const groupedByShop = items.reduce<Record<string, CartItem[]>>(
         (acc, item) => {

@@ -2,7 +2,7 @@ import type { LucideIcon } from 'lucide-react'
 import type { Capability } from '@/app/rbac/types'
 import type { SearchHit } from '../api/globalSearchApi'
 
-export type DashboardArea = 'seller' | 'super_admin'
+export type DashboardArea = 'seller' | 'super_admin' | 'warehouse_manager' | 'delivery_agent'
 
 export type SearchConfig = {
   enabled: boolean
@@ -23,6 +23,9 @@ export type DashboardMenuItem = {
   requiredCapabilities: readonly Capability[]
   icon?: LucideIcon
   badge?: string | number
+  badgeTone?: 'default' | 'alert'
+  /** When set, animate the menu icon instead of showing a numeric badge. */
+  iconMotion?: 'transit'
   children?: DashboardMenuItem[]
   search?: SearchConfig
 }

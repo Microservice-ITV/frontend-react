@@ -1,13 +1,121 @@
 import { createAsyncThunk } from '@reduxjs/toolkit'
+import axios from 'axios'
 import { orderClient } from '@/lib/api/orderClient'
 import type { CheckoutStatusResponse } from '../types/checkoutTypes'
 import type { SagaStatusResponse, SagaCheckoutResponse } from '../types/sagaTypes'
+
+const IDEMPOTENCY_STORAGE_PREFIX = 'dni.checkout.idempotency.v1'
 
 const generateIdempotencyKey = (userId: string) => {
     if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
         return crypto.randomUUID()
     }
-    return `checkout-${userId}-${Date.now()}`
+    return `checkout-${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
+function checkoutRequestSignature(
+    items: ReadonlyArray<{ productId: unknown; variantId?: unknown; quantity: unknown }>,
+    paymentMethod: unknown,
+    deliveryAddress?: unknown,
+): string {
+    const normalizedItems = items
+        .map((item) => [
+            String(item.productId),
+            item.variantId == null ? '' : String(item.variantId),
+            Number(item.quantity),
+        ])
+        .sort((left, right) =>
+            String(JSON.stringify(left)).localeCompare(String(JSON.stringify(right))),
+        )
+    return JSON.stringify({ items: normalizedItems, paymentMethod, deliveryAddress })
+}
+
+function getCheckoutIdempotencyKey(userId: string, signature: string): string {
+    const storageKey = `${IDEMPOTENCY_STORAGE_PREFIX}.${encodeURIComponent(userId)}`
+    let stored: unknown
+    const raw = sessionStorage.getItem(storageKey)
+    if (raw) {
+        try {
+            stored = JSON.parse(raw)
+        } catch {
+            stored = undefined
+        }
+    }
+
+    const entries = Array.isArray(stored)
+        ? stored.filter(
+              (entry): entry is [string, string] =>
+                  Array.isArray(entry) &&
+                  entry.length === 2 &&
+                  typeof entry[0] === 'string' &&
+                  typeof entry[1] === 'string',
+          )
+        : []
+    const existing = entries.find(([storedSignature]) => storedSignature === signature)
+    if (existing) return existing[1]
+
+    const idempotencyKey = generateIdempotencyKey(userId)
+    sessionStorage.setItem(
+        storageKey,
+        JSON.stringify([...entries, [signature, idempotencyKey]]),
+    )
+    return idempotencyKey
+}
+
+function clearCheckoutIdempotencyKey(userId: string, signature: string): void {
+    const storageKey = `${IDEMPOTENCY_STORAGE_PREFIX}.${encodeURIComponent(userId)}`
+    try {
+        const stored: unknown = JSON.parse(sessionStorage.getItem(storageKey) ?? '[]')
+        if (!Array.isArray(stored)) return
+        const remaining = stored.filter(
+            (entry) => !Array.isArray(entry) || entry[0] !== signature,
+        )
+        if (remaining.length === 0) {
+            sessionStorage.removeItem(storageKey)
+        } else {
+            sessionStorage.setItem(storageKey, JSON.stringify(remaining))
+        }
+    } catch (error) {
+        console.warn('[Checkout] Could not clear the completed checkout idempotency key:', error)
+    }
+}
+
+function checkoutRequestErrorMessage(error: unknown): string {
+    if (axios.isAxiosError(error)) {
+        const data: unknown = error.response?.data
+        if (data && typeof data === 'object' && !Array.isArray(data)) {
+            const response = data as Record<string, unknown>
+            if (typeof response.error === 'string' && response.error.trim()) {
+                return response.error
+            }
+
+            const validationErrors = response.errors
+            if (validationErrors && typeof validationErrors === 'object') {
+                for (const messages of Object.values(validationErrors)) {
+                    if (Array.isArray(messages)) {
+                        const message = messages.find(
+                            (value): value is string =>
+                                typeof value === 'string' && value.trim() !== '',
+                        )
+                        if (message) return message
+                    }
+                    if (typeof messages === 'string' && messages.trim()) return messages
+                }
+            }
+
+            if (typeof response.message === 'string' && response.message.trim()) {
+                return response.message
+            }
+        }
+
+        if (!error.response) {
+            return 'The connection to the Order Service was interrupted. Your checkout may still be processing. Refresh and check checkout status before submitting again.'
+        }
+    }
+
+    return error instanceof Error && error.message.trim()
+        ? error.message
+        : 'Checkout could not be started. Please try again.'
 }
 
 export const checkoutCart = createAsyncThunk<
@@ -32,8 +140,12 @@ export const checkoutCart = createAsyncThunk<
         }
 
         try {
-            // Keep idempotency key short (<255) to satisfy backend validation.
-            const idempotencyKey = generateIdempotencyKey(String(userId))
+            const stableUserId = String(userId)
+            const signature = checkoutRequestSignature(
+                selectedItems,
+                state.checkout.paymentMethod,
+            )
+            const idempotencyKey = getCheckoutIdempotencyKey(stableUserId, signature)
 
             const response = await orderClient.post<SagaCheckoutResponse>(
                 '/saga/orders/checkout',
@@ -62,13 +174,12 @@ export const checkoutCart = createAsyncThunk<
                 checkout?.checkout_id ??
                 checkout?.id ??
                 null
+            if (checkoutId) clearCheckoutIdempotencyKey(stableUserId, signature)
             return checkoutId
                 ? { ...normalized, checkout_id: checkoutId }
                 : normalized
-        } catch (error: any) {
-            return rejectWithValue(
-                error.response?.data?.error ?? 'Checkout failed'
-            )
+        } catch (error: unknown) {
+            return rejectWithValue(checkoutRequestErrorMessage(error))
         }
     },
     {
@@ -127,7 +238,13 @@ export const guestCheckoutCart = createAsyncThunk<
         }
 
         try {
-            const idempotencyKey = generateIdempotencyKey(String(guest_id))
+            const stableGuestId = String(guest_id)
+            const signature = checkoutRequestSignature(
+                selectedItems,
+                state.checkout.paymentMethod,
+                delivery_address,
+            )
+            const idempotencyKey = getCheckoutIdempotencyKey(stableGuestId, signature)
 
             const response = await orderClient.post<SagaCheckoutResponse>(
                 '/saga/orders/checkout',
@@ -159,11 +276,12 @@ export const guestCheckoutCart = createAsyncThunk<
                 checkout?.id ??
                 null
 
+            if (checkoutId) clearCheckoutIdempotencyKey(stableGuestId, signature)
             return checkoutId
                 ? { ...normalized, checkout_id: checkoutId }
                 : normalized
-        } catch (error: any) {
-            return rejectWithValue(error.response?.data?.error ?? 'Checkout failed')
+        } catch (error: unknown) {
+            return rejectWithValue(checkoutRequestErrorMessage(error))
         }
     },
     {

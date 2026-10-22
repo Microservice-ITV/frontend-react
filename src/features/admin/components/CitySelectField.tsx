@@ -9,6 +9,7 @@ type CitySelectFieldProps = {
   cities: CityOptionWithState[];
   onChange: (cityId: string) => void;
   disabled?: boolean;
+  loading?: boolean;
   placeholder?: string;
   /** When set, the list starts with this choice and selecting it clears the value. */
   clearLabel?: string;
@@ -21,6 +22,7 @@ const CitySelectField = ({
   cities,
   onChange,
   disabled = false,
+  loading = false,
   placeholder = "Select a city",
   clearLabel,
 }: CitySelectFieldProps) => {
@@ -46,6 +48,7 @@ const CitySelectField = ({
         value={value}
         onChange={onChange}
         disabled={disabled}
+        loading={loading}
         searchAriaLabel={`Search ${label}`}
       />
     </div>

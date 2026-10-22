@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { useGlobalModal } from "@/components/ui/GlobalModalProvider";
@@ -24,6 +24,7 @@ import {
   selectAdminDeliveryCityRatesStatus,
   selectAdminDeliveryCityRatesTotal,
 } from "../store/adminDeliveryCityRatesSelectors";
+import { confirmStatusToggle } from "../utils/confirmStatusToggle";
 
 const formatDate = (value: string | null): string => {
   if (!value) return "—";
@@ -50,6 +51,7 @@ const AdminCityRatesPage = () => {
   const error = useAppSelector(selectAdminDeliveryCityRatesError);
   const mutationError = useAppSelector(selectAdminDeliveryCityRatesMutationError);
   const [districts, setDistricts] = useState<DistrictOptionWithCity[]>([]);
+  const [districtsReady, setDistrictsReady] = useState(false);
   const [fromDistrictFilter, setFromDistrictFilter] = useState("");
   const [toDistrictFilter, setToDistrictFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<"" | DeliveryCityRateStatus>("");
@@ -71,7 +73,22 @@ const AdminCityRatesPage = () => {
   }, []);
 
   useEffect(() => {
-    void loadAllDistricts().then(setDistricts).catch(() => setDistricts([]));
+    let cancelled = false;
+    void loadAllDistricts()
+      .then((rows) => {
+        if (cancelled) return;
+        setDistricts(rows);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setDistricts([]);
+      })
+      .finally(() => {
+        if (!cancelled) setDistrictsReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -86,15 +103,30 @@ const AdminCityRatesPage = () => {
     );
   }, [dispatch, page, rowsPerPage, fromDistrictFilter, toDistrictFilter, statusFilter]);
 
-  const districtOptions = districts.map((district) => ({
-    id: district.id,
-    name: district.name,
-    stateId: 0,
-    stateName: district.cityName,
-  }));
+  const districtOptions = useMemo(
+    () =>
+      districts.map((district) => ({
+        id: district.id,
+        name: district.name,
+        stateId: 0,
+        stateName: district.cityName,
+      })),
+    [districts],
+  );
+
+  const districtNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const district of districts) {
+      map.set(district.id, district.name);
+    }
+    return map;
+  }, [districts]);
 
   const districtName = (districtId: string): string =>
-    districtOptions.find((district) => district.id === districtId)?.name ?? districtId;
+    districtNameById.get(districtId) ?? "—";
+
+  /** Rates can arrive before district names; wait so the table never flashes raw ids. */
+  const isTableLoading = status === "loading" || !districtsReady;
 
   const totalPages = Math.max(1, Math.ceil(total / rowsPerPage));
 
@@ -110,22 +142,36 @@ const AdminCityRatesPage = () => {
     );
   };
 
-  const toggleStatus = async (rate: AdminDeliveryCityRateDto) => {
+  const confirmToggleStatus = (rate: AdminDeliveryCityRateDto) => {
     const next: DeliveryCityRateStatus = rate.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
-    try {
-      await adminShippingApi.updateDeliveryCityRateStatus(rate.id, next);
-      refresh();
-    } catch (updateError: unknown) {
-      openModal({
-        title: "Could not update status",
-        content: (
-          <p className="text-sm text-slate-600">
-            {adminShippingApi.getApiErrorMessage(updateError, "Please try again.")}
-          </p>
-        ),
-        primaryLabel: "Close",
-      });
-    }
+    const routeLabel = `${districtName(rate.fromDistrictId)} → ${districtName(rate.toDistrictId)}`;
+    const amountLabel = formatMoney(rate.amount, rate.currency);
+    confirmStatusToggle({
+      openModal,
+      subject: "this route rate",
+      isActive: rate.status === "ACTIVE",
+      deactivateContent: (
+        <p>
+          The route rate for {routeLabel} ({amountLabel}) will no longer be used for quotes until
+          you activate it again.
+        </p>
+      ),
+      activateContent: (
+        <p>
+          The route rate for {routeLabel} ({amountLabel}) will become available for quotes again.
+        </p>
+      ),
+      onConfirm: async () => {
+        try {
+          await adminShippingApi.updateDeliveryCityRateStatus(rate.id, next);
+          refresh();
+        } catch (updateError: unknown) {
+          throw new Error(
+            adminShippingApi.getApiErrorMessage(updateError, "Please try again."),
+          );
+        }
+      },
+    });
   };
 
   const confirmDelete = (rate: AdminDeliveryCityRateDto) => {
@@ -183,29 +229,29 @@ const AdminCityRatesPage = () => {
         <div className="w-full sm:w-56">
           <CitySelectField
             id="route-rates-from-district"
-            label="From district"
+            label="From cities"
             value={fromDistrictFilter}
             cities={districtOptions}
             onChange={(districtId) => {
               setFromDistrictFilter(districtId);
               setPage(1);
             }}
-            placeholder="Search from district"
-            clearLabel="All from districts"
+            placeholder="Search from cities"
+            clearLabel="All from cities"
           />
         </div>
         <div className="w-full sm:w-56">
           <CitySelectField
             id="route-rates-to-district"
-            label="To district"
+            label="To cities"
             value={toDistrictFilter}
             cities={districtOptions}
             onChange={(districtId) => {
               setToDistrictFilter(districtId);
               setPage(1);
             }}
-            placeholder="Search to district"
-            clearLabel="All to districts"
+            placeholder="Search to cities"
+            clearLabel="All to cities"
           />
         </div>
         <div className="w-full sm:w-44">
@@ -244,14 +290,14 @@ const AdminCityRatesPage = () => {
               </tr>
             </thead>
             <tbody>
-              {status === "loading" && (
+              {isTableLoading && (
                 <tr>
                   <td colSpan={5} className="px-4 py-10 text-center text-sm text-slate-500">
                     Loading route rates...
                   </td>
                 </tr>
               )}
-              {status === "failed" && (
+              {!isTableLoading && status === "failed" && (
                 <tr>
                   <td colSpan={5} className="px-4 py-10 text-center">
                     <p className="text-sm text-red-600">{error ?? "Unable to load route rates."}</p>
@@ -266,7 +312,7 @@ const AdminCityRatesPage = () => {
                   </td>
                 </tr>
               )}
-              {status !== "loading" && status !== "failed" && rates.length === 0 && (
+              {!isTableLoading && status !== "failed" && rates.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-4 py-12 text-center">
                     <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
@@ -286,7 +332,7 @@ const AdminCityRatesPage = () => {
                   </td>
                 </tr>
               )}
-              {status !== "loading" &&
+              {!isTableLoading &&
                 status !== "failed" &&
                 rates.map((rate) => (
                   <tr
@@ -345,7 +391,7 @@ const AdminCityRatesPage = () => {
                               ) : (
                                 <CheckCircle2 size={16} className="text-slate-500" />
                               ),
-                            onClick: () => void toggleStatus(rate),
+                            onClick: () => confirmToggleStatus(rate),
                           },
                           {
                             key: "delete",

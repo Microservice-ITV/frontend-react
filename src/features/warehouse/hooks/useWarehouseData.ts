@@ -6,14 +6,22 @@ import {
   type InventoryRow,
   type Warehouse,
 } from '../types/warehouseTypes'
+import { variantDisplayLabel } from '../utils/variantLabel'
 
-export const useWarehouses = (params?: { status?: string; shopId?: string }) => {
+export const useWarehouses = (params?: {
+  status?: string
+  shopId?: string
+  catalog?: boolean
+  includePurchased?: boolean
+}) => {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const status = params?.status ?? ''
   const shopId = params?.shopId ?? ''
+  const catalog = params?.catalog ?? false
+  const includePurchased = params?.includePurchased ?? false
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -22,6 +30,8 @@ export const useWarehouses = (params?: { status?: string; shopId?: string }) => 
       const response = await warehouseApi.listWarehouses({
         status: status as '' | 'ACTIVE' | 'INACTIVE',
         shopId,
+        catalog,
+        includePurchased,
       })
       setWarehouses(response.data?.data ?? [])
     } catch (err) {
@@ -30,7 +40,7 @@ export const useWarehouses = (params?: { status?: string; shopId?: string }) => 
     } finally {
       setLoading(false)
     }
-  }, [status, shopId])
+  }, [status, shopId, catalog, includePurchased])
 
   useEffect(() => {
     void load()
@@ -57,16 +67,22 @@ export const useInventoryRows = (warehouses: Warehouse[], enabled = true) => {
     setError(null)
     try {
       const targets = warehouseKey.split(',').filter(Boolean)
-      const results = await Promise.all(
+      // One warehouse 404 must not wipe inventory from the others.
+      const results = await Promise.allSettled(
         targets.map((warehouseId) => warehouseApi.listInventory(warehouseId)),
       )
 
       const nextRows: InventoryRow[] = []
+      let firstError: string | null = null
       results.forEach((result, index) => {
         const warehouseId = targets[index]
         const warehouseName =
           warehouses.find((item) => item.id === warehouseId)?.name ?? warehouseId
-        const stocks = result.data?.data ?? []
+        if (result.status !== 'fulfilled') {
+          if (!firstError) firstError = warehouseErrorMessage(result.reason)
+          return
+        }
+        const stocks = result.value.data?.data ?? []
         stocks.forEach((stock) => {
           nextRows.push({
             ...stock,
@@ -77,6 +93,8 @@ export const useInventoryRows = (warehouses: Warehouse[], enabled = true) => {
       })
 
       setRows(nextRows)
+      // Only surface an error when every warehouse failed.
+      setError(nextRows.length === 0 && firstError ? firstError : null)
     } catch (err) {
       setRows([])
       setError(warehouseErrorMessage(err))
@@ -113,7 +131,11 @@ export const filterInventoryRows = (
     if (search) {
       const haystack = `${row.productId} ${
         filter.productNames?.[row.productId] ?? ''
-      } ${row.variantId} ${row.warehouseName}`.toLowerCase()
+      } ${row.variantId} ${variantDisplayLabel(row.variantId, {
+        variantLabel: row.variantLabel,
+        colorName: row.colorName,
+        sizeName: row.sizeName,
+      })} ${row.warehouseName}`.toLowerCase()
       if (!haystack.includes(search)) return false
     }
     return true

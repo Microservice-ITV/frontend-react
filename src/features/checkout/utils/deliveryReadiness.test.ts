@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
+    canPayDeliveryFeeNow,
     checkoutHasNoDeliveryRoute,
     DELIVERY_FOLLOW_UP_MESSAGE,
     deliveryUnavailableMessage,
     getDeliveryBlockReason,
+    mustWaiveDeliveryFeeNow,
+    NO_DELIVERY_SERVICE_MESSAGE,
+    payDeliveryFeeNowLockMessage,
     shopHasNoDeliveryRoute,
+    shopIdsWithoutSelectableDeliveryCompany,
+    shopPayDeliveryLockReason,
 } from './deliveryReadiness'
 
 const ready = {
@@ -172,7 +178,7 @@ describe('checkoutHasNoDeliveryRoute', () => {
         expect(
             checkoutHasNoDeliveryRoute({
                 shopIds: ['shop-1'],
-                companiesCount: 2,
+                companiesCountByShop: { 'shop-1': 2 },
                 unavailableCompanyIdsByShop: { 'shop-1': ['a', 'b'] },
                 loading: false,
                 routesReady: true,
@@ -181,11 +187,164 @@ describe('checkoutHasNoDeliveryRoute', () => {
         expect(
             checkoutHasNoDeliveryRoute({
                 shopIds: ['shop-1'],
-                companiesCount: 2,
+                companiesCountByShop: { 'shop-1': 2 },
                 unavailableCompanyIdsByShop: { 'shop-1': ['a', 'b'] },
                 loading: false,
                 routesReady: false,
             }),
         ).toBe(false)
+    })
+})
+
+describe('mustWaiveDeliveryFeeNow', () => {
+    const base = {
+        shopIds: ['shop-1'],
+        unavailableCompanyIdsByShop: {} as Record<string, string[]>,
+        loading: false,
+        routesReady: true,
+    }
+
+    it('locks off when there are no delivery companies', () => {
+        expect(mustWaiveDeliveryFeeNow({ ...base, companiesCountByShop: { 'shop-1': 0 } })).toBe(true)
+    })
+
+    it('locks off when companies exist but no shop has a route', () => {
+        expect(
+            mustWaiveDeliveryFeeNow({
+                ...base,
+                companiesCountByShop: { 'shop-1': 2 },
+                unavailableCompanyIdsByShop: { 'shop-1': ['a', 'b'] },
+            }),
+        ).toBe(true)
+    })
+
+    it('does not lock while companies are still loading', () => {
+        expect(
+            mustWaiveDeliveryFeeNow({
+                ...base,
+                companiesCountByShop: { 'shop-1': 0 },
+                loading: true,
+            }),
+        ).toBe(false)
+    })
+
+    it('stays unlocked when a company can quote', () => {
+        expect(
+            mustWaiveDeliveryFeeNow({
+                ...base,
+                companiesCountByShop: { 'shop-1': 2 },
+                unavailableCompanyIdsByShop: { 'shop-1': ['a'] },
+            }),
+        ).toBe(false)
+    })
+})
+
+describe('canPayDeliveryFeeNow', () => {
+    const base = {
+        shopIds: ['shop-1'],
+        unavailableCompanyIdsByShop: {} as Record<string, string[]>,
+        loading: false,
+        routesReady: true,
+    }
+
+    it('is true when companies exist and at least one route is available', () => {
+        expect(
+            canPayDeliveryFeeNow({
+                ...base,
+                companiesCountByShop: { 'shop-1': 2 },
+                unavailableCompanyIdsByShop: { 'shop-1': ['a'] },
+            }),
+        ).toBe(true)
+    })
+
+    it('is false when there are no delivery companies', () => {
+        expect(canPayDeliveryFeeNow({ ...base, companiesCountByShop: { 'shop-1': 0 } })).toBe(false)
+    })
+
+    it('is false when companies exist but no shop has a route', () => {
+        expect(
+            canPayDeliveryFeeNow({
+                ...base,
+                companiesCountByShop: { 'shop-1': 2 },
+                unavailableCompanyIdsByShop: { 'shop-1': ['a', 'b'] },
+            }),
+        ).toBe(false)
+    })
+
+    it('is false while loading or routes are not ready', () => {
+        expect(canPayDeliveryFeeNow({ ...base, companiesCountByShop: { 'shop-1': 2 }, loading: true })).toBe(false)
+        expect(canPayDeliveryFeeNow({ ...base, companiesCountByShop: { 'shop-1': 2 }, routesReady: false })).toBe(false)
+    })
+})
+
+describe('shopIdsWithoutSelectableDeliveryCompany', () => {
+    const base = {
+        shopIds: ['shop-1', 'shop-2'],
+        companiesCountByShop: { 'shop-1': 0, 'shop-2': 2 },
+        unavailableCompanyIdsByShop: { 'shop-2': ['a', 'b'] },
+        loading: false,
+        routesReady: true,
+    }
+
+    it('includes shops with no company and shops whose companies are all unavailable', () => {
+        expect(shopIdsWithoutSelectableDeliveryCompany(base)).toEqual(['shop-1', 'shop-2'])
+    })
+
+    it('leaves out shops that still have a selectable company', () => {
+        expect(
+            shopIdsWithoutSelectableDeliveryCompany({
+                ...base,
+                unavailableCompanyIdsByShop: { 'shop-2': ['a'] },
+            }),
+        ).toEqual(['shop-1'])
+    })
+
+    it('stays empty until routes are ready', () => {
+        expect(shopIdsWithoutSelectableDeliveryCompany({ ...base, routesReady: false })).toEqual([])
+        expect(shopIdsWithoutSelectableDeliveryCompany({ ...base, loading: true })).toEqual([])
+    })
+})
+
+describe('payDeliveryFeeNowLockMessage', () => {
+    it('explains missing company, missing route, and staff cash', () => {
+        expect(payDeliveryFeeNowLockMessage('company')).toBe(NO_DELIVERY_SERVICE_MESSAGE)
+        expect(payDeliveryFeeNowLockMessage('route')).toBe(NO_DELIVERY_SERVICE_MESSAGE)
+        expect(payDeliveryFeeNowLockMessage('cash')).toMatch(/cash/i)
+        expect(payDeliveryFeeNowLockMessage('staff')).toMatch(/separately/i)
+    })
+})
+
+describe('shopPayDeliveryLockReason', () => {
+    it('prefers route over company', () => {
+        expect(
+            shopPayDeliveryLockReason({
+                noDeliveryCompany: true,
+                noDeliveryRoute: true,
+            }),
+        ).toBe('route')
+    })
+
+    it('uses checkout lock when the shop has no local company/route flags', () => {
+        expect(
+            shopPayDeliveryLockReason({
+                noDeliveryCompany: false,
+                noDeliveryRoute: false,
+                checkoutLockedOff: true,
+            }),
+        ).toBe('company')
+        expect(
+            shopPayDeliveryLockReason({
+                noDeliveryCompany: false,
+                noDeliveryRoute: false,
+                checkoutLockedOff: true,
+                checkoutLockReason: 'cash',
+            }),
+        ).toBe('cash')
+        expect(
+            shopPayDeliveryLockReason({
+                noDeliveryCompany: false,
+                noDeliveryRoute: false,
+            }),
+        ).toBeNull()
     })
 })

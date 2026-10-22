@@ -1,9 +1,12 @@
-export type WarehouseAreaBase = '/seller' | '/super-admin'
+export type WarehouseAreaBase = '/seller' | '/super-admin' | '/warehouse-manager'
 
 export const warehousePaths = (base: WarehouseAreaBase) => ({
   root: `${base}/warehouse`,
   overview: `${base}/warehouse`,
   warehouses: `${base}/warehouse/warehouses`,
+  warehouseNew: `${base}/warehouse/warehouses/new`,
+  warehouseDetail: (id: string) => `${base}/warehouse/warehouses/${id}`,
+  warehouseEdit: (id: string) => `${base}/warehouse/warehouses/${id}/edit`,
   inventory: `${base}/warehouse/inventory`,
   transfer: `${base}/warehouse/transfer`,
   movements: `${base}/warehouse/movements`,

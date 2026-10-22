@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import ProductActions from './ProductActions'
 import ProductVariantSelector, { pickDefaultVariant } from './ProductVariantSelector'
 import type { ProductDetail, ProductFlashDeal, ProductVariant } from '@/features/products/types/productTypes'
+import { variantSellableStock } from '@/features/products/utils/variantStock'
 import { getGalleryImagesForVariant } from '@/features/products/utils/variantGallery'
 import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
 import { productServiceAssetUrl } from '@/lib/api/apiConfig'
@@ -181,9 +182,11 @@ const ProductInfo = ({ product, onSelectedVariantChange }: Props) => {
           : 0
 
   const stockLabel = useMemo(() => {
-    const n = activeVariant?.shopStock ?? product.stock ?? 0
+    const n = activeVariant
+      ? variantSellableStock(activeVariant)
+      : Math.max(0, Number(product.stock ?? 0))
     return n > 0 ? `${n} in stock` : 'Out of stock'
-  }, [activeVariant?.shopStock, product.stock])
+  }, [activeVariant, product.stock])
 
   const handleWishlist = useCallback(() => {
     dispatch(toggleWishlist(product.id))
@@ -388,10 +391,10 @@ const ProductInfo = ({ product, onSelectedVariantChange }: Props) => {
         onVariantChange={handleVariantChange}
       />
 
-      <p className="text-xs text-gray-600">
-        <span className="font-medium text-gray-800">Stock: </span>
-        {stockLabel}
-      </p>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+        <span className="w-20 shrink-0 text-sm font-medium text-gray-900 sm:w-24">Stock:</span>
+        <p className="text-sm text-gray-600">{stockLabel}</p>
+      </div>
 
       <ProductActions
         product={product}

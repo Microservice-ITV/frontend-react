@@ -10,7 +10,7 @@ export const ROUTE_ACCESS = {
   sellerOverview: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
   /** Warehouse & inventory management — shop owner scope */
   warehouse: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
-  /** Purchasing (suppliers, purchase orders, goods receipts) — shop owner scope */
+  /** Purchasing (purchase orders, returns) — shop owner scope. Goods receipts and suppliers are admin only. */
   purchase: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
   sellerAnalytics: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
   sellerOrders: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
@@ -43,6 +43,10 @@ export const ROUTE_ACCESS = {
   superAdminWarehouse: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   /** Purchasing — platform wide scope */
   superAdminPurchase: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+  warehouseManager: [CAPABILITIES.WAREHOUSE_DASHBOARD_VIEW],
+  deliveryAgent: [CAPABILITIES.DELIVERY_DASHBOARD_VIEW],
+  deliveryAgentParcels: [CAPABILITIES.DELIVERY_PARCELS_VIEW],
+  deliveryAgentDamageReports: [CAPABILITIES.DELIVERY_DAMAGE_REPORTS_VIEW],
   superAdminAnalytics: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   superAdminShops: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   superAdminShipping: [CAPABILITIES.PLATFORM_ADMIN_VIEW],

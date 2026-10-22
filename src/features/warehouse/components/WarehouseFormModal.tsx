@@ -30,6 +30,7 @@ const WarehouseFormModal = ({
   const [name, setName] = useState('')
   const [code, setCode] = useState('')
   const [address, setAddress] = useState('')
+  const [capacityUnits, setCapacityUnits] = useState('')
   const [status, setStatus] = useState<WarehouseStatus>('ACTIVE')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -40,6 +41,9 @@ const WarehouseFormModal = ({
     setName(warehouse?.name ?? '')
     setCode(warehouse?.code ?? '')
     setAddress(warehouse?.address ?? '')
+    setCapacityUnits(
+      warehouse?.capacityUnits != null ? String(warehouse.capacityUnits) : '',
+    )
     setStatus(warehouse?.status ?? 'ACTIVE')
     setError(null)
     setNameError(null)
@@ -51,6 +55,11 @@ const WarehouseFormModal = ({
       setNameError('Name must be at least 2 characters.')
       return
     }
+    const capacity = Number(capacityUnits)
+    if (!Number.isFinite(capacity) || !Number.isInteger(capacity) || capacity < 1) {
+      setError('Enter a capacity of at least 1 unit.')
+      return
+    }
 
     setNameError(null)
     setSaving(true)
@@ -60,6 +69,7 @@ const WarehouseFormModal = ({
         name: trimmedName,
         code: code.trim().toUpperCase() || null,
         address: address.trim() || null,
+        capacityUnits: capacity,
         status,
       }
       if (warehouse) {
@@ -142,6 +152,22 @@ const WarehouseFormModal = ({
             value={address}
             onChange={(event) => setAddress(event.target.value)}
             placeholder="e.g. 12th Street, Industrial Area"
+            className={textInputClass}
+          />
+        </FormField>
+
+        <FormField
+          label="Capacity (units)"
+          required
+          hint="When full, purchase orders and transfers into this warehouse are blocked."
+        >
+          <input
+            type="number"
+            min={1}
+            step={1}
+            value={capacityUnits}
+            onChange={(event) => setCapacityUnits(event.target.value)}
+            placeholder="e.g. 1000"
             className={textInputClass}
           />
         </FormField>

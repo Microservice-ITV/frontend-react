@@ -8,7 +8,8 @@ import { promotionClient } from '@/lib/api/promotionClient'
 export type CheckoutShopShippingPayload = {
   shop_id: string
   shipping_fee: number
-  delivery_company_id: string
+  /** Null when the shop has no company, or none can serve this route. */
+  delivery_company_id: string | null
 }
 
 export type CheckoutAddressPayload = {
@@ -34,6 +35,10 @@ export type CheckoutAddressPayload = {
   /** Optional one-time voucher / promo code */
   promo_code?: string | null
   payment_method?: 'prepaid' | 'cod'
+  /** Staff prepaid cash: amount customer tendered at counter */
+  cash_paid_amount?: number | null
+  /** Staff prepaid cash: change returned to customer */
+  cash_refund_amount?: number | null
 }
 
 export type PromoCodeStatus =

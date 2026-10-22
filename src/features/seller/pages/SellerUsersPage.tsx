@@ -33,6 +33,12 @@ type ShopRolesResponse = {
   }
 }
 
+type RegisteredUserOption = {
+  id: string
+  name: string
+  email: string
+}
+
 const getInitials = (name: string): string =>
   name
     .split(/\s+/)
@@ -47,8 +53,15 @@ const normalizeRole = (role?: { code?: string; name?: string } | null): UserRole
   if (code.includes('admin')) return 'admin'
   if (code.includes('editor')) return 'editor'
   if (code.includes('moderator')) return 'moderator'
+  if (code.includes('staff')) return 'viewer'
   return 'viewer'
 }
+
+const preferredCreateRoleCode = (roles: ShopRoleOption[]): string =>
+  roles.find((role) => role.code === 'staff')?.code
+  ?? roles.find((role) => role.code === 'shop_admin')?.code
+  ?? roles[0]?.code
+  ?? ''
 
 const normalizeStatus = (status?: string | null): UserStatus => {
   if (status === 'inactive') return 'inactive'
@@ -142,6 +155,11 @@ const SellerUsersPage = () => {
   const [draft, setDraft] = useState(EMPTY_DRAFT)
   const [isLoadingUsers, setIsLoadingUsers] = useState(false)
   const [usersError, setUsersError] = useState<string | null>(null)
+  const [emailSearch, setEmailSearch] = useState('')
+  const [userSuggestions, setUserSuggestions] = useState<RegisteredUserOption[]>([])
+  const [isLookingUpUsers, setIsLookingUpUsers] = useState(false)
+  const [showUserSuggestions, setShowUserSuggestions] = useState(false)
+  const [selectedRegisteredUserId, setSelectedRegisteredUserId] = useState<string | null>(null)
   const [showColumnMenu, setShowColumnMenu] = useState(false)
   const [visibleColumns, setVisibleColumns] = useState({
     reportingTo: true,
@@ -197,7 +215,7 @@ const SellerUsersPage = () => {
           ...current,
           roleCode: roles.some((role) => role.code === current.roleCode)
             ? current.roleCode
-            : roles[0]?.code ?? '',
+            : preferredCreateRoleCode(roles),
         }))
       })
       .catch((error: any) => {
@@ -236,17 +254,31 @@ const SellerUsersPage = () => {
   const resetForm = () => {
     setDraft({ ...EMPTY_DRAFT })
     setEditingUserId(null)
+    setEmailSearch('')
+    setUserSuggestions([])
+    setShowUserSuggestions(false)
+    setSelectedRegisteredUserId(null)
     setFormOpen(false)
   }
 
   const openCreateForm = () => {
     setEditingUserId(null)
-    setDraft({ ...EMPTY_DRAFT, roleCode: shopRoles[0]?.code ?? '' })
+    setUsersError(null)
+    setEmailSearch('')
+    setUserSuggestions([])
+    setShowUserSuggestions(false)
+    setSelectedRegisteredUserId(null)
+    setDraft({ ...EMPTY_DRAFT, roleCode: preferredCreateRoleCode(shopRoles) })
     setFormOpen(true)
   }
 
   const openEditForm = (user: SellerUserRow) => {
     setEditingUserId(user.id)
+    setUsersError(null)
+    setEmailSearch(user.email)
+    setUserSuggestions([])
+    setShowUserSuggestions(false)
+    setSelectedRegisteredUserId(null)
     setDraft({
       name: user.name,
       email: user.email,
@@ -258,12 +290,73 @@ const SellerUsersPage = () => {
     setFormOpen(true)
   }
 
+  const selectRegisteredUser = (user: RegisteredUserOption) => {
+    setSelectedRegisteredUserId(user.id)
+    setEmailSearch(user.email)
+    setShowUserSuggestions(false)
+    setUserSuggestions([])
+    setDraft((current) => ({
+      ...current,
+      name: user.name,
+      email: user.email,
+    }))
+    setUsersError(null)
+  }
+
+  useEffect(() => {
+    if (!formOpen || editingUserId || !activeShopId) {
+      return
+    }
+
+    const query = emailSearch.trim()
+    if (query.length < 2) {
+      setUserSuggestions([])
+      setIsLookingUpUsers(false)
+      return
+    }
+
+    if (selectedRegisteredUserId && query === draft.email) {
+      setUserSuggestions([])
+      return
+    }
+
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      setIsLookingUpUsers(true)
+      authClient
+        .get(`/shops/${activeShopId}/users/lookup`, { params: { search: query } })
+        .then((response) => {
+          if (cancelled) return
+          const matches = (response.data?.data?.users ?? response.data?.users ?? []) as RegisteredUserOption[]
+          setUserSuggestions(matches)
+          setShowUserSuggestions(true)
+        })
+        .catch(() => {
+          if (cancelled) return
+          setUserSuggestions([])
+        })
+        .finally(() => {
+          if (!cancelled) setIsLookingUpUsers(false)
+        })
+    }, 300)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [formOpen, editingUserId, activeShopId, emailSearch, selectedRegisteredUserId, draft.email])
+
   const handleSaveUser = async () => {
     const trimmedName = draft.name.trim()
     const trimmedEmail = draft.email.trim()
     const trimmedDepartment = draft.department.trim()
 
-    if (!trimmedName) {
+    if (!editingUserId) {
+      if (!selectedRegisteredUserId || !trimmedEmail || !trimmedName) {
+        setUsersError('Select a registered user from the search results.')
+        return
+      }
+    } else if (!trimmedName) {
       setUsersError('Full name is required.')
       return
     }
@@ -320,34 +413,23 @@ const SellerUsersPage = () => {
       return
     }
 
-    const nextId = `u${Date.now()}`
-    const selectedRole = shopRoles.find((role) => role.code === draft.roleCode)
-    const initials = trimmedName
-      .split(/\s+/)
-      .slice(0, 2)
-      .map((part) => part[0]?.toUpperCase() ?? '')
-      .join('') || 'NU'
-
-    setUsers((current) => [
-      {
-        id: nextId,
-        name: trimmedName,
+    try {
+      await authClient.post(`/shops/${activeShopId}/users`, {
+        user_id: selectedRegisteredUserId,
         email: trimmedEmail,
-        initials,
-        department: trimmedDepartment,
-        role: normalizeRole(selectedRole),
-        roleCode: draft.roleCode,
-        roleName: selectedRole?.name ?? 'Unknown role',
-        status: draft.status,
-        lastActive: 'just now',
-        shopId: activeShopId,
-        reportingTo: draft.reportingTo,
-      },
-      ...current,
-    ])
-
-    setUsersError(null)
-    resetForm()
+        role_code: draft.roleCode,
+        reporting_to: draft.reportingTo ?? null,
+      })
+      await loadUsers()
+      setUsersError(null)
+      resetForm()
+    } catch (error: any) {
+      setUsersError(
+        error?.response?.data?.message
+        ?? error?.response?.data?.errors?.email?.[0]
+        ?? 'Unable to assign staff. The email must belong to a registered user.',
+      )
+    }
   }
 
   const handleDeleteUser = (userId: string) => {
@@ -411,6 +493,12 @@ const SellerUsersPage = () => {
         </button>
       </div>
 
+      {usersError && (
+        <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {usersError}
+        </div>
+      )}
+
       {formOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
@@ -446,24 +534,73 @@ const SellerUsersPage = () => {
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-2">
+                    {!editingUserId ? (
+                      <label className="relative text-sm text-slate-700 md:col-span-2">
+                        <span className="mb-1.5 block font-medium">Registered user email</span>
+                        <input
+                          type="search"
+                          value={emailSearch}
+                          onChange={(e) => {
+                            const value = e.target.value
+                            setEmailSearch(value)
+                            setSelectedRegisteredUserId(null)
+                            setDraft((current) => ({ ...current, name: '', email: '' }))
+                            setShowUserSuggestions(true)
+                          }}
+                          onFocus={() => {
+                            if (userSuggestions.length > 0) setShowUserSuggestions(true)
+                          }}
+                          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                          placeholder="Search by registered email or name"
+                          autoComplete="off"
+                        />
+                        {isLookingUpUsers && (
+                          <span className="mt-1.5 block text-xs text-slate-500">Searching registered users...</span>
+                        )}
+                        {showUserSuggestions && userSuggestions.length > 0 && (
+                          <ul className="absolute z-20 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+                            {userSuggestions.map((user) => (
+                              <li key={user.id}>
+                                <button
+                                  type="button"
+                                  onClick={() => selectRegisteredUser(user)}
+                                  className="flex w-full flex-col gap-0.5 px-3 py-2.5 text-left hover:bg-slate-50"
+                                >
+                                  <span className="text-sm font-medium text-slate-900">{user.name}</span>
+                                  <span className="text-xs text-slate-500">{user.email}</span>
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </label>
+                    ) : (
+                      <label className="text-sm text-slate-700">
+                        <span className="mb-1.5 block font-medium">Email</span>
+                        <input
+                          type="email"
+                          value={draft.email}
+                          onChange={(e) => setDraft((current) => ({ ...current, email: e.target.value }))}
+                          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                          placeholder="jane@shop.com"
+                        />
+                      </label>
+                    )}
+
                     <label className="text-sm text-slate-700">
                       <span className="mb-1.5 block font-medium">Full name</span>
                       <input
                         value={draft.name}
-                        onChange={(e) => setDraft((current) => ({ ...current, name: e.target.value }))}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                        placeholder="Jane Doe"
-                      />
-                    </label>
-
-                    <label className="text-sm text-slate-700">
-                      <span className="mb-1.5 block font-medium">Email</span>
-                      <input
-                        type="email"
-                        value={draft.email}
-                        onChange={(e) => setDraft((current) => ({ ...current, email: e.target.value }))}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                        placeholder="jane@shop.com"
+                        onChange={(e) => {
+                          if (editingUserId) {
+                            setDraft((current) => ({ ...current, name: e.target.value }))
+                          }
+                        }}
+                        readOnly={!editingUserId}
+                        className={`w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 ${
+                          editingUserId ? 'bg-white' : 'cursor-default bg-slate-100 text-slate-600'
+                        }`}
+                        placeholder={editingUserId ? 'Jane Doe' : 'Filled from selected user'}
                       />
                     </label>
 

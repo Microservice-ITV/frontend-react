@@ -1,7 +1,9 @@
-import { CheckoutTotals } from '../utils/checkoutCalculator'
+import { amountDueNow, CheckoutTotals, ZERO_DELIVERY_FEE_LABEL } from '../utils/checkoutCalculator'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CardElement, useElements, useStripe } from '@stripe/react-stripe-js'
+import type { StripeCardElement } from '@stripe/stripe-js'
+import axios from 'axios'
 import {
   cartTaxFromKnownRates,
   checkoutApi,
@@ -16,6 +18,7 @@ import {
   setCheckoutError,
   setCheckoutPaymentStatus,
   setCheckoutPlacingOrder,
+  setCheckoutTaxAmount,
   setItemTaxes,
 } from '../store/checkoutSlice'
 import type { UserAddress } from '@/features/account/types/addressTypes'
@@ -23,12 +26,21 @@ import type { CartItem } from '@/features/cart/types/cartTypes'
 import type { CheckoutShopShippingPayload } from '../api/checkoutApi'
 import type { CheckoutStatusResponse } from '../types/checkoutTypes'
 import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
+import { formatCashIncomeDisplay, normalizeCashDigits } from '../utils/cashTender'
 import { getDeliveryBlockReason } from '../utils/deliveryReadiness'
+import {
+  checkoutShopsHaveDeliveryCompanies,
+  distributeShippingFee,
+  mapCheckoutShopIdsToCartShopIds,
+  parseDeliveryFeeInput,
+} from '../utils/checkoutShopShipping'
 
 let activeCartTaxRequest = 0
 
 interface CheckoutSummaryProps {
   checkout: CheckoutTotals
+  /** On by default. Off places the order with a delivery fee of 0.00. */
+  payDeliveryFeeNow: boolean
   hasDeliveryAddress: boolean
   onRequireAddress: () => void
   deliveryAddress: UserAddress | null
@@ -37,6 +49,17 @@ interface CheckoutSummaryProps {
   /** No delivery company has a district route; fee is confirmed after the order. */
   deliveryQuotePendingConfirmation?: boolean
   deliveryCompanyIdByShopId: Record<string, string>
+  /** False while shop companies and route availability are still loading. */
+  deliveryCompanySelectionReady?: boolean
+  /**
+   * Cart shop ids with no delivery company, or whose companies are all
+   * unavailable for this route. Those shops do not block place order.
+   */
+  cartShopIdsWithoutSelectableCompany?: readonly string[]
+  /** Staff can type the delivery fee charged on this order. */
+  editableDeliveryFee?: boolean
+  deliveryFeeInput?: string
+  onDeliveryFeeInputChange?: (value: string) => void
 }
 
 const promoStatusLabel = (status: PromoCodeStatus | null | undefined, message?: string | null): string => {
@@ -70,61 +93,73 @@ const buildShopShippings = (
   feesByShopId: Record<string, { amount?: number | null }>,
   shippingCalculateStatus: string,
   deliveryCompanyIdByShopId: Record<string, string>,
+  cartShopIdsWithoutSelectableCompany: ReadonlySet<string>,
 ): CheckoutShopShippingPayload[] => {
   const shopCountFromCart = Object.keys(checkout.groupedByShop).length
   const perShopFallback = shopCountFromCart > 0 ? checkout.shippingSubtotal / shopCountFromCart : 0
-  const cartProductToShop = new Map(cartItems.map((item) => [item.productId, item.shopId]))
+  const shopMappings = mapCheckoutShopIdsToCartShopIds(
+    Object.keys(checkout.groupedByShop),
+    cartItems,
+    checkoutSessionItems,
+  )
+  const perShopFallbackForIds = shopMappings.length > 0
+    ? checkout.shippingSubtotal / shopMappings.length
+    : perShopFallback
 
-  const sessionShops = new Map<string, string[]>()
-  for (const item of checkoutSessionItems ?? []) {
-    const shopId = item.shop_id?.trim()
-    if (!shopId) continue
-    const productIds = sessionShops.get(shopId) ?? []
-    productIds.push(item.product_id)
-    sessionShops.set(shopId, productIds)
-  }
-
-  const shopIds =
-    sessionShops.size > 0
-      ? [...sessionShops.keys()]
-      : Object.keys(checkout.groupedByShop)
-
-  const perShopFallbackForIds =
-    shopIds.length > 0 ? checkout.shippingSubtotal / shopIds.length : perShopFallback
-
-  return shopIds.map((shopId) => {
-    const productIds = sessionShops.get(shopId)
-    let cartShopId: string | undefined
-    if (productIds) {
-      for (const productId of productIds) {
-        const mapped = cartProductToShop.get(productId)
-        if (mapped) {
-          cartShopId = mapped
-          break
-        }
-      }
-    } else {
-      cartShopId = shopId
-    }
-
+  return shopMappings.map(({ checkoutShopId: shopId, cartShopId }) => {
     const row = cartShopId ? feesByShopId[cartShopId] : undefined
     const fromApi =
       shippingCalculateStatus === 'succeeded' && row?.amount != null && row.amount >= 0
         ? row.amount
         : null
 
+    const waived = Boolean(cartShopId && cartShopIdsWithoutSelectableCompany.has(cartShopId))
+    const companyId = !waived && cartShopId
+      ? deliveryCompanyIdByShopId[cartShopId]?.trim() ?? ''
+      : ''
+
     return {
       shop_id: shopId,
-      shipping_fee: fromApi ?? perShopFallbackForIds,
-      delivery_company_id: cartShopId
-        ? deliveryCompanyIdByShopId[cartShopId] ?? ''
-        : '',
+      shipping_fee: waived ? 0 : (fromApi ?? perShopFallbackForIds),
+      delivery_company_id: companyId || null,
     }
   })
 }
 
+const firstValidationMessage = (errors: unknown): string | undefined => {
+  if (!errors || typeof errors !== 'object') return undefined
+
+  for (const messages of Object.values(errors)) {
+    if (typeof messages === 'string' && messages.trim()) return messages
+    if (Array.isArray(messages)) {
+      const message = messages.find((item): item is string => typeof item === 'string' && item.trim() !== '')
+      if (message) return message
+    }
+  }
+
+  return undefined
+}
+
+const responseIsObject = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === 'object' && !Array.isArray(value)
+
+const isPromoCodeStatus = (value: unknown): value is PromoCodeStatus => {
+  const statuses: PromoCodeStatus[] = [
+    'VALID',
+    'INVALID',
+    'EXPIRED',
+    'USED',
+    'DISABLED',
+    'RESERVED',
+    'LIMIT_REACHED',
+    'NOT_APPLICABLE',
+  ]
+  return statuses.some((status) => status === value)
+}
+
 const CheckoutSummary = ({
   checkout,
+  payDeliveryFeeNow,
   hasDeliveryAddress,
   onRequireAddress,
   deliveryAddress,
@@ -132,11 +167,16 @@ const CheckoutSummary = ({
   checkoutSessionItems,
   deliveryQuotePendingConfirmation = false,
   deliveryCompanyIdByShopId,
+  deliveryCompanySelectionReady = false,
+  cartShopIdsWithoutSelectableCompany = [],
+  editableDeliveryFee = false,
+  deliveryFeeInput = '',
+  onDeliveryFeeInputChange,
 }: CheckoutSummaryProps) => {
   const dispatch = useAppDispatch()
   const stripe = useStripe()
   const elements = useElements()
-  const { currentCheckout, currentStatus, clientSecret, paymentStatus, isPlacingOrder, isAwaitingFinalStatus, error, paymentMethod, sessionPaymentMethod, itemTaxes } = useAppSelector(
+  const { currentCheckout, currentStatus, clientSecret, paymentStatus, isPlacingOrder, isAwaitingFinalStatus, error, paymentMethod, sessionPaymentMethod, prepaidProvider, cashTender, itemTaxes } = useAppSelector(
     state => state.checkout
   )
 
@@ -154,7 +194,6 @@ const CheckoutSummary = ({
   const [authoritativeTotal, setAuthoritativeTotal] = useState<number | null>(null)
   const [promotionFinal, setPromotionFinal] = useState<number | null>(null)
   const promotionAllocationsRef = useRef<Array<Record<string, unknown>>>([])
-  const [promotionQuoteLoading, setPromotionQuoteLoading] = useState(false)
   const [promotionQuoteError, setPromotionQuoteError] = useState(false)
   const [promoCodeInput, setPromoCodeInput] = useState('')
   const [appliedPromoCode, setAppliedPromoCode] = useState<string | null>(null)
@@ -170,6 +209,11 @@ const CheckoutSummary = ({
     () => cartTaxFromKnownRates(cartItems, itemTaxes, promotionDiscount),
     [cartItems, itemTaxes, promotionDiscount],
   )
+  const shownTaxForPayment = scaledTax ?? taxAmount
+
+  useEffect(() => {
+    dispatch(setCheckoutTaxAmount(shownTaxForPayment))
+  }, [dispatch, shownTaxForPayment])
 
   const promotionItems = cartItems.map((item) => ({
     product_id: item.productId,
@@ -285,7 +329,6 @@ const CheckoutSummary = ({
     if (!checkoutId || !userId || promotionItems.length === 0) return
 
     let cancelled = false
-    setPromotionQuoteLoading(true)
     setPromotionQuoteError(false)
 
     void requestPromotionQuote(appliedPromoCode).then((quote) => {
@@ -298,8 +341,6 @@ const CheckoutSummary = ({
       }
     }).catch(() => {
       if (!cancelled) setPromotionQuoteError(true)
-    }).finally(() => {
-      if (!cancelled) setPromotionQuoteLoading(false)
     })
 
     return () => {
@@ -349,21 +390,38 @@ const CheckoutSummary = ({
     setPromoCodeMessage(null)
   }
 
-  const buildCheckoutAddressPayload = (address: UserAddress) => {
-    const shipping_total = deliveryQuotePendingConfirmation
+  const buildCheckoutAddressPayload = (
+    address: UserAddress,
+    overridePaymentMethod?: 'prepaid' | 'cod',
+    cashAmounts?: { paid: number; refund: number } | null,
+  ) => {
+    const quotedShippingTotal = deliveryQuotePendingConfirmation
       ? 0
       : shippingCalculateStatus === 'succeeded' && totalShippingFee != null && totalShippingFee >= 0
         ? totalShippingFee
         : checkout.shippingSubtotal
+    const manualDeliveryFee = editableDeliveryFee ? parseDeliveryFeeInput(deliveryFeeInput) : null
+    const shipping_total = manualDeliveryFee != null
+      ? manualDeliveryFee
+      : payDeliveryFeeNow
+        ? quotedShippingTotal
+        : 0
 
-    const shop_shippings = buildShopShippings(
+    const quotedShopShippings = buildShopShippings(
       checkout,
       cartItems,
       checkoutSessionItems ?? currentStatus?.items,
       feesByShopId,
       shippingCalculateStatus,
       deliveryCompanyIdByShopId,
+      new Set(cartShopIdsWithoutSelectableCompany),
     )
+    const baseShopShippings = payDeliveryFeeNow
+      ? quotedShopShippings
+      : quotedShopShippings.map((row) => ({ ...row, shipping_fee: 0 }))
+    const shop_shippings = manualDeliveryFee != null
+      ? distributeShippingFee(baseShopShippings, manualDeliveryFee)
+      : baseShopShippings
 
     return {
       full_name: address.full_name,
@@ -384,7 +442,13 @@ const CheckoutSummary = ({
       shipping_total,
       shop_shippings,
       promo_code: appliedPromoCode,
-      payment_method: sessionPaymentMethod ?? paymentMethod,
+      payment_method: overridePaymentMethod ?? sessionPaymentMethod ?? paymentMethod,
+      ...(cashAmounts
+        ? {
+            cash_paid_amount: cashAmounts.paid,
+            cash_refund_amount: cashAmounts.refund,
+          }
+        : {}),
     }
   }
 
@@ -400,10 +464,21 @@ const CheckoutSummary = ({
       return
     }
 
+    if (!deliveryCompanySelectionReady) {
+      dispatch(setCheckoutError('Delivery options are still loading. Please wait a moment.'))
+      return
+    }
+
+    if (!hasDeliveryCompanyForEveryShop) {
+      dispatch(setCheckoutError('Select a delivery company configured for every shop to continue.'))
+      return
+    }
+
     // Runtime guard. `canPlaceOrder` disables the button for durable faults, but a
     // click can still land while the quote is idle/loading (those states are not
     // treated as faults), so keep catching them here.
     if (
+      payDeliveryFeeNow &&
       !deliveryQuotePendingConfirmation &&
       (shippingCalculateStatus !== 'succeeded' || totalShippingFee == null)
     ) {
@@ -413,13 +488,6 @@ const CheckoutSummary = ({
             'Delivery fee is not ready yet. Please wait for it to calculate, or check your delivery address.',
         ),
       )
-      return
-    }
-
-    const missingCompanyShop = [...new Set(cartItems.map((item) => item.shopId))]
-      .find((shopId) => !deliveryCompanyIdByShopId[shopId]?.trim())
-    if (missingCompanyShop) {
-      dispatch(setCheckoutError('A delivery company is not configured for one or more shops. Please contact the shop owner.'))
       return
     }
 
@@ -436,9 +504,25 @@ const CheckoutSummary = ({
 
     const effectivePaymentMethod = sessionPaymentMethod ?? paymentMethod
     const isPrepaid = effectivePaymentMethod === 'prepaid'
-    let card: ReturnType<NonNullable<typeof elements>['getElement']> | null = null
+    const isStaffCash = prepaidProvider === 'cash'
+    let card: StripeCardElement | null = null
 
-    if (isPrepaid) {
+    if (isStaffCash) {
+      const orderDue = Number(
+        authoritativeTotal ??
+        amountDueNow(checkout, payDeliveryFeeNow, shownTaxForPayment, promotionDiscount)
+          + (editableDeliveryFee ? parseDeliveryFeeInput(deliveryFeeInput) : 0),
+      )
+      const income = Number(cashTender?.income ?? 0)
+      if (!cashTender || income < orderDue) {
+        dispatch(setCheckoutError('Enter the cash amount the customer paid. It must cover the order total (including tax).'))
+        return
+      }
+      if (!clientSecret) {
+        dispatch(setCheckoutError('Cash payment is not ready yet. Please wait a moment.'))
+        return
+      }
+    } else if (isPrepaid) {
       if (!stripe || !elements || !clientSecret) {
         dispatch(setCheckoutError('Payment is not ready yet.'))
         return
@@ -461,13 +545,34 @@ const CheckoutSummary = ({
     dispatch(setCheckoutPlacingOrder(true))
 
     try {
+      // Staff cash is collected at the counter — complete via the offline
+      // authorize path (no Stripe). Cash is a prepaid provider, so the checkout
+      // records payment_method=prepaid with the cash tender amounts.
+      const placeOrderPaymentMethod: 'prepaid' | 'cod' = isStaffCash
+        ? 'prepaid'
+        : (effectivePaymentMethod as 'prepaid' | 'cod')
+
+      const cashIncome = cashTender?.income
+      const cashRefund = cashTender?.refund
+      const cashAmounts =
+        isStaffCash && cashIncome != null && Number.isFinite(cashIncome)
+          ? {
+              paid: Number(cashIncome),
+              refund: Number.isFinite(Number(cashRefund)) ? Number(cashRefund) : 0,
+            }
+          : null
+
+      // Staff cash: offline authorize is handled in updateDeliveryAddress (via cod path + cash tender)
+
       console.info('[PlaceOrder] Updating checkout address...')
       const addressResponse = await checkoutApi.updateCheckoutAddress(
         currentCheckout.checkout_id,
-        buildCheckoutAddressPayload(deliveryAddress),
+        buildCheckoutAddressPayload(deliveryAddress, placeOrderPaymentMethod, cashAmounts),
       )
       setPromotionDiscount(Number(addressResponse.data?.promotion_discount_total ?? 0))
-      setTaxAmount(Number(addressResponse.data?.tax_amount ?? 0))
+      const nextTax = Number(addressResponse.data?.tax_amount ?? 0)
+      setTaxAmount(nextTax)
+      dispatch(setCheckoutTaxAmount(nextTax))
       setTaxPreviewError(false)
       setAuthoritativeTotal(addressResponse.data?.grand_total ?? null)
       if (addressResponse.data?.promo_code_status) {
@@ -476,7 +581,13 @@ const CheckoutSummary = ({
       }
       console.info('[PlaceOrder] Address updated...')
 
-      if (isPrepaid) {
+      if (isStaffCash) {
+        console.info('[PlaceOrder] Staff cash order authorised', {
+          income: cashIncome,
+          refund: cashRefund,
+        })
+        dispatch(setCheckoutPaymentStatus('PENDING_PAYMENT'))
+      } else if (isPrepaid) {
         console.info('[PlaceOrder] Confirming payment with Stripe...')
 
         if (addressResponse.data?.already_succeeded) {
@@ -536,35 +647,34 @@ const CheckoutSummary = ({
       dispatch(setCheckoutError(null))
       dispatch(setCheckoutPlacingOrder(false))
     } catch (error: unknown) {
-      console.error('[PlaceOrder] Unexpected error during payment confirmation:', error)
+      console.error('[PlaceOrder] Checkout address update or payment confirmation failed:', error)
 
-      const responseData =
-        error &&
-        typeof error === 'object' &&
-        'response' in error
-          ? (error as {
-              response?: {
-                data?: {
-                  error?: string
-                  promo_code_status?: PromoCodeStatus
-                  promo_code_message?: string
-                }
-              }
-            }).response?.data
-          : undefined
+      const responseData = axios.isAxiosError(error) && responseIsObject(error.response?.data)
+        ? error.response.data
+        : undefined
 
-      if (responseData?.promo_code_status) {
+      if (isPromoCodeStatus(responseData?.promo_code_status)) {
         setPromoCodeStatus(responseData.promo_code_status)
-        setPromoCodeMessage(responseData.promo_code_message ?? null)
+        setPromoCodeMessage(
+          typeof responseData.promo_code_message === 'string'
+            ? responseData.promo_code_message
+            : null,
+        )
         setAppliedPromoCode(null)
       }
 
-      const apiError = responseData?.error
+      const validationMessage = firstValidationMessage(responseData?.errors)
+      const apiError =
+        (typeof responseData?.error === 'string' && responseData.error.trim()
+          ? responseData.error
+          : undefined) ??
+        (typeof responseData?.message === 'string' && responseData.message.trim()
+          ? [responseData.message, validationMessage].filter(Boolean).join(': ')
+          : validationMessage)
       dispatch(
         setCheckoutError(
-          typeof apiError === 'string' && apiError.trim() !== ''
-            ? apiError
-            : 'Unable to confirm payment. Please try again.',
+          apiError
+            ?? 'Unable to update checkout. Please review the delivery details and try again.',
         ),
       )
       dispatch(setAwaitingFinalStatus(false))
@@ -591,17 +701,35 @@ const CheckoutSummary = ({
 
   // Route/area issues are a manual follow-up flow, not a hard block. The checkout
   // can go ahead with a zero-fee placeholder while a team confirms the final quote.
-  const deliveryBlockReason = getDeliveryBlockReason({
-    hasDeliveryAddress,
-    calculateStatus: shippingCalculateStatus,
-    totalShippingFee,
-    calculateError: shippingCalculateError,
-    deliveryStatuses: deliveryFees.map((fee) => fee.deliveryStatus),
-    unavailableReasons: deliveryFees.map((fee) => fee.unavailableReason),
-  })
+  const deliveryBlockReason = payDeliveryFeeNow
+    ? getDeliveryBlockReason({
+        hasDeliveryAddress,
+        calculateStatus: shippingCalculateStatus,
+        totalShippingFee,
+        calculateError: shippingCalculateError,
+        deliveryStatuses: deliveryFees.map((fee) => fee.deliveryStatus),
+        unavailableReasons: deliveryFees.map((fee) => fee.unavailableReason),
+      })
+    : null
+
+  const requiredShopMappings = mapCheckoutShopIdsToCartShopIds(
+    Object.keys(checkout.groupedByShop),
+    cartItems,
+    checkoutSessionItems ?? currentStatus?.items,
+  )
+  const shopsWithoutSelectableCompany = new Set(cartShopIdsWithoutSelectableCompany)
+  const hasDeliveryCompanyForEveryShop =
+    deliveryCompanySelectionReady &&
+    checkoutShopsHaveDeliveryCompanies(
+      requiredShopMappings,
+      deliveryCompanyIdByShopId,
+      shopsWithoutSelectableCompany,
+    )
 
   const canPlaceOrder =
+    !!currentCheckout?.checkout_id &&
     !!clientSecret &&
+    hasDeliveryCompanyForEveryShop &&
     deliveryBlockReason === null &&
     !isPlacingOrder &&
     !isAwaitingFinalStatus &&
@@ -638,12 +766,19 @@ const CheckoutSummary = ({
       return 'Please add your delivery address to continue.'
     }
     if (isAwaitingFinalStatus) {
-      return isPrepaid
-        ? 'Waiting for payment confirmation...'
-        : 'Confirming your Cash on Delivery order...'
+      if (prepaidProvider === 'cash' || !isPrepaid) {
+        return 'Confirming your cash order...'
+      }
+      return 'Waiting for payment confirmation...'
     }
     if (deliveryBlockReason) {
       return deliveryBlockReason
+    }
+    if (!deliveryCompanySelectionReady) {
+      return 'Checking delivery options...'
+    }
+    if (!hasDeliveryCompanyForEveryShop) {
+      return 'Select a delivery company configured for every shop to continue.'
     }
     if (clientSecret) {
       return isPrepaid
@@ -660,19 +795,20 @@ const CheckoutSummary = ({
     totalPayment,
   } = checkout
   const deliveryPriceText = (() => {
+    if (!payDeliveryFeeNow || showPendingDeliveryFee) return ZERO_DELIVERY_FEE_LABEL
     if (!hasDeliveryAddress) return 'Add address'
     if (shippingCalculateStatus === 'loading') return 'Calculating…'
     if (shippingCalculateStatus === 'failed') return 'Unavailable'
-    if (showPendingDeliveryFee) return 'Ks 0.00'
     if (shippingCalculateStatus === 'succeeded') {
       return formatKsPrice(shippingSubtotal)
     }
     return '—'
   })()
   const shownTax = scaledTax ?? taxAmount
-  const displayedTotal =
-    authoritativeTotal ??
-    (promotionFinal ?? totalPayment) + shownTax
+  const manualDeliveryFee = editableDeliveryFee ? parseDeliveryFeeInput(deliveryFeeInput) : 0
+  const displayedTotal = !payDeliveryFeeNow
+    ? Math.max(0, merchandiseSubtotal - promotionDiscount) + shownTax + manualDeliveryFee
+    : (authoritativeTotal ?? (promotionFinal ?? totalPayment) + shownTax)
   const promoFeedback = promoStatusLabel(promoCodeStatus, promoCodeMessage)
   const promoIsValid = promoCodeStatus === 'VALID'
 
@@ -696,17 +832,31 @@ const CheckoutSummary = ({
           <span className="whitespace-nowrap tabular-nums text-gray-900">
             {scaledTax == null && taxLoading
               ? 'Calculating…'
-              : taxEnabled
+              : taxEnabled && shownTax !== 0
                 ? formatKsPrice(shownTax)
                 : formatDisabledTaxAmount(shownTax)}
           </span>
         </div>
-        <div className="mb-3 flex justify-between gap-3">
-          <span className="shrink-0 text-gray-600">Delivery</span>
-          <div className="flex flex-col items-end">
-            <span className="whitespace-nowrap tabular-nums text-gray-900">{deliveryPriceText}</span>
+        <div className="mb-3">
+          <div className="flex items-center justify-between gap-3">
+            <label htmlFor="checkout-delivery-fee" className="shrink-0 text-gray-600">Delivery</label>
+            {editableDeliveryFee ? (
+              <input
+                id="checkout-delivery-fee"
+                type="text"
+                inputMode="numeric"
+                value={formatCashIncomeDisplay(deliveryFeeInput)}
+                onChange={(event) => onDeliveryFeeInputChange?.(normalizeCashDigits(event.target.value))}
+                placeholder="Ks 0"
+                aria-label="Delivery fee"
+                disabled={isPlacingOrder}
+                className="h-8 w-32 rounded-lg border border-gray-300 bg-white px-2.5 text-sm tabular-nums text-gray-900 outline-none placeholder:text-gray-400 focus:border-[#5f8f80]"
+              />
+            ) : (
+              <span className="whitespace-nowrap tabular-nums text-gray-900">{deliveryPriceText}</span>
+            )}
           </div>
-          {shippingCalculateStatus === 'failed' && shippingCalculateError && (
+          {payDeliveryFeeNow && shippingCalculateStatus === 'failed' && shippingCalculateError && (
             <p className="mt-1 text-right text-[11px] text-amber-700">{shippingCalculateError}</p>
           )}
         </div>
@@ -766,11 +916,9 @@ const CheckoutSummary = ({
                   <p className="text-xs font-bold uppercase tracking-[0.12em] text-emerald-800">Your savings</p>
                   <p className="mt-0.5 text-xs text-emerald-700">Promotions are checked for this checkout</p>
                 </div>
-                {promotionQuoteLoading ? (
-                  <span className="text-xs font-medium text-emerald-700">Checking…</span>
-                ) : (
-                  <span className="whitespace-nowrap text-lg font-bold tabular-nums text-emerald-700">-{formatKsPrice(promotionDiscount)}</span>
-                )}
+                <span className="whitespace-nowrap text-lg font-bold tabular-nums text-emerald-700">
+                  -{formatKsPrice(promotionDiscount)}
+                </span>
               </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-gray-600">Shipping discount</span>
@@ -784,7 +932,30 @@ const CheckoutSummary = ({
           )}
         </div>
 
-        <div className="flex items-end justify-between gap-3 border-t border-[var(--dni-cart-border)] pt-3">
+        {prepaidProvider === 'cash' && cashTender && (
+          <div className="mb-3 space-y-2 border-t border-[var(--dni-cart-border)] pt-3">
+            <div className="flex justify-between gap-3 text-sm">
+              <span className="shrink-0 text-gray-600">Amount Paid by Customer</span>
+              <span className="whitespace-nowrap tabular-nums font-medium text-gray-900">
+                {formatKsPrice(cashTender.income)}
+              </span>
+            </div>
+            <div className="flex justify-between gap-3 text-sm">
+              <span className="shrink-0 text-gray-600">Refund Amount</span>
+              <span className="whitespace-nowrap tabular-nums font-medium text-gray-900">
+                {formatKsPrice(cashTender.refund)}
+              </span>
+            </div>
+          </div>
+        )}
+
+        <div
+          className={`flex items-end justify-between gap-3 ${
+            prepaidProvider === 'cash' && cashTender
+              ? 'pt-1'
+              : 'border-t border-[var(--dni-cart-border)] pt-3'
+          }`}
+        >
           <span className="shrink-0 font-medium text-gray-900">
             Total Payment:
           </span>

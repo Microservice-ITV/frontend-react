@@ -10,6 +10,14 @@ import type { SagaStatusResponse } from '../types/sagaTypes'
 import type { CheckoutLineTax } from '../api/checkoutApi'
 
 export type PaymentMethod = 'prepaid' | 'cod'
+export type PrepaidProvider = 'card' | 'kpay' | 'wavepay' | 'ayapay' | 'cash' | 'cbpay'
+
+export type CashTender = {
+    /** Amount the customer hands over (income). */
+    income: number
+    /** Change to return: max(0, income - order total). */
+    refund: number
+}
 
 interface CheckoutState {
     currentCheckout: CheckoutResponse | null
@@ -23,6 +31,10 @@ interface CheckoutState {
     isAwaitingFinalStatus: boolean
     paymentMethod: PaymentMethod
     sessionPaymentMethod: PaymentMethod | null
+    prepaidProvider: PrepaidProvider
+    cashTender: CashTender | null
+    /** Cart tax amount used in payment totals (cash order total, etc.). */
+    taxAmount: number
     itemTaxes: CheckoutLineTax[]
     loading: boolean
     error: string | null
@@ -40,6 +52,9 @@ const initialState: CheckoutState = {
     isAwaitingFinalStatus: false,
     paymentMethod: 'cod',
     sessionPaymentMethod: null,
+    prepaidProvider: 'card',
+    cashTender: null,
+    taxAmount: 0,
     itemTaxes: [],
     loading: false,
     error: null,
@@ -65,11 +80,30 @@ const checkoutSlice = createSlice({
             state.isPlacingOrder = false
             state.isAwaitingFinalStatus = false
             state.sessionPaymentMethod = null
+            state.prepaidProvider = 'card'
+            state.cashTender = null
+            state.taxAmount = 0
             state.itemTaxes = []
         },
         setPaymentMethod(state, action: { payload: PaymentMethod }) {
             state.paymentMethod = action.payload
             state.sessionPaymentMethod = action.payload
+            if (action.payload !== 'prepaid') {
+                state.prepaidProvider = 'card'
+                state.cashTender = null
+            }
+        },
+        setPrepaidProvider(state, action: { payload: PrepaidProvider }) {
+            state.prepaidProvider = action.payload
+            if (action.payload !== 'cash') {
+                state.cashTender = null
+            }
+        },
+        setCashTender(state, action: { payload: CashTender | null }) {
+            state.cashTender = action.payload
+        },
+        setCheckoutTaxAmount(state, action: { payload: number }) {
+            state.taxAmount = Math.max(0, Number(action.payload) || 0)
         },
         setItemTaxes(state, action: { payload: CheckoutLineTax[] }) {
             state.itemTaxes = action.payload
@@ -282,7 +316,19 @@ export const {
     setSagaId,
     setSagaStatistics,
     setPaymentMethod,
+    setPrepaidProvider,
+    setCashTender,
+    setCheckoutTaxAmount,
     setItemTaxes,
 } = checkoutSlice.actions
+
+export const selectPrepaidProvider = (state: { checkout: CheckoutState }) =>
+    state.checkout.prepaidProvider
+
+export const selectCashTender = (state: { checkout: CheckoutState }) =>
+    state.checkout.cashTender
+
+export const selectCheckoutTaxAmount = (state: { checkout: CheckoutState }) =>
+    state.checkout.taxAmount
 
 export default checkoutSlice.reducer

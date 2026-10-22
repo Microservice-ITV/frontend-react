@@ -43,7 +43,10 @@ const ProductActions = ({
 
   const unitPrice = promoPrice != null ? Math.max(0, promoPrice) : effective?.price ?? product.price;
   const originalUnitPrice = originalPrice != null ? originalPrice : effective?.price ?? product.price;
-  const maxStock = effective ? effective.shopStock : (product.stock ?? 0);
+  const maxStock = effective
+    ? Math.max(0, Number(effective.shopStock ?? 0)) +
+      Math.max(0, Number(effective.warehouseStock ?? 0))
+    : Math.max(0, Number(product.stock ?? 0))
   const maxQty = Math.min(99, Math.max(0, maxStock));
   const outOfStock = maxStock <= 0;
 
@@ -97,10 +100,10 @@ const ProductActions = ({
   return (
     <div className="space-y-4 sm:space-y-5">
       {/* QUANTITY */}
-      <div className="flex items-center gap-3 sm:gap-4">
-        <span className="text-sm font-medium text-gray-700">Quantity</span>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+        <span className="w-20 shrink-0 text-sm font-medium text-gray-900 sm:w-24">Quantity</span>
 
-        <div className="inline-flex items-center overflow-hidden rounded-lg border border-gray-200 bg-white">
+        <div className="inline-flex items-center overflow-hidden rounded-none border border-gray-200 bg-white">
           <button
             type="button"
             onClick={decrease}
@@ -142,14 +145,15 @@ const ProductActions = ({
       </div>
 
       {/* ACTION BUTTONS */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row">
         <button
           type="button"
           onClick={handleAddToCart}
           disabled={outOfStock}
           className="
-            flex flex-1 items-center justify-center gap-2
-            h-11 sm:h-12 px-6
+            flex w-full shrink-0 items-center justify-center gap-2
+            h-13 rounded-none px-6
+            sm:h-12 sm:w-auto sm:flex-1 sm:rounded-none
             border-2 border-[var(--dni-primary)]
             bg-white
             text-[var(--dni-primary)]
@@ -168,8 +172,9 @@ const ProductActions = ({
           onClick={handleBuyNow}
           disabled={outOfStock}
           className="
-            flex flex-1 items-center justify-center gap-2
-            h-11 sm:h-12 px-6
+            flex w-full shrink-0 items-center justify-center gap-2
+            h-13 rounded-none px-6
+            sm:h-12 sm:w-auto sm:flex-1 sm:rounded-none
             bg-[var(--dni-primary)]
             text-white
             font-semibold text-sm sm:text-base

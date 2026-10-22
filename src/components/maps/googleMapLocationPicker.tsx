@@ -64,10 +64,10 @@ function GoogleMapInner({ apiKey, latitude, longitude, onChange, className }: In
         Number.isFinite(latitude) &&
         Number.isFinite(longitude)
 
-    const initialCenterRef = useRef<LatLng | null>(null)
-    if (initialCenterRef.current === null) {
-        initialCenterRef.current = hasPin ? { lat: latitude!, lng: longitude! } : DEFAULT_MAP_CENTER
-    }
+    const center = useMemo<LatLng>(
+        () => (hasPin ? { lat: latitude!, lng: longitude! } : DEFAULT_MAP_CENTER),
+        [hasPin, latitude, longitude],
+    )
 
     const pinIcon = useMemo<google.maps.Icon | undefined>(() => {
         if (!isLoaded || typeof google === 'undefined') return undefined
@@ -109,8 +109,9 @@ function GoogleMapInner({ apiKey, latitude, longitude, onChange, className }: In
         const id = window.setTimeout(() => {
             const map = mapRef.current
             if (!map) return
+            google.maps.event.trigger(map, 'resize')
             map.panTo({ lat: latitude, lng: longitude })
-            map.setZoom(18)
+            map.setZoom(16)
             hadPinRef.current = true
         }, 0)
         return () => window.clearTimeout(id)
@@ -139,7 +140,7 @@ function GoogleMapInner({ apiKey, latitude, longitude, onChange, className }: In
         <div className={className}>
             <GoogleMap
                 mapContainerStyle={MAP_CONTAINER_STYLE}
-                center={initialCenterRef.current}
+                center={center}
                 zoom={hasPin ? 18 : 14}
                 options={mapOptions}
                 onLoad={(map) => {
@@ -158,10 +159,11 @@ function GoogleMapInner({ apiKey, latitude, longitude, onChange, className }: In
                     onChange(e.latLng.lat(), e.latLng.lng())
                 }}
             >
-                {hasPin && (
+                {hasPin && pinIcon && (
                     <MarkerF
                         position={{ lat: latitude!, lng: longitude! }}
                         icon={pinIcon}
+                        optimized={false}
                         draggable
                         onDragEnd={(e) => {
                             if (e.latLng) onChange(e.latLng.lat(), e.latLng.lng())

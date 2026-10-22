@@ -41,6 +41,7 @@ import {
   ClipboardList,
   PackageCheck,
   XCircle,
+  AlertTriangle,
 } from "lucide-react";
 import { CAPABILITIES } from "@/app/rbac/capabilities";
 import type { Capability } from "@/app/rbac/types";
@@ -55,8 +56,17 @@ const withSearch = (item: DashboardMenuSection['items'][0]) => {
   return search ? { ...item, search: { enabled: true, ...search } } : item
 }
 
+/** Seller menu omits these. Admin menu omits purchasing; the warehouse manager keeps it. */
+const ADMIN_ONLY_WAREHOUSE_KEYS = new Set(["warehouse-suppliers"])
+const ADMIN_HIDDEN_WAREHOUSE_KEYS = new Set([
+  "warehouse-purchase-orders",
+  "warehouse-receipts",
+  "warehouse-returns",
+  "warehouse-transfer",
+])
+
 const warehouseSection = (
-  base: "/seller" | "/super-admin",
+  base: "/seller" | "/super-admin" | "/warehouse-manager" | "/delivery-agent",
   area: DashboardArea,
   capability: Capability,
 ): DashboardMenuSection => {
@@ -68,7 +78,7 @@ const warehouseSection = (
       path: "/warehouse/warehouses",
       icon: Warehouse,
     },
-    { key: "warehouse-inventory", label: "Inventory", path: "/warehouse/inventory", icon: Boxes },
+    { key: "warehouse-inventory", label: "Inventory Data", path: "/warehouse/inventory", icon: Boxes },
     {
       key: "warehouse-transfer",
       label: "Transfer",
@@ -86,6 +96,30 @@ const warehouseSection = (
       label: "Purchase Orders",
       path: "/warehouse/purchase-orders",
       icon: ClipboardList,
+    },
+    {
+      key: "warehouse-seller-requests",
+      label: "Request from seller",
+      path: "/warehouse/seller-requests",
+      icon: ShoppingCart,
+    },
+    {
+      key: "warehouse-purchase-tracking",
+      label: "Purchase Order Tracking",
+      path: "/warehouse/purchase-order-tracking",
+      icon: Package,
+    },
+    {
+      key: "warehouse-from-warehouse",
+      label: "Orders from warehouse",
+      path: "/warehouse/from-warehouse",
+      icon: ShoppingCart,
+    },
+    {
+      key: "warehouse-supplier-receive",
+      label: "Receive from Supplier",
+      path: "/warehouse/supplier-receipts",
+      icon: Package,
     },
     {
       key: "warehouse-receipts",
@@ -107,9 +141,22 @@ const warehouseSection = (
     },
   ]
 
+  const visibleItems = items.filter((entry) => {
+    // Sellers track warehouse stock requests (create via New request on that page).
+    if (entry.key === "warehouse-from-warehouse") return area === "seller"
+    // WM-only inbox for seller warehouse stock requests.
+    if (entry.key === "warehouse-seller-requests") return area === "warehouse_manager"
+    if (entry.key === "warehouse-supplier-receive") return false
+    if (entry.key === "warehouse-suppliers" && area === "warehouse_manager") return false
+    if (entry.key === "warehouse-purchase-tracking" && area !== "seller") return false
+    if (area === "seller") return !ADMIN_ONLY_WAREHOUSE_KEYS.has(entry.key)
+    if (area === "super_admin") return !ADMIN_HIDDEN_WAREHOUSE_KEYS.has(entry.key)
+    return true
+  })
+
   return {
     title: "WAREHOUSE",
-    items: items.map((entry) => ({
+    items: visibleItems.map((entry) => ({
       key: `${area}-${entry.key}`,
       label: entry.label,
       to: `${base}${entry.path}`,
@@ -117,6 +164,42 @@ const warehouseSection = (
       requiredCapabilities: [capability],
       icon: entry.icon,
     })),
+  }
+}
+
+const sellerWarehouseSection = (): DashboardMenuSection => {
+  const section = warehouseSection("/seller", "seller", CAPABILITIES.SELLER_DASHBOARD_VIEW)
+  const receiptsIndex = section.items.findIndex((item) =>
+    item.key.endsWith("warehouse-receipts"),
+  )
+  const confirmPickupItem = {
+    key: "seller-delivery-parcels",
+    label: "Confirm and Pickup",
+    to: "/seller/warehouse/parcels",
+    area: "seller" as const,
+    requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+    icon: Truck,
+  }
+  const damageReportsItem = {
+    key: "seller-damage-reports",
+    label: "Damage Reports",
+    to: "/seller/warehouse/damage-reports",
+    area: "seller" as const,
+    requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+    icon: AlertTriangle,
+  }
+  const items =
+    receiptsIndex >= 0
+      ? [
+          ...section.items.slice(0, receiptsIndex),
+          confirmPickupItem,
+          ...section.items.slice(receiptsIndex),
+          damageReportsItem,
+        ]
+      : [...section.items, confirmPickupItem, damageReportsItem]
+  return {
+    ...section,
+    items,
   }
 }
 
@@ -142,7 +225,7 @@ export const DASHBOARD_MENU_SELLER: DashboardMenuSection[] = [
       },
     ],
   },
-  warehouseSection("/seller", "seller", CAPABILITIES.SELLER_DASHBOARD_VIEW),
+  sellerWarehouseSection(),
   {
     title: "CATALOG",
     items: [
@@ -227,6 +310,22 @@ export const DASHBOARD_MENU_SELLER: DashboardMenuSection[] = [
         area: "seller",
         requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
         icon: ShoppingCart,
+      }),
+      withSearch({
+        key: "seller-cancel-orders",
+        label: "Cancel Orders",
+        to: "/seller/orders/cancelled",
+        area: "seller",
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: XCircle,
+      }),
+      withSearch({
+        key: "seller-return-orders",
+        label: "Return Orders",
+        to: "/seller/orders/returns",
+        area: "seller",
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: PackageCheck,
       }),
       withSearch({
         key: "seller-payments",
@@ -450,11 +549,35 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
       },
     ],
   },
-  warehouseSection(
-    "/super-admin",
-    "super_admin",
-    CAPABILITIES.PLATFORM_ADMIN_VIEW,
-  ),
+  (() => {
+    const warehouse = warehouseSection(
+      "/super-admin",
+      "super_admin",
+      CAPABILITIES.PLATFORM_ADMIN_VIEW,
+    )
+    return {
+      ...warehouse,
+      items: [
+        ...warehouse.items,
+        {
+          key: "admin-assign-warehouse-manager",
+          label: "Assign Warehouse Manager",
+          to: "/super-admin/warehouse/assign-manager",
+          area: "super_admin" as const,
+          requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+          icon: Shield,
+        },
+        {
+          key: "admin-assign-delivery-agent",
+          label: "Assign Delivery Agent",
+          to: "/super-admin/warehouse/assign-delivery-agent",
+          area: "super_admin" as const,
+          requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+          icon: Truck,
+        },
+      ],
+    }
+  })(),
   {
     title: "PLATFORM",
     items: [
@@ -550,7 +673,7 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
       },
       {
         key: 'admin-route-rates',
-        label: 'District Rates',
+        label: 'Cities Rates',
         to: '/super-admin/shipping/city-rates',
         area: 'super_admin',
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
@@ -811,6 +934,46 @@ export const DASHBOARD_MENU_ADMIN: DashboardMenuSection[] = [
         area: "super_admin",
         requiredCapabilities: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
         icon: HelpCircle,
+      },
+    ],
+  },
+]
+
+export const DASHBOARD_MENU_WAREHOUSE_MANAGER: DashboardMenuSection[] = [
+  warehouseSection(
+    "/warehouse-manager",
+    "warehouse_manager",
+    CAPABILITIES.WAREHOUSE_DASHBOARD_VIEW,
+  ),
+]
+
+export const DASHBOARD_MENU_DELIVERY_AGENT: DashboardMenuSection[] = [
+  {
+    title: "DELIVERY",
+    items: [
+      {
+        key: "delivery-overview",
+        label: "Overview",
+        to: "/delivery-agent/overview",
+        area: "delivery_agent",
+        requiredCapabilities: [CAPABILITIES.DELIVERY_DASHBOARD_VIEW],
+        icon: LayoutDashboard,
+      },
+      {
+        key: "delivery-parcels",
+        label: "Parcels",
+        to: "/delivery-agent/parcels",
+        area: "delivery_agent",
+        requiredCapabilities: [CAPABILITIES.DELIVERY_PARCELS_VIEW],
+        icon: Package,
+      },
+      {
+        key: "delivery-damage-reports",
+        label: "Damage Reports",
+        to: "/delivery-agent/damage-reports",
+        area: "delivery_agent",
+        requiredCapabilities: [CAPABILITIES.DELIVERY_DAMAGE_REPORTS_VIEW],
+        icon: AlertTriangle,
       },
     ],
   },

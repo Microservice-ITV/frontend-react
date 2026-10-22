@@ -48,8 +48,14 @@ const WarehouseOverviewPage = ({ base, platform = false }: WarehouseOverviewPage
   const [movementsError, setMovementsError] = useState<string | null>(null)
   const [movementsLoading, setMovementsLoading] = useState(true)
 
-  const { warehouses, loading: warehousesLoading, error: warehousesError } =
-    useWarehouses({ shopId })
+  const isSeller = base === '/seller'
+  const { warehouses, loading: warehousesLoading, error: warehousesError } = useWarehouses(
+    isSeller
+      ? { status: 'ACTIVE', includePurchased: true }
+      : platform
+        ? { shopId }
+        : undefined,
+  )
   const {
     rows,
     loading: inventoryLoading,

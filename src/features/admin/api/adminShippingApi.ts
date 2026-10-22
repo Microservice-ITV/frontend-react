@@ -288,6 +288,7 @@ export type ListDeliveryCityRatesParams = {
 export type ShippingSettingsDto = {
   id: string;
   calculationMethod: ShippingCalculationMethod;
+  checkoutDeliveryOptionsEnabled: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -514,7 +515,8 @@ export const adminShippingApi = {
   },
 
   updateShippingSettings(payload: {
-    calculationMethod: ShippingCalculationMethod;
+    calculationMethod?: ShippingCalculationMethod;
+    checkoutDeliveryOptionsEnabled?: boolean;
   }): Promise<AxiosResponse<ApiEnvelope<ShippingSettingsDto>>> {
     return shippingClient.put("/admin/shipping-settings", payload);
   },

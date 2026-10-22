@@ -25,21 +25,19 @@ export const getPostedExpenseTotal = (expenses: AccountingExpense[]) =>
     (sum, expense) => expense.status === "APPROVED" ? sum + Number(expense.amount) : sum,
     0,
   );
-export const getDeliveryFeeTotals = (
+export const getDeliveryFeeTotal = (
   lines: Pick<AccountingIncomeLine, "direction" | "amount" | "memo" | "account" | "currency">[],
-) =>
-  lines.reduce<Record<string, number>>((totals, line) => {
+): number =>
+  lines.reduce((total, line) => {
     if (
       line.direction !== "CREDIT" ||
       line.account.code !== "2000" ||
       !/^Delivery fee payable(?:\s|$)/i.test(line.memo ?? "")
     ) {
-      return totals;
+      return total;
     }
-    const currency = line.currency?.toUpperCase() ?? line.memo?.match(/\(([A-Z]{3})\)/i)?.[1]?.toUpperCase() ?? "UNKNOWN";
-    totals[currency] = (totals[currency] ?? 0) + Number(line.amount);
-    return totals;
-  }, {});
+    return total + Number(line.amount);
+  }, 0);
 const errorMessage = (error: unknown) => {
   if (error && typeof error === "object" && "response" in error) {
     const response = (error as { response?: { data?: { error?: unknown } } })
@@ -152,11 +150,7 @@ const SellerAccountingOverviewPage = () => {
     (sum, line) => sum + Number(line.amount),
     0,
   );
-  const deliveryFeeTotals = getDeliveryFeeTotals(deliveryFeeLines);
-  const deliveryFeeTotalLabel = Object.entries(deliveryFeeTotals)
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([currency, amount]) => money(amount, currency))
-    .join(" · ") || money(0);
+  const deliveryFeeTotal = getDeliveryFeeTotal(deliveryFeeLines);
   const activities = useMemo<ActivityRow[]>(() => [
     ...incomeLines.map((line) => ({
       id: `income-${line.id}`,
@@ -267,7 +261,7 @@ const SellerAccountingOverviewPage = () => {
         />
         <SummaryCard
           label="Shipping fee total"
-          value={status === "loading" ? "..." : deliveryFeeTotalLabel}
+          value={status === "loading" ? "..." : money(deliveryFeeTotal, "MMK")}
           icon={CircleDollarSign}
           tone="bg-amber-50 text-amber-600"
         />

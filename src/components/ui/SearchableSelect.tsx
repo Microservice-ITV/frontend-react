@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import clsx from 'clsx'
 import { ChevronDown, Loader2, Package, Search } from 'lucide-react'
 
@@ -98,7 +99,32 @@ export const SearchableSelect = ({
 
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const [menuBox, setMenuBox] = useState<{
+    top: number
+    left: number
+    width: number
+    maxHeight: number
+    openUp: boolean
+  } | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  const placeMenu = useCallback(() => {
+    const rect = buttonRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const gap = 4
+    const spaceBelow = window.innerHeight - rect.bottom - gap
+    const spaceAbove = rect.top - gap
+    const openUp = spaceBelow < 220 && spaceAbove > spaceBelow
+    setMenuBox({
+      top: openUp ? rect.top - gap : rect.bottom + gap,
+      left: rect.left,
+      width: rect.width,
+      maxHeight: Math.max(160, openUp ? spaceAbove : spaceBelow),
+      openUp,
+    })
+  }, [])
 
   const filtered = useMemo(() => {
     if (!showSearch || !filterLocally || !query.trim()) return options
@@ -120,13 +146,24 @@ export const SearchableSelect = ({
   useEffect(() => {
     if (!open) return
     const onDoc = (e: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
-        close()
-      }
+      const target = e.target as Node
+      if (rootRef.current?.contains(target) || menuRef.current?.contains(target)) return
+      close()
     }
     document.addEventListener('mousedown', onDoc)
     return () => document.removeEventListener('mousedown', onDoc)
   }, [open, close])
+
+  useLayoutEffect(() => {
+    if (!open) return
+    placeMenu()
+    window.addEventListener('resize', placeMenu)
+    window.addEventListener('scroll', placeMenu, true)
+    return () => {
+      window.removeEventListener('resize', placeMenu)
+      window.removeEventListener('scroll', placeMenu, true)
+    }
+  }, [open, placeMenu])
 
   useEffect(() => {
     if (!open) return
@@ -143,6 +180,7 @@ export const SearchableSelect = ({
   return (
     <div ref={rootRef} className={clsx('relative', className)}>
       <button
+        ref={buttonRef}
         id={id}
         type="button"
         disabled={disabled}
@@ -180,9 +218,20 @@ export const SearchableSelect = ({
         )}
       </button>
 
-      {open && (
+      {open &&
+        menuBox &&
+        createPortal(
         <div
-          className="absolute left-0 right-0 z-50 mt-1 rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
+          ref={menuRef}
+          className="z-[200] overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
+          style={{
+            position: 'fixed',
+            top: menuBox.top,
+            left: menuBox.left,
+            width: menuBox.width,
+            maxHeight: menuBox.maxHeight,
+            transform: menuBox.openUp ? 'translateY(-100%)' : undefined,
+          }}
           role="presentation"
         >
           {showSearch && (
@@ -256,7 +305,8 @@ export const SearchableSelect = ({
               )
             })}
           </ul>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )

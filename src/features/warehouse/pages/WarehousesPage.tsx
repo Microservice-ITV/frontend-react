@@ -1,16 +1,19 @@
-import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Pencil, Plus } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Boxes, Eye, Pencil, Plus, Trash2 } from 'lucide-react'
 import DataTable, { type DataTableColumn } from '@/components/ui/DataTable'
 import FilterBar from '@/components/ui/FilterBar'
-import WarehouseFormModal from '../components/WarehouseFormModal'
-import ShopSelector from '../components/ShopSelector'
+import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
+import RowActionMenu from '@/components/ui/RowActionMenu'
+import { adminUsersApi } from '@/features/admin/api/adminUsersApi'
 import { WarehouseStatusBadge } from '../components/StockStatusBadge'
-import { primaryButtonClass, secondaryButtonClass } from '../components/forms/FormField'
+import { primaryButtonClass } from '../components/forms/FormField'
+import { warehouseApi, warehouseErrorMessage } from '../api/warehouseApi'
 import { warehousePaths, type WarehouseAreaBase } from '../config/warehousePaths'
 import { useWarehouses } from '../hooks/useWarehouseData'
 import {
   WAREHOUSE_STATUSES,
+  warehouseCapacityLabel,
   type Warehouse,
   type WarehouseStatus,
 } from '../types/warehouseTypes'
@@ -20,27 +23,81 @@ export type WarehousesPageProps = {
   platform?: boolean
 }
 
-const WarehousesPage = ({ base, platform = false }: WarehousesPageProps) => {
+const WarehousesPage = ({ base }: WarehousesPageProps) => {
   const paths = warehousePaths(base)
-  const [shopId, setShopId] = useState('')
+  const navigate = useNavigate()
+  const { openModal } = useGlobalModal()
+  const canMutateWarehouse = base === '/seller' || base === '/warehouse-manager'
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<WarehouseStatus | ''>('')
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editing, setEditing] = useState<Warehouse | null>(null)
+  const [managerNames, setManagerNames] = useState<Record<string, string>>({})
+  const { warehouses, loading, error, reload } = useWarehouses(
+    base === '/seller' ? { catalog: true } : undefined,
+  )
 
-  const { warehouses, loading, error, reload } = useWarehouses({ shopId })
+  useEffect(() => {
+    let cancelled = false
+    void adminUsersApi
+      .listWarehouseManagers()
+      .then((response) => {
+        if (cancelled) return
+        const map: Record<string, string> = {}
+        for (const user of response.data?.data?.users ?? []) {
+          map[user.id] = user.name?.trim() || user.email
+        }
+        setManagerNames(map)
+      })
+      .catch(() => {
+        if (!cancelled) setManagerNames({})
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const managerLabel = (warehouse: Warehouse) => {
+    const id = warehouse.createdBy?.trim()
+    if (!id) return '—'
+    return managerNames[id] || '—'
+  }
 
   const rows = useMemo(() => {
     const term = search.trim().toLowerCase()
     return warehouses.filter((warehouse) => {
       if (status && warehouse.status !== status) return false
       if (term) {
-        const haystack = `${warehouse.name} ${warehouse.address ?? ''}`.toLowerCase()
+        const manager = warehouse.createdBy
+          ? managerNames[warehouse.createdBy] ?? ''
+          : ''
+        const haystack =
+          `${warehouse.name} ${warehouse.address ?? ''} ${manager}`.toLowerCase()
         if (!haystack.includes(term)) return false
       }
       return true
     })
-  }, [warehouses, search, status])
+  }, [warehouses, search, status, managerNames])
+
+  const confirmDelete = (warehouse: Warehouse) => {
+    openModal({
+      title: 'Delete warehouse?',
+      content: (
+        <p>
+          Are you sure you want to delete <strong>{warehouse.name}</strong>? This cannot be undone.
+        </p>
+      ),
+      primaryLabel: 'Delete',
+      primaryVariant: 'danger',
+      secondaryLabel: 'Cancel',
+      onPrimary: async () => {
+        try {
+          await warehouseApi.deleteWarehouse(warehouse.id)
+          await reload()
+        } catch (err) {
+          throw new Error(warehouseErrorMessage(err))
+        }
+      },
+    })
+  }
 
   const columns: Array<DataTableColumn<Warehouse>> = [
     {
@@ -59,7 +116,7 @@ const WarehousesPage = ({ base, platform = false }: WarehousesPageProps) => {
     {
       key: 'code',
       header: 'Code',
-      width: '140px',
+      width: '120px',
       hideBelow: 'md',
       sortValue: (row) => row.code ?? '',
       render: (row) => (
@@ -67,47 +124,79 @@ const WarehousesPage = ({ base, platform = false }: WarehousesPageProps) => {
       ),
     },
     {
-      key: 'status',
-      header: 'Status',
-      width: '120px',
-      sortValue: (row) => row.status,
-      render: (row) => <WarehouseStatusBadge status={row.status} />,
+      key: 'manager',
+      header: 'Warehouse manager',
+      width: '180px',
+      hideBelow: 'md',
+      sortValue: (row) => managerLabel(row),
+      render: (row) => (
+        <span className="text-sm text-slate-700">{managerLabel(row)}</span>
+      ),
     },
     {
-      key: 'id',
-      header: 'ID',
+      key: 'capacity',
+      header: 'Capacity',
+      width: '140px',
       hideBelow: 'lg',
+      sortValue: (row) => row.capacityUnits ?? Number.POSITIVE_INFINITY,
       render: (row) => (
-        <span className="font-mono text-xs text-slate-400" title={row.id}>
-          {row.id.slice(0, 8)}…
+        <span
+          className={
+            row.isAtCapacity ? 'text-xs font-medium text-rose-700' : 'text-xs text-slate-600'
+          }
+        >
+          {warehouseCapacityLabel(row)}
         </span>
       ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      width: '110px',
+      sortValue: (row) => row.status,
+      render: (row) => <WarehouseStatusBadge status={row.status} />,
     },
     {
       key: 'actions',
       header: '',
       align: 'right',
-      width: '230px',
+      width: '60px',
       render: (row) => (
-        <div className="flex items-center justify-end gap-2">
-          <Link
-            to={`${paths.inventory}?warehouseId=${row.id}`}
-            className={secondaryButtonClass}
-          >
-            Inventory
-          </Link>
-          <button
-            type="button"
-            className={secondaryButtonClass}
-            onClick={() => {
-              setEditing(row)
-              setModalOpen(true)
-            }}
-          >
-            <Pencil size={14} />
-            Edit
-          </button>
-        </div>
+        <RowActionMenu
+          ariaLabel={`Actions for ${row.name}`}
+          items={[
+            {
+              key: 'view',
+              label: 'View',
+              icon: <Eye size={16} className="shrink-0 text-slate-500" />,
+              onClick: () => navigate(paths.warehouseDetail(row.id)),
+            },
+            {
+              key: 'inventory',
+              label: 'Inventory Data',
+              icon: <Boxes size={16} className="shrink-0 text-slate-500" />,
+              onClick: () => navigate(`${paths.inventory}?warehouseId=${row.id}`),
+            },
+            ...(canMutateWarehouse
+              ? [
+                  {
+                    key: 'edit',
+                    label: 'Edit',
+                    icon: <Pencil size={16} className="shrink-0 text-slate-500" />,
+                    onClick: () => navigate(paths.warehouseEdit(row.id)),
+                  },
+                  {
+                    key: 'delete',
+                    label: 'Delete',
+                    icon: <Trash2 size={16} className="shrink-0 text-slate-500" />,
+                    className:
+                      'flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-red-600 hover:bg-slate-50 cursor-pointer',
+                    onClick: () => confirmDelete(row),
+                  },
+                ]
+              : []),
+          ]}
+        />
       ),
     },
   ]
@@ -129,20 +218,16 @@ const WarehousesPage = ({ base, platform = false }: WarehousesPageProps) => {
             Manage the locations your stock lives in.
           </p>
         </div>
-        <div className="flex items-start gap-3">
-          {platform && <ShopSelector value={shopId} onChange={setShopId} />}
+        {base === '/seller' && (
           <button
             type="button"
             className={primaryButtonClass}
-            onClick={() => {
-              setEditing(null)
-              setModalOpen(true)
-            }}
+            onClick={() => navigate(paths.warehouseNew)}
           >
             <Plus size={16} />
             Add warehouse
           </button>
-        </div>
+        )}
       </div>
 
       <FilterBar
@@ -174,15 +259,8 @@ const WarehousesPage = ({ base, platform = false }: WarehousesPageProps) => {
         error={error}
         emptyMessage="No warehouses found."
         itemLabel="warehouses"
-        minWidth="860px"
+        minWidth="960px"
         fixedLayout
-      />
-
-      <WarehouseFormModal
-        open={modalOpen}
-        warehouse={editing}
-        onClose={() => setModalOpen(false)}
-        onSaved={() => void reload()}
       />
     </div>
   )

@@ -18,6 +18,8 @@ export type AdminUserDto = {
   email: string
   email_verified_at: string | null
   created_at: string | null
+  /** True when the user belongs to any shop (seller / shop staff). */
+  has_shop_membership?: boolean
   roles: AdminUserRoleDto[]
 }
 
@@ -134,6 +136,12 @@ const buildLookupParams = (params: AdminLookupParams): Record<string, string | n
 // ─── API surface ─────────────────────────────────────────────────────────────
 
 export const adminUsersApi = {
+  listWarehouseManagers(): Promise<{
+    data: { success: boolean; data: { users: Array<{ id: string; name: string; email: string }> } }
+  }> {
+    return authClient.get('/warehouse-managers')
+  },
+
   listUsers(params: AdminUsersParams = {}): Promise<{ data: AdminUsersApiResponse }> {
     // Strip empty strings so they don't clutter the query string
     const clean: Record<string, string | number> = {}

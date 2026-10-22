@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowRight, Check, ScrollText, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { ArrowRight, ScrollText } from 'lucide-react'
 import DataTable, { type DataTableColumn } from '@/components/ui/DataTable'
 import FilterBar, { type FilterOption } from '@/components/ui/FilterBar'
 import ModalDrawer from '@/components/ui/ModalDrawer'
 import StatusBadge from '@/components/ui/StatusBadge'
-import ShopSelector from '../components/ShopSelector'
 import { warehouseApi, warehouseErrorMessage } from '../api/warehouseApi'
 import type { WarehouseAreaBase } from '../config/warehousePaths'
 import { useWarehouses } from '../hooks/useWarehouseData'
@@ -14,8 +13,12 @@ import {
   MOVEMENT_TYPES,
   type InventoryMovement,
   type MovementType,
-  type WarehouseTransfer,
 } from '../types/warehouseTypes'
+import { variantDisplayLabel } from '../utils/variantLabel'
+
+const actorLabel = (row: Pick<InventoryMovement, 'createdBy' | 'createdByName'>) =>
+  row.createdByName?.trim() ||
+  (row.createdBy ? `${row.createdBy.slice(0, 8)}…` : 'system')
 
 export type MovementsPageProps = {
   base: WarehouseAreaBase
@@ -37,8 +40,7 @@ const MOVEMENT_TYPE_OPTIONS: FilterOption[] = MOVEMENT_TYPES.map((type) => ({
   label: MOVEMENT_TYPE_LABELS[type],
 }))
 
-const MovementsPage = ({ platform = false }: MovementsPageProps) => {
-  const [shopId, setShopId] = useState('')
+const MovementsPage = ({ base }: MovementsPageProps) => {
   const [search, setSearch] = useState('')
   const [warehouseId, setWarehouseId] = useState('')
   const [movementType, setMovementType] = useState('')
@@ -48,15 +50,10 @@ const MovementsPage = ({ platform = false }: MovementsPageProps) => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<InventoryMovement | null>(null)
-  const [transfers, setTransfers] = useState<WarehouseTransfer[]>([])
-  const [transfersLoading, setTransfersLoading] = useState(true)
-  const [transfersError, setTransfersError] = useState<string | null>(null)
-  const [decidingId, setDecidingId] = useState<string | null>(null)
-  const [feedback, setFeedback] = useState<{ tone: 'success' | 'danger'; message: string } | null>(
-    null,
-  )
 
-  const { warehouses } = useWarehouses({ shopId })
+  const { warehouses } = useWarehouses(
+    base === '/seller' ? { catalog: true, status: 'ACTIVE' } : undefined,
+  )
   const productNames = useProductNames()
 
   const load = useCallback(async () => {
@@ -81,126 +78,6 @@ const MovementsPage = ({ platform = false }: MovementsPageProps) => {
     void load()
   }, [load])
 
-  const loadTransfers = useCallback(async () => {
-    setTransfersLoading(true)
-    setTransfersError(null)
-    try {
-      const response = await warehouseApi.listTransfers({ status: 'PENDING', limit: 100 })
-      setTransfers(response.data?.data ?? [])
-    } catch (err) {
-      setTransfers([])
-      setTransfersError(warehouseErrorMessage(err))
-    } finally {
-      setTransfersLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    void loadTransfers()
-  }, [loadTransfers])
-
-  const decideTransfer = async (
-    transfer: WarehouseTransfer,
-    action: 'approve' | 'reject',
-  ) => {
-    const label = transfer.referenceId ?? transfer.id.slice(0, 8)
-    setDecidingId(transfer.id)
-    setFeedback(null)
-    try {
-      if (action === 'approve') {
-        await warehouseApi.approveTransfer(transfer.id)
-        setFeedback({ tone: 'success', message: `Transfer ${label} approved — stock moved.` })
-      } else {
-        await warehouseApi.rejectTransfer(transfer.id, 'Rejected from inventory movements')
-        setFeedback({ tone: 'success', message: `Transfer ${label} rejected.` })
-      }
-      await Promise.all([load(), loadTransfers()])
-    } catch (err) {
-      setFeedback({ tone: 'danger', message: warehouseErrorMessage(err) })
-    } finally {
-      setDecidingId(null)
-    }
-  }
-
-  const transferColumns: Array<DataTableColumn<WarehouseTransfer>> = [
-    {
-      key: 'reference',
-      header: 'Reference',
-      width: '170px',
-      render: (row) => (
-        <span className="text-xs text-slate-700">{row.referenceId ?? row.id.slice(0, 8)}</span>
-      ),
-    },
-    {
-      key: 'route',
-      header: 'Route',
-      render: (row) => (
-        <span className="inline-flex items-center gap-1.5 text-sm text-slate-700">
-          {warehouseName(row.fromWarehouseId)}
-          <ArrowRight size={13} className="text-slate-400" />
-          {warehouseName(row.toWarehouseId)}
-        </span>
-      ),
-    },
-    {
-      key: 'product',
-      header: 'Product',
-      render: (row) => (
-        <span
-          className="block max-w-[220px] truncate text-sm text-slate-700"
-          title={row.productId}
-        >
-          {productLabel(productNames, row.productId)}
-        </span>
-      ),
-    },
-    {
-      key: 'quantity',
-      header: 'Qty',
-      align: 'right',
-      width: '80px',
-      render: (row) => <span className="font-medium text-slate-900">{row.quantity}</span>,
-    },
-    {
-      key: 'requested',
-      header: 'Requested',
-      width: '170px',
-      render: (row) => (
-        <span className="text-xs text-slate-500">
-          {new Date(row.createdAt).toLocaleString()}
-        </span>
-      ),
-    },
-    {
-      key: 'actions',
-      header: '',
-      align: 'right',
-      width: '190px',
-      render: (row) => (
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={() => void decideTransfer(row, 'approve')}
-            disabled={decidingId === row.id}
-            className="inline-flex cursor-pointer items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-          >
-            <Check size={13} />
-            Approve
-          </button>
-          <button
-            type="button"
-            onClick={() => void decideTransfer(row, 'reject')}
-            disabled={decidingId === row.id}
-            className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50"
-          >
-            <X size={13} />
-            Reject
-          </button>
-        </div>
-      ),
-    },
-  ]
-
   const rows = useMemo(() => {
     const term = search.trim().toLowerCase()
     return movements.filter((movement) => {
@@ -215,7 +92,9 @@ const MovementsPage = ({ platform = false }: MovementsPageProps) => {
           productNames[movement.productId] ?? ''
         } ${movement.variantId} ${
           movement.referenceId ?? ''
-        } ${movement.referenceType ?? ''} ${movement.createdBy ?? ''}`.toLowerCase()
+        } ${movement.referenceType ?? ''} ${movement.createdBy ?? ''} ${actorLabel(
+          movement,
+        )}`.toLowerCase()
         if (!haystack.includes(term)) return false
       }
       return true
@@ -227,7 +106,7 @@ const MovementsPage = ({ platform = false }: MovementsPageProps) => {
     [warehouses],
   )
 
-  /** Pairs TRANSFER_OUT / TRANSFER_IN movements that share a referenceId. */
+  /** Pairs TRANSFER_OUT / TRANSFER_IN movements that share a referenceId (same list fallback). */
   const transferPairs = useMemo(() => {
     const map = new Map<string, { out?: InventoryMovement; in?: InventoryMovement }>()
     for (const movement of movements) {
@@ -246,16 +125,29 @@ const MovementsPage = ({ platform = false }: MovementsPageProps) => {
   /** Warehouse routing for a movement: where stock left and where it landed. */
   const routing = useCallback(
     (movement: InventoryMovement): { from: string; to: string } => {
-      const pair = movement.referenceId
-        ? transferPairs.get(movement.referenceId)
-        : undefined
-      if (movement.movementType === 'TRANSFER_OUT') {
-        return {
-          from: warehouseName(movement.warehouseId),
-          to: pair?.in ? warehouseName(pair.in.warehouseId) : '—',
+      const enrichedFrom =
+        movement.fromWarehouseName?.trim() ||
+        (movement.fromWarehouseId ? warehouseName(movement.fromWarehouseId) : '')
+      const enrichedTo =
+        movement.toWarehouseName?.trim() ||
+        (movement.toWarehouseId ? warehouseName(movement.toWarehouseId) : '')
+
+      if (movement.movementType === 'TRANSFER_OUT' || movement.movementType === 'TRANSFER_IN') {
+        if (enrichedFrom || enrichedTo) {
+          return {
+            from: enrichedFrom || '—',
+            to: enrichedTo || '—',
+          }
         }
-      }
-      if (movement.movementType === 'TRANSFER_IN') {
+        const pair = movement.referenceId
+          ? transferPairs.get(movement.referenceId)
+          : undefined
+        if (movement.movementType === 'TRANSFER_OUT') {
+          return {
+            from: warehouseName(movement.warehouseId),
+            to: pair?.in ? warehouseName(pair.in.warehouseId) : '—',
+          }
+        }
         return {
           from: pair?.out ? warehouseName(pair.out.warehouseId) : '—',
           to: warehouseName(movement.warehouseId),
@@ -263,6 +155,12 @@ const MovementsPage = ({ platform = false }: MovementsPageProps) => {
       }
       if (movement.movementType === 'SALE_ISSUED') {
         return { from: warehouseName(movement.warehouseId), to: '—' }
+      }
+      if (movement.movementType === 'PURCHASE_RECEIVED') {
+        return { from: 'Supplier', to: warehouseName(movement.warehouseId) }
+      }
+      if (movement.movementType === 'PURCHASE_RETURNED') {
+        return { from: warehouseName(movement.warehouseId), to: 'Supplier' }
       }
       return { from: '—', to: warehouseName(movement.warehouseId) }
     },
@@ -305,8 +203,8 @@ const MovementsPage = ({ platform = false }: MovementsPageProps) => {
           >
             {productLabel(productNames, row.productId)}
           </span>
-          {row.variantId && (
-            <span className="text-xs text-slate-400">{row.variantId}</span>
+          {variantDisplayLabel(row.variantId) && (
+            <span className="text-xs text-slate-400">{variantDisplayLabel(row.variantId)}</span>
           )}
         </div>
       ),
@@ -368,21 +266,6 @@ const MovementsPage = ({ platform = false }: MovementsPageProps) => {
       ),
     },
     {
-      key: 'reference',
-      header: 'Reference',
-      hideBelow: 'lg',
-      render: (row) => (
-        <div className="min-w-0">
-          <span className="block truncate text-xs text-slate-700">
-            {row.referenceId ?? '—'}
-          </span>
-          <span className="text-xs text-slate-400">
-            {row.referenceType ?? '—'}
-          </span>
-        </div>
-      ),
-    },
-    {
       key: 'unitCost',
       header: 'Unit cost',
       align: 'right',
@@ -399,8 +282,14 @@ const MovementsPage = ({ platform = false }: MovementsPageProps) => {
       key: 'createdBy',
       header: 'By',
       hideBelow: 'xl',
+      sortValue: (row) => actorLabel(row),
       render: (row) => (
-        <span className="text-xs text-slate-500">{row.createdBy ?? 'system'}</span>
+        <span
+          className="block max-w-[140px] truncate text-xs text-slate-600"
+          title={row.createdBy ?? 'system'}
+        >
+          {actorLabel(row)}
+        </span>
       ),
     },
   ]
@@ -421,43 +310,7 @@ const MovementsPage = ({ platform = false }: MovementsPageProps) => {
             full routing details.
           </p>
         </div>
-        {platform && <ShopSelector value={shopId} onChange={setShopId} />}
       </div>
-
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-slate-800">Pending transfer approvals</h2>
-          <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700">
-            {transfers.length} pending
-          </span>
-        </div>
-
-        {feedback && (
-          <div
-            className={
-              feedback.tone === 'success'
-                ? 'rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700'
-                : 'rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700'
-            }
-          >
-            {feedback.message}
-          </div>
-        )}
-
-        <DataTable<WarehouseTransfer>
-          columns={transferColumns}
-          rows={transfers}
-          rowKey={(row) => row.id}
-          loading={transfersLoading}
-          error={transfersError}
-          emptyMessage="No transfers waiting for approval."
-          emptyIcon={Check}
-          initialRowsPerPage={5}
-          itemLabel="transfers"
-          minWidth="860px"
-          fixedLayout
-        />
-      </section>
 
       <FilterBar
         search={{
@@ -518,37 +371,40 @@ const MovementsPage = ({ platform = false }: MovementsPageProps) => {
           size="md"
         >
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <DetailCell label="Date" value={new Date(selected.createdAt).toLocaleString()} />
-              <DetailCell
+            <div className="rounded-lg border border-slate-200 bg-white px-3 sm:px-4">
+              <DetailRow label="Date" value={new Date(selected.createdAt).toLocaleString()} />
+              <DetailRow
                 label="Quantity"
                 value={`${selected.quantity > 0 ? '+' : ''}${selected.quantity}`}
               />
-              <DetailCell
-                label="From warehouse"
-                value={routing(selected).from}
-                highlight={routing(selected).from !== '—'}
-              />
-              <DetailCell
-                label="To warehouse"
-                value={routing(selected).to}
-                highlight={routing(selected).to !== '—'}
-              />
-              <DetailCell
+              <DetailRow label="From warehouse" value={routing(selected).from} />
+              <DetailRow label="To warehouse" value={routing(selected).to} />
+              <DetailRow
                 label="Before → After"
                 value={`${selected.beforeQty} → ${selected.afterQty}`}
               />
-              <DetailCell
+              <DetailRow
                 label="Unit cost"
                 value={selected.unitCost ? Number(selected.unitCost).toFixed(2) : '—'}
               />
-              <DetailCell
+              <DetailRow
                 label="Reference"
                 value={`${selected.referenceId ?? '—'}${
                   selected.referenceType ? ` (${selected.referenceType})` : ''
                 }`}
               />
-              <DetailCell label="Created by" value={selected.createdBy ?? 'system'} />
+              <DetailRow label="Created by" value={actorLabel(selected)} />
+              <DetailRow
+                label="Product"
+                value={
+                  <>
+                    {productLabel(productNames, selected.productId)}
+                    {variantDisplayLabel(selected.variantId)
+                      ? ` · ${variantDisplayLabel(selected.variantId)}`
+                      : ''}
+                  </>
+                }
+              />
             </div>
 
             {selected.movementType.startsWith('TRANSFER') && selected.referenceId && (
@@ -560,11 +416,6 @@ const MovementsPage = ({ platform = false }: MovementsPageProps) => {
                 same move.
               </div>
             )}
-
-            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
-              Product: <span className="font-mono">{selected.productId}</span>
-              {selected.variantId ? ` · variant: ${selected.variantId}` : ''}
-            </div>
           </div>
         </ModalDrawer>
       )}
@@ -572,20 +423,10 @@ const MovementsPage = ({ platform = false }: MovementsPageProps) => {
   )
 }
 
-const DetailCell = ({
-  label,
-  value,
-  highlight = false,
-}: {
-  label: string
-  value: string
-  highlight?: boolean
-}) => (
-  <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-    <p className="text-[11px] uppercase tracking-wide text-slate-400">{label}</p>
-    <p className={`text-sm ${highlight ? 'font-medium text-slate-800' : 'text-slate-600'}`}>
-      {value}
-    </p>
+const DetailRow = ({ label, value }: { label: string; value: ReactNode }) => (
+  <div className="grid min-w-0 grid-cols-[9.5rem_minmax(0,1fr)] items-start gap-x-3 border-b border-slate-100 py-2.5 last:border-b-0 sm:grid-cols-[10.5rem_minmax(0,1fr)]">
+    <p className="text-xs font-medium text-slate-500">{label}</p>
+    <div className="break-words text-sm font-semibold text-slate-900">{value}</div>
   </div>
 )
 

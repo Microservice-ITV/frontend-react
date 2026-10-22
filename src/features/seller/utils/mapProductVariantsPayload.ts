@@ -22,8 +22,8 @@ export function mapProductFormToVariantsPayload(
   values: ProductFormValues,
 ): SellerProductVariantPayload[] {
   return values.variants.map((v, i) => {
-    const basePrice = Number(v.basePrice)
     const listPrice = Number(v.listPrice)
+    const basePrice = v.basePrice.trim() ? Number(v.basePrice) : listPrice
 
     return {
       ...(v.serverVariantId ? { id: v.serverVariantId } : {}),
@@ -38,7 +38,9 @@ export function mapProductFormToVariantsPayload(
           ? computeProfitThresholdPercent(basePrice, listPrice)
           : 0,
       discountPercent: parseOptionalPercent(v.discountPercent),
-      stock: Number(v.stock),
+      // Sellers cannot set stock — warehouse inventory owns availability.
+      // Create/new variants start at 0; existing variant stock is left unchanged by the API.
+      stock: 0,
       length: parseOptionalDimension(v.length),
       width: parseOptionalDimension(v.width),
       height: parseOptionalDimension(v.height),
@@ -75,7 +77,13 @@ export function mapApiProductVariantsToFormShape(
       basePrice: basePrice !== undefined ? String(basePrice) : '',
       listPrice: resolvedListPrice !== undefined ? String(resolvedListPrice) : '',
       discountPercent: toFiniteNumber(v.discountPercent) !== undefined ? String(discountPercent) : '0',
-      stock: textOrEmpty(v.stock) || textOrEmpty(v.shopStock),
+      // Display sellable qty (shop + warehouse); field is read-only for sellers.
+      stock:
+        textOrEmpty(v.availableStock) ||
+        textOrEmpty(v.warehouseStockMirror) ||
+        textOrEmpty(v.stock) ||
+        textOrEmpty(v.shopStock) ||
+        '0',
       length: textOrEmpty(v.length),
       width: textOrEmpty(v.width),
       height: textOrEmpty(v.height),

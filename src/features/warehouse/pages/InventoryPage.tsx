@@ -1,11 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ArrowLeftRight, Warehouse } from 'lucide-react'
+import { ArrowLeftRight, Eye, Warehouse } from 'lucide-react'
 import DataTable, { type DataTableColumn } from '@/components/ui/DataTable'
 import FilterBar from '@/components/ui/FilterBar'
 import ModalDrawer from '@/components/ui/ModalDrawer'
 import RowActionMenu from '@/components/ui/RowActionMenu'
-import ShopSelector from '../components/ShopSelector'
 import { StockStatusBadge } from '../components/StockStatusBadge'
 import { primaryButtonClass } from '../components/forms/FormField'
 import TransferStockForm from '../components/forms/TransferStockForm'
@@ -18,6 +17,7 @@ import {
   type InventoryRow,
   type StockOperationKind,
 } from '../types/warehouseTypes'
+import { parseVariantId, variantDisplayLabel } from '../utils/variantLabel'
 
 export type InventoryPageProps = {
   base: WarehouseAreaBase
@@ -35,29 +35,53 @@ const OPERATION_META: Record<
 > = {
   transfer: {
     title: 'Transfer Stock',
-    subtitle: 'Request a transfer between warehouses — waits for approval.',
+    subtitle: 'Request a transfer. A warehouse manager waits for the seller before the stock moves.',
     variant: 'drawer',
     size: 'lg',
   },
 }
 
-const InventoryPage = ({ platform = false }: InventoryPageProps) => {
+const InventoryPage = ({ base }: InventoryPageProps) => {
+  const isSeller = base === '/seller'
+  const canTransfer = isSeller || base === '/warehouse-manager'
   const [searchParams] = useSearchParams()
 
-  const [shopId, setShopId] = useState('')
   const [search, setSearch] = useState('')
   const [warehouseFilter, setWarehouseFilter] = useState(
     searchParams.get('warehouseId') ?? '',
   )
   const [availability, setAvailability] = useState<AvailabilityStatus | ''>('')
   const [operation, setOperation] = useState<StockOperationKind | null>(null)
-  const [context, setContext] = useState<{ warehouseId?: string; productId?: string }>({})
+  const [context, setContext] = useState<{
+    warehouseId?: string
+    productId?: string
+    variantId?: string
+  }>({})
+  const [detailRow, setDetailRow] = useState<InventoryRow | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
-  const { warehouses, loading: warehousesLoading, error: warehousesError } =
-    useWarehouses({ shopId })
-  const { rows, loading, error, reload } = useInventoryRows(warehouses)
+  // Seller: warehouses they created + warehouses they received goods into.
+  const { warehouses, loading: warehousesLoading, error: warehousesError } = useWarehouses(
+    isSeller ? { status: 'ACTIVE', includePurchased: true } : undefined,
+  )
+  const warehouseInventory = useInventoryRows(warehouses)
   const productNames = useProductNames()
+
+  const rows = warehouseInventory.rows
+  const loading = warehouseInventory.loading
+  const error = warehouseInventory.error
+  const reload = () => {
+    void warehouseInventory.reload()
+  }
+
+  const warehouseFilterOptions = useMemo(
+    () =>
+      warehouses.map((warehouse) => ({
+        value: warehouse.id,
+        label: warehouse.name,
+      })),
+    [warehouses],
+  )
 
   const visibleRows = useMemo(
     () =>
@@ -103,23 +127,67 @@ const InventoryPage = ({ platform = false }: InventoryPageProps) => {
 
   const meta = operation ? OPERATION_META[operation] : null
 
+  const rowVariantLabel = (row: InventoryRow) =>
+    variantDisplayLabel(row.variantId, {
+      variantLabel: row.variantLabel,
+      colorName: row.colorName,
+      sizeName: row.sizeName,
+    })
+
+  const detailVariant = detailRow
+    ? {
+        ...parseVariantId(detailRow.variantId),
+        colorName: detailRow.colorName || parseVariantId(detailRow.variantId).colorName,
+        sizeName: detailRow.sizeName || parseVariantId(detailRow.variantId).sizeName,
+        label: rowVariantLabel(detailRow),
+      }
+    : null
+
   const columns: Array<DataTableColumn<InventoryRow>> = [
     {
       key: 'product',
       header: 'Product',
       sortValue: (row) => productLabel(productNames, row.productId),
       render: (row) => (
-        <div className="min-w-0">
+        <button
+          type="button"
+          className="min-w-0 text-left"
+          onClick={() => setDetailRow(row)}
+        >
           <span
-            className="block max-w-[320px] truncate text-sm font-medium text-slate-700"
+            className="block max-w-[280px] truncate text-sm font-medium text-slate-700 hover:text-[var(--dni-primary-600)]"
             title={row.productId}
           >
             {productLabel(productNames, row.productId)}
           </span>
-          {row.variantId && (
-            <span className="text-xs text-slate-400">variant: {row.variantId}</span>
-          )}
-        </div>
+        </button>
+      ),
+    },
+    {
+      key: 'variant',
+      header: 'Variant',
+      width: '160px',
+      sortValue: (row) => rowVariantLabel(row),
+      render: (row) => {
+        const label = rowVariantLabel(row)
+        return label ? (
+          <span className="block max-w-[160px] truncate text-sm text-slate-700" title={label}>
+            {label}
+          </span>
+        ) : (
+          <span className="text-sm text-slate-400">—</span>
+        )
+      },
+    },
+    {
+      key: 'warehouse',
+      header: 'Warehouse',
+      width: '160px',
+      sortValue: (row) => row.warehouseName,
+      render: (row) => (
+        <span className="block max-w-[160px] truncate text-sm text-slate-700" title={row.warehouseName}>
+          {row.warehouseName}
+        </span>
       ),
     },
     {
@@ -159,36 +227,35 @@ const InventoryPage = ({ platform = false }: InventoryPageProps) => {
       render: (row) => <StockStatusBadge status={row.availabilityStatus} />,
     },
     {
-      key: 'updatedAt',
-      header: 'Updated',
-      hideBelow: 'lg',
-      width: '150px',
-      sortValue: (row) => row.updatedAt,
-      render: (row) => (
-        <span className="text-xs text-slate-500">
-          {new Date(row.updatedAt).toLocaleDateString()}
-        </span>
-      ),
-    },
-    {
       key: 'actions',
       header: '',
-      align: 'right',
+      align: 'right' as const,
       width: '60px',
-      render: (row) => (
+      render: (row: InventoryRow) => (
         <RowActionMenu
           ariaLabel={`Actions for ${productLabel(productNames, row.productId)}`}
           items={[
             {
-              key: 'transfer',
-              label: 'Transfer',
-              icon: <ArrowLeftRight size={14} />,
-              onClick: () =>
-                openOperation('transfer', {
-                  warehouseId: row.warehouseId,
-                  productId: row.productId,
-                }),
+              key: 'details',
+              label: 'Details',
+              icon: <Eye size={14} />,
+              onClick: () => setDetailRow(row),
             },
+            ...(canTransfer
+              ? [
+                  {
+                    key: 'transfer',
+                    label: 'Transfer',
+                    icon: <ArrowLeftRight size={14} />,
+                    onClick: () =>
+                      openOperation('transfer', {
+                        warehouseId: row.warehouseId,
+                        productId: row.productId,
+                        variantId: row.variantId || undefined,
+                      }),
+                  },
+                ]
+              : []),
           ]}
         />
       ),
@@ -202,10 +269,17 @@ const InventoryPage = ({ platform = false }: InventoryPageProps) => {
         return (
           <TransferStockForm
             warehouses={warehouses}
+            sellerMode={false}
+            skipSellerApprovalHint={isSeller}
             defaultWarehouseId={context.warehouseId || warehouseFilter || undefined}
             defaultProductId={context.productId}
+            defaultVariantId={context.variantId}
             onSuccess={() =>
-              handleSuccess('Transfer request submitted — pending warehouse approval.')
+              handleSuccess(
+                isSeller
+                  ? 'Transfer submitted as Approved. The warehouse manager can complete it.'
+                  : 'Transfer request submitted. It waits for the seller to approve.',
+              )
             }
           />
         )
@@ -219,27 +293,30 @@ const InventoryPage = ({ platform = false }: InventoryPageProps) => {
       <nav className="text-xs text-slate-500">
         <span>Dashboard</span> <span className="mx-1">/</span>
         <span>Warehouse</span> <span className="mx-1">/</span>
-        <span className="text-slate-700">Inventory</span>
+        <span className="text-slate-700">Inventory Data</span>
       </nav>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Inventory</h1>
+          <h1 className="text-xl font-bold text-slate-900">Inventory Data</h1>
           <p className="text-sm text-slate-500">
-            On-hand stock across every warehouse, with live availability status.
+            {isSeller
+              ? 'All received products across warehouses you use. Transfer stock between warehouses when needed.'
+              : 'On-hand stock across every warehouse, with live availability status.'}
           </p>
         </div>
-        <div className="flex flex-wrap items-start gap-2">
-          {platform && <ShopSelector value={shopId} onChange={setShopId} />}
-          <button
-            type="button"
-            className={primaryButtonClass}
-            onClick={() => openOperation('transfer', { warehouseId: warehouseFilter })}
-          >
-            <ArrowLeftRight size={14} />
-            Transfer
-          </button>
-        </div>
+        {canTransfer && (
+          <div className="flex flex-wrap items-start gap-2">
+            <button
+              type="button"
+              className={primaryButtonClass}
+              onClick={() => openOperation('transfer', { warehouseId: warehouseFilter })}
+            >
+              <ArrowLeftRight size={14} />
+              Transfer
+            </button>
+          </div>
+        )}
       </div>
 
       {notice && (
@@ -259,12 +336,9 @@ const InventoryPage = ({ platform = false }: InventoryPageProps) => {
             key: 'warehouse',
             label: 'Warehouse',
             value: warehouseFilter,
-            allLabel: 'All warehouses',
+            allLabel: isSeller ? 'All locations' : 'All warehouses',
             onChange: setWarehouseFilter,
-            options: warehouses.map((warehouse) => ({
-              value: warehouse.id,
-              label: warehouse.name,
-            })),
+            options: warehouseFilterOptions,
           },
           {
             key: 'availability',
@@ -288,7 +362,7 @@ const InventoryPage = ({ platform = false }: InventoryPageProps) => {
           error={warehousesError ?? error}
           emptyMessage="No inventory rows match these filters."
           itemLabel="stock rows"
-          minWidth="860px"
+          minWidth="960px"
           fixedLayout
         />
       ) : (
@@ -306,7 +380,6 @@ const InventoryPage = ({ platform = false }: InventoryPageProps) => {
                   <h2 className="text-sm font-semibold text-slate-800">
                     {group.warehouseName}
                   </h2>
-                  <span className="text-xs text-slate-400">warehouse_id: {group.warehouseId}</span>
                 </div>
                 <span className="text-xs text-slate-500">
                   {group.rows.length} products · on hand {totalOnHand} · reserved{' '}
@@ -322,7 +395,7 @@ const InventoryPage = ({ platform = false }: InventoryPageProps) => {
                 emptyMessage="No inventory rows match these filters."
                 itemLabel="stock rows"
                 initialRowsPerPage={10}
-                minWidth="860px"
+                minWidth="960px"
                 fixedLayout
               />
             </div>
@@ -338,11 +411,124 @@ const InventoryPage = ({ platform = false }: InventoryPageProps) => {
             setContext({})
           }}
           title={meta.title}
-          subtitle={meta.subtitle}
+          subtitle={
+            isSeller
+              ? 'Move received stock between warehouses. The source warehouse manager completes it.'
+              : meta.subtitle
+          }
           variant={meta.variant}
           size={meta.size}
         >
           {operationBody()}
+        </ModalDrawer>
+      )}
+
+      {detailRow && (
+        <ModalDrawer
+          open
+          onClose={() => setDetailRow(null)}
+          title="Inventory details"
+          subtitle={productLabel(productNames, detailRow.productId)}
+          variant="modal"
+          size="md"
+        >
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {[
+                {
+                  label: 'Product',
+                  value: productLabel(productNames, detailRow.productId),
+                  span: true,
+                },
+                { label: 'Warehouse', value: detailRow.warehouseName },
+                {
+                  label: 'Variant',
+                  value: rowVariantLabel(detailRow),
+                },
+                { label: 'Color', value: detailRow.colorName || detailVariant?.colorName },
+                { label: 'Size', value: detailRow.sizeName || detailVariant?.sizeName },
+                { label: 'Unit', value: detailRow.unit },
+                { label: 'On hand', value: String(detailRow.onHandQty) },
+                { label: 'Reserved', value: String(detailRow.reservedQty) },
+                { label: 'Available', value: String(detailRow.availableQty) },
+                {
+                  label: 'Length (cm)',
+                  value:
+                    detailRow.length != null && Number(detailRow.length) > 0
+                      ? String(detailRow.length)
+                      : null,
+                },
+                {
+                  label: 'Width (cm)',
+                  value:
+                    detailRow.width != null && Number(detailRow.width) > 0
+                      ? String(detailRow.width)
+                      : null,
+                },
+                {
+                  label: 'Height (cm)',
+                  value:
+                    detailRow.height != null && Number(detailRow.height) > 0
+                      ? String(detailRow.height)
+                      : null,
+                },
+                {
+                  label: 'Weight / unit',
+                  value:
+                    detailRow.weightPerUnit != null && Number(detailRow.weightPerUnit) > 0
+                      ? String(detailRow.weightPerUnit)
+                      : null,
+                },
+                {
+                  label: 'Volume / unit',
+                  value:
+                    detailRow.volumePerUnit != null && Number(detailRow.volumePerUnit) > 0
+                      ? String(detailRow.volumePerUnit)
+                      : null,
+                },
+              ]
+                .filter((cell) => cell.value != null && String(cell.value).trim() !== '')
+                .map((cell) => (
+                  <div
+                    key={cell.label}
+                    className={`rounded-lg border border-slate-200 bg-white px-3 py-2 ${
+                      cell.span ? 'col-span-2 sm:col-span-3' : ''
+                    }`}
+                  >
+                    <p className="text-[11px] uppercase tracking-wide text-slate-400">
+                      {cell.label}
+                    </p>
+                    <p className="text-sm text-slate-700">{cell.value}</p>
+                  </div>
+                ))}
+              <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                <p className="text-[11px] uppercase tracking-wide text-slate-400">Status</p>
+                <div className="mt-0.5">
+                  <StockStatusBadge status={detailRow.availabilityStatus} />
+                </div>
+              </div>
+            </div>
+
+            {canTransfer && (
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  className={primaryButtonClass}
+                  onClick={() => {
+                    openOperation('transfer', {
+                      warehouseId: detailRow.warehouseId,
+                      productId: detailRow.productId,
+                      variantId: detailRow.variantId || undefined,
+                    })
+                    setDetailRow(null)
+                  }}
+                >
+                  <ArrowLeftRight size={14} />
+                  Transfer
+                </button>
+              </div>
+            )}
+          </div>
         </ModalDrawer>
       )}
     </div>

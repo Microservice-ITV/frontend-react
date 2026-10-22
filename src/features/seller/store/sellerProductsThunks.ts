@@ -37,14 +37,18 @@ const mapProductServiceRowToUi = (item: ProductServiceProductListItem): Product 
   const resolvedCategoryId = item.categoryId ?? item.category?.id ?? ''
   const resolvedCategoryName =
     item.category?.name ?? item.category?.title ?? 'Uncategorized'
-  const stockRaw = item.stock
-  const stock =
-    typeof stockRaw === 'number' && Number.isFinite(stockRaw)
-      ? stockRaw
-      : Number.isFinite(Number(stockRaw))
-        ? Number(stockRaw)
+  const shopStock =
+    typeof item.stock === 'number' && Number.isFinite(item.stock)
+      ? item.stock
+      : Number.isFinite(Number(item.stock))
+        ? Number(item.stock)
         : 0
-
+  const warehouseMirror =
+    typeof item.warehouseStockMirror === 'number' && Number.isFinite(item.warehouseStockMirror)
+      ? item.warehouseStockMirror
+      : Number.isFinite(Number(item.warehouseStockMirror))
+        ? Number(item.warehouseStockMirror)
+        : 0
   return {
     id: item.id,
     title: item.name || item.slug,
@@ -52,7 +56,9 @@ const mapProductServiceRowToUi = (item: ProductServiceProductListItem): Product 
     categoryId: resolvedCategoryId,
     categoryName: resolvedCategoryName,
     status: computedStatus,
-    stock,
+    shopStock,
+    warehouseStock: warehouseMirror,
+    stock: shopStock,
     price: formatPrice(Number(item.price ?? 0), 'USD'),
     created: formatCreatedDate(item.createdAt),
   }

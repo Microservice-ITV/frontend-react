@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { DASHBOARD_MENU_ADMIN, DASHBOARD_MENU_SELLER } from './dashboardMenu'
+import {
+  DASHBOARD_MENU_ADMIN,
+  DASHBOARD_MENU_DELIVERY_AGENT,
+  DASHBOARD_MENU_SELLER,
+  DASHBOARD_MENU_WAREHOUSE_MANAGER,
+} from './dashboardMenu'
 
 const findSellerAccountingItems = () => {
   const items: Array<{ key?: string; label?: string; to?: string; children?: Array<{ key?: string; label?: string; to?: string }> }> = []
@@ -21,6 +26,88 @@ const findSellerAccountingItems = () => {
 
   return items
 }
+
+describe('DASHBOARD_MENU warehouse purchasing items', () => {
+  const labels = (sections: typeof DASHBOARD_MENU_SELLER) =>
+    sections.flatMap((section) => section.items).map((item) => item.label)
+
+  it('shows purchase tracking, confirm/pickup, and goods receipts for the seller', () => {
+    const sellerLabels = labels(DASHBOARD_MENU_SELLER)
+
+    expect(sellerLabels).toContain('Goods Receipts')
+    expect(sellerLabels).toContain('Confirm and Pickup')
+    expect(sellerLabels).toContain('Purchase Order Tracking')
+    expect(sellerLabels).not.toContain('Suppliers')
+    expect(sellerLabels).toContain('Purchase Orders')
+    expect(sellerLabels).toContain('Inventory Data')
+    expect(sellerLabels).toContain('Transfer')
+    expect(sellerLabels).toContain('Orders from warehouse')
+    expect(sellerLabels).not.toContain('Order from Warehouse')
+    expect(sellerLabels).not.toContain('Receive from Supplier')
+    expect(sellerLabels).toContain('Damage Reports')
+  })
+
+  it('shows Orders, Cancel Orders, and Return Orders as flat SALES items', () => {
+    const sales = DASHBOARD_MENU_SELLER.find((section) => section.title === 'SALES')
+    const salesItems = sales?.items ?? []
+
+    expect(salesItems.map((item) => item.label)).toEqual([
+      'Orders',
+      'Cancel Orders',
+      'Return Orders',
+      'Payments',
+      'Invoices',
+    ])
+    expect(salesItems.find((item) => item.key === 'seller-orders')?.children).toBeUndefined()
+    expect(salesItems.find((item) => item.key === 'seller-cancel-orders')?.to).toBe('/seller/orders/cancelled')
+    expect(salesItems.find((item) => item.key === 'seller-return-orders')?.to).toBe('/seller/orders/returns')
+  })
+
+  it('keeps suppliers on the admin menu and leaves purchasing to the warehouse manager', () => {
+    const adminLabels = labels(DASHBOARD_MENU_ADMIN)
+
+    expect(adminLabels).not.toContain('Purchase Orders')
+    expect(adminLabels).not.toContain('Goods Receipts')
+    expect(adminLabels).not.toContain('Purchase Returns')
+    expect(adminLabels).not.toContain('Transfer')
+    expect(adminLabels).not.toContain('Order from Warehouse')
+    expect(adminLabels).not.toContain('Receive from Supplier')
+    expect(adminLabels).toContain('Suppliers')
+    expect(adminLabels).toContain('Assign Warehouse Manager')
+    expect(adminLabels).toContain('Assign Delivery Agent')
+  })
+
+  it('gives the warehouse manager only the warehouse menus', () => {
+    const managerLabels = labels(DASHBOARD_MENU_WAREHOUSE_MANAGER)
+
+    expect(managerLabels).toEqual([
+      'Overview',
+      'Warehouses',
+      'Inventory Data',
+      'Transfer',
+      'Inventory Movements',
+      'Purchase Orders',
+      'Request from seller',
+      'Goods Receipts',
+      'Purchase Returns',
+    ])
+    expect(managerLabels).not.toContain('Purchase Order Tracking')
+    expect(managerLabels).not.toContain('Suppliers')
+    expect(managerLabels).not.toContain('Receive from Supplier')
+    expect(managerLabels).not.toContain('Assign Warehouse Manager')
+    expect(managerLabels).not.toContain('Shops')
+  })
+
+  it('gives the delivery agent only delivery permission menus', () => {
+    const deliveryLabels = labels(DASHBOARD_MENU_DELIVERY_AGENT)
+
+    expect(deliveryLabels).toEqual(['Overview', 'Parcels', 'Damage Reports'])
+    expect(deliveryLabels).not.toContain('Purchase Orders')
+    expect(deliveryLabels).not.toContain('Warehouses')
+    expect(deliveryLabels).not.toContain('Shops')
+    expect(deliveryLabels).not.toContain('Order from Warehouse')
+  })
+})
 
 describe('DASHBOARD_MENU_SELLER accounting items', () => {
   it('includes chart of accounts under seller accounting', () => {

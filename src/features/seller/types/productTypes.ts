@@ -7,6 +7,11 @@ export type Product = {
   categoryId: string
   categoryName: string
   status: ProductStatus
+  /** Shop/catalog stock only. */
+  shopStock: number
+  /** Warehouse available (catalog mirror). */
+  warehouseStock: number
+  /** Same as shopStock; used by overview low-stock. */
   stock: number
   price: string
   created: string

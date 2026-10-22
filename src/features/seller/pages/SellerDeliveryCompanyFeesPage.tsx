@@ -277,7 +277,7 @@ const SellerDeliveryCompanyFeesPage = () => {
 
       <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
         These settings are shop-specific. <strong>Per order</strong> records an expense per order;
-        <strong> per day</strong> records once per shop, Delivery Company, and delivery date.
+        <strong> per Collect COD batch</strong> records once for the selected orders in one shop/provider pickup batch.
       </div>
 
       {loadStatus === "loading" && (
@@ -353,14 +353,14 @@ const SellerDeliveryCompanyFeesPage = () => {
                     value={draft.chargingBasis}
                     onChange={(event) => {
                       const basis = event.target.value;
-                      if (basis === "PER_ORDER" || basis === "PER_DAY") {
+                      if (basis === "PER_ORDER" || basis === "PER_INVOICE") {
                         setDraft((value) => ({ ...value, chargingBasis: basis }));
                       }
                     }}
                     className={inputClass}
                   >
                     <option value="PER_ORDER">Per order</option>
-                    <option value="PER_DAY">Per day</option>
+                    <option value="PER_INVOICE">Per Collect COD batch</option>
                   </select>
                 </div>
                 <div>
@@ -460,7 +460,7 @@ const SellerDeliveryCompanyFeesPage = () => {
                         </td>
                         <td className="px-4 py-3 text-sm text-slate-800">{rule.amount} {rule.currency}</td>
                         <td className="px-4 py-3 text-sm text-slate-700">
-                          {rule.chargingBasis === "PER_ORDER" ? "Per order" : "Per day"}
+                          {rule.chargingBasis === "PER_ORDER" ? "Per order" : "Per Collect COD batch"}
                         </td>
                         <td className="px-4 py-3 text-xs text-slate-600">
                           {rule.effectiveFrom ? new Date(rule.effectiveFrom).toLocaleDateString() : "—"}
