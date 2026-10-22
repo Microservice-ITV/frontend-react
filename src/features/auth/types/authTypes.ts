@@ -6,6 +6,7 @@ export interface User {
   profile_image?: string | null;
   phone?: string | null;
   hasPassword?: boolean;
+  hasOAuthAccounts?: boolean;
   gender?: "male" | "female" | "other" | null;
   date_of_birth?: string | null;
   role?: string | null;

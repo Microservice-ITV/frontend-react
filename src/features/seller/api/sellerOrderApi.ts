@@ -245,8 +245,8 @@ export async function fetchCustomerAvatars(
 }
 
 const SHOP_ORDERS_QUERY = `
-  query ShopOrders($shopId: ID!, $userId: ID) {
-    shopOrders(shopId: $shopId, userId: $userId) {
+  query ShopOrders($shopId: ID!) {
+    shopOrders(shopId: $shopId) {
       orderId
       customerId
       status
@@ -355,74 +355,20 @@ interface ShopOrdersResponse {
   errors?: GraphQLError[]
 }
 
-export type OwnedShop = {
-  id?: string
-  shopId?: string
-  slug?: string
-  name?: string
-}
-
-/**
- * Fetch all orders across every shop owned by the seller, merged and deduped.
- * Falls back to activeShopId when ownership lookup is unavailable.
- */
+/** Fetch orders for the authenticated seller's active shop. */
 export async function fetchOrdersAcrossOwnedShops(
-  userId?: string | null,
+  _userId?: string | null,
   activeShopId?: string | null,
 ): Promise<SellerOrder[]> {
-  let shopIds: string[] = []
-
-  if (userId) {
-    try {
-      const shops = await sellerOrderApi.listShopsByUser(userId)
-      shopIds = shops
-        .map((shop) => shop.id ?? shop.shopId ?? '')
-        .filter((id): id is string => Boolean(id))
-    } catch {
-      // Best-effort ownership lookup; fall back below.
-    }
-  }
-
-  if (shopIds.length === 0 && activeShopId) {
-    shopIds = [activeShopId]
-  }
-
-  if (shopIds.length === 0) {
-    return []
-  }
-
-  const results = await Promise.all(
-    shopIds.map((shopId) => sellerOrderApi.shopOrders(shopId, userId ?? undefined).catch(() => [] as SellerOrder[])),
-  )
-
-  const merged = new Map<string, SellerOrder>()
-  for (const orders of results) {
-    for (const order of orders) {
-      if (!merged.has(order.orderId)) {
-        merged.set(order.orderId, order)
-      }
-    }
-  }
-
-  return [...merged.values()].sort((a, b) => {
-    const aTime = new Date(a.placedAt || a.createdAt || 0).getTime()
-    const bTime = new Date(b.placedAt || b.createdAt || 0).getTime()
-    return bTime - aTime
-  })
+  if (!activeShopId) return []
+  return sellerOrderApi.shopOrders(activeShopId)
 }
 
 export const sellerOrderApi = {
-  async listShopsByUser(userId: string): Promise<OwnedShop[]> {
-    const response = await productClient.get<{ success?: boolean; data?: OwnedShop[] }>(
-      `/shops/user/${userId}`,
-    )
-    return response.data.data ?? []
-  },
-
-  async shopOrders(shopId: string, userId?: string): Promise<SellerOrder[]> {
+  async shopOrders(shopId: string): Promise<SellerOrder[]> {
     const response = await ecommerceReadClient.post<ShopOrdersResponse>('', {
       query: SHOP_ORDERS_QUERY,
-      variables: { shopId, userId },
+      variables: { shopId },
     })
 
     if (response.data.errors?.length) {
@@ -513,3 +459,4 @@ export const sellerOrderApi = {
     return response.data.data
   },
 }
+

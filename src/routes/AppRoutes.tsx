@@ -54,6 +54,7 @@ import AccountLayout from "@/features/account/pages/AccountLayout";
 import ProfilePage from "@/features/account/pages/ProfilePage";
 import BanksCardsPage from "@/features/account/pages/BanksCardsPage";
 import AddressesPage from "@/features/account/pages/AddressesPage";
+import PrivacyPage from "@/features/account/pages/PrivacyPage";
 import ChangePasswordPage from "@/features/account/pages/ChangePasswordPage";
 import NotificationsPage from "@/features/account/pages/NotificationsPage";
 import NotificationsCenterPage from "@/features/account/pages/NotificationsCenterPage";
@@ -218,6 +219,7 @@ const AppRoutes = () => {
               path="notifications-center"
               element={<NotificationsCenterPage />}
             />
+            <Route path="privacy" element={<PrivacyPage />} />
             <Route
               path="orders"
               element={
@@ -1825,7 +1827,7 @@ const AppRoutes = () => {
               }
             />
 
-          <Route
+            <Route
               path="finance"
               element={
                 <ProtectedRoute
@@ -1845,11 +1847,11 @@ const AppRoutes = () => {
                     title="Accounting"
                     description="Platform accounting, payments, and financial reporting will be managed here."
                   />
-                  </ProtectedRoute>
-  }
-/>
+                </ProtectedRoute>
+              }
+            />
 
-<Route
+            <Route
               path="finance/transactions"
               element={
                 <ProtectedRoute

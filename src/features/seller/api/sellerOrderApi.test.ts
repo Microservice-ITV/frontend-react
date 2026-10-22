@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { canSellerShip, sellerOrderStatus, type SellerOrder } from './sellerOrderApi'
+import { describe, expect, it, vi } from 'vitest'
+import { canSellerShip, fetchOrdersAcrossOwnedShops, sellerOrderApi, sellerOrderStatus, type SellerOrder } from './sellerOrderApi'
 
 const makeOrder = (overrides: Partial<SellerOrder> = {}): SellerOrder => ({
   orderId: 'order-1',
@@ -69,5 +69,23 @@ describe('seller order fulfillment status', () => {
 
     expect(sellerOrderStatus(order)).toBe('PARTIALLY_FULFILLED')
     expect(canSellerShip(order)).toBe(true)
+  })
+})
+
+
+describe('seller orders shop scope', () => {
+  it('requests orders for the authenticated active shop instead of creator-owned shops', async () => {
+    const shopOrders = vi.spyOn(sellerOrderApi, 'shopOrders').mockResolvedValue([])
+    await fetchOrdersAcrossOwnedShops('new-shop-admin-user', 'shared-shop-id')
+    expect(shopOrders).toHaveBeenCalledOnce()
+    expect(shopOrders).toHaveBeenCalledWith('shared-shop-id')
+    shopOrders.mockRestore()
+  })
+
+  it('does not request orders without an active shop context', async () => {
+    const shopOrders = vi.spyOn(sellerOrderApi, 'shopOrders').mockResolvedValue([])
+    await expect(fetchOrdersAcrossOwnedShops('user-without-shop', null)).resolves.toEqual([])
+    expect(shopOrders).not.toHaveBeenCalled()
+    shopOrders.mockRestore()
   })
 })
