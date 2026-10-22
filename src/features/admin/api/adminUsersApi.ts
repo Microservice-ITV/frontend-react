@@ -8,6 +8,8 @@ export type AdminUserRoleDto = {
   code: string
   name: string
   scope: string
+  shop_id?: string | null
+  shop_name?: string | null
 }
 
 export type AdminUserDto = {

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   canSellerShip,
+  fetchOrdersAcrossOwnedShops,
   fetchSellerOrderByIdAcrossOwnedShops,
   fetchSellerOrderSummariesAcrossOwnedShops,
   isDeliveredPendingCodPayment,
@@ -238,5 +239,23 @@ describe('seller order page transport', () => {
     await expect(fetchSellerOrderPage(params)).rejects.toThrow('Ownership unavailable')
     post.mockResolvedValueOnce({ data: { data: {} } })
     await expect(fetchSellerOrderPage(params)).rejects.toThrow('Missing seller order page')
+  })
+})
+
+
+describe('seller orders shop scope', () => {
+  it('requests orders for the authenticated active shop instead of creator-owned shops', async () => {
+    const shopOrders = vi.spyOn(sellerOrderApi, 'shopOrders').mockResolvedValue([])
+    await fetchOrdersAcrossOwnedShops('new-shop-admin-user', 'shared-shop-id')
+    expect(shopOrders).toHaveBeenCalledOnce()
+    expect(shopOrders).toHaveBeenCalledWith('shared-shop-id')
+    shopOrders.mockRestore()
+  })
+
+  it('does not request orders without an active shop context', async () => {
+    const shopOrders = vi.spyOn(sellerOrderApi, 'shopOrders').mockResolvedValue([])
+    await expect(fetchOrdersAcrossOwnedShops('user-without-shop', null)).resolves.toEqual([])
+    expect(shopOrders).not.toHaveBeenCalled()
+    shopOrders.mockRestore()
   })
 })

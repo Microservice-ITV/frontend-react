@@ -209,7 +209,7 @@ const AdminUsersPage = () => {
                 className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-8 pr-3 text-xs outline-none placeholder:text-slate-400 focus:border-emerald-500"
               />
             </div>
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap gap-x-2 gap-y-1.5">
               {VERIFIED_TABS.map((tab) => (
                 <button
                   key={tab.key}
@@ -302,7 +302,7 @@ const AdminUsersPage = () => {
 
                     {/* Roles */}
                     <td className="px-4 py-4">
-                      <RoleChips user={user} />
+                      <RoleChips user={user} compact onShowAll={() => handleViewUser(user)} />
                     </td>
 
                     {/* Joined */}
@@ -385,29 +385,43 @@ const UserCell = ({ user }: { user: AdminUserRow }) => {
   )
 }
 
-/** Role chips list — up to 3 visible, rest collapsed */
-const RoleChips = ({ user }: { user: AdminUserRow }) => {
+/** Role chips list, including the shop context for shop-scoped roles. */
+const RoleChips = ({
+  user,
+  compact = false,
+  onShowAll,
+}: {
+  user: AdminUserRow
+  compact?: boolean
+  onShowAll?: () => void
+}) => {
   if (user.roles.length === 0) {
     return <span className="text-xs text-slate-400">No roles</span>
   }
-  const visible = user.roles.slice(0, 3)
-  const overflow = user.roles.length - 3
+  const visibleRoles = compact ? user.roles.slice(0, 2) : user.roles
+  const remainingCount = user.roles.length - visibleRoles.length
+
   return (
-    <div className="flex flex-wrap gap-1">
-      {visible.map((role) => (
+    <div className="flex flex-wrap items-start gap-2">
+      {visibleRoles.map((role) => (
         <span
-          key={role.id}
-          className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${
+          key={role.id + ':' + (role.shopId ?? role.scope)}
+          className={`inline-flex max-w-full items-center rounded-full px-2.5 py-1 text-xs leading-4 font-medium ${
             SCOPE_COLORS[role.scope] ?? 'bg-slate-100 text-slate-600'
           }`}
         >
-          {role.name}
+          {role.shopName ? role.name + ' (' + role.shopName + ')' : role.name}
         </span>
       ))}
-      {overflow > 0 && (
-        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">
-          +{overflow}
-        </span>
+      {remainingCount > 0 && (
+        <button
+          type="button"
+          onClick={onShowAll}
+          aria-label={`Show all ${user.roles.length} roles`}
+          className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs leading-4 font-medium text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1"
+        >
+          +{remainingCount} more
+        </button>
       )}
     </div>
   )

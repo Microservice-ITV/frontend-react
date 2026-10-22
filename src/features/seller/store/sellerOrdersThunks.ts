@@ -5,16 +5,7 @@ import {
   type SellerOrderStatusFilter,
 } from '../api/sellerOrderApi'
 
-/**
- * Fetch the seller's orders as compact summaries (order id, waybill, customer,
- * items, status, total, date) for the list page and dashboard widgets.
- *
- * Resolves the caller's owned shops via product-service, then requests the
- * list projection once for every shop scope (the read-service resolver scopes
- * server-side). Falls back to the provided activeShopId when ownership lookup
- * fails so the dashboard still renders for single-shop sellers. Full order
- * detail is fetched separately, per order, on the detail page.
- */
+/** Fetch orders scoped to the authenticated user's active shop membership. */
 export const fetchSellerOrdersByShop = createAsyncThunk<
   SellerOrderSummary[],
   { userId?: string | null; activeShopId?: string | null; statusFilter?: SellerOrderStatusFilter },
