@@ -5,7 +5,7 @@ import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
 import { fetchSellerOrdersByShop } from '../store'
 import {
   fetchCustomerAvatars,
-  fetchOrdersAcrossOwnedShops,
+  fetchSellerOrderByIdAcrossOwnedShops,
   sellerOrderApi,
   type SellerOrder,
   type SellerOrderItem,
@@ -185,8 +185,7 @@ const SellerOrderDetailPage = () => {
       setLoading(true)
       setLoadError('')
       try {
-        const orders = await fetchOrdersAcrossOwnedShops(authUserId, activeShopId)
-        const found = orders.find((o) => o.orderId === id)
+        const found = await fetchSellerOrderByIdAcrossOwnedShops(id, authUserId, activeShopId)
         if (!cancelled) {
           setOrder(found ?? null)
           setWayBillNo(found?.wayBillNo ?? '')
@@ -247,8 +246,7 @@ const SellerOrderDetailPage = () => {
           setWayBillNo(savedWayBillNo)
           setOrder((current) => current ? { ...current, wayBillNo: savedWayBillNo } : current)
           if (activeShopId || authUserId) {
-            const updated = await fetchOrdersAcrossOwnedShops(authUserId, activeShopId)
-            const found = updated.find((o) => o.orderId === id)
+            const found = await fetchSellerOrderByIdAcrossOwnedShops(id, authUserId, activeShopId)
             if (found) {
               setOrder({ ...found, wayBillNo: found.wayBillNo || savedWayBillNo })
               setWayBillNo(found.wayBillNo || savedWayBillNo)

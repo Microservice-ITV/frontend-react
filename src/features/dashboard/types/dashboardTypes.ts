@@ -24,6 +24,8 @@ export type DashboardMenuItem = {
   icon?: LucideIcon
   badge?: string | number
   badgeTone?: 'default' | 'alert'
+  /** When set, animate the menu icon instead of showing a numeric badge. */
+  iconMotion?: 'transit'
   children?: DashboardMenuItem[]
   search?: SearchConfig
 }

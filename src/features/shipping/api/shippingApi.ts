@@ -223,6 +223,12 @@ export const shippingApi = {
     return shippingClient.post<unknown>("/shipping/calculate", payload);
   },
 
+    checkoutDeliveryOptions() {
+        return shippingClient.get<{ success: boolean; data: { enabled: boolean } }>(
+            '/shipping/checkout-delivery-options',
+        )
+    },
+
     listActiveDeliveryCompanies() {
         return shippingClient.get<unknown>("/shipping/delivery-companies");
     },

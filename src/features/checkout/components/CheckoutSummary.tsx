@@ -26,10 +26,13 @@ import type { CartItem } from '@/features/cart/types/cartTypes'
 import type { CheckoutShopShippingPayload } from '../api/checkoutApi'
 import type { CheckoutStatusResponse } from '../types/checkoutTypes'
 import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
+import { formatCashIncomeDisplay, normalizeCashDigits } from '../utils/cashTender'
 import { getDeliveryBlockReason } from '../utils/deliveryReadiness'
 import {
   checkoutShopsHaveDeliveryCompanies,
+  distributeShippingFee,
   mapCheckoutShopIdsToCartShopIds,
+  parseDeliveryFeeInput,
 } from '../utils/checkoutShopShipping'
 
 let activeCartTaxRequest = 0
@@ -46,6 +49,17 @@ interface CheckoutSummaryProps {
   /** No delivery company has a district route; fee is confirmed after the order. */
   deliveryQuotePendingConfirmation?: boolean
   deliveryCompanyIdByShopId: Record<string, string>
+  /** False while shop companies and route availability are still loading. */
+  deliveryCompanySelectionReady?: boolean
+  /**
+   * Cart shop ids with no delivery company, or whose companies are all
+   * unavailable for this route. Those shops do not block place order.
+   */
+  cartShopIdsWithoutSelectableCompany?: readonly string[]
+  /** Staff can type the delivery fee charged on this order. */
+  editableDeliveryFee?: boolean
+  deliveryFeeInput?: string
+  onDeliveryFeeInputChange?: (value: string) => void
 }
 
 const promoStatusLabel = (status: PromoCodeStatus | null | undefined, message?: string | null): string => {
@@ -79,6 +93,7 @@ const buildShopShippings = (
   feesByShopId: Record<string, { amount?: number | null }>,
   shippingCalculateStatus: string,
   deliveryCompanyIdByShopId: Record<string, string>,
+  cartShopIdsWithoutSelectableCompany: ReadonlySet<string>,
 ): CheckoutShopShippingPayload[] => {
   const shopCountFromCart = Object.keys(checkout.groupedByShop).length
   const perShopFallback = shopCountFromCart > 0 ? checkout.shippingSubtotal / shopCountFromCart : 0
@@ -98,12 +113,15 @@ const buildShopShippings = (
         ? row.amount
         : null
 
+    const waived = Boolean(cartShopId && cartShopIdsWithoutSelectableCompany.has(cartShopId))
+    const companyId = !waived && cartShopId
+      ? deliveryCompanyIdByShopId[cartShopId]?.trim() ?? ''
+      : ''
+
     return {
       shop_id: shopId,
-      shipping_fee: fromApi ?? perShopFallbackForIds,
-      delivery_company_id: cartShopId
-        ? deliveryCompanyIdByShopId[cartShopId] ?? ''
-        : '',
+      shipping_fee: waived ? 0 : (fromApi ?? perShopFallbackForIds),
+      delivery_company_id: companyId || null,
     }
   })
 }
@@ -149,6 +167,11 @@ const CheckoutSummary = ({
   checkoutSessionItems,
   deliveryQuotePendingConfirmation = false,
   deliveryCompanyIdByShopId,
+  deliveryCompanySelectionReady = false,
+  cartShopIdsWithoutSelectableCompany = [],
+  editableDeliveryFee = false,
+  deliveryFeeInput = '',
+  onDeliveryFeeInputChange,
 }: CheckoutSummaryProps) => {
   const dispatch = useAppDispatch()
   const stripe = useStripe()
@@ -377,7 +400,12 @@ const CheckoutSummary = ({
       : shippingCalculateStatus === 'succeeded' && totalShippingFee != null && totalShippingFee >= 0
         ? totalShippingFee
         : checkout.shippingSubtotal
-    const shipping_total = payDeliveryFeeNow ? quotedShippingTotal : 0
+    const manualDeliveryFee = editableDeliveryFee ? parseDeliveryFeeInput(deliveryFeeInput) : null
+    const shipping_total = manualDeliveryFee != null
+      ? manualDeliveryFee
+      : payDeliveryFeeNow
+        ? quotedShippingTotal
+        : 0
 
     const quotedShopShippings = buildShopShippings(
       checkout,
@@ -386,10 +414,14 @@ const CheckoutSummary = ({
       feesByShopId,
       shippingCalculateStatus,
       deliveryCompanyIdByShopId,
+      new Set(cartShopIdsWithoutSelectableCompany),
     )
-    const shop_shippings = payDeliveryFeeNow
+    const baseShopShippings = payDeliveryFeeNow
       ? quotedShopShippings
       : quotedShopShippings.map((row) => ({ ...row, shipping_fee: 0 }))
+    const shop_shippings = manualDeliveryFee != null
+      ? distributeShippingFee(baseShopShippings, manualDeliveryFee)
+      : baseShopShippings
 
     return {
       full_name: address.full_name,
@@ -429,6 +461,11 @@ const CheckoutSummary = ({
 
     if (!currentCheckout?.checkout_id) {
       dispatch(setCheckoutError('Checkout session is not ready yet. Please try again.'))
+      return
+    }
+
+    if (!deliveryCompanySelectionReady) {
+      dispatch(setCheckoutError('Delivery options are still loading. Please wait a moment.'))
       return
     }
 
@@ -473,7 +510,8 @@ const CheckoutSummary = ({
     if (isStaffCash) {
       const orderDue = Number(
         authoritativeTotal ??
-        amountDueNow(checkout, payDeliveryFeeNow, shownTaxForPayment, promotionDiscount),
+        amountDueNow(checkout, payDeliveryFeeNow, shownTaxForPayment, promotionDiscount)
+          + (editableDeliveryFee ? parseDeliveryFeeInput(deliveryFeeInput) : 0),
       )
       const income = Number(cashTender?.income ?? 0)
       if (!cashTender || income < orderDue) {
@@ -679,8 +717,14 @@ const CheckoutSummary = ({
     cartItems,
     checkoutSessionItems ?? currentStatus?.items,
   )
+  const shopsWithoutSelectableCompany = new Set(cartShopIdsWithoutSelectableCompany)
   const hasDeliveryCompanyForEveryShop =
-    checkoutShopsHaveDeliveryCompanies(requiredShopMappings, deliveryCompanyIdByShopId)
+    deliveryCompanySelectionReady &&
+    checkoutShopsHaveDeliveryCompanies(
+      requiredShopMappings,
+      deliveryCompanyIdByShopId,
+      shopsWithoutSelectableCompany,
+    )
 
   const canPlaceOrder =
     !!currentCheckout?.checkout_id &&
@@ -730,6 +774,9 @@ const CheckoutSummary = ({
     if (deliveryBlockReason) {
       return deliveryBlockReason
     }
+    if (!deliveryCompanySelectionReady) {
+      return 'Checking delivery options...'
+    }
     if (!hasDeliveryCompanyForEveryShop) {
       return 'Select a delivery company configured for every shop to continue.'
     }
@@ -758,8 +805,9 @@ const CheckoutSummary = ({
     return '—'
   })()
   const shownTax = scaledTax ?? taxAmount
+  const manualDeliveryFee = editableDeliveryFee ? parseDeliveryFeeInput(deliveryFeeInput) : 0
   const displayedTotal = !payDeliveryFeeNow
-    ? Math.max(0, merchandiseSubtotal - promotionDiscount) + shownTax
+    ? Math.max(0, merchandiseSubtotal - promotionDiscount) + shownTax + manualDeliveryFee
     : (authoritativeTotal ?? (promotionFinal ?? totalPayment) + shownTax)
   const promoFeedback = promoStatusLabel(promoCodeStatus, promoCodeMessage)
   const promoIsValid = promoCodeStatus === 'VALID'
@@ -790,9 +838,23 @@ const CheckoutSummary = ({
           </span>
         </div>
         <div className="mb-3">
-          <div className="flex justify-between gap-3">
-            <span className="shrink-0 text-gray-600">Delivery</span>
-            <span className="whitespace-nowrap tabular-nums text-gray-900">{deliveryPriceText}</span>
+          <div className="flex items-center justify-between gap-3">
+            <label htmlFor="checkout-delivery-fee" className="shrink-0 text-gray-600">Delivery</label>
+            {editableDeliveryFee ? (
+              <input
+                id="checkout-delivery-fee"
+                type="text"
+                inputMode="numeric"
+                value={formatCashIncomeDisplay(deliveryFeeInput)}
+                onChange={(event) => onDeliveryFeeInputChange?.(normalizeCashDigits(event.target.value))}
+                placeholder="Ks 0"
+                aria-label="Delivery fee"
+                disabled={isPlacingOrder}
+                className="h-8 w-32 rounded-lg border border-gray-300 bg-white px-2.5 text-sm tabular-nums text-gray-900 outline-none placeholder:text-gray-400 focus:border-[#5f8f80]"
+              />
+            ) : (
+              <span className="whitespace-nowrap tabular-nums text-gray-900">{deliveryPriceText}</span>
+            )}
           </div>
           {payDeliveryFeeNow && shippingCalculateStatus === 'failed' && shippingCalculateError && (
             <p className="mt-1 text-right text-[11px] text-amber-700">{shippingCalculateError}</p>

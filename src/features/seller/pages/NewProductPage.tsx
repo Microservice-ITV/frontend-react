@@ -15,7 +15,7 @@ import ProductForm, {
 import { fetchSellerProductsByShop } from "@/features/seller/store";
 import { mapProductFormToVariantsPayload } from "@/features/seller/utils/mapProductVariantsPayload";
 
-type Option = { id: string; name: string };
+type Option = { id: string; name: string; code?: string };
 type RawCategoryOption = {
   id: string;
   name: string;
@@ -75,7 +75,11 @@ const NewProductPage = () => {
           .map((item) => ({ id: item.id, name: item.name }))
           .filter((item) => item.id && item.name);
         const colors = (colorsRes.data?.data ?? [])
-          .map((item) => ({ id: item.id, name: item.name }))
+          .map((item) => ({
+            id: item.id,
+            name: item.name,
+            code: item.code,
+          }))
           .filter((item) => item.id && item.name);
         const sizes = (sizesRes.data?.data ?? [])
           .map((item) => ({ id: item.id, name: item.name }))

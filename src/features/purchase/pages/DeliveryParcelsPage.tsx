@@ -18,6 +18,8 @@ import { secondaryButtonClass } from '../config/purchaseUiClasses'
 import { downloadPurchaseOrderAttachment } from '../utils/downloadPurchaseOrderAttachment'
 import { variantDisplayLabel } from '@/features/warehouse/utils/variantLabel'
 
+type DeliveryParcelsBase = '/seller' | '/delivery-agent'
+
 const primaryButtonClass =
   'inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50'
 const rowActionBaseClass =
@@ -44,7 +46,8 @@ const lineVariantLabel = (item: PurchaseOrderItem) => {
   )
 }
 
-const DeliveryParcelsPage = () => {
+const DeliveryParcelsPage = ({ base = '/delivery-agent' }: { base?: DeliveryParcelsBase }) => {
+  const sellerMode = base === '/seller'
   const { orders, loading, error, reload } = usePurchaseOrders()
   const productNames = useProductNames()
   const [feedback, setFeedback] = useState<string | null>(null)
@@ -172,7 +175,11 @@ const DeliveryParcelsPage = () => {
         notes: handoffNotes.trim() || null,
         items,
       })
-      setFeedback(`${handoffOrder.orderNumber} confirmed, picked up, and sent to the warehouse.`)
+      setFeedback(
+        sellerMode
+          ? `${handoffOrder.orderNumber} confirmed and picked up. Continue on Goods Receipts to post the GRN.`
+          : `${handoffOrder.orderNumber} confirmed, picked up, and sent to the warehouse.`,
+      )
       setHandoffOrder(null)
       await reload()
       notifyDashboardMenuBadgesChanged()
@@ -288,17 +295,18 @@ const DeliveryParcelsPage = () => {
               Confirm and Pickup
             </button>
           )}
-          {[
-            'IN_TRANSIT',
-            'ORDERED',
-            'ARRIVED',
-            'DELIVERY_PICKED_UP',
-            'AWAITING_WAREHOUSE_RECEIPT',
-          ].includes(row.status) && (
-            <button type="button" className={rowSecondaryButtonClass} onClick={() => openDamage(row)}>
-              Damage report
-            </button>
-          )}
+          {!sellerMode &&
+            [
+              'IN_TRANSIT',
+              'ORDERED',
+              'ARRIVED',
+              'DELIVERY_PICKED_UP',
+              'AWAITING_WAREHOUSE_RECEIPT',
+            ].includes(row.status) && (
+              <button type="button" className={rowSecondaryButtonClass} onClick={() => openDamage(row)}>
+                Damage report
+              </button>
+            )}
         </div>
       ),
     },
@@ -307,19 +315,22 @@ const DeliveryParcelsPage = () => {
   return (
     <div className="space-y-4">
       <nav className="text-xs text-slate-500">
-        <Link to="/delivery-agent" className="hover:text-slate-700">
-          Delivery
+        <Link to={sellerMode ? '/seller/warehouse' : '/delivery-agent'} className="hover:text-slate-700">
+          {sellerMode ? 'Warehouse' : 'Delivery'}
         </Link>{' '}
         <span className="mx-1">/</span>
-        <span className="text-slate-700">Parcels</span>
+        <span className="text-slate-700">{sellerMode ? 'Confirm and Pickup' : 'Parcels'}</span>
       </nav>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Supplier parcels</h1>
+          <h1 className="text-xl font-bold text-slate-900">
+            {sellerMode ? 'Confirm and Pickup' : 'Supplier parcels'}
+          </h1>
           <p className="text-sm text-slate-500">
-            Follow seller transit actions as they happen. After final arrival, confirm variation and
-            quantity, then pickup and send to the warehouse manager.
+            {sellerMode
+              ? 'After final arrival, confirm variation and quantity, then pick up and send the parcel for goods receipt.'
+              : 'Follow seller transit actions as they happen. After final arrival, confirm variation and quantity, then pickup and send to the warehouse manager.'}
           </p>
         </div>
         <button type="button" className={secondaryButtonClass} disabled={loading} onClick={() => void reload()}>
