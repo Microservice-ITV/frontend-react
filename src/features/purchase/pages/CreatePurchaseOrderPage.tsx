@@ -14,6 +14,7 @@ import { productApi } from '@/features/products/api/productApi'
 import { sellerProductApi } from '@/features/seller/api/sellerProductApi'
 import { productClient } from '@/lib/api/productClient'
 import { sanitizeIntegerInput } from '@/utils/decimalInput'
+import { notifyDashboardMenuBadgesChanged } from '@/features/dashboard/dashboardMenuBadges'
 import { purchaseApi, purchaseErrorMessage } from '../api/purchaseApi'
 import { useSuppliers } from '../hooks/usePurchaseData'
 import { purchasePaths, type PurchaseAreaBase } from '../config/purchasePaths'
@@ -926,6 +927,7 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
       if (mode === 'approval' && orderKind !== 'SUPPLIER' && created?.id) {
         await purchaseApi.updatePurchaseOrderStatus(created.id, 'PENDING_APPROVAL')
       }
+      notifyDashboardMenuBadgesChanged()
       navigate(paths.orders)
     } catch (err) {
       setFormError(purchaseErrorMessage(err))

@@ -246,7 +246,11 @@ export const useDashboardMenu = (area: DashboardArea): DashboardMenuSection[] =>
                 return { ...item, badge: receiptCount > 0 ? receiptCount : undefined }
               }
               if (item.key.endsWith('warehouse-purchase-tracking')) {
-                return { ...item, badge: trackingCount > 0 ? trackingCount : undefined }
+                return {
+                  ...item,
+                  badge: trackingCount > 0 ? trackingCount : undefined,
+                  iconMotion: trackingCount > 0 ? 'transit' : undefined,
+                }
               }
               if (item.key === 'delivery-parcels' || item.key === 'seller-delivery-parcels') {
                 return { ...item, badge: parcelCount > 0 ? parcelCount : undefined }
