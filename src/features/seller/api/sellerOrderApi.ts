@@ -458,6 +458,21 @@ interface ShopOrderSummariesResponse {
 
 export type SellerOrderStatusFilter = 'all' | 'to-ship' | 'shipped' | 'completed' | 'cancelled' | 'returned'
 
+type SellerShop = { id: string; shopId: string; name: string; slug: string }
+type SellerShopAccessResponse = {
+  data?: {
+    access_context?: {
+      shops?: Array<{
+        shop_id?: string | null
+        shop_name?: string | null
+        shop_domain?: string | null
+        membership_status?: string | null
+        role?: { code?: string | null } | null
+      }>
+    }
+  }
+}
+
 const resolveSellerShopIds = async (
   _userId?: string | null,
   activeShopId?: string | null,
@@ -558,6 +573,30 @@ export async function fetchSellerOrderPage(
 }
 
 export const sellerOrderApi = {
+  /**
+   * Backward-compatible shop lookup for seller pages. The authenticated
+   * access context is authoritative; userId is retained for existing callers
+   * but is never used to discover creator-owned shops.
+   */
+  async listShopsByUser(_userId: string): Promise<SellerShop[]> {
+    const response = await authClient.get<SellerShopAccessResponse>('/me/access-context')
+    return (response.data.data?.access_context?.shops ?? [])
+      .filter((shop) =>
+        shop.membership_status?.toLowerCase() === 'active'
+        && ['shop_owner', 'shop_admin'].includes(shop.role?.code?.toLowerCase() ?? ''),
+      )
+      .flatMap((shop) => {
+        const id = shop.shop_id?.trim()
+        if (!id) return []
+        return [{
+          id,
+          shopId: id,
+          name: shop.shop_name?.trim() || id,
+          slug: shop.shop_domain?.trim() || id,
+        }]
+      })
+  },
+
   /**
    * Full detail projection of the seller's orders. Pass `orderId` to fetch a
    * single order (detail page); list views should use `shopOrderSummaries`.

@@ -198,6 +198,22 @@ describe('seller COD due payments', () => {
 })
 
 describe('seller active shop scope', () => {
+  it('keeps listShopsByUser callers on the authenticated active membership API', async () => {
+    const { authClient } = await import('@/lib/api/authClient')
+    const get = vi.spyOn(authClient, 'get').mockResolvedValue({
+      data: { data: { access_context: { shops: [
+        { shop_id: 'assigned-shop', shop_name: 'Assigned Shop', shop_domain: 'assigned.example', membership_status: 'active', role: { code: 'shop_admin' } },
+        { shop_id: 'inactive-shop', membership_status: 'inactive', role: { code: 'shop_admin' } },
+        { shop_id: 'viewer-shop', membership_status: 'active', role: { code: 'shop_viewer' } },
+      ] } } },
+    } as never)
+
+    await expect(sellerOrderApi.listShopsByUser('current-user')).resolves.toEqual([
+      { id: 'assigned-shop', shopId: 'assigned-shop', name: 'Assigned Shop', slug: 'assigned.example' },
+    ])
+    expect(get).toHaveBeenCalledWith('/me/access-context')
+  })
+
   it('uses the active shop and does not send a request without one', async () => {
     const summaries = vi.spyOn(sellerOrderApi, 'shopOrderSummaries').mockResolvedValue([])
     await fetchSellerOrderSummariesAcrossOwnedShops('seller-1', 'active-shop')
