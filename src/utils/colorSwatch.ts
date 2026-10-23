@@ -4,13 +4,13 @@ const SWATCH_BY_NAME: Record<string, string> = {
   aqua: "#00ffff",
   aquamarine: "#7fffd4",
   azure: "#f0ffff",
-  beige: "#f5f5dc",
+  beige: "#e8d5b0",
   bisque: "#ffe4c4",
   black: "#111827",
   blanchedalmond: "#ffebcd",
   blue: "#2563eb",
   blueviolet: "#8a2be2",
-  brown: "#92400e",
+  brown: "#6b4423",
   burgundy: "#800020",
   burlywood: "#deb887",
   cadetblue: "#5f9ea0",
@@ -46,7 +46,7 @@ const SWATCH_BY_NAME: Record<string, string> = {
   darkviolet: "#9400d3",
   deeppink: "#ff1493",
   deepskyblue: "#00bfff",
-  default: "#9ca3af",
+  default: "#e5e7eb",
   denim: "#1560bd",
   dimgray: "#696969",
   dimgrey: "#696969",
@@ -60,10 +60,10 @@ const SWATCH_BY_NAME: Record<string, string> = {
   glacier: "#80b5c6",
   gold: "#d4af37",
   goldenrod: "#daa520",
-  gray: "#9ca3af",
+  gray: "#6b7280",
   green: "#16a34a",
   greenyellow: "#adff2f",
-  grey: "#9ca3af",
+  grey: "#6b7280",
   honeydew: "#f0fff0",
   hotpink: "#ff69b4",
   indianred: "#cd5c5c",
@@ -133,7 +133,7 @@ const SWATCH_BY_NAME: Record<string, string> = {
   purple: "#9333ea",
   rebeccapurple: "#663399",
   red: "#dc2626",
-  redbrown: "#a0522d",
+  redbrown: "#a52a2a",
   rose: "#e11d48",
   rosybrown: "#bc8f8f",
   royalblue: "#4169e1",
@@ -169,17 +169,17 @@ const SWATCH_BY_NAME: Record<string, string> = {
 };
 
 const SWATCH_BY_CODE: Record<string, string> = {
-  beg: "#f5f5dc",
+  beg: "#e8d5b0",
   bgd: "#800020",
   blk: "#111827",
   blu: "#2563eb",
-  brn: "#92400e",
+  brn: "#6b4423",
   crm: "#fffdd0",
-  def: "#9ca3af",
+  def: "#e5e7eb",
   glc: "#80b5c6",
   gld: "#d4af37",
   grn: "#16a34a",
-  gry: "#9ca3af",
+  gry: "#6b7280",
   mar: "#800000",
   mnt: "#98ff98",
   nvy: "#1e3a8a",
@@ -187,7 +187,7 @@ const SWATCH_BY_CODE: Record<string, string> = {
   org: "#ea580c",
   pnk: "#ec4899",
   pur: "#9333ea",
-  rb: "#a0522d",
+  rb: "#a52a2a",
   red: "#dc2626",
   sky: "#38bdf8",
   slv: "#c0c0c0",
@@ -225,6 +225,7 @@ export const isLightSwatch = (color: string) => {
     value === "#fffdd0" ||
     value === "#fffff0" ||
     value === "#f5f5dc" ||
+    value === "#e8d5b0" ||
     value === "#e5e7eb" ||
     value === "#eab308" ||
     value === "#c0c0c0" ||
