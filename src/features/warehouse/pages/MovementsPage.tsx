@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ArrowRight, ScrollText } from 'lucide-react'
 import DataTable, { type DataTableColumn } from '@/components/ui/DataTable'
 import FilterBar, { type FilterOption } from '@/components/ui/FilterBar'
 import ModalDrawer from '@/components/ui/ModalDrawer'
 import StatusBadge from '@/components/ui/StatusBadge'
+import DetailRow from '../components/DetailRow'
 import { warehouseApi, warehouseErrorMessage } from '../api/warehouseApi'
 import type { WarehouseAreaBase } from '../config/warehousePaths'
 import { useWarehouses } from '../hooks/useWarehouseData'
@@ -154,13 +155,22 @@ const MovementsPage = ({ base }: MovementsPageProps) => {
         }
       }
       if (movement.movementType === 'SALE_ISSUED') {
-        return { from: warehouseName(movement.warehouseId), to: '—' }
+        return {
+          from: enrichedFrom || warehouseName(movement.warehouseId),
+          to: enrichedTo || '—',
+        }
       }
       if (movement.movementType === 'PURCHASE_RECEIVED') {
-        return { from: 'Supplier', to: warehouseName(movement.warehouseId) }
+        return {
+          from: enrichedFrom || 'Supplier',
+          to: enrichedTo || warehouseName(movement.warehouseId),
+        }
       }
       if (movement.movementType === 'PURCHASE_RETURNED') {
-        return { from: warehouseName(movement.warehouseId), to: 'Supplier' }
+        return {
+          from: enrichedFrom || warehouseName(movement.warehouseId),
+          to: enrichedTo || 'Supplier',
+        }
       }
       return { from: '—', to: warehouseName(movement.warehouseId) }
     },
@@ -211,7 +221,7 @@ const MovementsPage = ({ base }: MovementsPageProps) => {
     },
     {
       key: 'fromWarehouse',
-      header: 'From warehouse',
+      header: 'From',
       hideBelow: 'md',
       width: '150px',
       sortValue: (row) => routing(row).from,
@@ -221,7 +231,7 @@ const MovementsPage = ({ base }: MovementsPageProps) => {
     },
     {
       key: 'toWarehouse',
-      header: 'To warehouse',
+      header: 'To',
       hideBelow: 'md',
       width: '150px',
       sortValue: (row) => routing(row).to,
@@ -377,8 +387,8 @@ const MovementsPage = ({ base }: MovementsPageProps) => {
                 label="Quantity"
                 value={`${selected.quantity > 0 ? '+' : ''}${selected.quantity}`}
               />
-              <DetailRow label="From warehouse" value={routing(selected).from} />
-              <DetailRow label="To warehouse" value={routing(selected).to} />
+              <DetailRow label="From" value={routing(selected).from} />
+              <DetailRow label="To" value={routing(selected).to} />
               <DetailRow
                 label="Before → After"
                 value={`${selected.beforeQty} → ${selected.afterQty}`}
@@ -422,12 +432,5 @@ const MovementsPage = ({ base }: MovementsPageProps) => {
     </div>
   )
 }
-
-const DetailRow = ({ label, value }: { label: string; value: ReactNode }) => (
-  <div className="grid min-w-0 grid-cols-[9.5rem_minmax(0,1fr)] items-start gap-x-3 border-b border-slate-100 py-2.5 last:border-b-0 sm:grid-cols-[10.5rem_minmax(0,1fr)]">
-    <p className="text-xs font-medium text-slate-500">{label}</p>
-    <div className="break-words text-sm font-semibold text-slate-900">{value}</div>
-  </div>
-)
 
 export default MovementsPage

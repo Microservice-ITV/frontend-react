@@ -175,6 +175,22 @@ type GraphQLErrorItem = {
   message?: string;
 };
 
+/** Error text from a product-service response (message / error.message). */
+export const sellerProductErrorMessage = (
+  error: unknown,
+  fallback: string,
+): string => {
+  if (error instanceof AxiosError) {
+    const data = error.response?.data as
+      | { error?: { message?: string }; message?: string }
+      | undefined;
+    const message = data?.error?.message ?? data?.message;
+    if (typeof message === "string" && message.trim()) return message;
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
+};
+
 type CatalogProductsGraphQLData = {
   catalogProducts?: CatalogProductsApiResponse;
 };
@@ -314,6 +330,23 @@ export const sellerProductApi = {
       success?: boolean;
       data?: ProductDetailReadItem;
     }>(`/products/${id}`);
+  },
+
+  /**
+   * Overwrites the selling price of one product variant. The product base
+   * price stores this value, so both stay identical.
+   */
+  updateVariantSellingPrice(
+    productId: string,
+    variantId: string,
+    sellingPrice: number,
+  ) {
+    return productClient.patch<{
+      success?: boolean;
+      data?: ProductDetailReadItem;
+    }>(`/products/${productId}/variants/${variantId}/selling-price`, {
+      sellingPrice,
+    });
   },
 
   updateProduct(id: string, payload: UpdateSellerProductPayload) {
