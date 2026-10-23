@@ -7,6 +7,7 @@ import { fetchSagaStatusByCheckout } from '../store/checkoutThunks'
 import { SagaStatusDisplay } from '../components/SagaStatusDisplay'
 import { ecommerceReadClient } from '@/lib/api/ecommerceReadClient'
 import type { PurchasedOrder } from '@/features/account/types/orderTypes'
+import { isShopStaffUser } from '../utils/staffCheckoutCustomer'
 
 const MY_ORDERS_QUERY = `
   query MyOrders {
@@ -36,6 +37,7 @@ const CheckoutSuccessPage = () => {
   const [orderLoading, setOrderLoading] = useState(!!checkoutId)
   const [orderLookupError, setOrderLookupError] = useState<string | null>(null)
   const sagaStatus = useAppSelector(selectSagaStatus)
+  const isStaff = isShopStaffUser(useAppSelector((state) => state.auth.user))
 
   const sagaPollingActive = !!checkoutId && !terminalSagaStatuses.has(sagaStatus?.status ?? '')
 
@@ -155,6 +157,14 @@ const CheckoutSuccessPage = () => {
           ) : orderLoading ? (
             <span className="text-sm text-gray-500">Loading order details...</span>
           ) : null}
+          {matchedOrder && isStaff && (
+            <Link
+              to={`/account/shop-orders?order=${encodeURIComponent(matchedOrder.orderId)}`}
+              className="inline-flex items-center justify-center px-8 py-3 border border-emerald-600 text-emerald-700 text-base font-medium rounded hover:bg-emerald-50"
+            >
+              Ship this order
+            </Link>
+          )}
           <Link
             to="/account/orders"
             className="inline-flex items-center justify-center px-8 py-3 border border-gray-300 text-gray-700 text-base font-medium rounded hover:bg-gray-50"
