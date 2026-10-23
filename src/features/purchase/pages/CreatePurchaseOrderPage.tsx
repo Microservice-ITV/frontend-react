@@ -121,6 +121,9 @@ type ProductVariantRow = {
   colorId?: string
   sizeId?: string
   basePrice?: number | string
+  listPrice?: number | string
+  effectiveSellingPrice?: number | string
+  price?: number | string
   stock?: number | string
   warehouseStockMirror?: number | string
   availableStock?: number | string
@@ -153,7 +156,8 @@ type ProductVariantSnapshot = {
   width: number | null
   height: number | null
   weight: number | null
-  basePrice: number | null
+  /** Product selling price (list price, before discount) — the PO unit price. */
+  sellingPrice: number | null
   /** Catalog sellable qty (shop + warehouse mirror) when destination stock is unavailable. */
   availableStock: number
 }
@@ -177,7 +181,9 @@ const mapProductVariants = (rows: ProductVariantRow[] | undefined): ProductVaria
       const colorId = variant.colorId ?? variant.color?.id ?? ''
       const sizeId = variant.sizeId ?? variant.size?.id ?? ''
       if (!colorId || !sizeId) return null
-      const base = Number(variant.basePrice)
+      const selling = Number(
+        variant.listPrice ?? variant.effectiveSellingPrice ?? variant.price ?? variant.basePrice,
+      )
       const available =
         Number(variant.availableStock) ||
         Math.max(0, Number(variant.stock) || 0) +
@@ -192,7 +198,7 @@ const mapProductVariants = (rows: ProductVariantRow[] | undefined): ProductVaria
         width: variant.width != null && variant.width !== '' ? Number(variant.width) : null,
         height: variant.height != null && variant.height !== '' ? Number(variant.height) : null,
         weight: variant.weight != null && variant.weight !== '' ? Number(variant.weight) : null,
-        basePrice: Number.isFinite(base) ? base : null,
+        sellingPrice: Number.isFinite(selling) ? selling : null,
         availableStock: Number.isFinite(available) ? available : 0,
       } satisfies ProductVariantSnapshot
     })
@@ -235,7 +241,7 @@ const draftFromVariant = (
   width: dimText(variant.width),
   height: dimText(variant.height),
   weightPerUnit: dimText(variant.weight) || '0',
-  unitCost: variant.basePrice != null ? String(variant.basePrice) : '0',
+  unitCost: variant.sellingPrice != null ? String(variant.sellingPrice) : '0',
   quantity,
   fromCatalog: true,
 })

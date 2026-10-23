@@ -8,6 +8,7 @@ export const warehousePaths = (base: WarehouseAreaBase) => ({
   warehouseDetail: (id: string) => `${base}/warehouse/warehouses/${id}`,
   warehouseEdit: (id: string) => `${base}/warehouse/warehouses/${id}/edit`,
   inventory: `${base}/warehouse/inventory`,
+  inventoryEdit: `${base}/warehouse/inventory/edit`,
   transfer: `${base}/warehouse/transfer`,
   movements: `${base}/warehouse/movements`,
 })
