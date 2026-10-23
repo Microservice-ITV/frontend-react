@@ -61,6 +61,7 @@ import NotificationsPage from "@/features/account/pages/NotificationsPage";
 import NotificationsCenterPage from "@/features/account/pages/NotificationsCenterPage";
 import OrdersPage from "@/features/account/pages/OrdersPage";
 import OrderTrackingPage from "@/features/account/pages/OrderTrackingPage";
+import StaffShopOrdersPage from "@/features/account/pages/StaffShopOrdersPage";
 import CustomerInvoicesPage from "@/features/account/pages/CustomerInvoicesPage";
 import CustomerInvoiceDetailPage from "@/features/account/pages/CustomerInvoiceDetailPage";
 import CustomerInvoicePrintPage from "@/features/account/pages/CustomerInvoicePrintPage";
@@ -263,6 +264,7 @@ const AppRoutes = () => {
                 </ProtectedRoute>
               }
             />
+            <Route path="shop-orders" element={<StaffShopOrdersPage />} />
             <Route path="invoices" element={<CustomerInvoicesPage />} />
             <Route path="invoices/:invoiceNumber" element={<CustomerInvoiceDetailPage />} />
             <Route path="my-vouchers" element={<VouchersPage />} />
