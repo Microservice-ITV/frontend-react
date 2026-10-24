@@ -126,21 +126,16 @@ const InventoryEditPage = ({ base }: InventoryEditPageProps) => {
       setSubmitError('This stock row is not linked to a product variant yet.')
       return
     }
-    if (!sellingChanged && !unitChanged) {
-      navigate(paths.inventory)
-      return
-    }
-
     setSubmitError('')
     setIsSubmitting(true)
     try {
-      if (unitChanged) {
-        try {
-          await warehouseApi.updateStockUnitPrice(stock.id, nextOverride)
-        } catch (error) {
-          setSubmitError(warehouseErrorMessage(error))
-          return
-        }
+      // Always push unit-price update so warehouse re-publishes inventory.updated
+      // and product "Unit price" stays in sync with PO landed cost.
+      try {
+        await warehouseApi.updateStockUnitPrice(stock.id, nextOverride)
+      } catch (error) {
+        setSubmitError(warehouseErrorMessage(error))
+        return
       }
       if (sellingChanged && pricing.variantId) {
         try {
@@ -162,7 +157,9 @@ const InventoryEditPage = ({ base }: InventoryEditPageProps) => {
           ? 'Selling price and unit price updated.'
           : sellingChanged
             ? 'Selling price updated.'
-            : 'Unit price updated.'
+            : unitChanged
+              ? 'Unit price updated.'
+              : 'Unit price synced to product.'
       navigate(paths.inventory, { state: { notice } })
     } finally {
       setIsSubmitting(false)
@@ -277,7 +274,7 @@ const InventoryEditPage = ({ base }: InventoryEditPageProps) => {
             <section className={sectionClass}>
               <h2 className="text-sm font-semibold text-slate-900">Selling price</h2>
               <p className="mt-0.5 text-xs text-slate-500">
-                Same selling price as on the product. Base price and discount stay unchanged.
+                Same selling price as on the product. Unit price (from PO) and discount stay unchanged.
               </p>
               <div className="mt-4">
                 <label htmlFor="inventory-selling-price" className={labelClass}>

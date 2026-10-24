@@ -56,7 +56,7 @@ describe("VariantSizeEditor", () => {
     cleanup();
   });
 
-  it("opens one field row per ticked color and copies price into the next color", async () => {
+  it("opens one field row per ticked color and copies dimensions into the next color", async () => {
     const user = userEvent.setup();
     renderForm();
 
@@ -68,7 +68,14 @@ describe("VariantSizeEditor", () => {
     expect(screen.getByText("Tick a color to open its fields.")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Red" }));
-    await user.type(screen.getByLabelText("Selling price"), "25");
+    // Selling price is read-only on create (set later via Inventory after PO).
+    expect(screen.getByLabelText("Selling price")).toHaveAttribute("readonly");
+    expect(screen.getByLabelText("Selling price")).toHaveValue("After PO");
+    expect(
+      screen.getByRole("button", {
+        name: "Set after purchase order via Inventory → Edit selling price",
+      }),
+    ).toBeTruthy();
     await user.type(screen.getByLabelText("Length (cm)"), "10");
 
     await user.click(screen.getByRole("button", { name: "Blue" }));
@@ -78,8 +85,9 @@ describe("VariantSizeEditor", () => {
     expect(screen.queryByLabelText("Discount %")).not.toBeInTheDocument();
     const sellingPrices = screen.getAllByLabelText("Selling price");
     expect(sellingPrices).toHaveLength(2);
-    expect(sellingPrices[0]).toHaveValue("25");
-    expect(sellingPrices[1]).toHaveValue("25");
+    expect(sellingPrices[0]).toHaveAttribute("readonly");
+    expect(sellingPrices[0]).toHaveValue("After PO");
+    expect(sellingPrices[1]).toHaveValue("After PO");
     expect(screen.getAllByLabelText("Length (cm)")[1]).toHaveValue("10");
     expect(screen.getByRole("button", { name: "Red, selected" })).toHaveAttribute(
       "aria-pressed",
@@ -139,11 +147,10 @@ describe("VariantSizeEditor", () => {
     expect(sizeSelects).toHaveLength(2);
     expect(sizeSelects[0]).toHaveValue("large");
     expect(sizeSelects[1]).toHaveValue("medium");
-    expect(screen.getAllByLabelText("Selling price").map((field) => (field as HTMLInputElement).value)).toEqual([
-      "20",
-      "22",
-      "18",
-    ]);
+    expect(
+      screen.getAllByLabelText("Selling price").map((field) => (field as HTMLInputElement).value),
+    ).toEqual(["20.00", "22.00", "18.00"]);
+    expect(screen.getAllByLabelText("Selling price")[0]).toHaveAttribute("readonly");
     const primarySelect = screen.getByLabelText("Primary");
     expect(primarySelect).toHaveValue("blue");
     const primaryOptions = [...primarySelect.querySelectorAll("option")]

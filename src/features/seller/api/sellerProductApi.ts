@@ -333,8 +333,8 @@ export const sellerProductApi = {
   },
 
   /**
-   * Overwrites the selling price of one product variant. The product base
-   * price stores this value, so both stay identical.
+   * Sets the customer selling/list price for one variant. Unit price (landed PO
+   * cost) is left unchanged; markup % is recalculated from unit → selling.
    */
   updateVariantSellingPrice(
     productId: string,
