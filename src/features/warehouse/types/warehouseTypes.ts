@@ -70,6 +70,12 @@ export interface InventoryStock {
   colorName?: string | null
   sizeName?: string | null
   variantLabel?: string | null
+  /** Unit price in effect: the seller's override, else the PO calculation. */
+  unitPrice?: number | null
+  /** Landed cost per unit from the purchase order that supplied the stock. */
+  poUnitPrice?: number | null
+  /** Seller-entered unit price (null = follow the PO). */
+  unitPriceOverride?: number | null
   length?: number | null
   width?: number | null
   height?: number | null
@@ -94,7 +100,10 @@ export interface InventoryMovement {
   /** Readable actor label resolved by warehouse-service (name or email). */
   createdByName?: string | null
   createdAt: string
-  /** Transfer routing (enriched from warehouse_transfers when listing). */
+  /**
+   * Routing labels enriched when listing: transfer warehouses, supplier name for
+   * purchase receive/return, seller shop name for warehouse orders.
+   */
   fromWarehouseId?: string | null
   toWarehouseId?: string | null
   fromWarehouseName?: string | null

@@ -13,7 +13,7 @@ import { useWarehouses } from '@/features/warehouse/hooks/useWarehouseData'
 import { productApi } from '@/features/products/api/productApi'
 import { sellerProductApi } from '@/features/seller/api/sellerProductApi'
 import { productClient } from '@/lib/api/productClient'
-import { sanitizeIntegerInput } from '@/utils/decimalInput'
+import { sanitizeIntegerInput, sanitizeMoneyInput } from '@/utils/decimalInput'
 import { notifyDashboardMenuBadgesChanged } from '@/features/dashboard/dashboardMenuBadges'
 import { purchaseApi, purchaseErrorMessage } from '../api/purchaseApi'
 import { useSuppliers } from '../hooks/usePurchaseData'
@@ -121,6 +121,9 @@ type ProductVariantRow = {
   colorId?: string
   sizeId?: string
   basePrice?: number | string
+  listPrice?: number | string
+  effectiveSellingPrice?: number | string
+  price?: number | string
   stock?: number | string
   warehouseStockMirror?: number | string
   availableStock?: number | string
@@ -153,7 +156,6 @@ type ProductVariantSnapshot = {
   width: number | null
   height: number | null
   weight: number | null
-  basePrice: number | null
   /** Catalog sellable qty (shop + warehouse mirror) when destination stock is unavailable. */
   availableStock: number
 }
@@ -177,7 +179,6 @@ const mapProductVariants = (rows: ProductVariantRow[] | undefined): ProductVaria
       const colorId = variant.colorId ?? variant.color?.id ?? ''
       const sizeId = variant.sizeId ?? variant.size?.id ?? ''
       if (!colorId || !sizeId) return null
-      const base = Number(variant.basePrice)
       const available =
         Number(variant.availableStock) ||
         Math.max(0, Number(variant.stock) || 0) +
@@ -192,7 +193,6 @@ const mapProductVariants = (rows: ProductVariantRow[] | undefined): ProductVaria
         width: variant.width != null && variant.width !== '' ? Number(variant.width) : null,
         height: variant.height != null && variant.height !== '' ? Number(variant.height) : null,
         weight: variant.weight != null && variant.weight !== '' ? Number(variant.weight) : null,
-        basePrice: Number.isFinite(base) ? base : null,
         availableStock: Number.isFinite(available) ? available : 0,
       } satisfies ProductVariantSnapshot
     })
@@ -235,7 +235,8 @@ const draftFromVariant = (
   width: dimText(variant.width),
   height: dimText(variant.height),
   weightPerUnit: dimText(variant.weight) || '0',
-  unitCost: variant.basePrice != null ? String(variant.basePrice) : '0',
+  // Unit price is entered on the PO line (Order stock × Unit price → Line total).
+  unitCost: '',
   quantity,
   fromCatalog: true,
 })
@@ -821,6 +822,8 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
     }
     if (validItems.some((item) => num(item.quantity) <= 0))
       return 'Every line item needs a quantity greater than zero.'
+    if (validItems.some((item) => num(item.unitCost) <= 0))
+      return 'Enter a unit price greater than zero for every line item.'
     const incompleteLeg = stages.find(
       (stage) => !stage.fromLocation.trim() || !stage.toLocation.trim(),
     )
@@ -1238,8 +1241,21 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
                                   aria-label={`Order stock for ${colorLabel} / ${sizeLabel}`}
                                 />
                               </td>
-                              <td className="px-3 py-2.5 text-right text-sm font-medium text-slate-700">
-                                {formatMoney(num(item.unitCost))}
+                              <td className="px-3 py-2.5">
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  autoComplete="off"
+                                  className={`${cellInputClass} text-right text-sm`}
+                                  value={item.unitCost}
+                                  placeholder="0.00"
+                                  onChange={(event) =>
+                                    updateItem(item.key, {
+                                      unitCost: sanitizeMoneyInput(event.target.value),
+                                    })
+                                  }
+                                  aria-label={`Unit price for ${colorLabel} / ${sizeLabel}`}
+                                />
                               </td>
                               <td className="px-3 py-2.5 text-right text-sm font-medium text-slate-800">
                                 {formatMoney(lineNet(item))}

@@ -112,6 +112,7 @@ const SellerOrdersPage = ({ fixedFilter }: SellerOrdersPageProps) => {
     setOrdersError(null)
     void fetchSellerOrderPage({
       userId: authUserId,
+      activeShopId,
       statusFilter: activeFilter,
       search: debouncedSearch,
       page,

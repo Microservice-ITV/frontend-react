@@ -227,8 +227,8 @@ const SellerOrderDetailPage = () => {
           </p>
           <p className="text-xs text-slate-500">
             {shopId
-              ? 'Only this shop’s items will be shipped using its configured Delivery Company. The order waybill is shared with any remaining shop shipments.'
-              : 'The shop’s configured Delivery Company will be used. A tracking number will be automatically generated.'}
+              ? 'Only this shop’s items will be shipped. The order waybill is shared with any remaining shop shipments. A tracking number will be generated automatically.'
+              : 'A tracking number will be automatically generated for this shipment.'}
           </p>
           <p className="text-xs font-medium text-slate-700">Waybill: {submittedWayBillNo}</p>
         </div>
@@ -244,11 +244,37 @@ const SellerOrderDetailPage = () => {
           })
           const savedWayBillNo = shipment.way_bill_no || submittedWayBillNo
           setWayBillNo(savedWayBillNo)
-          setOrder((current) => current ? { ...current, wayBillNo: savedWayBillNo } : current)
+          // Optimistically mark this shop shipped so the Ship button clears even
+          // if the read model lags behind the order-service write.
+          setOrder((current) => {
+            if (!current) return current
+            const nextBreakdown = shopId
+              ? (current.shopBreakdown ?? []).map((row) =>
+                  row.shopId === shopId ? { ...row, status: 'SHIPPED' } : row,
+                )
+              : (current.shopBreakdown ?? []).map((row) => ({ ...row, status: 'SHIPPED' }))
+            return {
+              ...current,
+              wayBillNo: savedWayBillNo,
+              status: shopId && (current.shopBreakdown?.length ?? 0) > 1
+                ? current.status
+                : 'FULFILLED',
+              shopBreakdown: nextBreakdown.length > 0 ? nextBreakdown : current.shopBreakdown,
+            }
+          })
           if (activeShopId || authUserId) {
             const found = await fetchSellerOrderByIdAcrossOwnedShops(id, authUserId, activeShopId)
             if (found) {
-              setOrder({ ...found, wayBillNo: found.wayBillNo || savedWayBillNo })
+              setOrder({
+                ...found,
+                wayBillNo: found.wayBillNo || savedWayBillNo,
+                shopBreakdown: found.shopBreakdown?.map((row) => {
+                  if (shopId && row.shopId === shopId && (!row.status || row.status === 'READY_FOR_FULFILLMENT')) {
+                    return { ...row, status: 'SHIPPED' }
+                  }
+                  return row
+                }) ?? found.shopBreakdown,
+              })
               setWayBillNo(found.wayBillNo || savedWayBillNo)
             }
           }
@@ -695,7 +721,7 @@ const SellerOrderDetailPage = () => {
                     <p id="order-way-bill-help" className="mt-1.5 text-xs text-slate-500">
                       {order.wayBillNo
                         ? 'Saved to this order and used for its remaining shop shipments.'
-                        : 'Enter the delivery company waybill before creating a shipment. It will be saved to this order.'}
+                        : 'Enter the waybill before creating a shipment. It will be saved to this order.'}
                     </p>
                   </div>
                   {shopGroups.map(([shopId, groupItems]) => {

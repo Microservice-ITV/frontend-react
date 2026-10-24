@@ -24,6 +24,16 @@ type ProductListItemRaw = {
   images?: string[];
   categoryId?: string;
   tags?: string[];
+  stock?: number | string | null;
+  warehouseStockMirror?: number | string | null;
+};
+
+/** Sellable stock = shop catalog stock + warehouse available (same as product detail). */
+const listStock = (p: ProductListItemRaw): number | undefined => {
+  if (p.stock == null && p.warehouseStockMirror == null) return undefined;
+  const shop = Math.max(0, Number(p.stock) || 0);
+  const warehouse = Math.max(0, Number(p.warehouseStockMirror) || 0);
+  return shop + warehouse;
 };
 
 const ShopPage = () => {
@@ -55,14 +65,18 @@ const ShopPage = () => {
         setShop(shopRes.data.data);
         const rows = productsRes.data.data ?? [];
         setProducts(
-          rows.map((p) => ({
-            id: p.id,
-            name: p.name,
-            price: typeof p.price === "string" ? Number(p.price) : p.price,
-            images: p.images ?? [],
-            categoryId: p.categoryId ?? "",
-            tags: p.tags ?? [],
-          })),
+          rows.map((p) => {
+            const stock = listStock(p);
+            return {
+              id: p.id,
+              name: p.name,
+              price: typeof p.price === "string" ? Number(p.price) : p.price,
+              images: p.images ?? [],
+              categoryId: p.categoryId ?? "",
+              tags: p.tags ?? [],
+              ...(stock != null ? { stock } : {}),
+            };
+          }),
         );
         setStatus("succeeded");
       })

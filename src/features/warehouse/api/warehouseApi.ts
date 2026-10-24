@@ -109,6 +109,13 @@ export const warehouseApi = {
     )
   },
 
+  /** Seller sets the unit price of one stock row; null goes back to the PO price. */
+  updateStockUnitPrice(stockId: string, unitPrice: number | null) {
+    return warehouseClient.patch<
+      Envelope<{ id: string; unitPriceOverride: number | null }>
+    >(`/inventory/stocks/${stockId}/unit-price`, { unitPrice })
+  },
+
   increaseStock(payload: StockMutationPayload & { movementType?: string }) {
     return warehouseClient.post<Envelope<InventoryStock>>(
       '/inventory/increase',

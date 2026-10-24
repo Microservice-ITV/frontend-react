@@ -55,11 +55,13 @@ import AccountLayout from "@/features/account/pages/AccountLayout";
 import ProfilePage from "@/features/account/pages/ProfilePage";
 import BanksCardsPage from "@/features/account/pages/BanksCardsPage";
 import AddressesPage from "@/features/account/pages/AddressesPage";
+import PrivacyPage from "@/features/account/pages/PrivacyPage";
 import ChangePasswordPage from "@/features/account/pages/ChangePasswordPage";
 import NotificationsPage from "@/features/account/pages/NotificationsPage";
 import NotificationsCenterPage from "@/features/account/pages/NotificationsCenterPage";
 import OrdersPage from "@/features/account/pages/OrdersPage";
 import OrderTrackingPage from "@/features/account/pages/OrderTrackingPage";
+import StaffShopOrdersPage from "@/features/account/pages/StaffShopOrdersPage";
 import CustomerInvoicesPage from "@/features/account/pages/CustomerInvoicesPage";
 import CustomerInvoiceDetailPage from "@/features/account/pages/CustomerInvoiceDetailPage";
 import CustomerInvoicePrintPage from "@/features/account/pages/CustomerInvoicePrintPage";
@@ -74,6 +76,7 @@ import WarehousesPage from "@/features/warehouse/pages/WarehousesPage";
 import WarehouseDetailPage from "@/features/warehouse/pages/WarehouseDetailPage";
 import WarehouseFormPage from "@/features/warehouse/pages/WarehouseFormPage";
 import InventoryPage from "@/features/warehouse/pages/InventoryPage";
+import InventoryEditPage from "@/features/warehouse/pages/InventoryEditPage";
 import MovementsPage from "@/features/warehouse/pages/MovementsPage";
 import AssignWarehouseManagerPage from "@/features/warehouse/pages/AssignWarehouseManagerPage";
 import AssignDeliveryAgentPage from "@/features/warehouse/pages/AssignDeliveryAgentPage";
@@ -240,6 +243,7 @@ const AppRoutes = () => {
               path="notifications-center"
               element={<NotificationsCenterPage />}
             />
+            <Route path="privacy" element={<PrivacyPage />} />
             <Route
               path="orders"
               element={
@@ -260,6 +264,7 @@ const AppRoutes = () => {
                 </ProtectedRoute>
               }
             />
+            <Route path="shop-orders" element={<StaffShopOrdersPage />} />
             <Route path="invoices" element={<CustomerInvoicesPage />} />
             <Route path="invoices/:invoiceNumber" element={<CustomerInvoiceDetailPage />} />
             <Route path="my-vouchers" element={<VouchersPage />} />
@@ -348,6 +353,14 @@ const AppRoutes = () => {
               element={
                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.warehouse}>
                   <InventoryPage base="/seller" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="warehouse/inventory/edit"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.warehouse}>
+                  <InventoryEditPage base="/seller" />
                 </ProtectedRoute>
               }
             />
@@ -2123,7 +2136,7 @@ const AppRoutes = () => {
               }
             />
 
-          <Route
+            <Route
               path="finance"
               element={
                 <ProtectedRoute
@@ -2143,11 +2156,11 @@ const AppRoutes = () => {
                     title="Accounting"
                     description="Platform accounting, payments, and financial reporting will be managed here."
                   />
-                  </ProtectedRoute>
-  }
-/>
+                </ProtectedRoute>
+              }
+            />
 
-<Route
+            <Route
               path="finance/transactions"
               element={
                 <ProtectedRoute

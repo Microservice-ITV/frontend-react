@@ -365,7 +365,7 @@ const SellerProductDetailPage = () => {
                       Number.isFinite(warehouseQty) ? String(warehouseQty) : '—',
                     ],
                     ['Available', String(variantAvailable(variant))],
-                    ['Base price', formatKs(variant.basePrice)],
+                    ['Unit price', formatKs(variant.basePrice)],
                     ['Selling price', formatKs(variant.listPrice ?? variant.sellingPrice)],
                     ['Markup', formatPercent(variant.profitThresholdPercent)],
                     ['Discount', formatPercent(variant.discountPercent)],

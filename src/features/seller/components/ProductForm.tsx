@@ -104,7 +104,8 @@ const variantRowSchema = z.object({
     .uuid("Color is required"),
   sizeId: z.string().trim().min(1, "Size is required").uuid("Size is required"),
   basePrice: moneyField("Base price", false),
-  listPrice: moneyField("Selling price", true),
+  /** Set after PO via inventory; create/edit keep the column but do not require input. */
+  listPrice: moneyField("Selling price", false),
   discountPercent: optionalPercentField("Discount %", 100),
   stock: z
     .string()
@@ -659,15 +660,17 @@ const ProductForm = ({
                 <ul className="mt-2 list-disc space-y-1.5 pl-4 text-slate-600 marker:text-slate-400">
                   <li>
                     <span className="font-medium text-slate-700">
-                      Base price
+                      Unit price
                     </span>{" "}
-                    — your cost per unit.
+                    — landed PO cost (subtotal + delivery + other costs) ÷ order
+                    stock, synced after goods receipt.
                   </li>
                   <li>
                     <span className="font-medium text-slate-700">
                       Selling price
                     </span>{" "}
-                    — price before discount; markup % is calculated from this.
+                    — set later in Inventory edit (not on create). Markup % is
+                    calculated from unit price → selling.
                   </li>
                   <li>
                     <span className="font-medium text-slate-700">
@@ -683,14 +686,9 @@ const ProductForm = ({
                   </li>
                 </ul>
                 <p className="mt-2 border-t border-slate-200/80 pt-2 text-slate-500">
-                  You enter base price, selling price, and discount. Markup %
-                  and customer pays are calculated automatically.
-                </p>
-                <p className="mt-2 text-slate-500">
-                  Selling price and discount accept decimals (e.g.{" "}
-                  <span className="font-mono text-slate-600">0.5</span> for half
-                  a percent), matching the product API. Base price uses up to
-                  two decimal places.
+                  Create the product without a selling price. After a PO is
+                  received, unit price syncs from inventory; set selling price
+                  from Inventory edit.
                 </p>
               </div>
 

@@ -24,6 +24,7 @@ import { useProfileImageSelection } from "@/features/auth/hooks/useProfileImageS
 import {
   removeProfileImage,
   updateProfileImage,
+  updateProfile,
 } from "@/features/auth/store/authThunks";
 
 const MONTHS = [
@@ -63,6 +64,7 @@ const ProfilePage = () => {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [hasPassword, setHasPassword] = useState(true);
+  const [hasOAuthAccounts, setHasOAuthAccounts] = useState(false);
 
   const [gender, setGender] = useState<"" | "male" | "female" | "other">("");
   const [dob, setDob] = useState({ day: "", month: "", year: "" });
@@ -107,6 +109,10 @@ const ProfilePage = () => {
 
     if (typeof user?.hasPassword === "boolean") {
       setHasPassword(user.hasPassword);
+    }
+
+    if (typeof user?.hasOAuthAccounts === "boolean") {
+      setHasOAuthAccounts(user.hasOAuthAccounts);
     }
   }, [user]);
 
@@ -201,11 +207,11 @@ const ProfilePage = () => {
           ? `${dob.year}-${String(MONTHS.indexOf(dob.month) + 1).padStart(2, "0")}-${dob.day.padStart(2, "0")}`
           : null;
 
-      await authFeatureApi.updateProfile({
+      await dispatch(updateProfile({
         name: name.trim(),
         gender: gender || null,
         date_of_birth: dateOfBirth,
-      });
+      })).unwrap();
 
       setSaveSuccess("Profile updated successfully.");
 
@@ -471,7 +477,7 @@ const ProfilePage = () => {
               </label>
 
               <div className="sm:col-span-9 flex items-center gap-3">
-                {hasPassword ? (
+                {hasPassword && !hasOAuthAccounts ? (
                   <>
                     <span className="text-sm text-slate-800 font-mono tracking-widest select-none">
                       ••••••••
@@ -487,14 +493,16 @@ const ProfilePage = () => {
                   </>
                 ) : (
                   <>
-                    <span className="text-sm text-slate-400">Not set</span>
+                    <span className="text-sm text-slate-400">
+                      {hasOAuthAccounts ? "Set a password" : "Not set"}
+                    </span>
 
                     <button
                       type="button"
                       onClick={() => setIsSetPasswordModalOpen(true)}
                       className="text-xs sm:text-sm font-semibold text-emerald-600 hover:text-emerald-700 hover:underline cursor-pointer"
                     >
-                      Set Password
+                      {hasOAuthAccounts ? "Set Password" : "Set Password"}
                     </button>
                   </>
                 )}

@@ -1,7 +1,6 @@
 import { authClient } from '@/lib/api/authClient'
 import { ecommerceReadClient } from '@/lib/api/ecommerceReadClient'
 import { orderClient } from '@/lib/api/orderClient'
-import { productClient } from '@/lib/api/productClient'
 
 export type SellerOrderItem = {
   productId: string
@@ -303,17 +302,11 @@ export async function fetchCustomerAvatars(
  * Narrowed server-side by the `orderId` argument — never used for lists.
  */
 const SHOP_ORDERS_QUERY = `
-  query ShopOrders($shopId: ID!, $shopIds: [ID!], $userId: ID, $statusFilter: String, $orderId: ID) {
-    shopOrders(shopId: $shopId, shopIds: $shopIds, userId: $userId, statusFilter: $statusFilter, orderId: $orderId) {
+  query ShopOrders($shopId: ID!, $userId: ID) {
+    shopOrders(shopId: $shopId, userId: $userId) {
       orderId
       customerId
       status
-      wayBillNo
-      cancellationReason
-      cancelledAt
-      returnDeadlineAt
-      returnReason
-      returnedAt
       createdAt
       placedAt
       items {
@@ -412,17 +405,11 @@ const SHOP_ORDERS_QUERY = `
   }
 `
 
-/**
- * List projection for the seller order table and dashboard: order id, waybill,
- * customer, items, status, total and date only. `summary: true` also makes
- * ecommerce-read skip the heavy order fields at the storage layer, so the
- * orders page never downloads detail documents.
- */
+/** List projection for the seller order table and dashboard. */
 const SELLER_ORDER_SUMMARY_FIELDS = `
       orderId
       customerId
       status
-      wayBillNo
       createdAt
       placedAt
       items {
@@ -450,8 +437,8 @@ const SELLER_ORDER_SUMMARY_FIELDS = `
 `
 
 const SHOP_ORDER_SUMMARIES_QUERY = `
-  query ShopOrderSummaries($shopId: ID!, $shopIds: [ID!], $userId: ID, $statusFilter: String) {
-    shopOrders(shopId: $shopId, shopIds: $shopIds, userId: $userId, statusFilter: $statusFilter, summary: true) {
+  query ShopOrderSummaries($shopId: ID!, $userId: ID) {
+    shopOrders(shopId: $shopId, userId: $userId) {
 ${SELLER_ORDER_SUMMARY_FIELDS}
     }
   }
@@ -469,39 +456,29 @@ interface ShopOrderSummariesResponse {
   errors?: GraphQLError[]
 }
 
-export type OwnedShop = {
-  id?: string
-  shopId?: string
-  slug?: string
-  name?: string
-}
-
 export type SellerOrderStatusFilter = 'all' | 'to-ship' | 'shipped' | 'completed' | 'cancelled' | 'returned'
 
-const resolveSellerShopIds = async (
-  userId?: string | null,
-  activeShopId?: string | null,
-): Promise<string[]> => {
-  // The read service verifies and expands ownership; an active shop avoids a redundant request.
-  if (activeShopId) return [activeShopId]
-  let shopIds: string[] = []
-
-  if (userId) {
-    try {
-      const shops = await sellerOrderApi.listShopsByUser(userId)
-      shopIds = shops
-        .map((shop) => shop.id ?? shop.shopId ?? '')
-        .filter((id): id is string => Boolean(id))
-    } catch {
-      // Best-effort ownership lookup; fall back below.
+type SellerShop = { id: string; shopId: string; name: string; slug: string }
+type SellerShopAccessResponse = {
+  data?: {
+    access_context?: {
+      shops?: Array<{
+        shop_id?: string | null
+        shop_name?: string | null
+        shop_domain?: string | null
+        membership_status?: string | null
+        role?: { code?: string | null } | null
+      }>
     }
   }
+}
 
-  if (shopIds.length === 0 && activeShopId) {
-    shopIds = [activeShopId]
-  }
-
-  return shopIds
+const resolveSellerShopIds = async (
+  _userId?: string | null,
+  activeShopId?: string | null,
+): Promise<string[]> => {
+  // Shop access comes from the authenticated access context, not creator ID.
+  return activeShopId ? [activeShopId] : []
 }
 
 /** Fetch compact summary fields for the seller order table and dashboard. */
@@ -509,24 +486,36 @@ export async function fetchSellerOrderSummariesAcrossOwnedShops(
   userId?: string | null,
   activeShopId?: string | null,
   statusFilter: SellerOrderStatusFilter = 'all',
+  signal?: AbortSignal,
 ): Promise<SellerOrderSummary[]> {
   const shopIds = await resolveSellerShopIds(userId, activeShopId)
   if (shopIds.length === 0) return []
 
-  // The read-service resolver expands an authenticated seller's shop scope
-  // server-side. Request only the list projection, not order detail fields.
+  // The resolver validates this active shop against the authenticated user's
+  // active memberships and scopes the returned order rows to that shop.
   const orders = await sellerOrderApi.shopOrderSummaries(
     shopIds[0],
     userId ?? undefined,
-    shopIds,
-    statusFilter,
+    signal,
   )
 
-  return orders.sort((a, b) => {
+  return orders
+    .filter((order) => matchesSellerOrderFilter(order, statusFilter))
+    .sort((a, b) => {
     const aTime = new Date(a.placedAt || a.createdAt || 0).getTime()
     const bTime = new Date(b.placedAt || b.createdAt || 0).getTime()
     return bTime - aTime
-  })
+    })
+}
+
+const matchesSellerOrderFilter = (order: SellerOrderSummary, filter: SellerOrderStatusFilter): boolean => {
+  if (filter === 'all') return true
+  const status = sellerOrderStatus(order).toUpperCase()
+  if (filter === 'to-ship') return canSellerShip(order)
+  if (filter === 'shipped') return ['SHIPPED', 'PARTIALLY_FULFILLED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'].includes(status)
+  if (filter === 'completed') return ['DELIVERED', 'COMPLETED'].includes(status)
+  if (filter === 'cancelled') return status === 'CANCELLED'
+  return status === 'RETURNED'
 }
 
 /** Fetch one full seller-scoped order instead of downloading the seller's history. */
@@ -541,9 +530,6 @@ export async function fetchSellerOrderByIdAcrossOwnedShops(
   const orders = await sellerOrderApi.shopOrders(
     shopIds[0],
     userId ?? undefined,
-    shopIds,
-    'all',
-    orderId,
   )
   return orders.find((order) => order.orderId === orderId) ?? null
 }
@@ -555,39 +541,60 @@ export type SellerOrderPage = {
   limit: number
 }
 
-const SELLER_ORDER_PAGE_QUERY = `
-  query SellerOrderPage($userId: ID, $statusFilter: String, $search: String, $page: Int, $limit: Int) {
-    sellerOrderPage(userId: $userId, statusFilter: $statusFilter, search: $search, page: $page, limit: $limit) {
-      total
-      page
-      limit
-      items {
-${SELLER_ORDER_SUMMARY_FIELDS}
-      }
-    }
-  }
-`
-
 export async function fetchSellerOrderPage(
-  params: { userId?: string; statusFilter: SellerOrderStatusFilter; search: string; page: number; limit: number },
+  params: { userId?: string; activeShopId?: string | null; statusFilter: SellerOrderStatusFilter; search: string; page: number; limit: number },
   signal?: AbortSignal,
 ): Promise<SellerOrderPage> {
-  const response = await ecommerceReadClient.post<{
-    data?: { sellerOrderPage: SellerOrderPage }; errors?: GraphQLError[]
-  }>('', { query: SELLER_ORDER_PAGE_QUERY, variables: params }, { signal })
-  if (response.data.errors?.length) {
-    throw new Error(response.data.errors[0]?.message ?? 'Unable to load orders')
-  }
-  if (!response.data.data?.sellerOrderPage) throw new Error('Missing seller order page')
-  return response.data.data.sellerOrderPage
+  if (signal?.aborted) throw new DOMException('Request was aborted', 'AbortError')
+  const orders = await fetchSellerOrderSummariesAcrossOwnedShops(
+    params.userId,
+    params.activeShopId,
+    params.statusFilter,
+    signal,
+  )
+  if (signal?.aborted) throw new DOMException('Request was aborted', 'AbortError')
+
+  const term = params.search.trim().toLowerCase()
+  const filtered = term
+    ? orders.filter((order) => [
+        order.orderId,
+        order.wayBillNo,
+        order.customerId,
+        order.status,
+        order.deliveryAddress?.recipientName,
+        order.deliveryAddress?.city,
+        ...order.items.map((item) => item.name),
+      ].some((value) => value?.toLowerCase().includes(term)))
+    : orders
+  const page = Math.max(1, params.page)
+  const limit = Math.max(1, params.limit)
+  const offset = (page - 1) * limit
+  return { items: filtered.slice(offset, offset + limit), total: filtered.length, page, limit }
 }
 
 export const sellerOrderApi = {
-  async listShopsByUser(userId: string): Promise<OwnedShop[]> {
-    const response = await productClient.get<{ success?: boolean; data?: OwnedShop[] }>(
-      `/shops/user/${userId}`,
-    )
-    return response.data.data ?? []
+  /**
+   * Backward-compatible shop lookup for seller pages. The authenticated
+   * access context is authoritative; userId is retained for existing callers
+   * but is never used to discover creator-owned shops.
+   */
+  async listShopsByUser(_userId: string): Promise<SellerShop[]> {
+    const response = await authClient.get<SellerShopAccessResponse>('/me/access-context')
+    return (response.data.data?.access_context?.shops ?? [])
+      .filter((shop) =>
+        shop.membership_status?.toLowerCase() === 'active'
+        && ['shop_owner', 'shop_admin'].includes(shop.role?.code?.toLowerCase() ?? ''),
+      )
+      .flatMap((shop) => {
+        const id = shop.shop_id?.trim()
+        if (!id) return []
+        return [{
+          id,
+          shopId: id,
+          name: shop.shop_name?.trim() || id,
+          slug: shop.shop_domain?.trim() || id,
+        }]
+      })
   },
 
   /**
@@ -597,13 +604,10 @@ export const sellerOrderApi = {
   async shopOrders(
     shopId: string,
     userId?: string,
-    shopIds?: string[],
-    statusFilter: SellerOrderStatusFilter = 'all',
-    orderId?: string,
   ): Promise<SellerOrder[]> {
     const response = await ecommerceReadClient.post<ShopOrdersResponse>('', {
       query: SHOP_ORDERS_QUERY,
-      variables: { shopId, shopIds, userId, statusFilter, orderId },
+      variables: { shopId, userId },
     })
 
     if (response.data.errors?.length) {
@@ -620,13 +624,12 @@ export const sellerOrderApi = {
   async shopOrderSummaries(
     shopId: string,
     userId?: string,
-    shopIds?: string[],
-    statusFilter: SellerOrderStatusFilter = 'all',
+    signal?: AbortSignal,
   ): Promise<SellerOrderSummary[]> {
     const response = await ecommerceReadClient.post<ShopOrderSummariesResponse>('', {
       query: SHOP_ORDER_SUMMARIES_QUERY,
-      variables: { shopId, shopIds, userId, statusFilter },
-    })
+      variables: { shopId, userId },
+    }, { signal })
 
     if (response.data.errors?.length) {
       throw new Error(response.data.errors[0]?.message ?? 'Failed to fetch seller order summaries')
@@ -745,3 +748,4 @@ export const sellerOrderApi = {
     return response.data.data
   },
 }
+
