@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { ProfitLossCurrencyReport } from "../types/accountingTypes";
-import { mergeProfitLossReports } from "./profitLossFormatting";
+import {
+  getProfitSummaryCardColors,
+  mergeProfitLossReports,
+} from "./profitLossFormatting";
 
 const report = (
   currency: string,
@@ -77,9 +80,33 @@ describe("mergeProfitLossReports", () => {
       operatingExpenses: 105,
       currentProfitOrLoss: 835,
     });
+
   });
 
   it("returns no report when the service returns no currency buckets", () => {
     expect(mergeProfitLossReports([])).toBeUndefined();
+  });
+});
+
+describe("profit and loss summary card colors", () => {
+  it("uses green for profit", () => {
+    expect(getProfitSummaryCardColors(100)).toMatchObject({
+      card: expect.stringContaining("emerald"),
+      icon: "text-emerald-600",
+      value: "text-emerald-700",
+    });
+  });
+
+  it("uses red for loss", () => {
+    expect(getProfitSummaryCardColors(-100)).toMatchObject({
+      card: expect.stringContaining("red"),
+      icon: "text-red-600",
+      value: "text-red-700",
+    });
+  });
+
+  it("uses neutral colors when profit is zero or unavailable", () => {
+    expect(getProfitSummaryCardColors(0).card).toContain("slate");
+    expect(getProfitSummaryCardColors(null).value).toBe("text-slate-900");
   });
 });

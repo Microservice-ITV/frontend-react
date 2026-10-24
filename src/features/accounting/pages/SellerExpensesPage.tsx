@@ -9,6 +9,11 @@ import AccountingStatusBadge, {
 } from "../components/AccountingStatusBadge";
 import { accountingExpensesAdapter } from "../adapters/accountingExpensesAdapter";
 import type { AccountingExpense, ExpenseCategory } from "../types/expenseTypes";
+import {
+  accountingReferenceKey,
+  formatAccountingReferences,
+  toExpenseReferenceInput,
+} from "../utils/accountingReferenceFormatting";
 
 const errorMessage = (error: unknown) => {
   if (error && typeof error === "object" && "response" in error) {
@@ -113,6 +118,33 @@ const SellerExpensesPage = () => {
     void load();
   }, [authUser?.id]);
 
+  const formattedExpenseIds = useMemo(() => {
+    const inputs = expenses.map((expense) =>
+      toExpenseReferenceInput({
+        expenseNo: expense.expenseNo,
+        expenseDate: expense.expenseDate,
+        categoryCode: expense.expenseType?.code,
+        description: expense.description,
+      }),
+    );
+    const formattedReferences = formatAccountingReferences(inputs);
+    return new Map(
+      expenses.map((expense) => [
+        expense.expenseNo,
+        formattedReferences.get(
+          accountingReferenceKey({
+            ...toExpenseReferenceInput({
+              expenseNo: expense.expenseNo,
+              expenseDate: expense.expenseDate,
+              categoryCode: expense.expenseType?.code,
+              description: expense.description,
+            }),
+          }),
+        ) ?? expense.expenseNo,
+      ]),
+    );
+  }, [expenses]);
+
   const filteredExpenses = useMemo(() => {
     const query = search.trim().toLowerCase();
     return expenses.filter((expense) => {
@@ -128,6 +160,7 @@ const SellerExpensesPage = () => {
       const matchesSearch =
         !query ||
         [
+          formattedExpenseIds.get(expense.expenseNo) ?? expense.expenseNo,
           expense.expenseNo,
           shopName,
           categoryName,
@@ -141,6 +174,7 @@ const SellerExpensesPage = () => {
   }, [
     categoryNames,
     expenses,
+    formattedExpenseIds,
     fromDate,
     search,
     shopNames,
@@ -363,8 +397,13 @@ const SellerExpensesPage = () => {
                     key={expense.id}
                     className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
                   >
-                    <td className="px-4 py-3 text-xs font-semibold text-slate-900">
-                      {expense.expenseNo}
+                    <td className="max-w-[220px] px-4 py-3 text-xs font-semibold text-slate-900">
+                      <span
+                        title={formattedExpenseIds.get(expense.expenseNo) ?? expense.expenseNo}
+                        className="block truncate"
+                      >
+                        {formattedExpenseIds.get(expense.expenseNo) ?? expense.expenseNo}
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-600">
                       {expense.shopId
@@ -388,7 +427,7 @@ const SellerExpensesPage = () => {
                     </td>
                     <td className="px-4 py-3">
                       <Link
-                        to={`/seller/accounting/expenses/${encodeURIComponent(expense.expenseNo)}`}
+                        to={`/seller/accounting/expenses/${encodeURIComponent(expense.expenseNo)}?displayId=${encodeURIComponent(formattedExpenseIds.get(expense.expenseNo) ?? expense.expenseNo)}`}
                         className="text-xs font-medium text-emerald-700 hover:text-emerald-800"
                       >
                         View

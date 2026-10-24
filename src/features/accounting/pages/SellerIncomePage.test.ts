@@ -54,6 +54,7 @@ describe('seller income shop attribution', () => {
 
     expect(rows).toHaveLength(1)
     expect(rows[0].shopId).toBe('shop-a')
+    expect(rows[0].reference).toBe('PAYMENT-290926-0001')
   })
 
   it('does not reassign income explicitly tagged to another shop', () => {
