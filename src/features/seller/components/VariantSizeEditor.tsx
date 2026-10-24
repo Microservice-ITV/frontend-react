@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Controller,
   type Control,
@@ -11,7 +12,7 @@ import {
   type UseFormRegister,
   type UseFormSetValue,
 } from "react-hook-form";
-import { Check, ChevronDown, Plus, Trash2 } from "lucide-react";
+import { Check, ChevronDown, Info, Plus, Trash2 } from "lucide-react";
 import {
   sanitizeMoneyInput,
   sanitizeUnsignedDecimalInput,
@@ -671,7 +672,7 @@ const VariantSizeEditor = ({
               )}
 
               {colorRows.length > 0 && (
-                <div className="divide-y divide-slate-200 overflow-hidden rounded-b-[11px] bg-white">
+                <div className="divide-y divide-slate-200 rounded-b-[11px] bg-white">
                   {owned.map((index) => (
                     <input
                       key={`server-${fields[index]?.id ?? index}`}
@@ -719,20 +720,22 @@ const VariantSizeEditor = ({
                                   {colorName}
                                 </span>
                               </div>
-                              <PriceField
-                                control={control}
-                                name={`variants.${index}.listPrice`}
+                              <ReadOnlyField
                                 id={`listPrice-${index}`}
                                 label="Selling price"
-                                placeholder="0.00"
-                                invalid={!!rowErrors?.listPrice}
-                                sanitize={sanitizeMoneyInput}
+                                value={
+                                  row?.listPrice?.trim()
+                                    ? Number(row.listPrice).toFixed(2)
+                                    : "After PO"
+                                }
+                                placeholder={!row?.listPrice?.trim()}
+                                tooltip="Set after purchase order via Inventory → Edit selling price"
                               />
                               <ReadOnlyField
                                 id={`stock-${index}`}
                                 label="Stock"
                                 value={row?.stock || "0"}
-                                title="Stock is managed by the warehouse"
+                                tooltip="Stock is managed by the warehouse"
                                 narrow
                               />
                               <ReadOnlyField
@@ -741,9 +744,10 @@ const VariantSizeEditor = ({
                                 value={
                                   customerPays != null
                                     ? customerPays.toFixed(2)
-                                    : "—"
+                                    : "After sale"
                                 }
-                                title="Selling price after discount"
+                                placeholder={customerPays == null}
+                                tooltip="Selling price after discount (auto-calculated)"
                                 emphasize
                               />
                               <DimensionField
@@ -933,47 +937,127 @@ const DimensionField = ({
   </div>
 );
 
+/** Checkout-style tip, portaled so overflow parents cannot clip it. */
+const FieldInfoTip = ({ text }: { text: string }) => {
+  const tipId = useId();
+  const triggerRef = useRef<HTMLSpanElement>(null);
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  const place = () => {
+    const el = triggerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const tipWidth = 208; // w-52
+    const left = Math.min(
+      Math.max(8, rect.left + rect.width / 2 - tipWidth / 2),
+      window.innerWidth - tipWidth - 8,
+    );
+    // Anchor above the icon; translateY(-100%) sizes itself.
+    setPos({ top: Math.max(8, rect.top - 8), left });
+  };
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    place();
+    const onReposition = () => place();
+    window.addEventListener("scroll", onReposition, true);
+    window.addEventListener("resize", onReposition);
+    return () => {
+      window.removeEventListener("scroll", onReposition, true);
+      window.removeEventListener("resize", onReposition);
+    };
+  }, [open]);
+
+  return (
+    <>
+      <span
+        ref={triggerRef}
+        tabIndex={0}
+        className="inline-flex h-3.5 w-3.5 cursor-default items-center justify-center rounded-full text-slate-400 outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+        aria-describedby={open ? tipId : undefined}
+        onMouseEnter={() => {
+          place();
+          setOpen(true);
+        }}
+        onMouseLeave={() => setOpen(false)}
+        onFocus={() => {
+          place();
+          setOpen(true);
+        }}
+        onBlur={() => setOpen(false)}
+      >
+        <Info size={12} strokeWidth={2.25} aria-hidden />
+      </span>
+      {open &&
+        createPortal(
+          <span
+            id={tipId}
+            role="tooltip"
+            className="pointer-events-none fixed z-[80] w-52 -translate-y-full rounded-md bg-gray-900 px-2.5 py-2 text-left text-xs font-medium leading-4 text-white shadow-lg"
+            style={{ top: pos.top, left: pos.left }}
+          >
+            {text}
+            <span
+              className="absolute left-1/2 top-full -translate-x-1/2 border-x-4 border-t-4 border-x-transparent border-t-gray-900"
+              aria-hidden
+            />
+          </span>,
+          document.body,
+        )}
+    </>
+  );
+};
+
 const ReadOnlyField = ({
   id,
   label,
   value,
-  title,
+  tooltip,
   narrow = false,
   emphasize = false,
+  placeholder = false,
 }: {
   id: string;
   label: string;
   value: string;
-  title: string;
+  tooltip: string;
   narrow?: boolean;
   emphasize?: boolean;
-}) => (
-  <div
-    className={
-      narrow
-        ? "w-14 shrink-0"
-        : emphasize
-          ? "w-[6.25rem] shrink-0"
-          : "w-[5.25rem] shrink-0"
-    }
-  >
-    <label
-      htmlFor={id}
-      className="mb-1 block whitespace-nowrap text-[11px] font-medium text-slate-600"
-    >
-      {label}
-    </label>
-    <input
-      id={id}
-      type="text"
-      readOnly
-      title={title}
-      value={value}
-      className={`${fieldShell(false, true)} ${
-        emphasize ? "text-emerald-700" : ""
-      }`}
-    />
-  </div>
-);
+  /** Softer text when showing guidance instead of a real amount. */
+  placeholder?: boolean;
+}) => {
+  const widthClass = narrow
+    ? "w-[4.25rem]"
+    : emphasize
+      ? "w-[6.75rem]"
+      : "w-[6.5rem]";
+  const valueClass = placeholder
+    ? "cursor-not-allowed bg-slate-50 text-[11px] font-normal text-slate-400"
+    : emphasize
+      ? "cursor-not-allowed bg-slate-50 text-sm font-medium text-emerald-700"
+      : "cursor-not-allowed bg-slate-50 text-sm font-medium text-slate-700";
+
+  return (
+    <div className={`${widthClass} shrink-0`}>
+      <div className="mb-1 flex items-center gap-1">
+        <label
+          htmlFor={id}
+          className="whitespace-nowrap text-[11px] font-medium text-slate-600"
+        >
+          {label}
+        </label>
+        <FieldInfoTip text={tooltip} />
+      </div>
+      <input
+        id={id}
+        type="text"
+        readOnly
+        value={value}
+        className={`h-9 w-full rounded-lg border border-slate-200 px-2.5 outline-none ${valueClass}`}
+      />
+    </div>
+  );
+};
 
 export default VariantSizeEditor;
