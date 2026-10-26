@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Download, Loader2, Printer } from 'lucide-react'
+import { ArrowLeft, ChevronDown, Download, Loader2, Printer, Receipt, X } from 'lucide-react'
 import { useAppSelector } from '@/app/hooks'
 import { selectIsAuthenticated } from '@/features/auth/store/authSelectors'
 import InvoiceDocumentSheet from '@/features/invoices/components/InvoiceDocumentSheet'
+import InvoiceThermalSheet from '@/features/invoices/components/InvoiceThermalSheet'
+import ReceiptDocumentSheet from '@/features/invoices/components/ReceiptDocumentSheet'
 import InvoiceEmptyState from '@/features/invoices/components/InvoiceEmptyState'
 import InvoiceTableSkeleton from '@/features/invoices/components/InvoiceTableSkeleton'
 import { formatInvoiceNumber } from '@/features/invoices/lib/invoiceFormat'
-import { downloadInvoicePdf, getInvoiceByNumber, type InvoiceDocument } from '@/lib/api/invoiceClient'
+import { downloadInvoicePdf, downloadReceiptPdf, downloadThermalInvoicePdf, getInvoiceByNumber, getReceiptForInvoice, type InvoiceDocument, type ReceiptDocument } from '@/lib/api/invoiceClient'
 import { usePageTitle } from '@/components/routing/PageTitle'
 
 type ScopedInvoiceDetailPageProps = {
@@ -21,7 +23,17 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
   const [invoice, setInvoice] = useState<InvoiceDocument | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isDownloading, setIsDownloading] = useState(false)
+  const [downloadError, setDownloadError] = useState<string | null>(null)
+
+  const [isPrintDropdownOpen, setIsPrintDropdownOpen] = useState(false)
+  const [isReceiptDropdownOpen, setIsReceiptDropdownOpen] = useState(false)
+  const [documentView, setDocumentView] = useState<'a4' | 'invoice' | 'receipt'>('a4')
+  const [thermalWidth, setThermalWidth] = useState<'58mm' | '80mm'>('58mm')
+  const [pendingA4Print, setPendingA4Print] = useState(false)
+  const [receiptData, setReceiptData] = useState<ReceiptDocument | null>(null)
+  const [isReceiptLoading, setIsReceiptLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [receiptError, setReceiptError] = useState<string | null>(null)
 
   usePageTitle(invoice?.invoiceNumber ? `Invoice ${invoice.invoiceNumber}` : 'Invoice')
 
@@ -58,25 +70,117 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
     void loadInvoice()
   }, [loadInvoice])
 
-  const handleDownload = async () => {
+  useEffect(() => {
+    if (!pendingA4Print || documentView !== 'a4') return
+    setPendingA4Print(false)
+    window.print()
+  }, [documentView, pendingA4Print])
+
+  // Click outside handler for dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      const isPrintDropdown = target.closest('[data-print-dropdown]')
+      const isReceiptDropdown = target.closest('[data-receipt-dropdown]')
+
+      if (!isPrintDropdown && isPrintDropdownOpen) {
+        setIsPrintDropdownOpen(false)
+      }
+      if (!isReceiptDropdown && isReceiptDropdownOpen) {
+        setIsReceiptDropdownOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isPrintDropdownOpen, isReceiptDropdownOpen])
+
+  const handleDownload = async (kind: 'a4' | 'invoice' | 'receipt' = 'a4') => {
     if (!invoice) return
+    if (kind === 'receipt' && (invoice.status !== 'PAID' || !receiptData)) return
 
     setIsDownloading(true)
-    setError(null)
+    setDownloadError(null)
     try {
-      const objectUrl = URL.createObjectURL(await downloadInvoicePdf(invoice.id))
+      const blob = kind === 'a4'
+        ? await downloadInvoicePdf(invoice.id)
+        : kind === 'invoice'
+          ? await downloadThermalInvoicePdf(invoice.id, thermalWidth)
+          : await downloadReceiptPdf(invoice.id, { width: thermalWidth })
+      if (!blob) throw new Error('No receipt PDF is available for this invoice.')
+      const objectUrl = URL.createObjectURL(blob)
       const anchor = document.createElement('a')
       anchor.href = objectUrl
-      anchor.download = `${formatInvoiceNumber(invoice.invoiceNumber || invoice.id)}.pdf`
+      const number = (invoice.invoiceNumber || invoice.id).replace(/[^a-zA-Z0-9-]/g, '-')
+      anchor.download = kind === 'a4' ? `${formatInvoiceNumber(invoice.invoiceNumber || invoice.id)}.pdf` : `${number}-${kind === 'receipt' ? 'receipt' : 'thermal'}-${thermalWidth}.pdf`
       document.body.appendChild(anchor)
       anchor.click()
       anchor.remove()
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
     } catch (requestError: unknown) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to download this invoice.')
+      setDownloadError(requestError instanceof Error ? requestError.message : 'Unable to download this document.')
     } finally {
       setIsDownloading(false)
     }
+  }
+  const handleThermalView = async (width: "58mm" | "80mm", type: 'invoice' | 'receipt') => {
+    if (!invoice) return
+
+    setDocumentView(type)
+    setThermalWidth(width)
+
+    if (type === 'invoice') {
+      setError(null)
+    } else {
+      setReceiptError(null)
+      // Fetch receipt data for paid invoices
+      if (invoice.status === 'PAID') {
+        setIsReceiptLoading(true)
+        setReceiptData(null)
+        try {
+          const receipt = await getReceiptForInvoice(invoice.id)
+          setReceiptData(receipt)
+          if (!receipt) {
+            setReceiptError('No receipt found for this invoice. Receipt may not have been generated yet.')
+          }
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : 'Failed to load receipt data'
+          setReceiptError(`Error loading receipt: ${errorMessage}`)
+          console.error('Error loading receipt:', err)
+        } finally {
+          setIsReceiptLoading(false)
+        }
+      }
+    }
+  }
+
+  const closeThermalView = () => {
+    setDocumentView('a4')
+    setReceiptData(null)
+    setReceiptError(null)
+  }
+
+  const handleThermalPrint = () => {
+    const cleanup = () => document.body.classList.remove('thermal-printing')
+    document.body.classList.add('thermal-printing')
+    window.addEventListener('afterprint', cleanup, { once: true })
+    try {
+      window.print()
+    } catch (printError) {
+      window.removeEventListener('afterprint', cleanup)
+      cleanup()
+      throw printError
+    }
+  }
+
+  const handleA4Print = () => {
+    // Clear thermal print mode before switching, then let React commit the A4
+    // document before opening the print dialog.
+    document.body.classList.remove('thermal-printing')
+    setDocumentView('a4')
+    setPendingA4Print(true)
   }
 
   return (
@@ -94,24 +198,113 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
             <>
               <button
                 type="button"
-                onClick={() => window.print()}
+                aria-pressed={documentView === 'a4'}
+                onClick={handleA4Print}
+                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+              >
+                A4 Invoice
+              </button>
+
+              {/* Standard A4 Print Button */}
+              <button
+                type="button"
+                onClick={handleA4Print}
                 className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
               >
                 <Printer size={15} />
-                Print Invoice
+                Print A4 Invoice
               </button>
-              <button
+
+              {/* Print Invoice (Thermal) Dropdown */}
+              <div className="relative inline-block" data-print-dropdown>
+                <button
+                  type="button"
+                  onClick={() => setIsPrintDropdownOpen(!isPrintDropdownOpen)}
+                  className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+                >
+                  <Printer size={15} />
+                  Print Invoice
+                  <ChevronDown size={14} className="ml-1" />
+                </button>
+                {isPrintDropdownOpen && (
+                  <div className="absolute left-0 top-full z-50 mt-1 min-w-[160px] rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsPrintDropdownOpen(false)
+                        handleThermalView('58mm', 'invoice')
+                      }}
+                      className="flex w-full items-center px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                    >
+                      Thermal 58mm
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsPrintDropdownOpen(false)
+                        handleThermalView('80mm', 'invoice')
+                      }}
+                      className="flex w-full items-center px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                    >
+                      Thermal 80mm
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Print Receipt (Thermal) Dropdown - Only show for paid invoices */}
+              {invoice.status === 'PAID' && (
+                <div className="relative inline-block" data-receipt-dropdown>
+                  <button
+                    type="button"
+                    onClick={() => setIsReceiptDropdownOpen(!isReceiptDropdownOpen)}
+                    className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+                  >
+                    <Receipt size={15} />
+                    Print Receipt
+                    <ChevronDown size={14} className="ml-1" />
+                  </button>
+                  {isReceiptDropdownOpen && (
+                    <div className="absolute left-0 top-full z-50 mt-1 min-w-[160px] rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsReceiptDropdownOpen(false)
+                          handleThermalView('58mm', 'receipt')
+                        }}
+                        className="flex w-full items-center px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                      >
+                        Thermal 58mm
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsReceiptDropdownOpen(false)
+                          handleThermalView('80mm', 'receipt')
+                        }}
+                        className="flex w-full items-center px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                      >
+                        Thermal 80mm
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {documentView === 'a4' && <button
                 type="button"
-                onClick={() => void handleDownload()}
+                onClick={() => void handleDownload('a4')}
                 disabled={isDownloading}
-                className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isDownloading ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
                 {isDownloading ? 'Preparing PDF…' : 'Download PDF'}
-              </button>
+              </button>}
             </>
           )}
         </div>
+
+        {documentView === 'a4' && downloadError && <p data-print-hide role="alert" className="mb-3 text-sm text-rose-600">{downloadError}</p>}
 
         {isLoading && (
           <div aria-live="polite" className="overflow-hidden rounded-[20px] bg-white shadow-sm ring-1 ring-slate-200/80">
@@ -140,7 +333,91 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
         )}
 
         {!isLoading && !error && invoice && (
-          <InvoiceDocumentSheet invoice={invoice} showActions={false} />
+          <>
+            {documentView === 'a4' && <InvoiceDocumentSheet invoice={invoice} showActions={false} />}
+
+            {documentView !== 'a4' && (
+              <div className="mt-8">
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-900">
+                      {documentView === 'invoice' ? 'Thermal Invoice Preview' : 'Thermal Receipt Preview'}
+                      <span className="ml-2 text-sm font-normal text-slate-500">({thermalWidth})</span>
+                    </h3>
+                    <p className="text-sm text-slate-600">
+                      {documentView === 'invoice'
+                        ? 'POS thermal invoice format for printing'
+                        : 'POS thermal receipt format for printing'}
+                    </p>
+                  </div>
+                  <div data-print-hide className="flex flex-wrap gap-2">
+                    <button type="button" onClick={() => void handleDownload(documentView)} disabled={isDownloading || (documentView === 'receipt' && (!receiptData || isReceiptLoading))}
+                      className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
+                      {isDownloading ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+                      {isDownloading ? 'Preparing PDF…' : `Download PDF · ${documentView === 'receipt' ? 'Receipt' : 'Invoice'} · ${thermalWidth}`}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleThermalPrint}
+                      disabled={documentView === 'receipt' && (!receiptData || isReceiptLoading)}
+                      className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Printer size={15} />
+                      Print {documentView === 'invoice' ? 'Invoice' : 'Receipt'} ({thermalWidth})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={closeThermalView}
+                      className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+                    >
+                      <X size={15} />
+                      Close Preview
+                    </button>
+                  </div>
+                </div>
+                {downloadError && <p role="alert" className="mb-3 text-sm text-rose-600">{downloadError}</p>}
+
+                <div className="flex justify-center">
+                  {documentView === 'invoice' ? (
+                    <div className="w-full max-w-[300px]">
+                      <InvoiceThermalSheet
+                        invoice={invoice}
+                        width={thermalWidth}
+                        mode="screen"
+                        showActions={false}
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-full max-w-[300px]">
+                      {isReceiptLoading ? (
+                        <div className="flex items-center justify-center p-8">
+                          <div className="text-center">
+                            <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-emerald-600 mb-3" />
+                            <p className="text-sm text-slate-600">Loading receipt data…</p>
+                          </div>
+                        </div>
+                      ) : receiptData ? (
+                        <ReceiptDocumentSheet
+                          receipt={receiptData}
+                          invoice={invoice}
+                          width={thermalWidth}
+                          mode="screen"
+                          showActions={false}
+                        />
+                      ) : (
+                        <div role={receiptError ? 'alert' : 'status'} className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-center">
+                          <p className="text-sm text-amber-800">
+                            {receiptError || 'No receipt data available for this invoice.'}
+                          </p>
+                          {!receiptError && <p className="mt-1 text-xs text-amber-700">Receipt may not have been generated yet.</p>}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </section>

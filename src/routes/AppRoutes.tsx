@@ -64,6 +64,7 @@ import OrderTrackingPage from "@/features/account/pages/OrderTrackingPage";
 import CustomerInvoicesPage from "@/features/account/pages/CustomerInvoicesPage";
 import CustomerInvoiceDetailPage from "@/features/account/pages/CustomerInvoiceDetailPage";
 import CustomerInvoicePrintPage from "@/features/account/pages/CustomerInvoicePrintPage";
+import CustomerReceiptPrintPage from "@/features/account/pages/CustomerReceiptPrintPage";
 import ScopedInvoiceDetailPage from "@/features/invoices/pages/ScopedInvoiceDetailPage";
 import VouchersPage from "@/features/account/pages/VouchersPage";
 import CoinsPage from "@/features/account/pages/CoinsPage";
@@ -2175,6 +2176,10 @@ const AppRoutes = () => {
       <Route
         path="/account/invoices/:invoiceNumber/print"
         element={<CustomerInvoicePrintPage />}
+      />
+      <Route
+        path="/account/invoices/:invoiceNumber/receipt/print"
+        element={<CustomerReceiptPrintPage />}
       />
       <Route path="/oauth-success" element={<OAuthSuccessPage />} />
       <Route path="/oauth-error" element={<OAuthErrorPage />} />

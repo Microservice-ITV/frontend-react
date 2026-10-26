@@ -3,14 +3,14 @@ import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Printer } from 'lucide-react'
 import { getMyInvoices, getInvoiceForPrint, type InvoiceDocument } from '@/lib/api/invoiceClient'
 import InvoiceDocumentSheet from '@/features/invoices/components/InvoiceDocumentSheet'
+import InvoiceThermalSheet from '@/features/invoices/components/InvoiceThermalSheet'
 import { INVOICE_DOCUMENT_STYLES, INVOICE_PRINT_STYLES } from '@/features/invoices/lib/invoicePrintStyles'
 
 /**
  * Print-only route: `/account/invoices/:invoiceNumber/print`.
  *
- * Renders the *same* `InvoiceDocumentSheet` in `mode="print"`, so the printed
- * output and the server-generated PDF share one design. All application chrome
- * and action buttons are excluded.
+ * Renders the shared A4 invoice sheet by default or its matching React thermal
+ * sheet when `format=thermal`; server PDFs use this same route and components.
  *
  * When opened by the invoice service's headless browser it carries a short-lived
  * print token; the server verifies the token and the invoice's ownership, so
@@ -20,10 +20,18 @@ const CustomerInvoicePrintPage = () => {
   const { invoiceNumber } = useParams<{ invoiceNumber: string }>()
   const [searchParams] = useSearchParams()
   const printToken = searchParams.get('token')
+  const thermal = searchParams.get('format') === 'thermal'
+  const width = searchParams.get('width') === '80mm' ? '80mm' : '58mm'
 
   const [invoice, setInvoice] = useState<InvoiceDocument | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (thermal) document.body.classList.add('thermal-printing')
+    else document.body.classList.remove('thermal-printing')
+    return () => document.body.classList.remove('thermal-printing')
+  }, [thermal])
 
   const loadInvoice = useCallback(async () => {
     setIsLoading(true)
@@ -46,11 +54,13 @@ const CustomerInvoicePrintPage = () => {
       setError(message)
       // Surfaced to the headless PDF renderer so it fails loudly instead of
       // producing a PDF of an error page.
-      ;(window as unknown as { __INVOICE_ERROR__?: string }).__INVOICE_ERROR__ = message
+      const renderWindow = window as unknown as { __INVOICE_ERROR__?: string; __THERMAL_ERROR__?: string }
+      if (thermal) renderWindow.__THERMAL_ERROR__ = message
+      else renderWindow.__INVOICE_ERROR__ = message
     } finally {
       setIsLoading(false)
     }
-  }, [invoiceNumber, printToken])
+  }, [invoiceNumber, printToken, thermal])
 
   useEffect(() => {
     void loadInvoice()
@@ -63,7 +73,9 @@ const CustomerInvoicePrintPage = () => {
     let cancelled = false
     const markReady = () => {
       if (cancelled) return
-      ;(window as unknown as { __INVOICE_READY__?: boolean }).__INVOICE_READY__ = true
+      const renderWindow = window as unknown as { __INVOICE_READY__?: boolean; __THERMAL_READY__?: boolean }
+      if (thermal) renderWindow.__THERMAL_READY__ = true
+      else renderWindow.__INVOICE_READY__ = true
     }
 
     // On failure there is nothing to wait for, so signal immediately and let the
@@ -90,17 +102,19 @@ const CustomerInvoicePrintPage = () => {
 
     void done().catch((readyError: unknown) => {
       const message = readyError instanceof Error ? readyError.message : 'Invoice assets failed to load.'
-      ;(window as unknown as { __INVOICE_ERROR__?: string }).__INVOICE_ERROR__ = message
+      const renderWindow = window as unknown as { __INVOICE_ERROR__?: string; __THERMAL_ERROR__?: string }
+      if (thermal) renderWindow.__THERMAL_ERROR__ = message
+      else renderWindow.__INVOICE_ERROR__ = message
       markReady()
     })
     return () => {
       cancelled = true
     }
-  }, [isLoading, invoice])
+  }, [isLoading, invoice, thermal])
 
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-6 print:bg-white print:p-0">
-      <style>{`${INVOICE_DOCUMENT_STYLES}${INVOICE_PRINT_STYLES}`}</style>
+      {!thermal && <style>{`${INVOICE_DOCUMENT_STYLES}${INVOICE_PRINT_STYLES}`}</style>}
       <div data-print-hide className="mx-auto max-w-4xl">
         <nav className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
           <Link
@@ -125,7 +139,12 @@ const CustomerInvoicePrintPage = () => {
         {!isLoading && !error && !invoice && <p className="text-sm text-slate-500">Invoice not found.</p>}
       </div>
 
-      {invoice && (
+      {invoice && thermal && (
+        <div className="mx-auto print:mx-0" style={{ width: width === '58mm' ? '52mm' : '70mm' }}>
+          <InvoiceThermalSheet invoice={invoice} width={width} mode="print" showActions={false} />
+        </div>
+      )}
+      {invoice && !thermal && (
         <div className="mx-auto max-w-4xl print:max-w-none">
           <InvoiceDocumentSheet invoice={invoice} mode="print" showActions={false} />
         </div>
