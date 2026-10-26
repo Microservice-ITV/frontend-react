@@ -13,7 +13,7 @@ const DNI_PREFIX = 'DNI-'
  * `INV-20261005-000004` -> `DNI-INV-20261005-000004`
  * `DNI-INV-20261005-000002` -> `DNI-INV-20261005-000002` (unchanged)
  */
-const withDniPrefix = (raw: string | null | undefined, code: 'INV' | 'ORD'): string => {
+const withDniPrefix = (raw: string | null | undefined, code: 'INV' | 'ORD' | 'REC'): string => {
   const trimmed = (raw ?? '').trim()
   if (!trimmed) return ''
 
@@ -29,6 +29,10 @@ export const formatInvoiceNumber = (raw: string | null | undefined): string =>
 
 export const formatOrderReference = (raw: string | null | undefined): string =>
   withDniPrefix(raw, 'ORD')
+  /** Formats a receipt number with DNI prefix exactly once. */
+  export const formatReceiptNumber = (raw: string | null | undefined): string =>
+    withDniPrefix(raw, 'REC')
+
 
 /** Formats an amount using the invoice's own currency. No conversion is performed. */
 export const formatCurrency = (
@@ -151,6 +155,14 @@ export const formatInvoiceStatusLabel = (
 }
 
 export const formatInvoiceDate = (value: string | null | undefined): string => {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
+  return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+/** Formats a receipt issued date using the invoice's own currency format. */
+export const formatReceiptDate = (value: string | null | undefined): string => {
   if (!value) return '—'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '—'
