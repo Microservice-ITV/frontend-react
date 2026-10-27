@@ -53,6 +53,11 @@ const authSlice = createSlice({
       state.registerDraft = action.payload
     },
 
+    markEmailVerified(state) {
+      if (state.user) state.user.email_verified_at = new Date().toISOString()
+      state.requiresVerification = false
+    },
+
     forceLogout(state) {
       state.user = null
       state.accessToken = null
@@ -239,5 +244,6 @@ export const {
   setAccessToken,
   setLoginDraft,
   setRegisterDraft,
+  markEmailVerified,
 } = authSlice.actions
 export default authSlice.reducer

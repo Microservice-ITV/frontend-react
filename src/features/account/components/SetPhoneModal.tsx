@@ -40,8 +40,8 @@ const SetPhoneModal: React.FC<SetPhoneModalProps> = ({
     // Remove all non-digit characters
     const digitsOnly = value.replace(/\D/g, "");
 
-    // Limit to 9 digits maximum (Myanmar mobile numbers are 8-9 digits after +95)
-    const limitedDigits = digitsOnly.slice(0, 9);
+    // Myanmar mobile numbers are 8-10 digits after +95.
+    const limitedDigits = digitsOnly.slice(0, 10);
 
     setPhone(limitedDigits);
     setError(null);
@@ -52,14 +52,14 @@ const SetPhoneModal: React.FC<SetPhoneModalProps> = ({
 
     const digitsOnly = phone.replace(/\D/g, "");
 
-    // Validate Myanmar mobile number: must be 8-9 digits and start with 9
-    if (digitsOnly.length < 8 || digitsOnly.length > 9) {
-      setError("Myanmar mobile number must be 8-9 digits. Example: 912345678");
+    // Validate Myanmar mobile number: must be 8-10 digits and start with 9
+    if (digitsOnly.length < 8 || digitsOnly.length > 10) {
+      setError("Myanmar mobile number must be 8-10 digits. Example: 9123456789");
       return;
     }
 
     if (!digitsOnly.startsWith("9")) {
-      setError("Myanmar mobile number must start with 9. Example: 912345678");
+      setError("Myanmar mobile number must start with 9. Example: 9123456789");
       return;
     }
 
@@ -145,16 +145,16 @@ const SetPhoneModal: React.FC<SetPhoneModalProps> = ({
                     const pastedText = event.clipboardData.getData('text');
                     handlePhoneChange(pastedText);
                   }}
-                  placeholder="912345678"
+                  placeholder="9123456789"
                   disabled={isLoading}
                   autoFocus
-                  maxLength={9}
+                  maxLength={10}
                   className="w-full rounded-r-lg border border-slate-200 py-2.5 pl-10 pr-3.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                 />
               </div>
             </div>
             <p className="mt-1 text-xs text-slate-400">
-              Enter 8-9 digit Myanmar mobile number (starts with 9)
+              Enter 8-10 digit Myanmar mobile number (starts with 9)
             </p>
             {error && (
               <p className="mt-2 flex items-center gap-1.5 text-xs text-rose-500">

@@ -259,13 +259,12 @@ const GuestCheckoutPage = () => {
       }
 
       navigate('/checkout', { replace: true })
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const guestError = e as { message?: string }
       const message =
         typeof e === 'string'
           ? e
-          : e?.message ??
-            e?.response?.data?.message ??
-            e?.response?.data?.error ??
+          : guestError?.message ??
             'Unable to start checkout. Please try again.'
       setSubmitError(String(message))
     } finally {

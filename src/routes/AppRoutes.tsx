@@ -60,6 +60,8 @@ import ChangePasswordPage from "@/features/account/pages/ChangePasswordPage";
 import NotificationsPage from "@/features/account/pages/NotificationsPage";
 import NotificationsCenterPage from "@/features/account/pages/NotificationsCenterPage";
 import OrdersPage from "@/features/account/pages/OrdersPage";
+import QuantityApprovalsPage from "@/features/account/pages/QuantityApprovalsPage";
+import QuantityApprovalDetailPage from "@/features/account/pages/QuantityApprovalDetailPage";
 import OrderTrackingPage from "@/features/account/pages/OrderTrackingPage";
 import StaffShopOrdersPage from "@/features/account/pages/StaffShopOrdersPage";
 import CustomerInvoicesPage from "@/features/account/pages/CustomerInvoicesPage";
@@ -98,6 +100,8 @@ import DamageReportsPage from "@/features/purchase/pages/DamageReportsPage";
 import DeliveryOverviewPage from "@/features/purchase/pages/DeliveryOverviewPage";
 import SellerOverviewPage from "@/features/seller/pages/SellerOverviewPage";
 import SellerOrdersPage from "@/features/seller/pages/SellerOrdersPage";
+import SellerQuantityApprovalsPage from "@/features/seller/pages/SellerQuantityApprovalsPage";
+import SellerQuantityApprovalDetailPage from "@/features/seller/pages/SellerQuantityApprovalDetailPage";
 import SellerOrderDetailPage from "@/features/seller/pages/SellerOrderDetailPage";
 import SellerProductsPage from "@/features/seller/pages/SellerProductsPage";
 import SellerUsersPage from "@/features/seller/pages/SellerUsersPage";
@@ -252,6 +256,26 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.accountOrders}
                 >
                   <OrdersPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="quantity-approvals"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.accountOrders}
+                >
+                  <QuantityApprovalsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="quantity-approvals/:checkoutId"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.accountOrders}
+                >
+                  <QuantityApprovalDetailPage />
                 </ProtectedRoute>
               }
             />
@@ -463,6 +487,22 @@ const AppRoutes = () => {
                     title="Seller Analytics"
                     description="Analytics widgets for traffic, conversion rate, and sales trends will live here."
                   />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="quantity-approvals/:checkoutId"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerOrders}>
+                  <SellerQuantityApprovalDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="quantity-approvals"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerOrders}>
+                  <SellerQuantityApprovalsPage />
                 </ProtectedRoute>
               }
             />

@@ -52,6 +52,22 @@ export const authFeatureApi = {
     return authClient.get("/me");
   },
 
+  requestCheckoutEmailCode(resend = false) {
+    return authClient.post("/checkout-email-code", resend ? { resend: true } : {});
+  },
+
+  confirmCheckoutEmailCode(code: string) {
+    return authClient.post("/checkout-email-code/verify", { code });
+  },
+
+  requestGuestCheckoutPhoneCode(phone: string) {
+    return authClient.post("/guest-checkout-phone-code", { phone });
+  },
+
+  confirmGuestCheckoutPhoneCode(phone: string, code: string) {
+    return authClient.post("/guest-checkout-phone-code/verify", { phone, code });
+  },
+
   updateProfile(data: {
     name?: string;
     phone?: string;

@@ -2,6 +2,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  email_verified_at?: string | null;
   /** Resolved (or CDN) URL of the user's profile image, null when none is set. */
   profile_image?: string | null;
   phone?: string | null;

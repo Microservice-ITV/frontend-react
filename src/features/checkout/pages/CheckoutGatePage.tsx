@@ -24,13 +24,14 @@ import { clearCheckout, setCurrentCheckout } from '../store/checkoutSlice'
 import { usePayDeliveryFeeNow } from '../hooks/usePayDeliveryFeeNow'
 import { useCheckoutDeliveryOptions } from '../hooks/useCheckoutDeliveryOptions'
 import { shopIdsWithoutSelectableDeliveryCompany } from '../utils/deliveryReadiness'
+import { isQuantityApprovalHold } from '../utils/quantityApprovalHold'
 
 const AuthCheckout = () => {
   const items = useAppSelector(selectSelectedItems)
 
   return (
     <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.checkout}>
-      {items.length === 0 ? <Navigate to="/cart" replace /> : <CheckoutPage />}
+      {items.length === 0 && !isQuantityApprovalHold() ? <Navigate to="/cart" replace /> : <CheckoutPage />}
     </ProtectedRoute>
   )
 }
@@ -41,11 +42,7 @@ const GuestCheckoutPayment = () => {
 
   const items = useAppSelector(selectSelectedItems)
   const { currentCheckout, loading, paymentStatus, sagaId, sagaStatus } = useAppSelector((state) => state.checkout)
-
-  // If nothing selected, checkout shouldn't be reachable.
-  if (items.length === 0) {
-    return <Navigate to="/cart" replace />
-  }
+  const approvalHold = isQuantityApprovalHold()
 
   const paymentDeliveryAddress = useMemo<UserAddress | null>(() => {
     try {
@@ -82,7 +79,7 @@ const GuestCheckoutPayment = () => {
 
   const hasCheckoutId = Boolean(currentCheckout?.checkout_id || storedCheckoutId)
   const cartMatches = Boolean(storedCartKey && storedCartKey === currentCartKey)
-  const ready = Boolean(paymentDeliveryAddress && hasCheckoutId && cartMatches)
+  const ready = Boolean(paymentDeliveryAddress && hasCheckoutId && (cartMatches || approvalHold))
 
   const feesByShopId = useAppSelector((state) => state.shipping.feesByShopId)
   const totalShippingFee = useAppSelector((state) => state.shipping.totalShippingFee)
@@ -186,17 +183,6 @@ const GuestCheckoutPayment = () => {
     navigate('/checkout/guest', { replace: true })
   }
 
-  if (!ready) {
-    try {
-      sessionStorage.removeItem('dni.guest_checkout.delivery_address')
-      sessionStorage.removeItem('dni.guest_checkout.checkout_id')
-      sessionStorage.removeItem('dni.guest_checkout.cart_key')
-    } catch {
-      // ignore
-    }
-    return <Navigate to="/checkout/guest" replace />
-  }
-
   useEffect(() => {
     if (currentCheckout?.checkout_id) return
     if (!storedCheckoutId) return
@@ -270,6 +256,21 @@ const GuestCheckoutPayment = () => {
       })
     }
   }, [paymentStatus, navigate, currentCheckout?.checkout_id, paymentDeliveryAddress?.phone_no])
+
+  if (items.length === 0 && !approvalHold) {
+    return <Navigate to="/cart" replace />
+  }
+
+  if (!ready) {
+    try {
+      sessionStorage.removeItem('dni.guest_checkout.delivery_address')
+      sessionStorage.removeItem('dni.guest_checkout.checkout_id')
+      sessionStorage.removeItem('dni.guest_checkout.cart_key')
+    } catch {
+      // ignore
+    }
+    return <Navigate to="/checkout/guest" replace />
+  }
 
   return (
     <Elements stripe={stripePromise}>

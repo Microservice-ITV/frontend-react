@@ -459,6 +459,40 @@ interface ShopOrderSummariesResponse {
 export type SellerOrderStatusFilter = 'all' | 'to-ship' | 'shipped' | 'completed' | 'cancelled' | 'returned'
 
 type SellerShop = { id: string; shopId: string; name: string; slug: string }
+
+export type PendingShopApproval = {
+  checkout_id: string
+  shop_id: string
+  user_id: string
+  status?: 'pending' | 'approved' | 'rejected' | string
+  rejection_reason?: string | null
+  customer_name?: string | null
+  quantity: number
+  items: Array<{ title: string; qty: number; image_url?: string | null }>
+  created_at?: string | null
+}
+
+export type ShopApprovalDetail = {
+  checkout_id: string
+  shop_id: string
+  user_id: string
+  status: 'pending' | 'approved' | 'rejected' | string
+  quantity: number
+  customer_name?: string | null
+  customer_email?: string | null
+  customer_phone?: string | null
+  rejection_reason?: string | null
+  order_placed?: boolean
+  items: Array<{
+    title: string
+    sku?: string | null
+    qty: number
+    price: number
+    line_total: number
+    image_url?: string | null
+  }>
+  created_at?: string | null
+}
 type SellerShopAccessResponse = {
   data?: {
     access_context?: {
@@ -578,6 +612,42 @@ export const sellerOrderApi = {
    * access context is authoritative; userId is retained for existing callers
    * but is never used to discover creator-owned shops.
    */
+  async listPendingShopApprovals(shopIds: string[]): Promise<PendingShopApproval[]> {
+    const ids = shopIds.map((shopId) => shopId.trim()).filter(Boolean)
+    if (ids.length === 0) return []
+    const response = await orderClient.get<{ approvals?: PendingShopApproval[] }>('/orders/shop-approvals', {
+      params: { shop_ids: ids.join(',') },
+    })
+    return Array.isArray(response.data.approvals) ? response.data.approvals : []
+  },
+
+  async approveShopOrder(checkoutId: string, shopId: string, approvedBy?: string | null): Promise<void> {
+    await orderClient.post(`/orders/shop-approvals/${checkoutId}/approve`, {
+      shop_id: shopId,
+      approved_by: approvedBy || undefined,
+    })
+  },
+
+  async getShopApproval(checkoutId: string, shopId: string): Promise<ShopApprovalDetail> {
+    const response = await orderClient.get<ShopApprovalDetail>(`/orders/shop-approvals/${checkoutId}`, {
+      params: { shop_id: shopId },
+    })
+    return response.data
+  },
+
+  async rejectShopOrder(
+    checkoutId: string,
+    shopId: string,
+    rejectedBy?: string | null,
+    reason?: string,
+  ): Promise<void> {
+    await orderClient.post(`/orders/shop-approvals/${checkoutId}/reject`, {
+      shop_id: shopId,
+      rejected_by: rejectedBy || undefined,
+      reason: reason?.trim() || undefined,
+    })
+  },
+
   async listShopsByUser(_userId: string): Promise<SellerShop[]> {
     const response = await authClient.get<SellerShopAccessResponse>('/me/access-context')
     return (response.data.data?.access_context?.shops ?? [])

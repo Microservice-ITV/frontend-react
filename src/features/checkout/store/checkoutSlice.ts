@@ -188,7 +188,7 @@ const checkoutSlice = createSlice({
             })
             .addCase(guestCheckoutCart.rejected, (state, action) => {
                 state.loading = false
-                state.error = action.payload ?? 'Checkout failed'
+                state.error = action.payload?.message ?? 'Checkout failed'
             })
             .addCase(fetchCheckoutStatus.pending, () => {
                 // Polling must not set loading. That flag blocks a payment-method
