@@ -50,6 +50,7 @@ interface ProductDetailApiResponse {
         brandName: string
         primaryVariantId: string | null
         variants: ProductVariant[]
+        tags?: string[]
         flashDeals?: ProductFlashDeal[]
     }
 }
@@ -590,23 +591,77 @@ export const productApi = {
           : 0;
 
     const parentId = p.parentCategoryId?.trim() ? p.parentCategoryId : null;
-    const variants = (p.variants ?? []).map(mapGraphVariant);
-    const minPrice = Number(p.minPrice ?? p.price ?? 0);
-    const maxPrice = Number(p.maxPrice ?? p.price ?? 0);
-    const displayPrice = variants.length === 1 ? variants[0].price : minPrice;
+    let variants = (p.variants ?? []).map(mapGraphVariant);
+    let minPrice = Number(p.minPrice ?? p.price ?? 0);
+    let maxPrice = Number(p.maxPrice ?? p.price ?? 0);
     let shopName: string | undefined;
     let shopSlug: string | undefined;
 
     try {
+      // Prefer live catalog pricing from product-service so inventory selling-price
+      // edits show on the storefront even if ecommerce-read is briefly behind.
       const response = await productClient.get<{
         success: boolean;
-        data?: { shop?: { name?: string; slug?: string } };
+        data?: {
+          shop?: { name?: string; slug?: string };
+          price?: number | string;
+          minPrice?: number | string;
+          maxPrice?: number | string;
+          variants?: Array<{
+            id?: string;
+            variantId?: string;
+            price?: number | string;
+            listPrice?: number | string;
+            effectiveSellingPrice?: number | string;
+            compareAtPrice?: number | string | null;
+          }>;
+        };
       }>(`/products/${p.productId}`);
-      shopName = response.data.data?.shop?.name;
-      shopSlug = response.data.data?.shop?.slug;
+      const live = response.data.data;
+      shopName = live?.shop?.name;
+      shopSlug = live?.shop?.slug;
+      if (live?.variants?.length) {
+        const byId = new Map(
+          live.variants.map((row) => [String(row.id ?? row.variantId ?? ''), row]),
+        );
+        variants = variants.map((variant) => {
+          const row = byId.get(variant.variantId);
+          if (!row) return variant;
+          const effective = Number(
+            row.effectiveSellingPrice ?? row.price ?? variant.price,
+          );
+          const listPrice = Number(row.listPrice ?? effective);
+          const compareRaw = row.compareAtPrice;
+          return {
+            ...variant,
+            price: Number.isFinite(effective) ? effective : variant.price,
+            listPrice: Number.isFinite(listPrice) ? listPrice : variant.listPrice,
+            effectiveSellingPrice: Number.isFinite(effective)
+              ? effective
+              : variant.effectiveSellingPrice,
+            compareAtPrice:
+              compareRaw !== null &&
+              compareRaw !== undefined &&
+              compareRaw !== '' &&
+              Number.isFinite(Number(compareRaw))
+                ? Number(compareRaw)
+                : variant.compareAtPrice,
+          };
+        });
+        const livePrices = variants.map((v) => v.price).filter((n) => Number.isFinite(n));
+        if (livePrices.length > 0) {
+          minPrice = Math.min(...livePrices);
+          maxPrice = Math.max(...livePrices);
+        } else {
+          minPrice = Number(live.minPrice ?? minPrice);
+          maxPrice = Number(live.maxPrice ?? maxPrice);
+        }
+      }
     } catch {
       // Keep the catalog detail usable if the product service is unavailable.
     }
+
+    const displayPrice = variants.length === 1 ? variants[0].price : minPrice;
 
     const detail: ProductDetailApiResponse = {
       success: true,
