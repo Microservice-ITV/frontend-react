@@ -96,7 +96,7 @@ const CategoryGrid = forwardRef<CategoryGridHandle, Props>(({ items }, ref) => {
                   border-gray-100 transition-all duration-200 hover:border-emerald-200 hover:shadow-md
                   focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
-              <div className="mb-3 flex h-[80px] w-[80px] items-center justify-center overflow-hidden rounded-full bg-[#fafafa] transition-colors duration-200 group-hover:bg-emerald-50">
+              <div className="mb-3 flex h-[90px] w-[90px] items-center justify-center">
                 <CategoryImage alt={cat.name} src={cat.image} />
               </div>
               <span className="text-sm font-medium text-gray-800 text-center line-clamp-2 leading-tight">
