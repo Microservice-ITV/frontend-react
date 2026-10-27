@@ -53,6 +53,7 @@ describe('DASHBOARD_MENU warehouse purchasing items', () => {
 
     expect(salesItems.map((item) => item.label)).toEqual([
       'Orders',
+      'Quantity Approvals',
       'Cancel Orders',
       'Return Orders',
       'Payments',

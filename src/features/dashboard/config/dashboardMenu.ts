@@ -312,6 +312,14 @@ export const DASHBOARD_MENU_SELLER: DashboardMenuSection[] = [
         icon: ShoppingCart,
       }),
       withSearch({
+        key: "seller-quantity-approvals",
+        label: "Quantity Approvals",
+        to: "/seller/quantity-approvals",
+        area: "seller",
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: ClipboardList,
+      }),
+      withSearch({
         key: "seller-cancel-orders",
         label: "Cancel Orders",
         to: "/seller/orders/cancelled",

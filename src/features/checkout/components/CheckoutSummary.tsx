@@ -1,6 +1,9 @@
 import { amountDueNow, CheckoutTotals, ZERO_DELIVERY_FEE_LABEL } from '../utils/checkoutCalculator'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { useNavigate } from 'react-router-dom'
+import { ArrowRight, Mail, Smartphone, TriangleAlert, X } from 'lucide-react'
 import { CardElement, useElements, useStripe } from '@stripe/react-stripe-js'
 import type { StripeCardElement } from '@stripe/stripe-js'
 import axios from 'axios'
@@ -14,6 +17,7 @@ import {
   type PromotionQuoteResponse,
 } from '../api/checkoutApi'
 import {
+  clearCheckout,
   setAwaitingFinalStatus,
   setCheckoutError,
   setCheckoutPaymentStatus,
@@ -21,10 +25,17 @@ import {
   setCheckoutTaxAmount,
   setItemTaxes,
 } from '../store/checkoutSlice'
+import { removeSelectedItems } from '@/features/cart/store/cartSlice'
+import {
+  holdCheckoutForQuantityApproval,
+  releaseQuantityApprovalHold,
+} from '../utils/quantityApprovalHold'
 import type { UserAddress } from '@/features/account/types/addressTypes'
 import type { CartItem } from '@/features/cart/types/cartTypes'
 import type { CheckoutShopShippingPayload } from '../api/checkoutApi'
 import type { CheckoutStatusResponse } from '../types/checkoutTypes'
+import { authFeatureApi } from '@/features/auth/api/authApi'
+import { isShopStaffUser } from '../utils/staffCheckoutCustomer'
 import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
 import { formatCashIncomeDisplay, normalizeCashDigits } from '../utils/cashTender'
 import { getDeliveryBlockReason } from '../utils/deliveryReadiness'
@@ -140,6 +151,32 @@ const firstValidationMessage = (errors: unknown): string | undefined => {
   return undefined
 }
 
+const ACCOUNT_BLOCK_FALLBACK_SECONDS = 15 * 60
+
+const retryAfterSeconds = (payload: Record<string, unknown> | null): number => {
+  const value = Number(payload?.retry_after_seconds)
+  return Number.isFinite(value) && value > 0 ? Math.ceil(value) : ACCOUNT_BLOCK_FALLBACK_SECONDS
+}
+
+const formatBlockCountdown = (totalSeconds: number): string => {
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`
+}
+
+const apiPayload = (error: unknown): Record<string, unknown> | null =>
+  axios.isAxiosError(error) && error.response?.data && typeof error.response.data === 'object'
+    ? error.response.data as Record<string, unknown>
+    : null
+
+const isAccountBlocked = (error: unknown): boolean =>
+  apiPayload(error)?.code === 'account_temporarily_blocked'
+
+const apiMessage = (error: unknown, fallback: string): string => {
+  const message = apiPayload(error)?.message
+  return typeof message === 'string' && message.trim() ? message : fallback
+}
+
 const responseIsObject = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value)
 
@@ -174,6 +211,7 @@ const CheckoutSummary = ({
   onDeliveryFeeInputChange,
 }: CheckoutSummaryProps) => {
   const dispatch = useAppDispatch()
+  const navigate = useNavigate()
   const stripe = useStripe()
   const elements = useElements()
   const { currentCheckout, currentStatus, clientSecret, paymentStatus, isPlacingOrder, isAwaitingFinalStatus, error, paymentMethod, sessionPaymentMethod, prepaidProvider, cashTender, itemTaxes } = useAppSelector(
@@ -200,6 +238,130 @@ const CheckoutSummary = ({
   const [promoCodeStatus, setPromoCodeStatus] = useState<PromoCodeStatus | null>(null)
   const [promoCodeMessage, setPromoCodeMessage] = useState<string | null>(null)
   const [promoCodeApplying, setPromoCodeApplying] = useState(false)
+  const [phoneModalOpen, setPhoneModalOpen] = useState(false)
+  const [shopApprovalModalOpen, setShopApprovalModalOpen] = useState(false)
+  const [shopApprovalRejected, setShopApprovalRejected] = useState(false)
+  const [emailVerifyModalOpen, setEmailVerifyModalOpen] = useState(false)
+  const [guestPhoneModalOpen, setGuestPhoneModalOpen] = useState(false)
+  const [guestPhoneDigits, setGuestPhoneDigits] = useState<string[]>(() => Array(6).fill(''))
+  const [guestPhoneError, setGuestPhoneError] = useState<string | null>(null)
+  const [guestPhoneSending, setGuestPhoneSending] = useState(false)
+  const [guestPhoneVerifying, setGuestPhoneVerifying] = useState(false)
+  const guestPhoneCodeRefs = useRef<(HTMLInputElement | null)[]>([])
+  const [emailChallengePassed, setEmailChallengePassed] = useState(false)
+  const [emailDigits, setEmailDigits] = useState<string[]>(() => Array(6).fill(''))
+  const [emailCodeError, setEmailCodeError] = useState<string | null>(null)
+  const [emailCodeChecking, setEmailCodeChecking] = useState(false)
+  const [emailAccountBlocked, setEmailAccountBlocked] = useState(false)
+  const [emailBlockSeconds, setEmailBlockSeconds] = useState(0)
+  const [emailResendSeconds, setEmailResendSeconds] = useState(0)
+  const emailCodeRefs = useRef<(HTMLInputElement | null)[]>([])
+  const emailAccountBlockedRef = useRef(false)
+  const emailBlockEndsAtRef = useRef<number | null>(null)
+  emailAccountBlockedRef.current = emailAccountBlocked
+  const beginAccountBlock = useCallback((seconds: number) => {
+    const safeSeconds = seconds > 0 ? Math.ceil(seconds) : ACCOUNT_BLOCK_FALLBACK_SECONDS
+    emailBlockEndsAtRef.current = Date.now() + safeSeconds * 1000
+    setEmailBlockSeconds(safeSeconds)
+    setEmailAccountBlocked(true)
+    setEmailCodeError(null)
+  }, [])
+  const staffCheckout = isShopStaffUser(user)
+  const accountPhoneMissing = Boolean(user) && !staffCheckout && !user?.phone?.trim()
+  const checkoutAttemptCount = Number(
+    (currentCheckout as { checkout_attempt_count?: number } | null)?.checkout_attempt_count ?? 0,
+  )
+  const emailVerificationRequired =
+    Boolean(user) &&
+    !staffCheckout &&
+    checkoutAttemptCount >= 3 &&
+    !emailChallengePassed
+
+  useEffect(() => {
+    if (!phoneModalOpen && !emailVerifyModalOpen) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      setPhoneModalOpen(false)
+      setEmailVerifyModalOpen(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [emailVerifyModalOpen, phoneModalOpen])
+
+  useEffect(() => {
+    if (!emailAccountBlocked) return
+    const timerId = window.setInterval(() => {
+      const endsAt = emailBlockEndsAtRef.current
+      const remaining = endsAt == null ? 0 : Math.max(0, Math.ceil((endsAt - Date.now()) / 1000))
+      setEmailBlockSeconds(remaining)
+      if (remaining > 0) return
+      emailBlockEndsAtRef.current = null
+      setEmailAccountBlocked(false)
+      if (!emailVerifyModalOpen || !user?.email?.trim()) return
+      setEmailResendSeconds(60)
+      emailCodeRefs.current[0]?.focus()
+      void authFeatureApi.requestCheckoutEmailCode().catch((caughtError: unknown) => {
+        setEmailResendSeconds(0)
+        if (isAccountBlocked(caughtError)) beginAccountBlock(retryAfterSeconds(apiPayload(caughtError)))
+        else setEmailCodeError(apiMessage(caughtError, 'Could not send the verification code.'))
+      })
+    }, 1000)
+    return () => window.clearInterval(timerId)
+  }, [beginAccountBlock, emailAccountBlocked, emailVerifyModalOpen, user?.email])
+
+  useEffect(() => {
+    if (!guestPhoneModalOpen) return
+    const frame = window.requestAnimationFrame(() => {
+      guestPhoneCodeRefs.current[0]?.focus()
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [guestPhoneModalOpen])
+
+  useEffect(() => {
+    if (emailResendSeconds <= 0) return
+    const timerId = window.setInterval(() => {
+      setEmailResendSeconds((seconds) => (seconds > 0 ? seconds - 1 : 0))
+    }, 1000)
+    return () => window.clearInterval(timerId)
+  }, [emailResendSeconds])
+
+  useEffect(() => {
+    if (!emailVerifyModalOpen) {
+      setEmailDigits(Array(6).fill(''))
+      setEmailCodeChecking(false)
+      setEmailResendSeconds(0)
+      return
+    }
+    if (!user?.email?.trim()) return
+
+    let cancelled = false
+    if (!emailAccountBlockedRef.current) {
+      setEmailCodeError(null)
+      setEmailResendSeconds(60)
+      emailCodeRefs.current[0]?.focus()
+    }
+    void authFeatureApi.requestCheckoutEmailCode()
+      .then(() => {
+        if (cancelled) return
+        emailBlockEndsAtRef.current = null
+        setEmailBlockSeconds(0)
+        setEmailAccountBlocked(false)
+        setEmailCodeError(null)
+      })
+      .catch((caughtError: unknown) => {
+        if (cancelled) return
+        setEmailResendSeconds(0)
+        if (isAccountBlocked(caughtError)) {
+          beginAccountBlock(retryAfterSeconds(apiPayload(caughtError)))
+          return
+        }
+        setEmailCodeError(apiMessage(caughtError, 'Could not send the verification code.'))
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [emailVerifyModalOpen, user?.email])
   const checkoutIdRef = useRef(currentCheckout?.checkout_id)
   checkoutIdRef.current = currentCheckout?.checkout_id
   const cartTaxKey = cartItems
@@ -452,7 +614,40 @@ const CheckoutSummary = ({
     }
   }
 
-  const handlePlaceOrder = async () => {
+  const guestPhone = deliveryAddress?.phone_no?.trim() ?? ''
+
+  const sendGuestPhoneCode = async () => {
+    if (!guestPhone) {
+      setGuestPhoneError('Enter a phone number before placing this order.')
+      return
+    }
+    setGuestPhoneError(null)
+    setGuestPhoneSending(true)
+    try {
+      await authFeatureApi.requestGuestCheckoutPhoneCode(guestPhone)
+    } catch (caughtError: unknown) {
+      const message = axios.isAxiosError(caughtError)
+        ? (caughtError.response?.data as { message?: string } | undefined)?.message
+        : null
+      setGuestPhoneError(message || 'Unable to send the verification code.')
+    } finally {
+      setGuestPhoneSending(false)
+    }
+  }
+
+  const handlePlaceOrder = async (options?: { emailConfirmed?: boolean; phoneConfirmed?: boolean }) => {
+    if (user && emailVerificationRequired && !options?.emailConfirmed) {
+      setPhoneModalOpen(false)
+      setGuestPhoneModalOpen(false)
+      setEmailVerifyModalOpen(true)
+      return
+    }
+
+    if (accountPhoneMissing) {
+      setPhoneModalOpen(true)
+      return
+    }
+
     if (!hasDeliveryAddress || !deliveryAddress) {
       dispatch(setCheckoutError('Please add a delivery address before placing your order.'))
       onRequireAddress()
@@ -653,6 +848,49 @@ const CheckoutSummary = ({
         ? error.response.data
         : undefined
 
+      if (responseData?.code === 'guest_phone_verification_required') {
+        setGuestPhoneModalOpen(true)
+        if (!options?.phoneConfirmed) {
+          setGuestPhoneDigits(Array(6).fill(''))
+          setGuestPhoneError(null)
+          void sendGuestPhoneCode()
+        }
+        dispatch(setCheckoutError(null))
+        dispatch(setAwaitingFinalStatus(false))
+        dispatch(setCheckoutPlacingOrder(false))
+        return
+      }
+
+      if (
+        responseData?.code === 'email_verification_required' ||
+        responseData?.code === 'account_temporarily_blocked'
+      ) {
+        if (responseData.code === 'account_temporarily_blocked') {
+          beginAccountBlock(retryAfterSeconds(responseData))
+        }
+        setEmailVerifyModalOpen(true)
+        dispatch(setCheckoutError(null))
+        dispatch(setAwaitingFinalStatus(false))
+        dispatch(setCheckoutPlacingOrder(false))
+        return
+      }
+
+      if (
+        responseData?.code === 'shop_admin_approval_required' ||
+        responseData?.code === 'shop_admin_approval_rejected'
+      ) {
+        holdCheckoutForQuantityApproval()
+        setShopApprovalRejected(responseData.code === 'shop_admin_approval_rejected')
+        setShopApprovalModalOpen(true)
+        dispatch(removeSelectedItems())
+        dispatch(clearCheckout())
+        if (user?.id) sessionStorage.removeItem(`dni.active-checkout.${user.id}`)
+        dispatch(setCheckoutError(null))
+        dispatch(setAwaitingFinalStatus(false))
+        dispatch(setCheckoutPlacingOrder(false))
+        return
+      }
+
       if (isPromoCodeStatus(responseData?.promo_code_status)) {
         setPromoCodeStatus(responseData.promo_code_status)
         setPromoCodeMessage(
@@ -814,6 +1052,457 @@ const CheckoutSummary = ({
 
   return (
     <div className="rounded-sm border border-[var(--dni-cart-border)] bg-white px-3 py-3 sm:px-4 sm:py-4 lg:px-5 lg:py-5">
+      {phoneModalOpen && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <button
+            type="button"
+            aria-label="Close dialog"
+            className="absolute inset-0 bg-slate-900/45"
+            onClick={() => setPhoneModalOpen(false)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="phone-required-title"
+            className="relative z-10 w-full max-w-[440px] rounded-2xl bg-white p-6 shadow-xl sm:p-7"
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-amber-50">
+                <TriangleAlert className="h-7 w-7 text-amber-400" strokeWidth={2.25} />
+              </div>
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={() => setPhoneModalOpen(false)}
+                className="rounded-md p-1 text-slate-400 hover:text-slate-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <h2 id="phone-required-title" className="mt-5 text-[22px] font-bold leading-tight text-slate-900">
+              Phone number required
+            </h2>
+            <p className="mt-3 text-[15px] leading-6 text-slate-500">
+              Please fill in your phone number before placing this order.
+            </p>
+
+            <div className="mt-5 flex items-start gap-3 rounded-xl bg-amber-50 px-4 py-3.5">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-400 text-xs font-bold text-white">
+                !
+              </span>
+              <p className="text-sm leading-5 text-slate-600">
+                Your phone number helps us contact you about your order and delivery updates.
+              </p>
+            </div>
+
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setPhoneModalOpen(false)}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/account/profile')}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-400 px-4 py-3 text-sm font-semibold text-slate-900 hover:bg-amber-500"
+              >
+                Go to profile
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+      {shopApprovalModalOpen && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <button
+            type="button"
+            aria-label="Close dialog"
+            className="absolute inset-0 bg-slate-900/45"
+            onClick={() => {
+              releaseQuantityApprovalHold()
+              setShopApprovalModalOpen(false)
+              navigate('/cart')
+            }}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="shop-approval-title"
+            className="relative z-10 w-full max-w-[440px] rounded-2xl bg-white p-6 shadow-xl sm:p-7"
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-amber-50">
+                <TriangleAlert className="h-7 w-7 text-amber-500" />
+              </div>
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={() => {
+                  releaseQuantityApprovalHold()
+                  setShopApprovalModalOpen(false)
+                  navigate('/cart')
+                }}
+                className="rounded-md p-1 text-slate-400 hover:text-slate-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <h2 id="shop-approval-title" className="mt-5 text-[22px] font-bold leading-tight text-slate-900">
+              {shopApprovalRejected ? 'Quantity request rejected' : 'Shop admin approval required'}
+            </h2>
+            <p className="mt-3 text-[15px] leading-6 text-slate-500">
+              {user
+                ? shopApprovalRejected
+                  ? 'A shop admin rejected this quantity request, so it cannot be placed. You can check it in Quantity Approvals.'
+                  : 'Your order needs shop admin approval. Please wait. When it is approved, the order is placed for you. You can follow it in Quantity Approvals.'
+                : shopApprovalRejected
+                  ? 'This quantity was not approved. We will contact you on the phone number from this checkout.'
+                  : 'This quantity needs shop admin approval. We will contact you later on the phone number from this checkout.'}
+            </p>
+            <div className={`mt-6 grid grid-cols-1 gap-3 ${user ? 'sm:grid-cols-2' : ''}`}>
+              <button
+                type="button"
+                onClick={() => {
+                  releaseQuantityApprovalHold()
+                  setShopApprovalModalOpen(false)
+                  navigate('/cart')
+                }}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Close
+              </button>
+              {user && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    releaseQuantityApprovalHold()
+                    setShopApprovalModalOpen(false)
+                    navigate('/account/quantity-approvals')
+                  }}
+                  className="rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700"
+                >
+                  Quantity Approvals
+                </button>
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+      {guestPhoneModalOpen && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <button
+            type="button"
+            aria-label="Close dialog"
+            className="absolute inset-0 bg-slate-900/45"
+            onClick={() => setGuestPhoneModalOpen(false)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="guest-phone-verify-title"
+            className="relative z-10 w-full max-w-[440px] rounded-2xl bg-white p-6 shadow-xl sm:p-7"
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50">
+                <Smartphone className="h-7 w-7 text-emerald-600" />
+              </div>
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={() => setGuestPhoneModalOpen(false)}
+                className="rounded-md p-1 text-slate-400 hover:text-slate-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <h2 id="guest-phone-verify-title" className="mt-5 text-[22px] font-bold leading-tight text-slate-900">
+              Verify your phone
+            </h2>
+            <p className="mt-3 text-[15px] leading-6 text-slate-500">
+              Enter the 6-digit code sent to <span className="font-medium text-slate-700">{guestPhone}</span>.
+            </p>
+            <div className="mt-5">
+              <div className="flex justify-between gap-2">
+                {guestPhoneDigits.map((digit, index) => (
+                  <input
+                    key={index}
+                    ref={(element) => {
+                      guestPhoneCodeRefs.current[index] = element
+                    }}
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete={index === 0 ? 'one-time-code' : 'off'}
+                    maxLength={1}
+                    value={digit}
+                    disabled={guestPhoneVerifying}
+                    aria-label={`Digit ${index + 1}`}
+                    onChange={(event) => {
+                      const nextDigit = event.target.value.replace(/\D/g, '').slice(-1)
+                      setGuestPhoneDigits((current) => {
+                        const next = [...current]
+                        next[index] = nextDigit
+                        return next
+                      })
+                      setGuestPhoneError(null)
+                      if (nextDigit && index < 5) guestPhoneCodeRefs.current[index + 1]?.focus()
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Backspace' && !guestPhoneDigits[index] && index > 0) {
+                        guestPhoneCodeRefs.current[index - 1]?.focus()
+                      }
+                    }}
+                    onPaste={(event) => {
+                      const pasted = event.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
+                      if (!pasted) return
+                      event.preventDefault()
+                      const next = Array(6).fill('')
+                      pasted.split('').forEach((character, characterIndex) => {
+                        next[characterIndex] = character
+                      })
+                      setGuestPhoneDigits(next)
+                      setGuestPhoneError(null)
+                      guestPhoneCodeRefs.current[Math.min(pasted.length, 5)]?.focus()
+                    }}
+                    className="h-14 w-full rounded-xl border border-slate-200 text-center text-lg font-semibold text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-50"
+                  />
+                ))}
+              </div>
+              {guestPhoneError && (
+                <p className="mt-3 text-center text-xs text-rose-600" role="alert">{guestPhoneError}</p>
+              )}
+              <p className="mt-4 text-center text-sm text-slate-500">
+                <button
+                  type="button"
+                  disabled={guestPhoneSending || guestPhoneVerifying}
+                  onClick={() => {
+                    setGuestPhoneDigits(Array(6).fill(''))
+                    setGuestPhoneError(null)
+                    guestPhoneCodeRefs.current[0]?.focus()
+                    void sendGuestPhoneCode()
+                  }}
+                  className="font-medium text-emerald-700 hover:text-emerald-800 disabled:text-slate-400"
+                >
+                  {guestPhoneSending ? 'Sending...' : "Didn't receive the code? Resend"}
+                </button>
+              </p>
+            </div>
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setGuestPhoneModalOpen(false)}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={guestPhoneVerifying || guestPhoneDigits.some((digit) => !digit)}
+                onClick={() => {
+                  void (async () => {
+                    setGuestPhoneVerifying(true)
+                    setGuestPhoneError(null)
+                    try {
+                      await authFeatureApi.confirmGuestCheckoutPhoneCode(guestPhone, guestPhoneDigits.join(''))
+                      setGuestPhoneModalOpen(false)
+                      void handlePlaceOrder({ phoneConfirmed: true })
+                    } catch (caughtError: unknown) {
+                      const message = axios.isAxiosError(caughtError)
+                        ? (caughtError.response?.data as { message?: string } | undefined)?.message
+                        : null
+                      setGuestPhoneError(message || 'That verification code is invalid or has expired.')
+                    } finally {
+                      setGuestPhoneVerifying(false)
+                    }
+                  })()
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {guestPhoneVerifying ? 'Checking...' : 'Verify phone'}
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+      {emailVerifyModalOpen && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <button
+            type="button"
+            aria-label="Close dialog"
+            className="absolute inset-0 bg-slate-900/45"
+            onClick={() => setEmailVerifyModalOpen(false)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="email-verify-title"
+            className="relative z-10 w-full max-w-[440px] rounded-2xl bg-white p-6 shadow-xl sm:p-7"
+          >
+            <div className="flex items-start justify-between">
+              <div className={`flex h-14 w-14 items-center justify-center rounded-full ${emailAccountBlocked ? 'bg-amber-50' : 'bg-emerald-50'}`}>
+                {emailAccountBlocked
+                  ? <TriangleAlert className="h-7 w-7 text-amber-500" />
+                  : <Mail className="h-7 w-7 text-emerald-600" />}
+              </div>
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={() => setEmailVerifyModalOpen(false)}
+                className="rounded-md p-1 text-slate-400 hover:text-slate-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <h2 id="email-verify-title" className="mt-5 text-[22px] font-bold leading-tight text-slate-900">
+              {emailAccountBlocked ? 'Account temporarily blocked' : 'Verify your email'}
+            </h2>
+            <p className="mt-3 text-[15px] leading-6 text-slate-500">
+              {emailAccountBlocked
+                ? 'Your account is temporarily blocked. You can place an order again when this timer ends.'
+                : user?.email?.trim()
+                  ? <>Enter the 6-digit code sent to <span className="font-medium text-slate-700">{user.email}</span>.</>
+                  : 'Add an email address on your profile before placing this order.'}
+            </p>
+
+            {emailAccountBlocked ? (
+              <p className="mt-6 text-center text-4xl font-semibold tabular-nums tracking-wide text-slate-900" aria-live="polite">
+                {formatBlockCountdown(emailBlockSeconds)}
+              </p>
+            ) : user?.email?.trim() && (
+              <div className="mt-5">
+                <div className="flex justify-between gap-2">
+                  {emailDigits.map((digit, index) => (
+                    <input
+                      key={index}
+                      ref={(element) => {
+                        emailCodeRefs.current[index] = element
+                      }}
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete={index === 0 ? 'one-time-code' : 'off'}
+                      maxLength={1}
+                      value={digit}
+                      disabled={emailCodeChecking}
+                      aria-label={`Digit ${index + 1}`}
+                      onChange={(event) => {
+                        const nextDigit = event.target.value.replace(/\D/g, '').slice(-1)
+                        setEmailDigits((current) => {
+                          const next = [...current]
+                          next[index] = nextDigit
+                          return next
+                        })
+                        setEmailCodeError(null)
+                        if (nextDigit && index < 5) emailCodeRefs.current[index + 1]?.focus()
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Backspace' && !emailDigits[index] && index > 0) {
+                          emailCodeRefs.current[index - 1]?.focus()
+                        }
+                      }}
+                      onPaste={(event) => {
+                        const pasted = event.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
+                        if (!pasted) return
+                        event.preventDefault()
+                        const next = Array(6).fill('')
+                        pasted.split('').forEach((character, characterIndex) => {
+                          next[characterIndex] = character
+                        })
+                        setEmailDigits(next)
+                        setEmailCodeError(null)
+                        emailCodeRefs.current[Math.min(pasted.length, 5)]?.focus()
+                      }}
+                      className="h-14 w-full rounded-xl border border-slate-200 text-center text-lg font-semibold text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-50"
+                    />
+                  ))}
+                </div>
+                {emailCodeError && (
+                  <p className="mt-3 text-center text-xs text-rose-600">{emailCodeError}</p>
+                )}
+                <p className="mt-4 text-center text-sm text-slate-500">
+                  {emailResendSeconds > 0 ? (
+                    <>Resend code in {emailResendSeconds}s</>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={emailCodeChecking}
+                      onClick={() => {
+                        setEmailResendSeconds(60)
+                        setEmailDigits(Array(6).fill(''))
+                        setEmailCodeError(null)
+                        emailCodeRefs.current[0]?.focus()
+                        void authFeatureApi.requestCheckoutEmailCode(true)
+                          .catch((caughtError: unknown) => {
+                            setEmailResendSeconds(0)
+                            if (isAccountBlocked(caughtError)) beginAccountBlock(retryAfterSeconds(apiPayload(caughtError)))
+                            else setEmailCodeError(apiMessage(caughtError, 'Could not resend the verification code.'))
+                          })
+                      }}
+                      className="font-medium text-emerald-700 hover:text-emerald-800 disabled:text-slate-400"
+                    >
+                      Didn&apos;t receive the code? Resend
+                    </button>
+                  )}
+                </p>
+              </div>
+            )}
+
+            {!user?.email?.trim() && emailCodeError && (
+              <p className="mt-3 text-xs text-rose-600">{emailCodeError}</p>
+            )}
+
+            <div className={`mt-6 grid gap-3 ${emailAccountBlocked ? 'grid-cols-1' : 'grid-cols-2'}`}>
+              <button
+                type="button"
+                onClick={() => setEmailVerifyModalOpen(false)}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                {emailAccountBlocked ? 'Close' : 'Cancel'}
+              </button>
+              {!emailAccountBlocked && <button
+                type="button"
+                disabled={
+                  emailCodeChecking ||
+                  (Boolean(user?.email?.trim()) && emailDigits.some((digit) => !digit))
+                }
+                onClick={() => {
+                  if (!user?.email?.trim()) {
+                    navigate('/account/profile')
+                    return
+                  }
+                  void (async () => {
+                    setEmailCodeChecking(true)
+                    setEmailCodeError(null)
+                    try {
+                      await authFeatureApi.confirmCheckoutEmailCode(emailDigits.join(''))
+                      setEmailChallengePassed(true)
+                      setEmailVerifyModalOpen(false)
+                      void handlePlaceOrder({ emailConfirmed: true })
+                    } catch (caughtError: unknown) {
+                      if (isAccountBlocked(caughtError)) beginAccountBlock(retryAfterSeconds(apiPayload(caughtError)))
+                      else setEmailCodeError(apiMessage(caughtError, 'That verification code is invalid or has expired.'))
+                    } finally {
+                      setEmailCodeChecking(false)
+                    }
+                  })()
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {user?.email?.trim() ? 'Verify email' : 'Go to profile'}
+                <ArrowRight className="h-4 w-4" />
+              </button>}
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
       <div className="mb-4 text-sm text-gray-700 sm:mb-5">
         <div className="mb-2.5 flex justify-between gap-3">
           <span className="shrink-0 text-gray-600">Merchandise Subtotal</span>

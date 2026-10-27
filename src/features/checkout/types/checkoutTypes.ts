@@ -5,6 +5,7 @@ export interface CheckoutResponse {
     expire_at?: string | null
     saga_id?: string
     existing?: boolean
+    checkout_attempt_count?: number
 }
 
 export type CheckoutPaymentStatus =

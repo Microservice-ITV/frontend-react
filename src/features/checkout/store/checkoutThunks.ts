@@ -196,6 +196,12 @@ export const checkoutCart = createAsyncThunk<
       }
 )
 
+export type GuestCheckoutError = {
+    message: string
+    code?: string
+    retryAfterSeconds?: number
+}
+
 export const guestCheckoutCart = createAsyncThunk<
     SagaCheckoutResponse,
     {
@@ -220,7 +226,7 @@ export const guestCheckoutCart = createAsyncThunk<
             delivery_note?: string | null
         }
     },
-    { state: any; rejectValue: string }
+    { state: any; rejectValue: GuestCheckoutError }
 >(
     'cart/guestCheckout',
     async ({ guest_id, delivery_address }, { getState, rejectWithValue }) => {
@@ -230,11 +236,11 @@ export const guestCheckoutCart = createAsyncThunk<
         const selectedItems = items.filter((item: any) => item.selected)
 
         if (!guest_id) {
-            return rejectWithValue('Guest session not found')
+            return rejectWithValue({ message: 'Guest session not found' })
         }
 
         if (selectedItems.length === 0) {
-            return rejectWithValue('No items selected')
+            return rejectWithValue({ message: 'No items selected' })
         }
 
         try {
@@ -281,7 +287,20 @@ export const guestCheckoutCart = createAsyncThunk<
                 ? { ...normalized, checkout_id: checkoutId }
                 : normalized
         } catch (error: unknown) {
-            return rejectWithValue(checkoutRequestErrorMessage(error))
+            if (axios.isAxiosError(error)) {
+                const data = error.response?.data
+                if (data && typeof data === 'object' && !Array.isArray(data)) {
+                    const response = data as { code?: string; error?: string; retry_after_seconds?: number }
+                    if (response.code === 'guest_checkout_temporarily_blocked') {
+                        return rejectWithValue({
+                            message: response.error || 'Guest checkout is temporarily blocked for 15 minutes.',
+                            code: response.code,
+                            retryAfterSeconds: Number(response.retry_after_seconds) || 15 * 60,
+                        })
+                    }
+                }
+            }
+            return rejectWithValue({ message: checkoutRequestErrorMessage(error) })
         }
     },
     {
