@@ -129,14 +129,8 @@ const InventoryEditPage = ({ base }: InventoryEditPageProps) => {
     setSubmitError('')
     setIsSubmitting(true)
     try {
-      // Always push unit-price update so warehouse re-publishes inventory.updated
-      // and product "Unit price" stays in sync with PO landed cost.
-      try {
-        await warehouseApi.updateStockUnitPrice(stock.id, nextOverride)
-      } catch (error) {
-        setSubmitError(warehouseErrorMessage(error))
-        return
-      }
+      // Selling price first so any later inventory.updated → product.updated
+      // snapshot already includes the new storefront price (avoids stale overwrite).
       if (sellingChanged && pricing.variantId) {
         try {
           await sellerProductApi.updateVariantSellingPrice(
@@ -151,6 +145,14 @@ const InventoryEditPage = ({ base }: InventoryEditPageProps) => {
           )
           return
         }
+      }
+      // Re-publish inventory.updated so catalog unit price (basePrice) tracks PO /
+      // override. Runs after selling so the mirrored product.updated is not stale.
+      try {
+        await warehouseApi.updateStockUnitPrice(stock.id, nextOverride)
+      } catch (error) {
+        setSubmitError(warehouseErrorMessage(error))
+        return
       }
       const notice =
         sellingChanged && unitChanged
