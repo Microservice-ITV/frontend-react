@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, ChevronDown, Download, Loader2, Printer, Receipt, X } from 'lucide-react'
 import { useAppSelector } from '@/app/hooks'
@@ -32,8 +33,10 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
   const [pendingA4Print, setPendingA4Print] = useState(false)
   const [receiptData, setReceiptData] = useState<ReceiptDocument | null>(null)
   const [isReceiptLoading, setIsReceiptLoading] = useState(false)
+  const [isThermalInvoicePrinting, setIsThermalInvoicePrinting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [receiptError, setReceiptError] = useState<string | null>(null)
+  const thermalPdfRequests = useRef(new Map<string, Promise<Blob | null>>())
 
   usePageTitle(invoice?.invoiceNumber ? `Invoice ${invoice.invoiceNumber}` : 'Invoice')
 
@@ -99,16 +102,14 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
 
   const handleDownload = async (kind: 'a4' | 'invoice' | 'receipt' = 'a4') => {
     if (!invoice) return
-    if (kind === 'receipt' && (invoice.status !== 'PAID' || !receiptData)) return
+    if (kind === 'receipt' && invoice.status !== 'PAID') return
 
     setIsDownloading(true)
     setDownloadError(null)
     try {
       const blob = kind === 'a4'
         ? await downloadInvoicePdf(invoice.id)
-        : kind === 'invoice'
-          ? await downloadThermalInvoicePdf(invoice.id, thermalWidth)
-          : await downloadReceiptPdf(invoice.id, { width: thermalWidth })
+        : await getThermalPdf(kind, thermalWidth)
       if (!blob) throw new Error('No receipt PDF is available for this invoice.')
       const objectUrl = URL.createObjectURL(blob)
       const anchor = document.createElement('a')
@@ -125,11 +126,48 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
       setIsDownloading(false)
     }
   }
+
+  const getThermalPdf = useCallback((kind: 'invoice' | 'receipt', width: '58mm' | '80mm') => {
+    if (!invoice) return Promise.resolve(null)
+    const key = `${invoice.id}:${invoice.updatedAt ?? ''}:${kind}:${width}`
+    const pending = thermalPdfRequests.current.get(key)
+    if (pending) return pending
+
+    const request = kind === 'invoice'
+      ? downloadThermalInvoicePdf(invoice.id, width)
+      : downloadReceiptPdf(invoice.id, { width })
+    thermalPdfRequests.current.set(key, request)
+    void request.catch(() => thermalPdfRequests.current.delete(key))
+    return request
+  }, [invoice])
+
+  useEffect(() => {
+    if (!invoice) return
+
+    // A4 PDFs already exist in storage. Warm the thermal variants in the
+    // background after the authorized invoice details load, so the first
+    // thermal download usually uses a completed PDF instead of launching a
+    // Chromium render after the user clicks Download.
+    const warmups: Promise<Blob | null>[] = [
+      getThermalPdf('invoice', '58mm'),
+      getThermalPdf('invoice', '80mm'),
+    ]
+    if (invoice.status === 'PAID') {
+      warmups.push(getThermalPdf('receipt', '58mm'))
+      warmups.push(getThermalPdf('receipt', '80mm'))
+    }
+    void Promise.allSettled(warmups)
+  }, [getThermalPdf, invoice])
+
   const handleThermalView = async (width: "58mm" | "80mm", type: 'invoice' | 'receipt') => {
     if (!invoice) return
 
     setDocumentView(type)
     setThermalWidth(width)
+
+    // Start Chromium PDF rendering while the thermal preview is being shown.
+    // The download button then reuses this in-flight or completed request.
+    void getThermalPdf(type, width).catch(() => undefined)
 
     if (type === 'invoice') {
       setError(null)
@@ -163,6 +201,17 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
   }
 
   const handleThermalPrint = () => {
+    if (documentView === 'invoice') {
+      const cleanupInvoice = () => {
+        document.body.classList.remove('thermal-printing', 'thermal-invoice-printing')
+        setIsThermalInvoicePrinting(false)
+      }
+      document.body.classList.add('thermal-printing', 'thermal-invoice-printing')
+      window.addEventListener('afterprint', cleanupInvoice, { once: true })
+      setIsThermalInvoicePrinting(true)
+      return
+    }
+
     const cleanup = () => document.body.classList.remove('thermal-printing')
     document.body.classList.add('thermal-printing')
     window.addEventListener('afterprint', cleanup, { once: true })
@@ -175,6 +224,19 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
     }
   }
 
+  useEffect(() => {
+    if (!isThermalInvoicePrinting || !invoice) return
+    const timer = window.setTimeout(() => {
+      try {
+        window.print()
+      } catch {
+        document.body.classList.remove('thermal-printing', 'thermal-invoice-printing')
+        setIsThermalInvoicePrinting(false)
+      }
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [invoice, isThermalInvoicePrinting])
+
   const handleA4Print = () => {
     // Clear thermal print mode before switching, then let React commit the A4
     // document before opening the print dialog.
@@ -184,8 +246,8 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
   }
 
   return (
-    <section className="min-h-full bg-slate-50 p-4 md:p-6">
-      <div className="mx-auto w-full max-w-5xl">
+    <section className="min-h-full w-full min-w-0 bg-slate-50">
+      <div className="mx-auto w-full min-w-0 max-w-[960px] px-3 sm:px-4">
         <div data-print-hide className="mb-5 flex flex-wrap items-center gap-2">
           <Link
             to={backTo}
@@ -334,7 +396,7 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
 
         {!isLoading && !error && invoice && (
           <>
-            {documentView === 'a4' && <InvoiceDocumentSheet invoice={invoice} showActions={false} />}
+            {documentView === 'a4' && <InvoiceDocumentSheet invoice={invoice} showActions={false} compact />}
 
             {documentView !== 'a4' && (
               <div className="mt-8">
@@ -351,10 +413,10 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
                     </p>
                   </div>
                   <div data-print-hide className="flex flex-wrap gap-2">
-                    <button type="button" onClick={() => void handleDownload(documentView)} disabled={isDownloading || (documentView === 'receipt' && (!receiptData || isReceiptLoading))}
+                    <button type="button" onClick={() => void handleDownload(documentView)} disabled={isDownloading}
                       className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
                       {isDownloading ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
-                      {isDownloading ? 'Preparing PDF…' : `Download PDF · ${documentView === 'receipt' ? 'Receipt' : 'Invoice'} · ${thermalWidth}`}
+                {isDownloading ? 'Downloading…' : `Download PDF · ${documentView === 'receipt' ? 'Receipt' : 'Invoice'} · ${thermalWidth}`}
                     </button>
                     <button
                       type="button"
@@ -420,6 +482,15 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
           </>
         )}
       </div>
+      {isThermalInvoicePrinting && invoice && createPortal(
+        <InvoiceThermalSheet
+          invoice={invoice}
+          width={thermalWidth}
+          mode="print"
+          showActions={false}
+        />,
+        document.body,
+      )}
     </section>
   )
 }

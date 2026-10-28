@@ -40,7 +40,7 @@ export const THERMAL_RECEIPT_STYLES = `
 }
 
 .thermal-receipt {
-  --receipt-font: 'Inter', monospace, sans-serif;
+  --receipt-font: Arial, Helvetica, sans-serif;
   --receipt-ink: #000000;
   --receipt-muted: #444444;
   --receipt-faint: #666666;
@@ -71,25 +71,47 @@ export const THERMAL_RECEIPT_STYLES = `
 .thermal-receipt .receipt-semibold { font-weight: 600; }
 .thermal-receipt .receipt-medium { font-weight: 500; }
 .thermal-receipt .receipt-normal { font-weight: 400; }
+.thermal-receipt .text-green-700,
+.thermal-receipt .text-amber-700 { color: var(--receipt-ink) !important; }
+
+.thermal-receipt > header,
+.thermal-receipt > section,
+.thermal-receipt > footer { padding: 4px 6px !important; }
+.thermal-receipt .space-y-2 > :not([hidden]) ~ :not([hidden]) { margin-top: 3px !important; }
+.thermal-receipt .space-y-1 > :not([hidden]) ~ :not([hidden]) { margin-top: 2px !important; }
+.thermal-receipt .mb-4 { margin-bottom: 3px !important; }
+.thermal-receipt .mb-3 { margin-bottom: 3px !important; }
 
 .thermal-receipt .receipt-divider {
-  border-top: 1px dashed var(--receipt-line);
-  margin: 4px 0;
+  border-top: 1px dotted #777777;
+  margin: 3px 0;
 }
 
 .thermal-receipt .receipt-item-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto minmax(18mm, auto);
   align-items: baseline;
-  column-gap: 2mm;
+  column-gap: 1.5mm;
   padding: 1px 0;
   break-inside: avoid;
   page-break-inside: avoid;
 }
 
+.thermal-receipt .receipt-item-heading {
+  grid-template-columns: minmax(0, 1fr) auto minmax(18mm, auto);
+  border-bottom: 1px dotted var(--receipt-line);
+  margin-bottom: 1px;
+  padding-bottom: 2px;
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: .04em;
+}
+
 .thermal-receipt .receipt-item-name {
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   line-height: 1.2;
 }
 
@@ -99,41 +121,58 @@ export const THERMAL_RECEIPT_STYLES = `
   text-align: right;
 }
 
-.thermal-receipt .receipt-item-price { font-weight: 600; }
+.thermal-receipt .receipt-item-price { font-weight: 600; min-width: 18mm; }
 .thermal-receipt .receipt-address { overflow-wrap: anywhere; line-height: 1.25; }
 .thermal-receipt .receipt-address-section { break-inside: avoid; page-break-inside: avoid; }
+.thermal-receipt .receipt-item-block { padding: 1px 0; break-inside: avoid; page-break-inside: avoid; }
 
 .thermal-receipt .receipt-double-divider {
-  border-top: 2px solid var(--receipt-ink);
-  margin: 6px 0;
+  border-top: 1px dotted var(--receipt-line);
+  margin: 3px 0;
 }
+.thermal-receipt .receipt-payment-method { margin-top: 2px; font-size: 9px; line-height: 1.15; }
 
 .thermal-receipt .receipt-qr-container {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  margin: 8px 0;
+  justify-content: flex-start;
+  gap: 3mm;
+  margin: 3px 0;
 }
 
 .thermal-receipt .receipt-qr-caption {
   font-size: 10px;
   color: var(--receipt-muted);
-  margin-top: 4px;
+  line-height: 1.35;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.thermal-receipt .receipt-qr-footer-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1mm;
+}
+
+.thermal-receipt .receipt-qr-footer-copy .receipt-qr-caption:first-child {
+  color: var(--receipt-ink);
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .thermal-receipt .receipt-store-name {
   font-weight: 700;
   font-size: 16px;
   text-align: center;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .thermal-receipt .receipt-document-title {
   font-weight: 600;
   font-size: 14px;
   text-align: center;
-  margin-bottom: 6px;
+  margin-bottom: 3px;
 }
 
 .thermal-receipt .receipt-section-title {
@@ -167,8 +206,13 @@ export const THERMAL_RECEIPT_STYLES = `
   font-size: 9px;
   color: var(--receipt-faint);
   text-align: center;
-  margin-top: 8px;
+  margin-top: 4px;
 }
+
+.thermal-receipt .receipt-qr-image { width: 12mm; max-width: 12mm; height: auto; image-rendering: pixelated; }
+.thermal-receipt .receipt-footer-main { border-top: 1px dotted var(--receipt-line); }
+.thermal-receipt .receipt-policy-note { border-top: 1px dotted var(--receipt-line); margin-top: 1mm; padding-top: 1mm; font-size: 9px; line-height: 1.25; text-align: center; break-inside: avoid; page-break-inside: avoid; }
+
 `
 
 /**
@@ -181,6 +225,10 @@ export const THERMAL_PRINT_STYLES_58MM = `
 }
 
 @media print {
+  /* Dashboard invoice printing uses a body-level copy of the same print sheet
+     as PDF downloads, so dashboard layout cannot extend the roll page. */
+  body.thermal-invoice-printing #root { display: none !important; }
+
   html:has(body.thermal-printing),
   body.thermal-printing,
   body.thermal-printing #root {
@@ -206,6 +254,11 @@ export const THERMAL_PRINT_STYLES_58MM = `
   body.thermal-printing .thermal-receipt,
   body.thermal-printing .thermal-receipt * { visibility: visible !important; }
 
+  body.thermal-printing .thermal-receipt,
+  body.thermal-printing .thermal-receipt * {
+    font-family: Arial, Helvetica, sans-serif !important;
+  }
+
   body.thermal-printing .thermal-receipt {
     position: absolute !important;
     inset: 0 auto auto 3mm;
@@ -218,18 +271,45 @@ export const THERMAL_PRINT_STYLES_58MM = `
     border: 0 !important;
     border-radius: 0 !important;
     background: #ffffff !important;
-    font-size: 10px !important;
+    font-size: 8px !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+
+  /* Keep the receipt sheet as one terminal print unit. The PDF renderer sets
+     a content-sized roll page; these rules prevent browser pagination from
+     appending a trailing blank page after that sheet. */
+  body.thermal-printing [data-receipt-root="print"] {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    break-after: avoid-page !important;
+    page-break-after: avoid !important;
+  }
+
+  body.thermal-printing .thermal-receipt .receipt-store-name { font-size: 10px !important; }
+  body.thermal-printing .thermal-receipt .receipt-document-title { font-size: 9px !important; }
+  body.thermal-printing .thermal-receipt .receipt-section-title { font-size: 8px !important; }
+  body.thermal-printing .thermal-receipt .receipt-label { font-size: 7px !important; }
+  body.thermal-printing .thermal-receipt .receipt-value,
+  body.thermal-printing .thermal-receipt .receipt-item-name,
+  body.thermal-printing .thermal-receipt .receipt-item-qty,
+  body.thermal-printing .thermal-receipt .receipt-item-price { font-size: 8px !important; }
+  body.thermal-printing .thermal-receipt .receipt-item-heading { font-size: 7px !important; }
+  body.thermal-printing .thermal-receipt .receipt-total { font-size: 9px !important; }
+  body.thermal-printing .thermal-receipt .receipt-qr-caption,
+  body.thermal-printing .thermal-receipt .receipt-policy-note,
+  body.thermal-printing .thermal-receipt .receipt-payment-method,
+  body.thermal-printing .thermal-receipt .receipt-footer { font-size: 7px !important; }
+  body.thermal-printing .thermal-receipt .receipt-qr-footer-copy .receipt-qr-caption:first-child { font-size: 8px !important; }
+  body.thermal-printing .thermal-receipt .text-xs { font-size: 7px !important; }
 
   /* Tailwind section padding is useful in the preview, but creates long empty
      stretches on narrow rolls. Keep a small, even separation in printed output. */
   body.thermal-printing .thermal-receipt > header,
   body.thermal-printing .thermal-receipt > section,
   body.thermal-printing .thermal-receipt > footer {
-    padding-top: 1.5mm !important;
-    padding-bottom: 1.5mm !important;
+    padding-top: 1mm !important;
+    padding-bottom: 1mm !important;
   }
   body.thermal-printing .thermal-receipt .receipt-qr-container { margin: 3px 0; }
   body.thermal-printing .thermal-receipt .receipt-footer { margin-top: 3px; }
@@ -253,9 +333,9 @@ export const THERMAL_PRINT_STYLES_58MM = `
   /* Compact line items */
   /* Keep the high contrast QR comfortably inside the narrow paper margins. */
   .thermal-receipt .receipt-qr-container img {
-    width: 18mm !important;
-    max-width: 18mm !important;
-    max-height: 18mm !important;
+    width: 12mm !important;
+    max-width: 12mm !important;
+    max-height: 12mm !important;
     height: auto !important;
     image-rendering: pixelated;
   }
@@ -272,6 +352,10 @@ export const THERMAL_PRINT_STYLES_80MM = `
 }
 
 @media print {
+  /* Dashboard invoice printing uses a body-level copy of the same print sheet
+     as PDF downloads, so dashboard layout cannot extend the roll page. */
+  body.thermal-invoice-printing #root { display: none !important; }
+
   html:has(body.thermal-printing),
   body.thermal-printing,
   body.thermal-printing #root {
@@ -296,6 +380,11 @@ export const THERMAL_PRINT_STYLES_80MM = `
   body.thermal-printing .thermal-receipt,
   body.thermal-printing .thermal-receipt * { visibility: visible !important; }
 
+  body.thermal-printing .thermal-receipt,
+  body.thermal-printing .thermal-receipt * {
+    font-family: Arial, Helvetica, sans-serif !important;
+  }
+
   body.thermal-printing .thermal-receipt {
     position: absolute !important;
     inset: 0 auto auto 5mm;
@@ -308,16 +397,43 @@ export const THERMAL_PRINT_STYLES_80MM = `
     border: 0 !important;
     border-radius: 0 !important;
     background: #ffffff !important;
-    font-size: 11px !important;
+    font-size: 8px !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
+  /* Keep the receipt sheet as one terminal print unit. The PDF renderer sets
+     a content-sized roll page; these rules prevent browser pagination from
+     appending a trailing blank page after that sheet. */
+  body.thermal-printing [data-receipt-root="print"] {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    break-after: avoid-page !important;
+    page-break-after: avoid !important;
+  }
+
+  body.thermal-printing .thermal-receipt .receipt-store-name { font-size: 10px !important; }
+  body.thermal-printing .thermal-receipt .receipt-document-title { font-size: 9px !important; }
+  body.thermal-printing .thermal-receipt .receipt-section-title { font-size: 8px !important; }
+  body.thermal-printing .thermal-receipt .receipt-label { font-size: 7px !important; }
+  body.thermal-printing .thermal-receipt .receipt-value,
+  body.thermal-printing .thermal-receipt .receipt-item-name,
+  body.thermal-printing .thermal-receipt .receipt-item-qty,
+  body.thermal-printing .thermal-receipt .receipt-item-price { font-size: 8px !important; }
+  body.thermal-printing .thermal-receipt .receipt-item-heading { font-size: 7px !important; }
+  body.thermal-printing .thermal-receipt .receipt-total { font-size: 9px !important; }
+  body.thermal-printing .thermal-receipt .receipt-qr-caption,
+  body.thermal-printing .thermal-receipt .receipt-policy-note,
+  body.thermal-printing .thermal-receipt .receipt-payment-method,
+  body.thermal-printing .thermal-receipt .receipt-footer { font-size: 7px !important; }
+  body.thermal-printing .thermal-receipt .receipt-qr-footer-copy .receipt-qr-caption:first-child { font-size: 8px !important; }
+  body.thermal-printing .thermal-receipt .text-xs { font-size: 7px !important; }
+
   body.thermal-printing .thermal-receipt > header,
   body.thermal-printing .thermal-receipt > section,
   body.thermal-printing .thermal-receipt > footer {
-    padding-top: 1.5mm !important;
-    padding-bottom: 1.5mm !important;
+    padding-top: 1mm !important;
+    padding-bottom: 1mm !important;
   }
   body.thermal-printing .thermal-receipt .receipt-qr-container { margin: 3px 0; }
   body.thermal-printing .thermal-receipt .receipt-footer { margin-top: 3px; }
@@ -340,9 +456,9 @@ export const THERMAL_PRINT_STYLES_80MM = `
 
   /* The wider QR remains bounded by the 5mm paper margins. */
   .thermal-receipt .receipt-qr-container img {
-    width: 25mm !important;
-    max-width: 25mm !important;
-    max-height: 25mm !important;
+    width: 15mm !important;
+    max-width: 15mm !important;
+    max-height: 15mm !important;
     height: auto !important;
     image-rendering: pixelated;
   }

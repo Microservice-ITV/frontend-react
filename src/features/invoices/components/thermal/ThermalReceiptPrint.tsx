@@ -30,8 +30,6 @@ const ThermalReceiptPrint = ({ receipt, invoice, width }: ThermalReceiptPrintPro
   const currency = receipt.currency || 'MMK'
   
   const customerName = invoice?.customerName || receipt.customerName || 'Customer'
-  const customerEmail = invoice?.customerEmail || receipt.customerEmail
-  const shopName = invoice?.shopName || receipt.shopName || 'Daily Need Items'
 
   const lineItems = invoice?.lineItems || []
 
@@ -65,12 +63,6 @@ const ThermalReceiptPrint = ({ receipt, invoice, width }: ThermalReceiptPrintPro
             <span className="receipt-value">{receipt.orderReference}</span>
           </div>
         )}
-        <div className="flex justify-between items-center">
-          <span className="receipt-label">Status:</span>
-          <span className={`receipt-value ${receipt.status === 'ISSUED' ? 'text-green-700' : 'text-amber-700'}`}>
-            {receipt.status}
-          </span>
-        </div>
       </div>
 
       <div className="receipt-divider" />
@@ -83,35 +75,6 @@ const ThermalReceiptPrint = ({ receipt, invoice, width }: ThermalReceiptPrintPro
             <div className="receipt-label">Customer:</div>
             <div className="receipt-value">{customerName}</div>
           </div>
-          {customerEmail && (
-            <div>
-              <div className="receipt-label">Email:</div>
-              <div className="receipt-value">{customerEmail}</div>
-            </div>
-          )}
-          <div>
-            <div className="receipt-label">Merchant:</div>
-            <div className="receipt-value">{shopName}</div>
-          </div>
-        </div>
-      </div>
-
-      <div className="receipt-divider" />
-
-      {/* Payment Information */}
-      <div className="mb-4">
-        <h3 className="receipt-section-title mb-2">PAYMENT DETAILS</h3>
-        <div className="space-y-1">
-          <div className="flex justify-between">
-            <span className="receipt-label">Method:</span>
-            <span className="receipt-value">{receipt.paymentMethod || 'Not specified'}</span>
-          </div>
-          {receipt.paymentGatewayRef && (
-            <div className="flex justify-between">
-              <span className="receipt-label">Reference:</span>
-              <span className="receipt-value">{receipt.paymentGatewayRef}</span>
-            </div>
-          )}
         </div>
       </div>
 
@@ -180,6 +143,10 @@ const ThermalReceiptPrint = ({ receipt, invoice, width }: ThermalReceiptPrintPro
           subtitle="DailyNeedItems.com"
         />
       </div>
+
+      <section className="mb-2 text-[9px] leading-snug receipt-muted">
+        Customers may inspect the package before making payment, subject to the delivery provider’s inspection policy.
+      </section>
 
       {/* Footer */}
       <footer className="receipt-footer">

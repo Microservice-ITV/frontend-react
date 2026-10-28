@@ -26,7 +26,7 @@ vi.mock('@/components/routing/PageTitle', () => ({ usePageTitle: () => undefined
 const invoice = (status: 'PAID' | 'UNPAID' = 'PAID'): InvoiceDocument => ({
   id: 'invoice-1', invoiceNumber: 'INV-1', orderId: 'order-1', orderReference: 'ORD-1',
   shopId: 'shop-1', shopName: 'Shop', shopContactName: null, shopContactEmail: null,
-  shopContactPhone: null, shopAddress: null, customerId: 'customer-1', customerPhone: null,
+  shopContactPhone: null, shopAddress: null, customerId: 'customer-1', customerPhone: null, customerEmail: 'customer@example.test',
   billingAddress: null,
   shippingAddress: { address_line_1: 'Sample Street', city: 'Yangon', country: 'Myanmar' },
   lineItems: [{ name: 'Pet Supplies sample', quantity: 1, unitPrice: '190000', total: '190000' }], subtotal: '100', deliveryFee: '0',
@@ -39,9 +39,9 @@ const invoice = (status: 'PAID' | 'UNPAID' = 'PAID'): InvoiceDocument => ({
 const receipt: ReceiptDocument = {
   id: 'receipt-1', receiptNumber: 'RCP-1', invoiceId: 'invoice-1', invoiceNumber: 'INV-1',
   orderId: 'order-1', orderReference: 'ORD-1', shopId: 'shop-1', shopName: 'Shop',
-  customerId: 'customer-1', customerName: 'Customer', customerEmail: null, currency: 'MMK',
+  customerId: 'customer-1', customerName: 'Customer', customerEmail: 'customer@example.test', currency: 'MMK',
   subtotal: '100', deliveryFee: '0', taxAmount: '0', discountAmount: '0', grandTotal: '100',
-  paymentMethod: 'CASH', paymentGatewayRef: null, status: 'ISSUED', issuedAt: '2026-01-01T00:00:00Z',
+  paymentMethod: 'COD', paymentGatewayRef: null, status: 'ISSUED', issuedAt: '2026-01-01T00:00:00Z',
 } as ReceiptDocument
 
 const renderPage = (status: 'PAID' | 'UNPAID' = 'PAID') => {
@@ -67,13 +67,29 @@ describe('ScopedInvoiceDetailPage thermal receipt preview', () => {
     expect(document.querySelector('.invoice-document')).not.toBeInTheDocument()
     expect(document.querySelector('[data-receipt-root="screen"]')).toBeInTheDocument()
     expect(screen.getByText('DNI-REC-RCP-1')).toBeInTheDocument()
-    expect(screen.getAllByText('Sample Street, Yangon, Myanmar')).toHaveLength(1)
+    expect(screen.queryByText('Sample Street, Yangon, Myanmar')).not.toBeInTheDocument()
+    const receiptPolicy = document.querySelector('[data-receipt-root="screen"] .receipt-policy-note')
+    expect(receiptPolicy).toBeInTheDocument()
+    expect(receiptPolicy).toHaveTextContent('Please keep this receipt for your records.')
+    expect(screen.queryByText('Customers may inspect the package before making payment, subject to the delivery provider’s inspection policy.')).not.toBeInTheDocument()
+    expect(document.querySelector('[data-receipt-root="screen"]')).not.toHaveTextContent('Payment Details')
+    expect(document.querySelector('[data-receipt-root="screen"]')).not.toHaveTextContent('customer@example.test')
+    expect(document.querySelector('[data-receipt-root="screen"]')).not.toHaveTextContent('Reference:')
+    expect(document.querySelector('[data-receipt-root="screen"]')).not.toHaveTextContent('Status:')
+    expect(document.querySelector('[data-receipt-root="screen"] style')?.textContent).toContain('break-after: avoid-page')
+    expect(receiptPolicy?.previousElementSibling).toHaveClass('receipt-footer-main')
+    expect(document.querySelector('[data-receipt-root="screen"] .receipt-qr-container')).toHaveClass('receipt-qr-footer')
+    expect(document.querySelector('[data-receipt-root="screen"] .receipt-qr-container')?.firstElementChild).toHaveClass('receipt-qr-image')
     expect(screen.getByText(`(${width})`)).toBeInTheDocument()
     expect(document.querySelector('[data-receipt-root="screen"]')).toHaveStyle({ width: width === '58mm' ? '52mm' : '70mm' })
-    expect(document.querySelector('[data-receipt-root="screen"] .receipt-item-row')).toHaveTextContent('Pet Supplies sample')
-    expect(document.querySelector('[data-receipt-root="screen"] .receipt-item-row')).toHaveTextContent('×1')
-    expect(document.querySelector('[data-receipt-root="screen"] .receipt-item-row')).toHaveTextContent('MMK 190,000')
-    expect(document.querySelector('[data-receipt-root="screen"] .receipt-item-row')?.children).toHaveLength(3)
+    expect(document.querySelector('[data-receipt-root="screen"] .receipt-item-block')).toHaveTextContent('Pet Supplies sample')
+    const receiptItems = document.querySelector('[data-receipt-root="screen"]')
+    expect(receiptItems?.querySelector('.receipt-item-heading')).toHaveTextContent('ItemQtyAmount')
+    expect(receiptItems?.querySelector('.receipt-item-row:not(.receipt-item-heading)')).toHaveTextContent('Pet Supplies sample')
+    expect(receiptItems?.querySelector('.receipt-item-row:not(.receipt-item-heading) .receipt-item-qty')).toHaveTextContent('1')
+    expect(receiptItems?.querySelector('.receipt-item-row:not(.receipt-item-heading) .receipt-item-price')).toHaveTextContent('MMK 190,000')
+    expect(receiptItems?.querySelectorAll('.receipt-item-row')).toHaveLength(2)
+    expect(receiptItems?.querySelector('.receipt-item-block')?.children).toHaveLength(1)
     expect(getReceiptMock).toHaveBeenCalledWith('invoice-1')
 
     const printSpy = vi.spyOn(window, 'print').mockImplementation(() => undefined)
@@ -89,6 +105,17 @@ describe('ScopedInvoiceDetailPage thermal receipt preview', () => {
     expect(document.querySelector('.thermal-receipt')).not.toBeInTheDocument()
     expect(printSpy).toHaveBeenCalledTimes(2)
     printSpy.mockRestore()
+  })
+
+  it('centers the invoice showcase within the 960px dashboard workspace', async () => {
+    renderPage('UNPAID')
+    await screen.findByRole('button', { name: /^Print Invoice$/i })
+
+    const pageSection = document.querySelector('section.min-h-full')
+    const showcaseWrapper = document.querySelector('.invoice-document')?.parentElement
+    expect(pageSection).toHaveClass('w-full', 'min-w-0')
+    expect(pageSection).not.toHaveClass('p-4', 'md:p-6', 'max-w-5xl', 'mx-auto')
+    expect(showcaseWrapper).toHaveClass('mx-auto', 'w-full', 'min-w-0', 'max-w-[960px]')
   })
 
   it('shows receipt loading and errors in the selected receipt view', async () => {
@@ -116,6 +143,26 @@ describe('ScopedInvoiceDetailPage thermal receipt preview', () => {
     a4PrintSpy.mockRestore()
   })
 
+  it('starts receipt PDF download while the inline receipt preview is still loading', async () => {
+    getReceiptMock.mockReturnValue(new Promise(() => undefined))
+    receiptDownloadMock.mockResolvedValue(new Blob(['thermal receipt']))
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:receipt'), revokeObjectURL: vi.fn() }))
+    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined)
+    renderPage()
+    await screen.findByRole('button', { name: /^Print Invoice$/i })
+    fireEvent.click(screen.getByRole('button', { name: /^Print Receipt$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /thermal 58mm/i }))
+    await screen.findByText(/loading receipt data/i)
+
+    const downloadButton = screen.getByRole('button', { name: /Download PDF.*Receipt.*58mm/i })
+    expect(downloadButton).toBeEnabled()
+    fireEvent.click(downloadButton)
+    await vi.waitFor(() => expect(receiptDownloadMock).toHaveBeenCalledWith('invoice-1', { width: '58mm' }))
+    expect(anchorClick).toHaveBeenCalledOnce()
+    anchorClick.mockRestore()
+    vi.unstubAllGlobals()
+  })
+
   it('only offers receipt preview for paid invoices', async () => {
     renderPage('UNPAID')
     await screen.findByRole('button', { name: /^Print Invoice$/i })
@@ -136,13 +183,23 @@ describe('ScopedInvoiceDetailPage thermal receipt preview', () => {
     expect(screen.getAllByText('Sample Street, Yangon, Myanmar')).toHaveLength(1)
     const receipt = document.querySelector('[data-invoice-thermal-root="screen"]')
     expect(receipt).toHaveStyle({ width: width === '58mm' ? '52mm' : '70mm' })
-    expect(receipt?.querySelector('.receipt-item-row')).toHaveTextContent('Pet Supplies sample')
-    expect(receipt?.querySelector('.receipt-item-row')?.children).toHaveLength(3)
-    expect(receipt?.querySelector('.receipt-qr-image')).toHaveStyle({ width: width === '58mm' ? '18mm' : '25mm' })
+    expect(receipt).not.toHaveTextContent('Payment Details')
+    expect(receipt).not.toHaveTextContent('customer@example.test')
+    expect(receipt).not.toHaveTextContent('Reference:')
+    expect(receipt).not.toHaveTextContent('Status:')
+    expect(receipt?.querySelector('.receipt-item-block')).toHaveTextContent('Pet Supplies sample')
+    expect(receipt?.querySelector('.receipt-item-heading')).toHaveTextContent('ItemQtyAmount')
+    expect(receipt?.querySelector('.receipt-item-row:not(.receipt-item-heading) .receipt-item-qty')).toHaveTextContent('1')
+    expect(receipt?.querySelector('.receipt-item-row:not(.receipt-item-heading) .receipt-item-price')).toHaveTextContent('MMK 190,000')
+    expect(receipt?.querySelectorAll('.receipt-item-row')).toHaveLength(2)
+    expect(receipt?.querySelector('.receipt-item-block')?.children).toHaveLength(1)
+    expect(receipt?.querySelector('.receipt-qr-image')).toHaveStyle({ width: width === '58mm' ? '12mm' : '15mm' })
     const printSpy = vi.spyOn(window, 'print').mockImplementation(() => undefined)
     fireEvent.click(screen.getByRole('button', { name: new RegExp(`print invoice \\(${width}\\)`, 'i') }))
-    expect(printSpy).toHaveBeenCalledOnce()
+    await vi.waitFor(() => expect(printSpy).toHaveBeenCalledOnce())
     expect(document.body).toHaveClass('thermal-printing')
+    expect(document.body).toHaveClass('thermal-invoice-printing')
+    expect(document.querySelector('[data-invoice-thermal-root="print"]')).toBeInTheDocument()
     window.dispatchEvent(new Event('afterprint'))
     expect(document.body).not.toHaveClass('thermal-printing')
     fireEvent.click(screen.getByRole('button', { name: /^A4 Invoice$/i }))
@@ -177,7 +234,7 @@ describe('ScopedInvoiceDetailPage thermal receipt preview', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Print Invoice$/i }))
     fireEvent.click(screen.getByRole('button', { name: /thermal 80mm/i }))
     fireEvent.click(screen.getByRole('button', { name: /download pdf · invoice · 80mm/i }))
-    expect(await screen.findByRole('button', { name: /preparing pdf/i })).toBeDisabled()
+    expect(await screen.findByRole('button', { name: /downloading/i })).toBeDisabled()
     expect(thermalDownloadMock).toHaveBeenCalledWith('invoice-1', '80mm')
     resolvePdf(new Blob(['pdf']))
     await vi.waitFor(() => expect(createUrl).toHaveBeenCalledOnce())
