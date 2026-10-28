@@ -120,7 +120,16 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
       const anchor = document.createElement('a')
       anchor.href = objectUrl
       const number = (invoice.invoiceNumber || invoice.id).replace(/[^a-zA-Z0-9-]/g, '-')
-      anchor.download = kind === 'a4' ? `${formatInvoiceNumber(invoice.invoiceNumber || invoice.id)}.pdf` : `${number}-${kind === 'receipt' ? 'receipt' : 'thermal'}-${thermalWidth}.pdf`
+      const thermalInvoiceSuffix = (invoice.invoiceNumber || invoice.id)
+        .trim()
+        .replace(/^DNI-/i, '')
+        .replace(/^INV-/i, '')
+        .replace(/[^a-zA-Z0-9._-]/g, '-')
+      anchor.download = kind === 'a4'
+        ? `${formatInvoiceNumber(invoice.invoiceNumber || invoice.id)}.pdf`
+        : kind === 'invoice'
+          ? `INV-${thermalInvoiceSuffix || 'invoice'}-thermal-${thermalWidth}.pdf`
+          : `${number}-receipt-${thermalWidth}.pdf`
       document.body.appendChild(anchor)
       anchor.click()
       anchor.remove()

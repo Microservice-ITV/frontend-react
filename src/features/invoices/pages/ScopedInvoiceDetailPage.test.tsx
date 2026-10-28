@@ -55,8 +55,8 @@ const receipt: ReceiptDocument = {
   paymentMethod: 'COD', paymentGatewayRef: null, status: 'ISSUED', issuedAt: '2026-01-01T00:00:00Z',
 } as ReceiptDocument
 
-const renderPage = (status: 'PAID' | 'UNPAID' = 'PAID') => {
-  getInvoiceMock.mockResolvedValue(invoice(status))
+const renderPage = (status: 'PAID' | 'UNPAID' = 'PAID', invoiceNumber = 'INV-1') => {
+  getInvoiceMock.mockResolvedValue({ ...invoice(status), invoiceNumber })
   return render(<MemoryRouter initialEntries={['/invoices/INV-1']}><Routes>
     <Route path="/invoices/:invoiceNumber" element={<ScopedInvoiceDetailPage backTo="/invoices" backLabel="Invoices" />} />
   </Routes></MemoryRouter>)
@@ -267,7 +267,7 @@ describe('ScopedInvoiceDetailPage thermal receipt preview', () => {
     vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: createUrl, revokeObjectURL: revokeUrl }))
     const clickedFilename = vi.fn()
     const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) { clickedFilename(this.download) })
-    renderPage()
+    renderPage('UNPAID', 'DNI-INV-20261008-000039')
     await screen.findByRole('button', { name: /^Print Invoice$/i })
     fireEvent.click(screen.getByRole('button', { name: /^Print Invoice$/i }))
     fireEvent.click(screen.getByRole('button', { name: /thermal 80mm/i }))
@@ -277,7 +277,7 @@ describe('ScopedInvoiceDetailPage thermal receipt preview', () => {
     resolvePdf(new Blob(['pdf']))
     await vi.waitFor(() => expect(createUrl).toHaveBeenCalledOnce())
     expect(anchorClick).toHaveBeenCalledOnce()
-    expect(clickedFilename).toHaveBeenCalledWith('INV-1-thermal-80mm.pdf')
+    expect(clickedFilename).toHaveBeenCalledWith('INV-20261008-000039-thermal-80mm.pdf')
     createUrl.mockRestore()
     revokeUrl.mockRestore()
     anchorClick.mockRestore()
