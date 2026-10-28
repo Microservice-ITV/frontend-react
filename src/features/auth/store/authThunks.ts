@@ -164,7 +164,9 @@ export const logout = createAsyncThunk(
                 keepalive: true,
             }).catch(() => { })
             window.location.replace('/')
-            return
+            // Never settle: if the thunk fulfils, auth clears and route guards
+            // render /login before the browser finishes loading home.
+            return new Promise<never>(() => { })
         }
     }
 )

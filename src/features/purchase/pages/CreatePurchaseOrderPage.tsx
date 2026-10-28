@@ -417,7 +417,7 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
   const [supplierId, setSupplierId] = useState(searchParams.get('supplier_id') ?? '')
   const [contact, setContact] = useState('')
   const [currency, setCurrency] = useState('USD')
-  const [exchangeRate, setExchangeRate] = useState('1')
+  const [exchangeRate, setExchangeRate] = useState('4500')
   const [expectedAt, setExpectedAt] = useState('')
   const [paymentTerms, setPaymentTerms] = useState('')
   const [warehouseId, setWarehouseId] = useState(searchParams.get('warehouse_id') ?? '')
@@ -567,6 +567,9 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
     [costs],
   )
 
+  const rateValue = num(exchangeRate)
+  const foreignSubtotal = rateValue > 0 ? round2(subtotal / rateValue) : 0
+  const foreignSymbol = currency === 'USD' ? '$' : `${currency} `
   const deliveryTotal = stageFeeTotal
   const otherCostsTotal = additionalCostsTotal
   const totalAmount = round2(subtotal + deliveryTotal + otherCostsTotal)
@@ -1104,14 +1107,29 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
         title="Products Line Items"
         subtitle="Select a product, then set order stock for each variant."
         action={
-          <button
-            type="button"
-            className={subtleButtonClass}
-            onClick={() => setItems((current) => [...current, emptyItem()])}
-          >
-            <Plus size={13} />
-            Add product
-          </button>
+          <div className="flex items-center gap-3">
+            {currency !== 'MMK' && rateValue > 0 && (
+              <span
+                className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs tabular-nums text-slate-600"
+                title={`Subtotal ÷ exchange rate (${rateValue.toLocaleString('en-US')})`}
+              >
+                MMK {subtotal.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                <span className="mx-1.5 text-slate-400">→</span>
+                <span className="font-semibold text-slate-900">
+                  {foreignSymbol}
+                  {foreignSubtotal.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                </span>
+              </span>
+            )}
+            <button
+              type="button"
+              className={subtleButtonClass}
+              onClick={() => setItems((current) => [...current, emptyItem()])}
+            >
+              <Plus size={13} />
+              Add product
+            </button>
+          </div>
         }
       >
         <div className="space-y-4">

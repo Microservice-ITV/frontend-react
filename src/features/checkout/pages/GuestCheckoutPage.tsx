@@ -12,6 +12,7 @@ import { clearCheckout, setCheckoutError } from '../store/checkoutSlice'
 import { loadAllDistricts, type DistrictOptionWithCity } from '@/features/admin/api/locationOptions'
 import {
   formatDisabledTaxAmount,
+  isTaxActive,
   isTaxChargeEnabled,
   resolveCartTax,
 } from '../api/checkoutApi'
@@ -106,29 +107,36 @@ const GuestCheckoutPage = () => {
   useEffect(() => {
     if (items.length === 0) return
     let cancelled = false
-    setTaxLoading(true)
-    void resolveCartTax(
-      items.map((item) => ({
-        productId: item.productId,
-        categoryId: item.categoryId,
-        price: item.price,
-        quantity: item.quantity,
-      })),
-    )
-      .then((resolved) => {
+    void (async () => {
+      const active = await isTaxActive()
+      if (cancelled) return
+      if (!active) {
+        setTaxAmount(0)
+        setTaxEnabled(false)
+        return
+      }
+      setTaxLoading(true)
+      try {
+        const resolved = await resolveCartTax(
+          items.map((item) => ({
+            productId: item.productId,
+            categoryId: item.categoryId,
+            price: item.price,
+            quantity: item.quantity,
+          })),
+        )
         if (cancelled) return
         setTaxAmount(resolved.taxAmount)
         setTaxEnabled(isTaxChargeEnabled(resolved.quote))
-      })
-      .catch(() => {
+      } catch {
         if (!cancelled) {
           setTaxAmount(0)
           setTaxEnabled(true)
         }
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setTaxLoading(false)
-      })
+      }
+    })()
     return () => {
       cancelled = true
     }
