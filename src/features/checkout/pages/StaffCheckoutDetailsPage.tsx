@@ -5,7 +5,7 @@ import { selectSelectedItems } from '@/features/cart/store/cartSelectors'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { SearchableSelect } from '@/components/ui/SearchableSelect'
-import { loadAllDistricts, type DistrictOptionWithCity } from '@/features/admin/api/locationOptions'
+import { loadAllCities, type CityOptionWithState } from '@/features/admin/api/locationOptions'
 import { useEffect, useMemo, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { UserRound } from 'lucide-react'
@@ -28,26 +28,26 @@ const StaffCheckoutDetailsPage = () => {
   const [phone, setPhone] = useState('')
   const [phoneTouched, setPhoneTouched] = useState(false)
   const [address, setAddress] = useState('')
-  const [districts, setDistricts] = useState<DistrictOptionWithCity[]>([])
-  const [selectedDistrictId, setSelectedDistrictId] = useState('')
+  const [cities, setCities] = useState<CityOptionWithState[]>([])
+  const [selectedCityId, setSelectedCityId] = useState('')
 
   useEffect(() => {
     let cancelled = false
-    void loadAllDistricts()
+    void loadAllCities()
       .then((list) => {
-        if (!cancelled) setDistricts(list)
+        if (!cancelled) setCities(list)
       })
       .catch(() => {
-        if (!cancelled) setDistricts([])
+        if (!cancelled) setCities([])
       })
     return () => {
       cancelled = true
     }
   }, [])
 
-  const selectedDistrict = useMemo(
-    () => districts.find((district) => district.id === selectedDistrictId) ?? null,
-    [districts, selectedDistrictId],
+  const selectedCity = useMemo(
+    () => cities.find((city) => city.id === selectedCityId) ?? null,
+    [cities, selectedCityId],
   )
 
   const phoneE164 = useMemo(() => {
@@ -63,18 +63,18 @@ const StaffCheckoutDetailsPage = () => {
       : null
 
   const deliveryAddress: UserAddress | null = useMemo(() => {
-    if (!fullName.trim() || !phoneE164 || !selectedDistrict || !address.trim()) return null
+    if (!fullName.trim() || !phoneE164 || !selectedCity || !address.trim()) return null
     return {
       address_id: `staff-customer-${authUser?.id ?? 'checkout'}`,
       country_code: 'MM',
       country: 'Myanmar',
-      state_id: null,
-      city_id: Number(selectedDistrict.cityId),
-      district_id: Number(selectedDistrict.id),
+      state_id: selectedCity.stateId,
+      city_id: Number(selectedCity.id),
+      district_id: null,
       ward_id: null,
-      state: null,
-      city: selectedDistrict.cityName,
-      district: selectedDistrict.name,
+      state: selectedCity.stateName,
+      city: selectedCity.name,
+      district: null,
       ward: null,
       address_line_1: address.trim(),
       address_line_2: null,
@@ -91,7 +91,7 @@ const StaffCheckoutDetailsPage = () => {
       is_shipping: true,
       is_billing: false,
     }
-  }, [address, authUser?.id, fullName, phoneE164, selectedDistrict])
+  }, [address, authUser?.id, fullName, phoneE164, selectedCity])
 
   if (!staffCheckout) {
     return <Navigate to="/checkout" replace />
@@ -116,7 +116,7 @@ const StaffCheckoutDetailsPage = () => {
             Customer details
           </h1>
           <p className="mt-2 text-sm text-gray-600">
-            Enter the customer’s name, phone, district, and address. These details are used when you place the order.
+            Enter the customer’s name, phone, city, and address. These details are used when you place the order.
           </p>
 
           <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -169,17 +169,17 @@ const StaffCheckoutDetailsPage = () => {
               )}
             </div>
             <div className="md:col-span-2">
-              <label htmlFor="staff-customer-district" className={fieldLabelClass}>
-                District <span className="text-red-500">*</span>
+              <label htmlFor="staff-customer-city" className={fieldLabelClass}>
+                City <span className="text-red-500">*</span>
               </label>
               <SearchableSelect
-                id="staff-customer-district"
-                placeholder="Search district..."
-                emptyLabel="Select District"
-                options={districts.map((district) => ({ value: district.id, label: district.name }))}
-                value={selectedDistrictId}
-                onChange={setSelectedDistrictId}
-                disabled={districts.length === 0}
+                id="staff-customer-city"
+                placeholder="Search city..."
+                emptyLabel="Select City"
+                options={cities.map((city) => ({ value: city.id, label: city.name }))}
+                value={selectedCityId}
+                onChange={setSelectedCityId}
+                disabled={cities.length === 0}
               />
             </div>
             <div className="md:col-span-2">

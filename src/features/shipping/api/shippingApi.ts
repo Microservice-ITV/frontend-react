@@ -233,11 +233,11 @@ export const shippingApi = {
         return shippingClient.get<unknown>("/shipping/delivery-companies");
     },
 
-    districtRouteAvailability(fromDistrictId: string, toDistrictId: string) {
+    districtRouteAvailability(fromCityId: string, toCityId: string) {
         return shippingClient.get<unknown>('/shipping/delivery-companies/route-availability', {
             params: {
-                ...(fromDistrictId ? { fromDistrictId } : {}),
-                ...(toDistrictId ? { toDistrictId } : {}),
+                ...(fromCityId ? { fromCityId } : {}),
+                ...(toCityId ? { toCityId } : {}),
             },
         })
     },

@@ -93,4 +93,25 @@ describe('useCheckoutDeliveryCompany', () => {
     expect(result.current.unavailableCompanyIdsByShop['shop-1']).toEqual([company.id])
     expect(result.current.companyByShopId['shop-1']).toBeUndefined()
   })
+
+  it('does not load delivery companies when checkout delivery options are off', async () => {
+    const { result } = renderHook(() => useCheckoutDeliveryCompany(shopIds, routes, false))
+
+    await waitFor(() => expect(result.current.routesReady).toBe(true))
+
+    expect(shippingApi.listActiveDeliveryCompanies).not.toHaveBeenCalled()
+    expect(accountingClient.get).not.toHaveBeenCalled()
+    expect(shippingApi.districtRouteAvailability).not.toHaveBeenCalled()
+    expect(result.current.loading).toBe(false)
+    expect(result.current.companiesByShopId).toEqual({})
+  })
+
+  it('waits without loading delivery companies until the checkout option is known', () => {
+    const { result } = renderHook(() => useCheckoutDeliveryCompany(shopIds, routes, null))
+
+    expect(result.current.routesReady).toBe(false)
+    expect(result.current.loading).toBe(false)
+    expect(shippingApi.listActiveDeliveryCompanies).not.toHaveBeenCalled()
+    expect(accountingClient.get).not.toHaveBeenCalled()
+  })
 })

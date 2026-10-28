@@ -99,7 +99,11 @@ function usableCompanies(
   return shopCompanies.filter((company) => !blocked.has(company.id))
 }
 
-export function useCheckoutDeliveryCompany(shopIds: string[], routes: ShopDistrictRoute[]) {
+export function useCheckoutDeliveryCompany(
+  shopIds: string[],
+  routes: ShopDistrictRoute[],
+  enabled: boolean | null = true,
+) {
   const [catalog, setCatalog] = useState<CheckoutDeliveryCompany[]>([])
   const [selectedByShopId, setSelectedByShopId] = useState(readStoredMap)
   const [loading, setLoading] = useState(true)
@@ -116,6 +120,7 @@ export function useCheckoutDeliveryCompany(shopIds: string[], routes: ShopDistri
   )
 
   useEffect(() => {
+    if (enabled !== true) return
     let cancelled = false
 
     const load = async () => {
@@ -136,9 +141,10 @@ export function useCheckoutDeliveryCompany(shopIds: string[], routes: ShopDistri
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [enabled])
 
   useEffect(() => {
+    if (enabled !== true) return
     let cancelled = false
     setConfigurationsReady(false)
     setConfigurationError('')
@@ -187,7 +193,7 @@ export function useCheckoutDeliveryCompany(shopIds: string[], routes: ShopDistri
     return () => {
       cancelled = true
     }
-  }, [shopKey, shopIds])
+  }, [enabled, shopKey, shopIds])
 
   // Checkout offers the active platform catalog narrowed to the Delivery Companies
   // each shop has an active fee configuration for (Accounting is the source of truth).
@@ -208,7 +214,7 @@ export function useCheckoutDeliveryCompany(shopIds: string[], routes: ShopDistri
   }, [catalog, configuredCompanyIdsByShop, configurationsReady, shopIds, shopKey])
 
   useEffect(() => {
-    if (loading) return
+    if (enabled !== true || loading) return
     let cancelled = false
     setRoutesReady(false)
 
@@ -254,7 +260,7 @@ export function useCheckoutDeliveryCompany(shopIds: string[], routes: ShopDistri
     return () => {
       cancelled = true
     }
-  }, [loading, routeKey, routes])
+  }, [enabled, loading, routeKey, routes])
 
   const unavailableCompanyIdsByShop = useMemo(() => {
     const out: Record<string, string[]> = {}
@@ -275,7 +281,7 @@ export function useCheckoutDeliveryCompany(shopIds: string[], routes: ShopDistri
   }, [availableByPair, companiesByShopId, routeKey, routes, routesReady])
 
   useEffect(() => {
-    if (loading || !routesReady || shopIds.length === 0) return
+    if (enabled !== true || loading || !routesReady || shopIds.length === 0) return
 
     setSelectedByShopId((current) => {
       const next = { ...current }
@@ -300,7 +306,7 @@ export function useCheckoutDeliveryCompany(shopIds: string[], routes: ShopDistri
       writeStoredMap(next)
       return next
     })
-  }, [companiesByShopId, loading, routesReady, shopIds, shopKey, unavailableCompanyIdsByShop])
+  }, [companiesByShopId, enabled, loading, routesReady, shopIds, shopKey, unavailableCompanyIdsByShop])
 
   const selectCompany = (shopId: string, companyId: string) => {
     if ((unavailableCompanyIdsByShop[shopId] ?? []).includes(companyId)) return
@@ -347,15 +353,19 @@ export function useCheckoutDeliveryCompany(shopIds: string[], routes: ShopDistri
     return next
   }, [companiesByShopId, shopIds])
 
+  const active = enabled === true
+
   return {
-    companiesByShopId,
-    companiesCountByShop,
-    selectedByShopId,
-    companyByShopId,
-    unavailableCompanyIdsByShop,
-    routesReady: routesReady && configurationsReady && selectionSettled,
-    loading,
-    error: error || configurationError,
+    companiesByShopId: active ? companiesByShopId : {},
+    companiesCountByShop: active ? companiesCountByShop : {},
+    selectedByShopId: active ? selectedByShopId : {},
+    companyByShopId: active ? companyByShopId : {},
+    unavailableCompanyIdsByShop: active ? unavailableCompanyIdsByShop : {},
+    routesReady: enabled === false
+      ? true
+      : active && routesReady && configurationsReady && selectionSettled,
+    loading: active && loading,
+    error: active ? error || configurationError : '',
     selectCompany,
   }
 }

@@ -52,12 +52,12 @@ export const authFeatureApi = {
     return authClient.get("/me");
   },
 
-  requestCheckoutEmailCode(resend = false) {
-    return authClient.post("/checkout-email-code", resend ? { resend: true } : {});
+  requestCheckoutPhoneCode(resend = false) {
+    return authClient.post("/checkout-phone-code", resend ? { resend: true } : {});
   },
 
-  confirmCheckoutEmailCode(code: string) {
-    return authClient.post("/checkout-email-code/verify", { code });
+  confirmCheckoutPhoneCode(code: string) {
+    return authClient.post("/checkout-phone-code/verify", { code });
   },
 
   requestGuestCheckoutPhoneCode(phone: string) {

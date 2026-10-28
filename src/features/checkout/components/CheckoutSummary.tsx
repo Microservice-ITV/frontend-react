@@ -3,7 +3,7 @@ import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, Mail, Smartphone, TriangleAlert, X } from 'lucide-react'
+import { ArrowRight, Smartphone, TriangleAlert, X } from 'lucide-react'
 import { CardElement, useElements, useStripe } from '@stripe/react-stripe-js'
 import type { StripeCardElement } from '@stripe/stripe-js'
 import axios from 'axios'
@@ -299,17 +299,17 @@ const CheckoutSummary = ({
       if (remaining > 0) return
       emailBlockEndsAtRef.current = null
       setEmailAccountBlocked(false)
-      if (!emailVerifyModalOpen || !user?.email?.trim()) return
+      if (!emailVerifyModalOpen || !user?.phone?.trim()) return
       setEmailResendSeconds(60)
       emailCodeRefs.current[0]?.focus()
-      void authFeatureApi.requestCheckoutEmailCode().catch((caughtError: unknown) => {
+      void authFeatureApi.requestCheckoutPhoneCode().catch((caughtError: unknown) => {
         setEmailResendSeconds(0)
         if (isAccountBlocked(caughtError)) beginAccountBlock(retryAfterSeconds(apiPayload(caughtError)))
         else setEmailCodeError(apiMessage(caughtError, 'Could not send the verification code.'))
       })
     }, 1000)
     return () => window.clearInterval(timerId)
-  }, [beginAccountBlock, emailAccountBlocked, emailVerifyModalOpen, user?.email])
+  }, [beginAccountBlock, emailAccountBlocked, emailVerifyModalOpen, user?.phone])
 
   useEffect(() => {
     if (!guestPhoneModalOpen) return
@@ -334,7 +334,7 @@ const CheckoutSummary = ({
       setEmailResendSeconds(0)
       return
     }
-    if (!user?.email?.trim()) return
+    if (!user?.phone?.trim()) return
 
     let cancelled = false
     if (!emailAccountBlockedRef.current) {
@@ -342,7 +342,7 @@ const CheckoutSummary = ({
       setEmailResendSeconds(60)
       emailCodeRefs.current[0]?.focus()
     }
-    void authFeatureApi.requestCheckoutEmailCode()
+    void authFeatureApi.requestCheckoutPhoneCode()
       .then(() => {
         if (cancelled) return
         emailBlockEndsAtRef.current = null
@@ -363,7 +363,7 @@ const CheckoutSummary = ({
     return () => {
       cancelled = true
     }
-  }, [emailVerifyModalOpen, user?.email])
+  }, [emailVerifyModalOpen, user?.phone])
   const checkoutIdRef = useRef(currentCheckout?.checkout_id)
   checkoutIdRef.current = currentCheckout?.checkout_id
   const cartTaxKey = cartItems
@@ -655,15 +655,15 @@ const CheckoutSummary = ({
   }
 
   const handlePlaceOrder = async (options?: { emailConfirmed?: boolean; phoneConfirmed?: boolean }) => {
+    if (accountPhoneMissing) {
+      setPhoneModalOpen(true)
+      return
+    }
+
     if (user && emailVerificationRequired && !options?.emailConfirmed) {
       setPhoneModalOpen(false)
       setGuestPhoneModalOpen(false)
       setEmailVerifyModalOpen(true)
-      return
-    }
-
-    if (accountPhoneMissing) {
-      setPhoneModalOpen(true)
       return
     }
 
@@ -881,6 +881,7 @@ const CheckoutSummary = ({
       }
 
       if (
+        responseData?.code === 'phone_verification_required' ||
         responseData?.code === 'email_verification_required' ||
         responseData?.code === 'account_temporarily_blocked'
       ) {
@@ -1072,61 +1073,62 @@ const CheckoutSummary = ({
   return (
     <div className="rounded-sm border border-[var(--dni-cart-border)] bg-white px-3 py-3 sm:px-4 sm:py-4 lg:px-5 lg:py-5">
       {phoneModalOpen && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <button
             type="button"
             aria-label="Close dialog"
-            className="absolute inset-0 bg-slate-900/45"
+            className="absolute inset-0 h-full w-full cursor-default"
             onClick={() => setPhoneModalOpen(false)}
           />
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="phone-required-title"
-            className="relative z-10 w-full max-w-[440px] rounded-2xl bg-white p-6 shadow-xl sm:p-7"
+            className="relative z-10 w-full max-w-md bg-white rounded-sm shadow-lg"
           >
-            <div className="flex items-start justify-between">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-amber-50">
-                <TriangleAlert className="h-7 w-7 text-amber-400" strokeWidth={2.25} />
+            <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-6 pt-5 pb-4">
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-emerald-50 text-emerald-600">
+                  <TriangleAlert className="h-5 w-5" />
+                </span>
+                <h2 id="phone-required-title" className="text-lg font-medium text-gray-900">
+                  Phone number required
+                </h2>
               </div>
               <button
                 type="button"
                 aria-label="Close"
                 onClick={() => setPhoneModalOpen(false)}
-                className="rounded-md p-1 text-slate-400 hover:text-slate-600"
+                className="cursor-pointer text-gray-400 hover:text-gray-600"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <h2 id="phone-required-title" className="mt-5 text-[22px] font-bold leading-tight text-slate-900">
-              Phone number required
-            </h2>
-            <p className="mt-3 text-[15px] leading-6 text-slate-500">
-              Please fill in your phone number before placing this order.
-            </p>
-
-            <div className="mt-5 flex items-start gap-3 rounded-xl bg-amber-50 px-4 py-3.5">
-              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-400 text-xs font-bold text-white">
-                !
-              </span>
-              <p className="text-sm leading-5 text-slate-600">
-                Your phone number helps us contact you about your order and delivery updates.
-              </p>
+            <div className="px-6 py-4 text-sm text-gray-700">
+              <p>Please fill in your phone number before placing this order.</p>
+              <div className="mt-4 flex items-start gap-3 border border-emerald-200 bg-emerald-50 px-4 py-3">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center bg-emerald-600 text-xs font-bold text-white">
+                  !
+                </span>
+                <p className="leading-5 text-gray-700">
+                  Your phone number helps us contact you about your order and delivery updates.
+                </p>
+              </div>
             </div>
 
-            <div className="mt-6 grid grid-cols-2 gap-3">
+            <div className="flex items-center justify-end gap-3 border-t border-gray-100 px-6 pt-4 pb-5">
               <button
                 type="button"
                 onClick={() => setPhoneModalOpen(false)}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                className="inline-flex cursor-pointer items-center justify-center border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 rounded-sm hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={() => navigate('/account/profile')}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-400 px-4 py-3 text-sm font-semibold text-slate-900 hover:bg-amber-500"
+                className="inline-flex cursor-pointer items-center justify-center gap-2 bg-emerald-600 px-5 py-2 text-sm font-medium text-white rounded-sm hover:bg-emerald-700"
               >
                 Go to profile
                 <ArrowRight className="h-4 w-4" />
@@ -1137,11 +1139,11 @@ const CheckoutSummary = ({
         document.body,
       )}
       {shopApprovalModalOpen && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <button
             type="button"
             aria-label="Close dialog"
-            className="absolute inset-0 bg-slate-900/45"
+            className="absolute inset-0 h-full w-full cursor-default"
             onClick={() => {
               releaseQuantityApprovalHold()
               setShopApprovalModalOpen(false)
@@ -1152,11 +1154,16 @@ const CheckoutSummary = ({
             role="dialog"
             aria-modal="true"
             aria-labelledby="shop-approval-title"
-            className="relative z-10 w-full max-w-[440px] rounded-2xl bg-white p-6 shadow-xl sm:p-7"
+            className="relative z-10 w-full max-w-md bg-white rounded-sm shadow-lg"
           >
-            <div className="flex items-start justify-between">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-amber-50">
-                <TriangleAlert className="h-7 w-7 text-amber-500" />
+            <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-6 pt-5 pb-4">
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-emerald-50 text-emerald-600">
+                  <TriangleAlert className="h-5 w-5" />
+                </span>
+                <h2 id="shop-approval-title" className="text-lg font-medium text-gray-900">
+                  {shopApprovalRejected ? 'Quantity request rejected' : 'Shop admin approval required'}
+                </h2>
               </div>
               <button
                 type="button"
@@ -1166,15 +1173,12 @@ const CheckoutSummary = ({
                   setShopApprovalModalOpen(false)
                   navigate('/cart')
                 }}
-                className="rounded-md p-1 text-slate-400 hover:text-slate-600"
+                className="cursor-pointer text-gray-400 hover:text-gray-600"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <h2 id="shop-approval-title" className="mt-5 text-[22px] font-bold leading-tight text-slate-900">
-              {shopApprovalRejected ? 'Quantity request rejected' : 'Shop admin approval required'}
-            </h2>
-            <p className="mt-3 text-[15px] leading-6 text-slate-500">
+            <div className="px-6 py-4 text-sm leading-6 text-gray-700">
               {user
                 ? shopApprovalRejected
                   ? 'A shop admin rejected this quantity request, so it cannot be placed. You can check it in Quantity Approvals.'
@@ -1182,8 +1186,8 @@ const CheckoutSummary = ({
                 : shopApprovalRejected
                   ? 'This quantity was not approved. We will contact you on the phone number from this checkout.'
                   : 'This quantity needs shop admin approval. We will contact you later on the phone number from this checkout.'}
-            </p>
-            <div className={`mt-6 grid grid-cols-1 gap-3 ${user ? 'sm:grid-cols-2' : ''}`}>
+            </div>
+            <div className="flex items-center justify-end gap-3 border-t border-gray-100 px-6 pt-4 pb-5">
               <button
                 type="button"
                 onClick={() => {
@@ -1191,7 +1195,7 @@ const CheckoutSummary = ({
                   setShopApprovalModalOpen(false)
                   navigate('/cart')
                 }}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                className="inline-flex cursor-pointer items-center justify-center border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 rounded-sm hover:bg-gray-50"
               >
                 Close
               </button>
@@ -1203,7 +1207,7 @@ const CheckoutSummary = ({
                     setShopApprovalModalOpen(false)
                     navigate('/account/quantity-approvals')
                   }}
-                  className="rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700"
+                  className="inline-flex cursor-pointer items-center justify-center bg-emerald-600 px-5 py-2 text-sm font-medium text-white rounded-sm hover:bg-emerald-700"
                 >
                   Quantity Approvals
                 </button>
@@ -1214,39 +1218,42 @@ const CheckoutSummary = ({
         document.body,
       )}
       {guestPhoneModalOpen && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <button
             type="button"
             aria-label="Close dialog"
-            className="absolute inset-0 bg-slate-900/45"
+            className="absolute inset-0 h-full w-full cursor-default"
             onClick={() => setGuestPhoneModalOpen(false)}
           />
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="guest-phone-verify-title"
-            className="relative z-10 w-full max-w-[440px] rounded-2xl bg-white p-6 shadow-xl sm:p-7"
+            className="relative z-10 w-full max-w-md bg-white rounded-sm shadow-lg"
           >
-            <div className="flex items-start justify-between">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50">
-                <Smartphone className="h-7 w-7 text-emerald-600" />
+            <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-6 pt-5 pb-4">
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-emerald-50 text-emerald-600">
+                  <Smartphone className="h-5 w-5" />
+                </span>
+                <h2 id="guest-phone-verify-title" className="text-lg font-medium text-gray-900">
+                  Verify your phone
+                </h2>
               </div>
               <button
                 type="button"
                 aria-label="Close"
                 onClick={() => setGuestPhoneModalOpen(false)}
-                className="rounded-md p-1 text-slate-400 hover:text-slate-600"
+                className="cursor-pointer text-gray-400 hover:text-gray-600"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <h2 id="guest-phone-verify-title" className="mt-5 text-[22px] font-bold leading-tight text-slate-900">
-              Verify your phone
-            </h2>
-            <p className="mt-3 text-[15px] leading-6 text-slate-500">
-              Enter the 6-digit code sent to <span className="font-medium text-slate-700">{guestPhone}</span>.
-            </p>
-            <div className="mt-5">
+            <div className="px-6 py-4 text-sm text-gray-700">
+              <p>
+                Enter the 6-digit code sent to <span className="font-medium text-gray-900">{guestPhone}</span>.
+              </p>
+              <div className="mt-4">
               <div className="flex justify-between gap-2">
                 {guestPhoneDigits.map((digit, index) => (
                   <input
@@ -1288,14 +1295,14 @@ const CheckoutSummary = ({
                       setGuestPhoneError(null)
                       guestPhoneCodeRefs.current[Math.min(pasted.length, 5)]?.focus()
                     }}
-                    className="h-14 w-full rounded-xl border border-slate-200 text-center text-lg font-semibold text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-50"
+                    className="h-12 w-full border border-gray-300 bg-white text-center text-lg font-medium text-gray-900 outline-none rounded-sm focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 disabled:bg-gray-50"
                   />
                 ))}
               </div>
               {guestPhoneError && (
-                <p className="mt-3 text-center text-xs text-rose-600" role="alert">{guestPhoneError}</p>
+                <p className="mt-3 text-center text-xs text-red-600" role="alert">{guestPhoneError}</p>
               )}
-              <p className="mt-4 text-center text-sm text-slate-500">
+              <p className="mt-4 text-center text-sm text-gray-600">
                 <button
                   type="button"
                   disabled={guestPhoneSending || guestPhoneVerifying}
@@ -1305,17 +1312,18 @@ const CheckoutSummary = ({
                     guestPhoneCodeRefs.current[0]?.focus()
                     void sendGuestPhoneCode()
                   }}
-                  className="font-medium text-emerald-700 hover:text-emerald-800 disabled:text-slate-400"
+                  className="cursor-pointer font-medium text-emerald-700 hover:text-emerald-800 disabled:cursor-not-allowed disabled:text-gray-400"
                 >
                   {guestPhoneSending ? 'Sending...' : "Didn't receive the code? Resend"}
                 </button>
               </p>
             </div>
-            <div className="mt-6 grid grid-cols-2 gap-3">
+            </div>
+            <div className="flex items-center justify-end gap-3 border-t border-gray-100 px-6 pt-4 pb-5">
               <button
                 type="button"
                 onClick={() => setGuestPhoneModalOpen(false)}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                className="inline-flex cursor-pointer items-center justify-center border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 rounded-sm hover:bg-gray-50"
               >
                 Cancel
               </button>
@@ -1340,7 +1348,7 @@ const CheckoutSummary = ({
                     }
                   })()
                 }}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                className="inline-flex cursor-pointer items-center justify-center gap-2 bg-emerald-600 px-5 py-2 text-sm font-medium text-white rounded-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
               >
                 {guestPhoneVerifying ? 'Checking...' : 'Verify phone'}
                 <ArrowRight className="h-4 w-4" />
@@ -1351,52 +1359,55 @@ const CheckoutSummary = ({
         document.body,
       )}
       {emailVerifyModalOpen && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <button
             type="button"
             aria-label="Close dialog"
-            className="absolute inset-0 bg-slate-900/45"
+            className="absolute inset-0 h-full w-full cursor-default"
             onClick={() => setEmailVerifyModalOpen(false)}
           />
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="email-verify-title"
-            className="relative z-10 w-full max-w-[440px] rounded-2xl bg-white p-6 shadow-xl sm:p-7"
+            className="relative z-10 w-full max-w-md bg-white rounded-sm shadow-lg"
           >
-            <div className="flex items-start justify-between">
-              <div className={`flex h-14 w-14 items-center justify-center rounded-full ${emailAccountBlocked ? 'bg-amber-50' : 'bg-emerald-50'}`}>
-                {emailAccountBlocked
-                  ? <TriangleAlert className="h-7 w-7 text-amber-500" />
-                  : <Mail className="h-7 w-7 text-emerald-600" />}
+            <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-6 pt-5 pb-4">
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-emerald-50 text-emerald-600">
+                  {emailAccountBlocked
+                    ? <TriangleAlert className="h-5 w-5" />
+                    : <Smartphone className="h-5 w-5" />}
+                </span>
+                <h2 id="email-verify-title" className="text-lg font-medium text-gray-900">
+                  {emailAccountBlocked ? 'Account temporarily blocked' : 'Verify your phone'}
+                </h2>
               </div>
               <button
                 type="button"
                 aria-label="Close"
                 onClick={() => setEmailVerifyModalOpen(false)}
-                className="rounded-md p-1 text-slate-400 hover:text-slate-600"
+                className="cursor-pointer text-gray-400 hover:text-gray-600"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <h2 id="email-verify-title" className="mt-5 text-[22px] font-bold leading-tight text-slate-900">
-              {emailAccountBlocked ? 'Account temporarily blocked' : 'Verify your email'}
-            </h2>
-            <p className="mt-3 text-[15px] leading-6 text-slate-500">
+            <div className="px-6 py-4 text-sm text-gray-700">
+            <p>
               {emailAccountBlocked
                 ? 'Your account is temporarily blocked. You can place an order again when this timer ends.'
-                : user?.email?.trim()
-                  ? <>Enter the 6-digit code sent to <span className="font-medium text-slate-700">{user.email}</span>.</>
-                  : 'Add an email address on your profile before placing this order.'}
+                : user?.phone?.trim()
+                  ? <>Enter the 6-digit code sent to <span className="font-medium text-gray-900">{user.phone}</span>.</>
+                  : 'Add a phone number on your profile before placing this order.'}
             </p>
 
             {emailAccountBlocked ? (
-              <p className="mt-6 text-center text-4xl font-semibold tabular-nums tracking-wide text-slate-900" aria-live="polite">
+              <p className="mt-4 text-center text-4xl font-semibold tabular-nums tracking-wide text-gray-900" aria-live="polite">
                 {formatBlockCountdown(emailBlockSeconds)}
               </p>
-            ) : user?.email?.trim() && (
-              <div className="mt-5">
+            ) : user?.phone?.trim() && (
+              <div className="mt-4">
                 <div className="flex justify-between gap-2">
                   {emailDigits.map((digit, index) => (
                     <input
@@ -1438,14 +1449,14 @@ const CheckoutSummary = ({
                         setEmailCodeError(null)
                         emailCodeRefs.current[Math.min(pasted.length, 5)]?.focus()
                       }}
-                      className="h-14 w-full rounded-xl border border-slate-200 text-center text-lg font-semibold text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-50"
+                      className="h-12 w-full border border-gray-300 bg-white text-center text-lg font-medium text-gray-900 outline-none rounded-sm focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 disabled:bg-gray-50"
                     />
                   ))}
                 </div>
                 {emailCodeError && (
-                  <p className="mt-3 text-center text-xs text-rose-600">{emailCodeError}</p>
+                  <p className="mt-3 text-center text-xs text-red-600">{emailCodeError}</p>
                 )}
-                <p className="mt-4 text-center text-sm text-slate-500">
+                <p className="mt-4 text-center text-sm text-gray-600">
                   {emailResendSeconds > 0 ? (
                     <>Resend code in {emailResendSeconds}s</>
                   ) : (
@@ -1457,14 +1468,14 @@ const CheckoutSummary = ({
                         setEmailDigits(Array(6).fill(''))
                         setEmailCodeError(null)
                         emailCodeRefs.current[0]?.focus()
-                        void authFeatureApi.requestCheckoutEmailCode(true)
+                        void authFeatureApi.requestCheckoutPhoneCode(true)
                           .catch((caughtError: unknown) => {
                             setEmailResendSeconds(0)
                             if (isAccountBlocked(caughtError)) beginAccountBlock(retryAfterSeconds(apiPayload(caughtError)))
                             else setEmailCodeError(apiMessage(caughtError, 'Could not resend the verification code.'))
                           })
                       }}
-                      className="font-medium text-emerald-700 hover:text-emerald-800 disabled:text-slate-400"
+                      className="cursor-pointer font-medium text-emerald-700 hover:text-emerald-800 disabled:cursor-not-allowed disabled:text-gray-400"
                     >
                       Didn&apos;t receive the code? Resend
                     </button>
@@ -1473,15 +1484,16 @@ const CheckoutSummary = ({
               </div>
             )}
 
-            {!user?.email?.trim() && emailCodeError && (
-              <p className="mt-3 text-xs text-rose-600">{emailCodeError}</p>
+            {!user?.phone?.trim() && emailCodeError && (
+              <p className="mt-3 text-xs text-red-600">{emailCodeError}</p>
             )}
+            </div>
 
-            <div className={`mt-6 grid gap-3 ${emailAccountBlocked ? 'grid-cols-1' : 'grid-cols-2'}`}>
+            <div className="flex items-center justify-end gap-3 border-t border-gray-100 px-6 pt-4 pb-5">
               <button
                 type="button"
                 onClick={() => setEmailVerifyModalOpen(false)}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                className="inline-flex cursor-pointer items-center justify-center border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 rounded-sm hover:bg-gray-50"
               >
                 {emailAccountBlocked ? 'Close' : 'Cancel'}
               </button>
@@ -1489,10 +1501,10 @@ const CheckoutSummary = ({
                 type="button"
                 disabled={
                   emailCodeChecking ||
-                  (Boolean(user?.email?.trim()) && emailDigits.some((digit) => !digit))
+                  (Boolean(user?.phone?.trim()) && emailDigits.some((digit) => !digit))
                 }
                 onClick={() => {
-                  if (!user?.email?.trim()) {
+                  if (!user?.phone?.trim()) {
                     navigate('/account/profile')
                     return
                   }
@@ -1500,7 +1512,7 @@ const CheckoutSummary = ({
                     setEmailCodeChecking(true)
                     setEmailCodeError(null)
                     try {
-                      await authFeatureApi.confirmCheckoutEmailCode(emailDigits.join(''))
+                      await authFeatureApi.confirmCheckoutPhoneCode(emailDigits.join(''))
                       setEmailChallengePassed(true)
                       setEmailVerifyModalOpen(false)
                       void handlePlaceOrder({ emailConfirmed: true })
@@ -1512,9 +1524,9 @@ const CheckoutSummary = ({
                     }
                   })()
                 }}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                className="inline-flex cursor-pointer items-center justify-center gap-2 bg-emerald-600 px-5 py-2 text-sm font-medium text-white rounded-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
               >
-                {user?.email?.trim() ? 'Verify email' : 'Go to profile'}
+                {user?.phone?.trim() ? 'Verify phone' : 'Go to profile'}
                 <ArrowRight className="h-4 w-4" />
               </button>}
             </div>
