@@ -1,8 +1,8 @@
 import { useEffect, useState, type ChangeEvent, type DragEvent } from 'react'
 import { Link } from 'react-router-dom'
 import DataTablePagination from '@/components/ui/DataTablePagination'
-import { AlertCircle, CheckCircle2, Clock3, Download, Eye, FileText, Loader2, Receipt, RefreshCw, UploadCloud, X, Image as ImageIcon } from 'lucide-react'
-import { downloadInvoicePdf, getMyInvoices, type InvoiceDocument, type InvoiceStatus, uploadPaymentSlip } from '@/lib/api/invoiceClient'
+import { AlertCircle, CheckCircle2, Clock3, Download, Eye, FileText, Loader2, Printer, Receipt, RefreshCw, UploadCloud, X, Image as ImageIcon } from 'lucide-react'
+import { downloadInvoicePdf, getMyInvoices, getShopInvoices, type InvoiceDocument, type InvoiceStatus, uploadPaymentSlip } from '@/lib/api/invoiceClient'
 import InvoiceStatCard from '@/features/invoices/components/InvoiceStatCard'
 import InvoiceStatusBadge from '@/features/invoices/components/InvoiceStatusBadge'
 import InvoiceEmptyState from '@/features/invoices/components/InvoiceEmptyState'
@@ -14,6 +14,8 @@ import {
 } from '@/features/invoices/lib/invoiceFormat'
 import { useAppSelector } from '@/app/hooks'
 import { selectIsAuthenticated } from '@/features/auth/store/authSelectors'
+import { selectAuthUser } from '@/features/auth/store/authSelectors'
+import { hasStaffInvoiceAccess } from '@/features/invoices/lib/staffInvoiceAccess'
 
 const STATUS_LABELS: Record<InvoiceStatus, string> = {
   UNPAID: 'Unpaid',
@@ -67,6 +69,8 @@ const getInvoiceStatusLabel = (invoice: InvoiceDocument): string =>
 
 const CustomerInvoicesPage = () => {
   const isAuthenticated = useAppSelector(selectIsAuthenticated)
+  const authUser = useAppSelector(selectAuthUser)
+  const isStaffInvoiceView = hasStaffInvoiceAccess(authUser)
   const [invoices, setInvoices] = useState<InvoiceDocument[]>([])
   const [page, setPage] = useState(1)
   const [rowsPerPage, setRowsPerPage] = useState(DEFAULT_ROWS_PER_PAGE)
@@ -93,7 +97,7 @@ const CustomerInvoicesPage = () => {
     setError(null)
 
     try {
-      const data = await getMyInvoices()
+      const data = isStaffInvoiceView ? await getShopInvoices() : await getMyInvoices()
       setInvoices(data)
       setPage(1)
     } catch (requestError: unknown) {
@@ -106,13 +110,13 @@ const CustomerInvoicesPage = () => {
 
   useEffect(() => {
     void loadInvoices()
-  }, [isAuthenticated])
+  }, [isAuthenticated, isStaffInvoiceView])
 
   const handleDownloadPdf = (invoice: InvoiceDocument) => {
     if (downloadingInvoiceId) return
     setDownloadingInvoiceId(invoice.id)
     setError(null)
-    void downloadInvoicePdf(invoice.id, { asCustomer: true })
+    void downloadInvoicePdf(invoice.id, { asCustomer: !isStaffInvoiceView })
       .then((blob) => {
         const blobUrl = URL.createObjectURL(blob)
         const link = document.createElement('a')
@@ -458,7 +462,17 @@ const CustomerInvoicesPage = () => {
                         : <Download size={14} />}
                       Download
                     </button>
-                    {canSubmitPaymentSlip(invoice) && (
+                    {isStaffInvoiceView && (
+                      <Link
+                        to={`/account/invoices/${encodeURIComponent(invoice.invoiceNumber || invoice.id)}`}
+                        aria-label={`Thermal POS actions for ${invoice.invoiceNumber}`}
+                        title="Thermal invoice and paid receipt options at 58mm and 80mm"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800"
+                      >
+                        <Printer size={13} /> Thermal POS
+                      </Link>
+                    )}
+                    {!isStaffInvoiceView && canSubmitPaymentSlip(invoice) && (
                       <button
                         type="button"
                         onClick={() => {
@@ -559,7 +573,18 @@ const CustomerInvoicesPage = () => {
                             {downloadingInvoiceId === invoice.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
                           </button>
 
-                          {canSubmitPaymentSlip(invoice) && (
+                          {isStaffInvoiceView && (
+                            <Link
+                              to={`/account/invoices/${encodeURIComponent(invoice.invoiceNumber || invoice.id)}`}
+                              title="Thermal invoice and paid receipt options at 58mm and 80mm"
+                              aria-label={`Thermal POS actions for ${invoice.invoiceNumber}`}
+                              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-1"
+                            >
+                              <Printer size={14} />
+                            </Link>
+                          )}
+
+                          {!isStaffInvoiceView && canSubmitPaymentSlip(invoice) && (
                             <button
                               type="button"
                               onClick={() => {

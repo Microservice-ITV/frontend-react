@@ -111,6 +111,7 @@ const PAGE_TITLE_RULES: PageTitleRule[] = [
   { path: '/account/invoices', title: 'Invoices' },
   { path: '/account/invoices/:invoiceNumber', title: 'Invoice' },
   { path: '/account/invoices/:invoiceNumber/print', title: 'Print invoice' },
+  { path: '/account/invoices/:invoiceNumber/receipt/print', title: 'Thermal receipt' },
   { path: '/account/my-vouchers', title: 'My Vouchers' },
   { path: '/account/my-coins', title: 'My Coins' },
 
@@ -273,6 +274,13 @@ export function resolvePageTitle(pathname: string, search = ''): string {
     const query = new URLSearchParams(search).get('q')?.trim()
     if (query) return `Search: ${query}`
     return 'Search'
+  }
+
+  if (
+    pathname.match(/^\/account\/invoices\/[^/]+\/print$/) &&
+    new URLSearchParams(search).get('format') === 'thermal'
+  ) {
+    return 'Thermal invoice'
   }
 
   let best: { title: string; score: number } | null = null

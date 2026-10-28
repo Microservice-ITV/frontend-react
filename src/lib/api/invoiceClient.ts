@@ -228,7 +228,8 @@ invoiceClient.interceptors.request.use(async (config) => {
   const isAllShopInvoicesRequest = url.endsWith('/invoices/shop-invoices')
   const isAdminInvoiceRequest = url.includes('/invoices/admin/') || url.startsWith('/admin/invoices/')
   const isSellerInvoiceRequest = url.includes('/invoices/shop-invoices') || url.includes('/invoices/manage')
-  const role = {
+  const hasStaffMembership = (user?.staff_shop_ids ?? []).some((shopId) => shopId.trim().length > 0)
+  const role = hasStaffMembership ? 'shopAdmin' : {
     SUPER_ADMIN: 'admin',
     SHOP_OWNER: 'shopAdmin',
     SHOP_ADMIN: 'shopAdmin',
@@ -248,7 +249,10 @@ invoiceClient.interceptors.request.use(async (config) => {
     config.headers.set('x-user-role', role)
   }
 
-  if (!isCustomerScopedRequest && user?.active_shop_id) {
+  if (isAllShopInvoicesRequest) {
+    config.headers.delete('x-shop-id')
+  }
+  if (!isCustomerScopedRequest && !isAllShopInvoicesRequest && user?.active_shop_id) {
     config.headers.set('x-shop-id', user.active_shop_id)
   }
   if (user?.id) {
