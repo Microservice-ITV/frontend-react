@@ -1,6 +1,6 @@
 import { QrCode } from 'lucide-react'
 import type { InvoiceDocument } from '@/lib/api/invoiceClient'
-import { formatInvoiceNumber, formatCurrency, formatDate } from '@/features/invoices/lib/invoiceFormat'
+import { formatInvoiceNumber, formatCurrency, formatThermalDateTime } from '@/features/invoices/lib/invoiceFormat'
 
 interface ThermalInvoiceDocumentProps {
   invoice: InvoiceDocument
@@ -36,7 +36,7 @@ const ThermalInvoiceDocument = ({ invoice, width }: ThermalInvoiceDocumentProps)
         </div>
         <div className="flex justify-between items-center mb-2">
           <span className="receipt-label">Date:</span>
-          <span className="receipt-value">{formatDate(invoice.createdAt)}</span>
+          <span className="receipt-value">{formatThermalDateTime(invoice.createdAt)}</span>
         </div>
         {invoice.orderReference && (
           <div className="flex justify-between items-center mb-2">
@@ -44,12 +44,6 @@ const ThermalInvoiceDocument = ({ invoice, width }: ThermalInvoiceDocumentProps)
             <span className="receipt-value">{invoice.orderReference}</span>
           </div>
         )}
-        <div className="flex justify-between items-center">
-          <span className="receipt-label">Status:</span>
-          <span className={`receipt-value ${invoice.status === 'PAID' ? 'text-green-700' : 'text-amber-700'}`}>
-            {invoice.status}
-          </span>
-        </div>
       </div>
 
       <div className="receipt-divider" />
@@ -61,12 +55,6 @@ const ThermalInvoiceDocument = ({ invoice, width }: ThermalInvoiceDocumentProps)
           <div className="mb-1">
             <div className="receipt-label">Customer:</div>
             <div className="receipt-value">{invoice.customerName}</div>
-          </div>
-        )}
-        {invoice.customerEmail && (
-          <div className="mb-1">
-            <div className="receipt-label">Email:</div>
-            <div className="receipt-value">{invoice.customerEmail}</div>
           </div>
         )}
         {invoice.shopName && (
@@ -149,17 +137,6 @@ const ThermalInvoiceDocument = ({ invoice, width }: ThermalInvoiceDocumentProps)
         </div>
       </div>
 
-      {/* Payment Info */}
-      {invoice.paymentMethod && (
-        <div className="mb-4">
-          <h3 className="receipt-section-title mb-2">PAYMENT</h3>
-          <div className="flex justify-between">
-            <span className="receipt-label">Method:</span>
-            <span className="receipt-value">{invoice.paymentMethod}</span>
-          </div>
-        </div>
-      )}
-
       {/* QR Code for Verification */}
       <div className="receipt-qr-container mb-4">
         <div className="receipt-qr-caption">Verify Invoice Online</div>
@@ -174,6 +151,9 @@ const ThermalInvoiceDocument = ({ invoice, width }: ThermalInvoiceDocumentProps)
         </div>
       </div>
 
+      <section className="mb-2 text-[9px] leading-snug receipt-muted">
+        Customers may inspect the package before making payment, subject to the delivery provider’s inspection policy.
+      </section>
       {/* Footer */}
       <footer className="receipt-footer">
         <div className="receipt-divider" />

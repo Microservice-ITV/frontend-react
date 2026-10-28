@@ -6,25 +6,25 @@ interface ThermalQRCodeProps {
   title?: string
   subtitle?: string
   className?: string
+  width?: '58mm' | '80mm'
 }
 
 /**
  * Real QR code generation component for thermal printing
  * Uses the existing verified store URL QR code asset
  */
-const ThermalQRCode = ({ title = "Scan to verify", subtitle = "Visit our store", className = '' }: ThermalQRCodeProps) => {
+const ThermalQRCode = ({ title = "Scan to verify", subtitle = "Visit our store", className = '', width = '58mm' }: ThermalQRCodeProps) => {
   const [qrError, setQrError] = useState(false)
 
   return (
-    <div className={`receipt-qr-container ${className}`}>
-      <p className="receipt-qr-caption mb-2">{title}</p>
-      
+    <div className={`receipt-qr-container receipt-qr-footer ${className}`}>
       {!qrError ? (
         <img
           src={dniWebsiteQr}
           alt="Daily Need Items Website QR Code"
           onError={() => setQrError(true)}
           className="receipt-qr-image max-w-full h-auto"
+          style={{ width: width === '58mm' ? '12mm' : '15mm', imageRendering: 'pixelated' }}
         />
       ) : (
         <div className="flex flex-col items-center justify-center p-4 border receipt-border rounded receipt-faint">
@@ -33,9 +33,10 @@ const ThermalQRCode = ({ title = "Scan to verify", subtitle = "Visit our store",
         </div>
       )}
       
-      {subtitle && (
-        <p className="receipt-qr-caption mt-2">{subtitle}</p>
-      )}
+      <div className="receipt-qr-footer-copy">
+        <p className="receipt-qr-caption">{title}</p>
+        {subtitle && <p className="receipt-qr-caption">{subtitle}</p>}
+      </div>
     </div>
   )
 }

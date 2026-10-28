@@ -161,13 +161,18 @@ export const formatInvoiceDate = (value: string | null | undefined): string => {
   return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-/** Formats a receipt issued date using the invoice's own currency format. */
-export const formatReceiptDate = (value: string | null | undefined): string => {
+/** Formats thermal document timestamps with the local date and hour/minute. */
+export const formatThermalDateTime = (value: string | null | undefined): string => {
   if (!value) return '—'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '—'
-  return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+  const formattedDate = date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+  const formattedTime = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+  return `${formattedDate}, ${formattedTime}`
 }
+
+/** Kept as a named export for existing thermal receipt consumers. */
+export const formatReceiptDate = formatThermalDateTime
 
 const ADDRESS_KEYS = [
   'address_line_1', 'addressLine1', 'address_line_2', 'addressLine2',

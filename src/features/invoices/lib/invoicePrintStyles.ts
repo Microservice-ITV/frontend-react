@@ -117,6 +117,25 @@ export const INVOICE_DOCUMENT_STYLES = `
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
+
+/* Dashboard A4 invoices keep the same information in a denser business layout. */
+.invoice-document.invoice-document-compact > header { padding: 14px 24px 12px !important; }
+.invoice-document.invoice-document-compact > header > div:first-child { gap: 10px !important; }
+.invoice-document.invoice-document-compact > header img,
+.invoice-document.invoice-document-compact > header > div:first-child > span { width: 42px !important; height: 42px !important; }
+.invoice-document.invoice-document-compact > header h1 { font-size: 30px !important; }
+@media (min-width: 640px) {
+  .invoice-document.invoice-document-compact > header h1 { font-size: 34px !important; }
+}
+.invoice-document.invoice-document-compact > section { margin-top: 12px !important; }
+.invoice-document.invoice-document-compact > section.grid { gap: 10px !important; }
+.invoice-document.invoice-document-compact > section.grid > div { padding: 10px !important; }
+.invoice-document.invoice-document-compact .invoice-desktop-items th { padding-top: 7px !important; padding-bottom: 7px !important; }
+.invoice-document.invoice-document-compact .invoice-desktop-items td { padding-top: 7px !important; padding-bottom: 7px !important; }
+.invoice-document.invoice-document-compact .invoice-desktop-items img,
+.invoice-document.invoice-document-compact .invoice-desktop-items [role="img"] { width: 38px !important; height: 38px !important; }
+.invoice-document.invoice-document-compact > footer { margin-top: 12px !important; padding: 12px 24px !important; }
+.invoice-document .invoice-terms { background: #fafafa; }
 `
 
 /**
@@ -127,7 +146,7 @@ export const INVOICE_DOCUMENT_STYLES = `
  * Scoped by `.invoice-document` so it never affects other pages.
  */
 export const INVOICE_PRINT_STYLES = `
-@page { size: A4; margin: 14mm; }
+@page { size: A4; margin: 9mm; }
 
 .invoice-document {
   -webkit-print-color-adjust: exact;
@@ -190,6 +209,7 @@ export const INVOICE_PRINT_STYLES = `
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+  .invoice-document .invoice-terms { margin-left: 0 !important; margin-right: 0 !important; }
 }
 `
 
