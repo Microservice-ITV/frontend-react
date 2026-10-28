@@ -35,7 +35,7 @@ export function readStaffCheckoutAddress(): UserAddress | null {
     const raw = sessionStorage.getItem(STAFF_CHECKOUT_ADDRESS_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw) as UserAddress
-    if (!parsed?.full_name || !parsed.phone_no || !parsed.address_line_1 || parsed.district_id == null) {
+    if (!parsed?.full_name || !parsed.phone_no || !parsed.address_line_1 || parsed.city_id == null) {
       return null
     }
     return parsed

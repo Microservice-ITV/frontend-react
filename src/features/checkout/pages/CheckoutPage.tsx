@@ -104,14 +104,15 @@ const CheckoutPage = () => {
     const shopRoutes = useMemo(
         () => shopIds.map((shopId) => ({
             shopId,
-            fromDistrictId: profilesByShopId[shopId]?.districtId?.trim() ?? '',
-            toDistrictId: selectedDeliveryAddress?.district_id != null
-                ? String(selectedDeliveryAddress.district_id)
+            fromDistrictId: profilesByShopId[shopId]?.cityId?.trim() ?? '',
+            toDistrictId: selectedDeliveryAddress?.city_id != null
+                ? String(selectedDeliveryAddress.city_id)
                 : '',
         })),
-        [profilesByShopId, selectedDeliveryAddress?.district_id, shopIds],
+        [profilesByShopId, selectedDeliveryAddress?.city_id, shopIds],
     )
-    const deliveryCompany = useCheckoutDeliveryCompany(shopIds, shopRoutes)
+    const deliveryOptionsEnabled = useCheckoutDeliveryOptions()
+    const deliveryCompany = useCheckoutDeliveryCompany(shopIds, shopRoutes, deliveryOptionsEnabled)
     const cartShopIdsWithoutSelectableCompany = useMemo(
         () => shopIdsWithoutSelectableDeliveryCompany({
             shopIds,
@@ -129,9 +130,9 @@ const CheckoutPage = () => {
         ],
     )
     useEffect(() => {
-        if (shopIds.length === 0) return
+        if (deliveryOptionsEnabled !== true || shopIds.length === 0) return
         void dispatch(fetchShopProfilesForCurrentCart())
-    }, [dispatch, shopIds])
+    }, [deliveryOptionsEnabled, dispatch, shopIds])
     const quotableCompanyByShopId = useMemo(() => {
         const next: Record<string, string> = {}
         for (const shopId of shopIds) {
@@ -145,7 +146,7 @@ const CheckoutPage = () => {
     const hasQuotableCompany = Object.keys(quotableCompanyByShopId).length > 0
     const prepaidProvider = useAppSelector((state) => state.checkout.prepaidProvider)
     const staffCashSelected = prepaidProvider === 'cash'
-    const showDeliveryCheckoutOptions = useCheckoutDeliveryOptions()
+    const showDeliveryCheckoutOptions = deliveryOptionsEnabled === true
     const {
         payDeliveryFeeNow,
         setPayDeliveryFeeNow,

@@ -101,14 +101,15 @@ const GuestCheckoutPayment = () => {
   const shopRoutes = useMemo(
     () => shopIds.map((shopId) => ({
       shopId,
-      fromDistrictId: profilesByShopId[shopId]?.districtId?.trim() ?? '',
-      toDistrictId: paymentDeliveryAddress?.district_id != null
-        ? String(paymentDeliveryAddress.district_id)
+      fromDistrictId: profilesByShopId[shopId]?.cityId?.trim() ?? '',
+      toDistrictId: paymentDeliveryAddress?.city_id != null
+        ? String(paymentDeliveryAddress.city_id)
         : '',
     })),
-    [paymentDeliveryAddress?.district_id, profilesByShopId, shopIds],
+    [paymentDeliveryAddress?.city_id, profilesByShopId, shopIds],
   )
-  const deliveryCompany = useCheckoutDeliveryCompany(shopIds, shopRoutes)
+  const deliveryOptionsEnabled = useCheckoutDeliveryOptions()
+  const deliveryCompany = useCheckoutDeliveryCompany(shopIds, shopRoutes, deliveryOptionsEnabled)
   const cartShopIdsWithoutSelectableCompany = useMemo(
     () => shopIdsWithoutSelectableDeliveryCompany({
       shopIds,
@@ -126,9 +127,9 @@ const GuestCheckoutPayment = () => {
     ],
   )
   useEffect(() => {
-    if (shopIds.length === 0) return
+    if (deliveryOptionsEnabled !== true || shopIds.length === 0) return
     void dispatch(fetchShopProfilesForCurrentCart())
-  }, [dispatch, shopIds])
+  }, [deliveryOptionsEnabled, dispatch, shopIds])
   const quotableCompanyByShopId = useMemo(() => {
     const next: Record<string, string> = {}
     for (const shopId of shopIds) {
@@ -142,7 +143,7 @@ const GuestCheckoutPayment = () => {
   const hasQuotableCompany = Object.keys(quotableCompanyByShopId).length > 0
   const prepaidProvider = useAppSelector((state) => state.checkout.prepaidProvider)
   const staffCashSelected = prepaidProvider === 'cash'
-  const showDeliveryCheckoutOptions = useCheckoutDeliveryOptions()
+  const showDeliveryCheckoutOptions = deliveryOptionsEnabled === true
   const {
     payDeliveryFeeNow,
     setPayDeliveryFeeNow,

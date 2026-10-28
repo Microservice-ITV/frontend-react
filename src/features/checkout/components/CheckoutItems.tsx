@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAppSelector } from '@/app/hooks'
-import { loadAllDistricts } from '@/features/admin/api/locationOptions'
+import { loadAllCities } from '@/features/admin/api/locationOptions'
 import type { CheckoutDeliveryCompany } from '@/features/shipping/hooks/useCheckoutDeliveryCompany'
 import type { ShopCalculatedShipping } from '@/features/shipping/types/shippingTypes'
 import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
@@ -287,12 +287,12 @@ const CheckoutItems = ({
   useEffect(() => {
     if (!needsCityNames) return
     let cancelled = false
-    void loadAllDistricts()
-      .then((districts) => {
+    void loadAllCities()
+      .then((cities) => {
         if (cancelled) return
         const next: Record<string, string> = {}
-        for (const district of districts) {
-          next[district.id] = district.name
+        for (const city of cities) {
+          next[city.id] = city.name
         }
         setCityNames(next)
       })

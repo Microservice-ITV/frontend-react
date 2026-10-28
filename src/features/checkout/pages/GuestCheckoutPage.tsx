@@ -9,7 +9,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { guestCheckoutCart } from '../store/checkoutThunks'
 import { clearCheckout, setCheckoutError } from '../store/checkoutSlice'
-import { loadAllDistricts, type DistrictOptionWithCity } from '@/features/admin/api/locationOptions'
+import { loadAllCities, type CityOptionWithState } from '@/features/admin/api/locationOptions'
 import {
   formatDisabledTaxAmount,
   isTaxChargeEnabled,
@@ -85,11 +85,11 @@ const GuestCheckoutPage = () => {
   const [phone, setPhone] = useState('')
   const [phoneTouched, setPhoneTouched] = useState(false)
   const [address, setAddress] = useState('')
-  const [districts, setDistricts] = useState<DistrictOptionWithCity[]>([])
-  const [selectedDistrictId, setSelectedDistrictId] = useState<string>('')
-  const selectedDistrict = useMemo(
-    () => districts.find((d) => d.id === selectedDistrictId) ?? null,
-    [districts, selectedDistrictId],
+  const [cities, setCities] = useState<CityOptionWithState[]>([])
+  const [selectedCityId, setSelectedCityId] = useState<string>('')
+  const selectedCity = useMemo(
+    () => cities.find((city) => city.id === selectedCityId) ?? null,
+    [cities, selectedCityId],
   )
 
   const [submitting, setSubmitting] = useState(false)
@@ -136,12 +136,12 @@ const GuestCheckoutPage = () => {
 
   useEffect(() => {
     let cancelled = false
-    void loadAllDistricts()
+    void loadAllCities()
       .then((list) => {
-        if (!cancelled) setDistricts(list)
+        if (!cancelled) setCities(list)
       })
       .catch(() => {
-        if (!cancelled) setDistricts([])
+        if (!cancelled) setCities([])
       })
     return () => {
       cancelled = true
@@ -167,19 +167,19 @@ const GuestCheckoutPage = () => {
       : null
 
   const deliveryAddress: UserAddress | null = useMemo(() => {
-    if (!fullName.trim() || !phoneE164 || !selectedDistrict || !address.trim()) return null
+    if (!fullName.trim() || !phoneE164 || !selectedCity || !address.trim()) return null
 
     return {
       address_id: `guest-${guestId}`,
       country_code: 'MM',
       country: 'Myanmar',
-      state_id: null,
-      city_id: Number(selectedDistrict.cityId),
-      district_id: Number(selectedDistrict.id),
+      state_id: selectedCity.stateId,
+      city_id: Number(selectedCity.id),
+      district_id: null,
       ward_id: null,
-      state: null,
-      city: selectedDistrict.cityName,
-      district: selectedDistrict.name,
+      state: selectedCity.stateName,
+      city: selectedCity.name,
+      district: null,
       ward: null,
       address_line_1: address.trim(),
       address_line_2: null,
@@ -196,7 +196,7 @@ const GuestCheckoutPage = () => {
       is_shipping: true,
       is_billing: false,
     }
-  }, [fullName, phoneE164, selectedDistrict, address, guestId])
+  }, [fullName, phoneE164, selectedCity, address, guestId])
 
   const canContinue =
     !!deliveryAddress &&
@@ -360,10 +360,10 @@ const GuestCheckoutPage = () => {
                 id="guest-city"
                 placeholder="Search city..."
                 emptyLabel="Select City"
-                options={districts.map((d) => ({ value: d.id, label: d.name }))}
-                value={selectedDistrictId}
-                onChange={setSelectedDistrictId}
-                disabled={districts.length === 0}
+                options={cities.map((city) => ({ value: city.id, label: city.name }))}
+                value={selectedCityId}
+                onChange={setSelectedCityId}
+                disabled={cities.length === 0}
               />
             </div>
             <div className="md:col-span-2">
