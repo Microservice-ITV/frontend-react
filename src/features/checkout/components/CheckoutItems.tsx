@@ -280,6 +280,7 @@ const CheckoutItems = ({
   const calculateStatus = useAppSelector(state => state.shipping.calculateStatus)
   const [cityNames, setCityNames] = useState<Record<string, string>>({})
   const itemTaxes = useAppSelector((state) => state.checkout.itemTaxes)
+  const taxQuoting = useAppSelector((state) => state.checkout.taxQuoting)
   const needsCityNames = Object.values(feesByShopId).some(
     (fee) => fee.calculationMethod === 'CITY_ROUTE' && (fee.fromDistrictId || fee.toDistrictId),
   )
@@ -380,9 +381,10 @@ const CheckoutItems = ({
                 const subtotal = item.price * item.quantity
                 const variation = item.variantLabel?.trim() || 'Standard'
                 const variantId = item.variantId ?? ''
+                // No quote yet and none running → tax is off or 0%: show 0% right away.
                 const lineTax = itemTaxes.find(
                   (tax) => tax.productId === item.productId && tax.variantId === variantId,
-                )
+                ) ?? (taxQuoting ? undefined : { productId: item.productId, variantId, taxRate: 0, taxAmount: 0 })
                 const noCategoryTax = Boolean(lineTax?.noCategoryTax)
                 const liveTaxAmount = lineTax && !noCategoryTax
                   ? taxChargeForAmount(subtotal, lineTax.taxRate)

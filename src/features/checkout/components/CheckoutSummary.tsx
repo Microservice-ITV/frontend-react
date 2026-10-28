@@ -11,6 +11,7 @@ import {
   cartTaxFromKnownRates,
   checkoutApi,
   formatDisabledTaxAmount,
+  isTaxActive,
   isTaxChargeEnabled,
   resolveCartTax,
   type PromoCodeStatus,
@@ -24,6 +25,7 @@ import {
   setCheckoutPlacingOrder,
   setCheckoutTaxAmount,
   setItemTaxes,
+  setTaxQuoting,
 } from '../store/checkoutSlice'
 import { removeSelectedItems } from '@/features/cart/store/cartSlice'
 import {
@@ -428,7 +430,6 @@ const CheckoutSummary = ({
 
     const requestId = activeCartTaxRequest + 1
     activeCartTaxRequest = requestId
-    setTaxLoading(true)
     setTaxPreviewError(false)
 
     const cartLines = cartItems.map((item) => ({
@@ -441,6 +442,21 @@ const CheckoutSummary = ({
 
     void (async () => {
       try {
+        const active = await isTaxActive()
+        if (requestId !== activeCartTaxRequest) return
+        if (!active) {
+          setTaxAmount(0)
+          setTaxEnabled(false)
+          dispatch(setItemTaxes(quotedItems.map((item) => ({
+            productId: item.productId,
+            variantId: item.variantId ?? '',
+            taxRate: 0,
+            taxAmount: 0,
+          }))))
+          return
+        }
+        setTaxLoading(true)
+        dispatch(setTaxQuoting(true))
         const resolved = await resolveCartTax(cartLines, promotionDiscount)
         if (requestId !== activeCartTaxRequest) return
 
@@ -474,7 +490,10 @@ const CheckoutSummary = ({
       } catch {
         if (requestId === activeCartTaxRequest) setTaxPreviewError(true)
       } finally {
-        if (requestId === activeCartTaxRequest) setTaxLoading(false)
+        if (requestId === activeCartTaxRequest) {
+          setTaxLoading(false)
+          dispatch(setTaxQuoting(false))
+        }
       }
     })()
 
