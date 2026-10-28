@@ -5,8 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { InvoiceDocument } from '@/lib/api/invoiceClient'
 import CustomerInvoicesPage from './CustomerInvoicesPage'
 
-const { getMyInvoicesMock, uploadPaymentSlipMock, downloadInvoicePdfMock } = vi.hoisted(() => ({
+const { authState, getMyInvoicesMock, getShopInvoicesMock, uploadPaymentSlipMock, downloadInvoicePdfMock } = vi.hoisted(() => ({
+  authState: { user: null as null | { id: string; role?: string; active_shop_id?: string | null; staff_shop_ids?: string[] } },
   getMyInvoicesMock: vi.fn(),
+  getShopInvoicesMock: vi.fn(),
   uploadPaymentSlipMock: vi.fn(),
   downloadInvoicePdfMock: vi.fn(),
 }))
@@ -14,11 +16,14 @@ const { getMyInvoicesMock, uploadPaymentSlipMock, downloadInvoicePdfMock } = vi.
 vi.mock('@/lib/api/invoiceClient', () => ({
   downloadInvoicePdf: downloadInvoicePdfMock,
   getMyInvoices: getMyInvoicesMock,
+  getShopInvoices: getShopInvoicesMock,
   uploadPaymentSlip: uploadPaymentSlipMock,
 }))
 
 vi.mock('@/app/hooks', () => ({
-  useAppSelector: () => true,
+  useAppSelector: (selector: (state: unknown) => unknown) => selector({
+    auth: { isAuthenticated: true, user: authState.user },
+  }),
 }))
 
 const createInvoice = (overrides: Partial<InvoiceDocument> = {}): InvoiceDocument => ({
@@ -61,6 +66,7 @@ const createInvoice = (overrides: Partial<InvoiceDocument> = {}): InvoiceDocumen
 })
 
 const renderPage = async (invoice: InvoiceDocument) => {
+  authState.user = { id: 'customer-id', role: 'USER' }
   getMyInvoicesMock.mockResolvedValue([invoice])
   render(
     <MemoryRouter>
@@ -73,6 +79,7 @@ const renderPage = async (invoice: InvoiceDocument) => {
 describe('CustomerInvoicesPage payment slip actions', () => {
   beforeEach(() => {
     getMyInvoicesMock.mockReset()
+    getShopInvoicesMock.mockReset()
     uploadPaymentSlipMock.mockReset()
     downloadInvoicePdfMock.mockReset()
   })
@@ -137,5 +144,37 @@ describe('CustomerInvoicesPage payment slip actions', () => {
     await screen.findAllByRole('link', { name: invoices[10].invoiceNumber })
     expect(screen.queryByRole('link', { name: invoices[0].invoiceNumber })).toBeNull()
     expect(screen.getByText('Showing 11-12 of 12 invoices')).toBeTruthy()
+  })
+
+  it('loads all authorized shop invoices and exposes Thermal POS entry for staff memberships', async () => {
+    authState.user = { id: 'staff-user', role: 'USER', staff_shop_ids: ['shop-a', 'shop-b'] }
+    getShopInvoicesMock.mockResolvedValue([createInvoice({ status: 'PAID' })])
+
+    render(<MemoryRouter><CustomerInvoicesPage /></MemoryRouter>)
+
+    expect(await screen.findAllByRole('link', { name: /thermal pos actions/i })).toHaveLength(2)
+    expect(getShopInvoicesMock).toHaveBeenCalledOnce()
+    expect(getMyInvoicesMock).not.toHaveBeenCalled()
+    expect(screen.queryAllByRole('button', { name: /submit slip/i })).toHaveLength(0)
+  })
+
+  it('uses the staff invoice workflow for a seller account with an active shop', async () => {
+    authState.user = { id: 'seller-user', role: 'SHOP_ADMIN', active_shop_id: 'shop-a' }
+    getShopInvoicesMock.mockResolvedValue([createInvoice({ status: 'UNPAID' })])
+
+    render(<MemoryRouter><CustomerInvoicesPage /></MemoryRouter>)
+
+    expect(await screen.findAllByRole('link', { name: /thermal pos actions/i })).toHaveLength(2)
+    expect(getShopInvoicesMock).toHaveBeenCalledOnce()
+    expect(getMyInvoicesMock).not.toHaveBeenCalled()
+  })
+
+  it('keeps thermal actions hidden for a customer even if shop IDs are absent', async () => {
+    authState.user = { id: 'customer-id', role: 'USER', staff_shop_ids: [] }
+    await renderPage(createInvoice({ status: 'PAID' }))
+
+    expect(screen.queryAllByRole('link', { name: /thermal pos actions/i })).toHaveLength(0)
+    expect(getMyInvoicesMock).toHaveBeenCalledOnce()
+    expect(getShopInvoicesMock).not.toHaveBeenCalled()
   })
 })
