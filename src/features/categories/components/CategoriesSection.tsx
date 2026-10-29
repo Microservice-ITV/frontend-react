@@ -47,7 +47,7 @@ const CategoriesSection = () => {
     <section className="pt-6">
       <div className="mb-5 flex items-center justify-between px-4 sm:px-6">
         <h1 className="text-base uppercase font-semibold text-gray-600">
-          Categories
+          Shop by Category
         </h1>
         {status === "succeeded" && showArrows && (
           <div className="flex items-center gap-1">
