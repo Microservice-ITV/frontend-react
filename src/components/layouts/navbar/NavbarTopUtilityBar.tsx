@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { logout } from '@/features/auth/store/authThunks'
-import { extractRoleFromUser } from '@/app/rbac/normalizers'
+import { extractRolesFromUser } from '@/app/rbac/normalizers'
 import { Sparkles, Tag, User } from 'lucide-react'
 import { openAiAssistant } from '@/features/ai/store/aiAssistantSlice'
 
@@ -39,7 +39,7 @@ const NavbarTopUtilityBar = () => {
 
     const startSellingTo = useMemo(() => {
         if (!user) return START_SELLING_PATH
-        const role = extractRoleFromUser(user)
+        const role = extractRolesFromUser(user)
         if (role === 'WAREHOUSE_MANAGER') return '/warehouse-manager/warehouse'
         if (role === 'DELIVERY_AGENT') return '/delivery-agent/overview'
         if (role === 'SHOP_OWNER' || role === 'SHOP_ADMIN') return SELLER_DASHBOARD_OVERVIEW_PATH
