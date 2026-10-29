@@ -377,6 +377,7 @@ export const searchConfigs: Record<string, SearchConfig> = {
   'seller-chat': makeStaticSearch('/seller/chat'),
   'seller-files': makeStaticSearch('/seller/files'),
   'seller-notifications': makeStaticSearch('/seller/notifications'),
+  'seller-delivery-companies': makeStaticSearch('/seller/delivery-companies'),
   'seller-settings': makeStaticSearch('/seller/settings'),
   'seller-help-support': makeStaticSearch('/seller/help-support'),
   'admin-shops': {
@@ -450,7 +451,12 @@ export function getSearchConfig(key: string): SearchConfig | undefined {
 }
 
 export function getSearchConfigsForArea(area: DashboardArea): SearchConfig[] {
-  if (area === 'warehouse_manager' || area === 'delivery_agent') return []
+  if (
+    area === 'warehouse_manager' ||
+    area === 'delivery_agent' ||
+    area === 'employee'
+  )
+    return []
   return Object.entries(searchConfigs)
     .filter(([key]) => key.startsWith(area === 'seller' ? 'seller-' : 'admin-'))
     .map(([, config]) => config)

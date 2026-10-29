@@ -2,9 +2,13 @@ import { describe, expect, it } from 'vitest'
 import {
   DASHBOARD_MENU_ADMIN,
   DASHBOARD_MENU_DELIVERY_AGENT,
+  DASHBOARD_MENU_PAYROLL,
   DASHBOARD_MENU_SELLER,
   DASHBOARD_MENU_WAREHOUSE_MANAGER,
+  DASHBOARD_MENU_EMPLOYEE,
 } from './dashboardMenu'
+import { getSearchConfigsForArea } from './searchConfigs'
+import { CAPABILITIES } from '@/app/rbac/capabilities'
 
 const findSellerAccountingItems = () => {
   const items: Array<{ key?: string; label?: string; to?: string; children?: Array<{ key?: string; label?: string; to?: string }> }> = []
@@ -91,6 +95,9 @@ describe('DASHBOARD_MENU warehouse purchasing items', () => {
       'Request from seller',
       'Goods Receipts',
       'Purchase Returns',
+      'Leave Requests',
+      'Leave Approvals',
+      'My Leave',
     ])
     expect(managerLabels).not.toContain('Purchase Order Tracking')
     expect(managerLabels).not.toContain('Suppliers')
@@ -99,10 +106,41 @@ describe('DASHBOARD_MENU warehouse purchasing items', () => {
     expect(managerLabels).not.toContain('Shops')
   })
 
+  it('routes the warehouse manager to its own leave request, approval and self-service pages', () => {
+    const leaveItems = DASHBOARD_MENU_WAREHOUSE_MANAGER.flatMap((section) => section.items).filter((item) =>
+      item.key?.startsWith('wm-leave') || item.key === 'wm-my-leave',
+    )
+
+    expect(leaveItems).toContainEqual(
+      expect.objectContaining({
+        key: 'wm-leave-requests',
+        label: 'Leave Requests',
+        to: '/warehouse-manager/leave/requests',
+        requiredCapabilities: [CAPABILITIES.LEAVE_VIEW],
+      }),
+    )
+    expect(leaveItems).toContainEqual(
+      expect.objectContaining({
+        key: 'wm-leave-approvals',
+        label: 'Leave Approvals',
+        to: '/warehouse-manager/leave/approvals',
+        requiredCapabilities: [CAPABILITIES.LEAVE_REVIEW],
+      }),
+    )
+    expect(leaveItems).toContainEqual(
+      expect.objectContaining({
+        key: 'wm-my-leave',
+        label: 'My Leave',
+        to: '/warehouse-manager/leave/me',
+        requiredCapabilities: [CAPABILITIES.LEAVE_VIEW],
+      }),
+    )
+  })
+
   it('gives the delivery agent only delivery permission menus', () => {
     const deliveryLabels = labels(DASHBOARD_MENU_DELIVERY_AGENT)
 
-    expect(deliveryLabels).toEqual(['Overview', 'Parcels', 'Damage Reports'])
+    expect(deliveryLabels).toEqual(['Overview', 'Parcels', 'Damage Reports', 'My Leave'])
     expect(deliveryLabels).not.toContain('Purchase Orders')
     expect(deliveryLabels).not.toContain('Warehouses')
     expect(deliveryLabels).not.toContain('Shops')
@@ -175,5 +213,259 @@ describe('DASHBOARD_MENU_SELLER accounting items', () => {
       }))
       expect(items.some((item) => item.label?.includes('Delivery Provider'))).toBe(false)
     })
+  })
+})
+
+describe('DASHBOARD_MENU_ADMIN leave items', () => {
+  const leaveItems = () => {
+    const leaveSection = DASHBOARD_MENU_ADMIN.find((s) => s.title === 'LEAVE MANAGEMENT')
+    return leaveSection?.items ?? []
+  }
+
+  it('links platform admins to the leave configuration pages', () => {
+    const items = leaveItems()
+
+    expect(items).toContainEqual(
+      expect.objectContaining({
+        key: 'admin-hr-leave-types',
+        label: 'Leave Types',
+        to: '/super-admin/leave-types',
+      }),
+    )
+    expect(items).toContainEqual(
+      expect.objectContaining({
+        key: 'admin-hr-leave-policies',
+        label: 'Leave Policies',
+        to: '/super-admin/leave-policies',
+      }),
+    )
+    expect(items).toContainEqual(
+      expect.objectContaining({
+        key: 'admin-hr-leave-balances',
+        label: 'Leave Balances',
+        to: '/super-admin/leave-balances',
+      }),
+    )
+  })
+
+  it('links admins to leave requests, the approval queue and self-service leave', () => {
+    const items = leaveItems()
+
+    expect(items).toContainEqual(
+      expect.objectContaining({
+        key: 'admin-hr-leave-requests',
+        label: 'Leave Requests',
+        to: '/super-admin/leave-requests',
+      }),
+    )
+    expect(items).toContainEqual(
+      expect.objectContaining({
+        key: 'admin-hr-leave-approvals',
+        label: 'Leave Approvals',
+        to: '/super-admin/leave-approvals',
+      }),
+    )
+    expect(items).toContainEqual(
+      expect.objectContaining({
+        key: 'admin-hr-my-leave',
+        label: 'My Leave',
+        to: '/super-admin/leave/me',
+      }),
+    )
+  })
+})
+
+describe('DASHBOARD_MENU_ADMIN HR organization', () => {
+  const hrSectionTitles = [
+    'HR MANAGEMENT',
+    'TIME & ATTENDANCE',
+    'LEAVE MANAGEMENT',
+    'PAYROLL & COMPENSATION',
+    'PERFORMANCE & BONUSES',
+  ]
+
+  const hrSections = () =>
+    DASHBOARD_MENU_ADMIN.filter((section) => hrSectionTitles.includes(section.title))
+
+  const systemItems = () =>
+    DASHBOARD_MENU_ADMIN.find((s) => s.title === 'SYSTEM')?.items ?? []
+
+  const flattenItems = (
+    items: Array<{ key?: string; children?: unknown }>,
+  ): Array<{ key?: string }> =>
+    items.flatMap((item) => [
+      item,
+      ...flattenItems((item.children ?? []) as Array<{ key?: string; children?: unknown }>),
+    ])
+
+  it('groups all HR navigation into top-level sections outside SYSTEM', () => {
+    for (const title of hrSectionTitles) {
+      expect(DASHBOARD_MENU_ADMIN.some((section) => section.title === title)).toBe(true)
+    }
+
+    expect(systemItems().some((item) => item.key.startsWith('admin-hr-'))).toBe(false)
+    expect(hrSections()).toHaveLength(hrSectionTitles.length)
+
+    const hrItems = flattenItems(hrSections().flatMap((section) => section.items))
+
+    // Verify all expected HR items are present under the HR sections
+    const expectedKeys = [
+      'admin-hr-employees',
+      'admin-hr-departments',
+      'admin-hr-positions',
+      'admin-hr-designations',
+      'admin-hr-my-profile',
+      'admin-hr-attendance',
+      'admin-hr-shifts',
+      'admin-hr-shift-schedules',
+      'admin-hr-overtime-requests',
+      'admin-hr-my-attendance',
+      'admin-hr-leave-types',
+      'admin-hr-leave-policies',
+      'admin-hr-leave-balances',
+      'admin-hr-leave-requests',
+      'admin-hr-leave-approvals',
+      'admin-hr-leave-settings',
+      'admin-hr-my-leave',
+      'admin-hr-payroll-policies',
+      'admin-hr-payroll-runs',
+      'admin-hr-payslips',
+      'admin-hr-payment-records',
+      'admin-hr-my-payslips',
+      'admin-hr-perf-cycles',
+      'admin-hr-kpis',
+      'admin-hr-reviews',
+      'admin-hr-bonus-policies',
+      'admin-hr-bonus-awards',
+      'admin-hr-my-perf',
+    ]
+
+    for (const key of expectedKeys) {
+      expect(hrItems.some((item) => item.key === key)).toBe(true)
+    }
+  })
+})
+
+describe('DASHBOARD_MENU_ADMIN payroll items', () => {
+  const payrollItems = () => {
+    const payrollSection = DASHBOARD_MENU_ADMIN.find(
+      (s) => s.title === 'PAYROLL & COMPENSATION',
+    )
+    return payrollSection?.items ?? []
+  }
+
+  it('links admins to every payroll page under /super-admin/payroll', () => {
+    const items = payrollItems()
+
+    expect(items).toContainEqual(
+      expect.objectContaining({
+        key: 'admin-hr-payroll-policies',
+        label: 'Payroll Policies',
+        to: '/super-admin/payroll/policies',
+      }),
+    )
+    expect(items).toContainEqual(
+      expect.objectContaining({
+        key: 'admin-hr-payroll-runs',
+        label: 'Payroll Runs',
+        to: '/super-admin/payroll/runs',
+      }),
+    )
+    expect(items).toContainEqual(
+      expect.objectContaining({
+        key: 'admin-hr-payslips',
+        label: 'Payslips',
+        to: '/super-admin/payroll/payslips',
+      }),
+    )
+    expect(items).toContainEqual(
+      expect.objectContaining({
+        key: 'admin-hr-payment-records',
+        label: 'Payment Records',
+        to: '/super-admin/payroll/payments',
+      }),
+    )
+    expect(items).toContainEqual(
+      expect.objectContaining({
+        key: 'admin-hr-my-payslips',
+        label: 'My Payslips',
+        to: '/super-admin/payroll/payslips/me',
+      }),
+    )
+  })
+
+  it('gates each payroll entry with the matching payroll capability', () => {
+    const items = payrollItems()
+    const capabilityFor = (key: string) => items.find((item) => item.key === key)?.requiredCapabilities
+
+    expect(capabilityFor('admin-hr-payroll-policies')).toEqual([CAPABILITIES.PAYROLL_POLICIES_MANAGE])
+    expect(capabilityFor('admin-hr-payroll-runs')).toEqual([CAPABILITIES.PAYROLL_VIEW])
+    expect(capabilityFor('admin-hr-payslips')).toEqual([CAPABILITIES.PAYSLIP_VIEW])
+    expect(capabilityFor('admin-hr-payment-records')).toEqual([CAPABILITIES.PAYROLL_VIEW])
+    expect(capabilityFor('admin-hr-my-payslips')).toEqual([CAPABILITIES.PAYSLIP_VIEW_OWN])
+  })
+})
+
+describe('DASHBOARD_MENU_PAYROLL', () => {
+  const payrollLabels = () =>
+    DASHBOARD_MENU_PAYROLL.flatMap((section) => section.items).map((item) => item.label)
+
+  it('gives the payroll area its own run, payslip and payment sections', () => {
+    expect(payrollLabels()).toEqual([
+      'Payroll Policies',
+      'Payroll Runs',
+      'Payslips',
+      'Payment Records',
+      'Performance Cycles',
+      'KPIs',
+      'Performance Reviews',
+      'Bonus Policies',
+      'Bonus Awards',
+      'My Payslips',
+    ])
+  })
+
+  it('routes the payroll area to standalone /payroll paths', () => {
+    const tos = DASHBOARD_MENU_PAYROLL.flatMap((section) => section.items).map((item) => item.to)
+
+    expect(tos).toEqual([
+      '/payroll/policies',
+      '/payroll/runs',
+      '/payroll/payslips',
+      '/payroll/payments',
+      '/payroll/performance/cycles',
+      '/payroll/performance/kpis',
+      '/payroll/performance/reviews',
+      '/payroll/performance/bonus-policies',
+      '/payroll/performance/bonus-awards',
+      '/payroll/payslips/me',
+    ])
+  })
+
+  it('marks every payroll menu item with area "payroll"', () => {
+    for (const section of DASHBOARD_MENU_PAYROLL) {
+      for (const item of section.items) {
+        expect(item.area).toBe('payroll')
+      }
+    }
+  })
+})
+
+describe('DASHBOARD_MENU_EMPLOYEE', () => {
+  it('only exposes self-service leave', () => {
+    const items = DASHBOARD_MENU_EMPLOYEE.flatMap((section) => section.items)
+
+    expect(items).toHaveLength(1)
+    expect(items[0]).toMatchObject({
+      key: 'employee-my-leave',
+      label: 'My Leave',
+      to: '/employee/my-leave',
+      area: 'employee',
+      requiredCapabilities: [CAPABILITIES.LEAVE_VIEW],
+    })
+  })
+
+  it('does not load admin data search configs for the employee area', () => {
+    expect(getSearchConfigsForArea('employee')).toEqual([])
   })
 })

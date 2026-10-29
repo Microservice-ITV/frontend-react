@@ -8,7 +8,7 @@ import RowActionMenu from '@/components/ui/RowActionMenu'
 import { adminUsersApi } from '@/features/admin/api/adminUsersApi'
 import { WarehouseStatusBadge } from '../components/StockStatusBadge'
 import { primaryButtonClass } from '../components/forms/FormField'
-import { warehouseApi, warehouseErrorMessage } from '../api/warehouseApi'
+import { warehouseApi } from '../api/warehouseApi'
 import { warehousePaths, type WarehouseAreaBase } from '../config/warehousePaths'
 import { useWarehouses } from '../hooks/useWarehouseData'
 import {
@@ -27,7 +27,6 @@ const WarehousesPage = ({ base }: WarehousesPageProps) => {
   const paths = warehousePaths(base)
   const navigate = useNavigate()
   const { openModal } = useGlobalModal()
-  const canMutateWarehouse = base === '/seller' || base === '/warehouse-manager'
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<WarehouseStatus | ''>('')
   const [managerNames, setManagerNames] = useState<Record<string, string>>({})
@@ -89,12 +88,8 @@ const WarehousesPage = ({ base }: WarehousesPageProps) => {
       primaryVariant: 'danger',
       secondaryLabel: 'Cancel',
       onPrimary: async () => {
-        try {
-          await warehouseApi.deleteWarehouse(warehouse.id)
-          await reload()
-        } catch (err) {
-          throw new Error(warehouseErrorMessage(err))
-        }
+        await warehouseApi.deleteWarehouse(warehouse.id)
+        await reload()
       },
     })
   }
@@ -177,8 +172,9 @@ const WarehousesPage = ({ base }: WarehousesPageProps) => {
               icon: <Boxes size={16} className="shrink-0 text-slate-500" />,
               onClick: () => navigate(`${paths.inventory}?warehouseId=${row.id}`),
             },
-            ...(canMutateWarehouse
-              ? [
+            ...(base === '/seller'
+              ? []
+              : [
                   {
                     key: 'edit',
                     label: 'Edit',
@@ -193,8 +189,7 @@ const WarehousesPage = ({ base }: WarehousesPageProps) => {
                       'flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-red-600 hover:bg-slate-50 cursor-pointer',
                     onClick: () => confirmDelete(row),
                   },
-                ]
-              : []),
+                ]),
           ]}
         />
       ),

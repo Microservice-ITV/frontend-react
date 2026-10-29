@@ -169,14 +169,16 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
       collected: sum((payment) => payment.amount),
       share: sum((payment) => payment.seller?.orderShare ?? payment.amount),
       payout: sum((payment) => payment.seller?.payout ?? payment.amount),
+      pending: payments.filter((payment) =>
+        ['PENDING', 'CREATED', 'PROCESSING'].includes((payment.status || '').toUpperCase()),
+      ).length,
+      currency: payments[0]?.currency || 'USD',
       codDueFromDelivery: Number(deliveredPendingCod.reduce(
         (carry, payment) => carry + sellerPaymentAmountDue(payment),
         0,
       ).toFixed(2)),
       codDueOrderCount: deliveredPendingCod.length,
-      pending: payments.filter((payment) =>
-        ['PENDING', 'CREATED', 'PROCESSING'].includes((payment.status || '').toUpperCase()),
-      ).length,
+
     }
   }, [payments])
 
@@ -302,7 +304,7 @@ export default function PaymentsPage({ admin = false }: PaymentsPageProps) {
       {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
 
       {!admin && payments.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div className="rounded-xl border border-slate-200 bg-white p-4">
             <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
               Collected (your shops)

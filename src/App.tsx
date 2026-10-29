@@ -42,7 +42,20 @@ function App() {
     pathname === '/warehouse-manager' ||
     pathname.startsWith('/warehouse-manager/') ||
     pathname === '/delivery-agent' ||
-    pathname.startsWith('/delivery-agent/')
+    pathname.startsWith('/delivery-agent/') ||
+    pathname === '/warehouse' ||
+    pathname.startsWith('/warehouse/') ||
+    pathname === '/delivery' ||
+    pathname.startsWith('/delivery/') ||
+    pathname === '/employee' ||
+    pathname.startsWith('/employee/')
+  const isInvoicePrintRoute = Boolean(
+    matchPath(
+      { path: '/account/invoices/:invoiceNumber/print', end: true },
+      pathname,
+    ),
+  )
+  const hideGlobalChrome = isDashboardRoute || isInvoicePrintRoute
   const isInvoicePrintRoutePath = isInvoicePrintRoute(pathname)
   const hideGlobalChrome = isDashboardRoute || isInvoicePrintRoutePath
 
