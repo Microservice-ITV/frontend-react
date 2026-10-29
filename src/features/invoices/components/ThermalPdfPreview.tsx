@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { PDFDocumentLoadingTask, PDFDocumentProxy, RenderTask } from 'pdfjs-dist'
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import { Minus, Plus, RotateCcw } from 'lucide-react'
@@ -8,7 +8,6 @@ type ThermalPdfPreviewProps = {
   loading?: boolean
   kind: 'invoice' | 'receipt'
   width: '58mm' | '80mm'
-  fallback?: ReactNode
   errorMessage?: string | null
 }
 
@@ -21,16 +20,16 @@ type PdfPage = {
 // Give the on-screen preview a little breathing room while leaving the source PDF untouched.
 const previewScaleForWidth = (width: ThermalPdfPreviewProps['width']) => width === '58mm' ? 0.96 : 0.95
 
-const ThermalPdfPreview = ({ pdf, loading = false, kind, width, fallback, errorMessage }: ThermalPdfPreviewProps) => {
+const ThermalPdfPreview = ({ pdf, loading = false, kind, width, errorMessage }: ThermalPdfPreviewProps) => {
   const viewportRef = useRef<HTMLDivElement>(null)
-  const fallbackRef = useRef<HTMLDivElement>(null)
   const canvasRefs = useRef(new Map<number, HTMLCanvasElement>())
   const renderTasks = useRef<RenderTask[]>([])
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null)
+  const [loadedPdf, setLoadedPdf] = useState<Blob | null>(null)
   const [pages, setPages] = useState<PdfPage[]>([])
+  const [hasRenderedPages, setHasRenderedPages] = useState(false)
   const [availableWidth, setAvailableWidth] = useState(0)
   const [availableHeight, setAvailableHeight] = useState(0)
-  const [fallbackScale, setFallbackScale] = useState(1)
   const [zoom, setZoom] = useState(1)
   const [error, setError] = useState<string | null>(null)
 
@@ -49,27 +48,11 @@ const ThermalPdfPreview = ({ pdf, loading = false, kind, width, fallback, errorM
   }, [])
 
   useEffect(() => {
-    if (pdf || !fallback) return
-    const viewport = viewportRef.current
-    const content = fallbackRef.current?.firstElementChild as HTMLElement | null
-    if (!viewport || !content) return
-    const fitFallback = () => {
-      const width = viewport.clientWidth - 32
-      const height = viewport.clientHeight - 32
-      const scale = Math.min(1, width / Math.max(content.scrollWidth, 1), height / Math.max(content.scrollHeight, 1)) * previewScaleForWidth(width)
-      setFallbackScale(Math.max(0.1, scale))
-    }
-    fitFallback()
-    const observer = new ResizeObserver(fitFallback)
-    observer.observe(viewport)
-    observer.observe(content)
-    return () => observer.disconnect()
-  }, [fallback, pdf, width])
-
-  useEffect(() => {
     if (!pdf) {
       setPdfDocument(null)
+      setLoadedPdf(null)
       setPages([])
+      setHasRenderedPages(false)
       setError(null)
       return
     }
@@ -77,7 +60,9 @@ const ThermalPdfPreview = ({ pdf, loading = false, kind, width, fallback, errorM
     let active = true
     let loadedDocument: PDFDocumentProxy | null = null
     setPdfDocument(null)
+    setLoadedPdf(null)
     setPages([])
+    setHasRenderedPages(false)
     setError(null)
 
     const load = async () => {
@@ -97,6 +82,7 @@ const ThermalPdfPreview = ({ pdf, loading = false, kind, width, fallback, errorM
         }
         if (!active) return
         setPdfDocument(loadedDocument)
+        setLoadedPdf(pdf)
         setPages(pageSizes)
       } catch (loadError) {
         if (active) setError(loadError instanceof Error ? loadError.message : 'Unable to preview this PDF.')
@@ -152,6 +138,7 @@ const ThermalPdfPreview = ({ pdf, loading = false, kind, width, fallback, errorM
           return
         }
       }
+      setHasRenderedPages(true)
     }
 
     void renderPages()
@@ -159,6 +146,8 @@ const ThermalPdfPreview = ({ pdf, loading = false, kind, width, fallback, errorM
       for (const task of nextTasks) task.cancel()
     }
   }, [availableHeight, availableWidth, pages, pdfDocument, width, zoom])
+
+  const isCurrentPdf = Boolean(pdf && loadedPdf === pdf)
 
   return (
     <section
@@ -178,10 +167,26 @@ const ThermalPdfPreview = ({ pdf, loading = false, kind, width, fallback, errorM
         </div>
       </div>
       <div ref={viewportRef} className="h-[min(68vh,620px)] min-h-[280px] overflow-auto p-4" data-testid="thermal-pdf-scroll-viewport">
-        {!pdf && fallback && <div className="mx-auto flex min-h-full items-center justify-center" data-testid="thermal-preview-fallback"><div ref={fallbackRef} style={{ transform: `scale(${fallbackScale})`, transformOrigin: 'center center' }}>{fallback}</div></div>}
-        {(loading || (!pdfDocument && !error)) && (!fallback || pdf) && <p role="status" className="py-8 text-center text-sm text-slate-600">Preparing PDF preview…</p>}
+        {(loading || !error && (!isCurrentPdf || !hasRenderedPages)) && (
+          <div role="status" aria-label="Preparing PDF preview" className="mx-auto flex min-h-[360px] max-w-[420px] items-start justify-center py-5">
+            <div className="w-full animate-pulse rounded-md border border-slate-300 bg-white px-5 py-6 shadow-sm" aria-hidden="true">
+              <div className="mx-auto mb-6 h-2 w-2/5 rounded bg-slate-200" />
+              <div className="mb-5 space-y-2">
+                <div className="h-2 w-3/4 rounded bg-slate-200" />
+                <div className="h-2 w-1/2 rounded bg-slate-200" />
+              </div>
+              <div className="mb-5 space-y-3 border-y border-dashed border-slate-200 py-4">
+                <div className="h-2 w-full rounded bg-slate-100" />
+                <div className="h-2 w-11/12 rounded bg-slate-100" />
+                <div className="h-2 w-4/5 rounded bg-slate-100" />
+              </div>
+              <div className="ml-auto h-3 w-2/5 rounded bg-slate-200" />
+            </div>
+            <span className="sr-only">Preparing PDF preview…</span>
+          </div>
+        )}
         {(errorMessage || error) && <p role="alert" className="py-2 text-center text-sm text-rose-700">{errorMessage || error}</p>}
-        {pdfDocument && pages.map((page) => (
+        {isCurrentPdf && pdfDocument && pages.map((page) => (
           <canvas
             key={page.number}
             ref={(node) => {
