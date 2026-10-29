@@ -246,13 +246,13 @@ export const shippingApi = {
             `/shipping/shops/${encodeURIComponent(shopId)}/delivery-companies`,
             { deliveryCompanyIds },
         )
+    },
     checkoutDeliveryOptions() {
         return shippingClient.get<{ success: boolean; data: { enabled: boolean } }>(
             '/shipping/checkout-delivery-options',
         )
     },
 
-    },
 
     districtRouteAvailability(fromCityId: string, toCityId: string) {
         return shippingClient.get<unknown>('/shipping/delivery-companies/route-availability', {
