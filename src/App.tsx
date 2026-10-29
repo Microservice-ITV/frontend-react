@@ -55,7 +55,6 @@ function App() {
       pathname,
     ),
   )
-  const hideGlobalChrome = isDashboardRoute || isInvoicePrintRoute
   const isInvoicePrintRoutePath = isInvoicePrintRoute(pathname)
   const hideGlobalChrome = isDashboardRoute || isInvoicePrintRoutePath
 
