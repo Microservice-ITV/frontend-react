@@ -75,4 +75,42 @@ describe('ThermalPdfPreview', () => {
     expect(canvas.parentElement).toHaveClass('h-[min(68vh,620px)]', 'overflow-auto')
     expect(screen.getByRole('button', { name: 'Fit to page' })).toBeEnabled()
   })
+
+  it('keeps the lightweight loading skeleton visible until PDF.js finishes painting the PDF', async () => {
+    let finishRender!: () => void
+    pdfMocks.render.mockImplementationOnce(() => ({
+      promise: new Promise<void>((resolve) => { finishRender = resolve }),
+      cancel: vi.fn(),
+    }))
+    const pdf = { arrayBuffer: async () => new ArrayBuffer(8) } as Blob
+    render(<ThermalPdfPreview pdf={pdf} width="58mm" kind="invoice" />)
+
+    await waitFor(() => expect(pdfMocks.render).toHaveBeenCalledOnce())
+    expect(screen.getByRole('status', { name: 'Preparing PDF preview' })).toBeInTheDocument()
+    expect(screen.getByLabelText('PDF page 1')).toBeInTheDocument()
+
+    finishRender()
+    await waitFor(() => expect(screen.queryByRole('status', { name: 'Preparing PDF preview' })).not.toBeInTheDocument())
+  })
+
+  it('never shows the previously selected PDF while a different thermal PDF is loading', async () => {
+    const firstPdf = { arrayBuffer: async () => new ArrayBuffer(8) } as Blob
+    const { rerender } = render(<ThermalPdfPreview pdf={firstPdf} width="58mm" kind="invoice" />)
+    await screen.findByLabelText('PDF page 1')
+    await waitFor(() => expect(screen.queryByRole('status', { name: 'Preparing PDF preview' })).not.toBeInTheDocument())
+
+    let resolveDocument!: (document: typeof pdfMocks.document) => void
+    pdfMocks.getDocument.mockImplementationOnce(() => ({
+      promise: new Promise((resolve) => { resolveDocument = resolve }),
+      destroy: vi.fn(async () => undefined),
+    }))
+    const secondPdf = { arrayBuffer: async () => new ArrayBuffer(16) } as Blob
+    rerender(<ThermalPdfPreview pdf={secondPdf} width="80mm" kind="invoice" />)
+
+    await waitFor(() => expect(pdfMocks.getDocument).toHaveBeenCalledTimes(2))
+    expect(screen.getByRole('status', { name: 'Preparing PDF preview' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('PDF page 1')).not.toBeInTheDocument()
+    resolveDocument(pdfMocks.document)
+    await screen.findByLabelText('PDF page 1')
+  })
 })
