@@ -49,12 +49,7 @@ function App() {
     pathname.startsWith('/delivery/') ||
     pathname === '/employee' ||
     pathname.startsWith('/employee/')
-  const isInvoicePrintRoute = Boolean(
-    matchPath(
-      { path: '/account/invoices/:invoiceNumber/print', end: true },
-      pathname,
-    ),
-  )
+  
   const isInvoicePrintRoutePath = isInvoicePrintRoute(pathname)
   const hideGlobalChrome = isDashboardRoute || isInvoicePrintRoutePath
 
