@@ -1,4 +1,10 @@
+import { accountingClient } from '@/lib/api/accountingClient'
 import { authClient } from '@/lib/api/authClient'
+import { shippingApi } from '@/features/shipping/api/shippingApi'
+import {
+  readActiveCompanies,
+  type CheckoutDeliveryCompany,
+} from '@/features/shipping/hooks/useCheckoutDeliveryCompany'
 import { ecommerceReadClient } from '@/lib/api/ecommerceReadClient'
 import { orderClient } from '@/lib/api/orderClient'
 
@@ -110,11 +116,29 @@ export const staffShopOrdersApi = {
     return response.data.data?.staffShopOrders ?? []
   },
 
+  /** Active Delivery Companies configured for the shop (accounting delivery_company_fees). */
+  async deliveryCompanies(shopId: string): Promise<CheckoutDeliveryCompany[]> {
+    const [configs, catalog] = await Promise.all([
+      accountingClient.get<{ configurations?: Array<{ deliveryCompanyId?: string | null }> }>(
+        `/delivery-company-configurations/shops/${encodeURIComponent(shopId)}/checkout`,
+      ),
+      shippingApi.listActiveDeliveryCompanies(),
+    ])
+    const configured = new Set((configs.data.configurations ?? []).map((row) => row.deliveryCompanyId))
+    return readActiveCompanies(catalog.data).filter((company) => configured.has(company.id))
+  },
+
   /** Ships only this shop's portion of the order. */
-  async ship(orderId: string, shopId: string, wayBillNo: string): Promise<{ way_bill_no: string; tracking_number?: string }> {
+  async ship(
+    orderId: string,
+    shopId: string,
+    wayBillNo: string,
+    deliveryCompanyId: string,
+  ): Promise<{ way_bill_no: string; tracking_number?: string }> {
     const response = await orderClient.post(`/orders/${orderId}/create-shipment`, {
       shop_id: shopId,
       way_bill_no: wayBillNo,
+      delivery_company_id: deliveryCompanyId || null,
     })
     return response.data
   },
