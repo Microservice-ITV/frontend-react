@@ -103,7 +103,7 @@ const ProductActions = ({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
         <span className="w-20 shrink-0 text-sm font-medium text-gray-900 sm:w-24">Quantity</span>
 
-        <div className="inline-flex items-center overflow-hidden rounded-none border border-gray-200 bg-white">
+        <div className="inline-flex w-fit self-start items-center overflow-hidden rounded-none border border-gray-200 bg-white sm:self-auto">
           <button
             type="button"
             onClick={decrease}
