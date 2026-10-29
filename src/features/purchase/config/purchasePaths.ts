@@ -12,6 +12,7 @@ export const purchasePaths = (base: PurchaseAreaBase) => ({
   warehouseOrder: `${base}/warehouse/orders/new`,
   warehouseOrders: `${base}/warehouse/from-warehouse`,
   sellerRequests: `${base}/warehouse/seller-requests`,
+  parcels: `${base}/warehouse/parcels`,
   receipts: `${base}/warehouse/receipts`,
   returns: `${base}/warehouse/returns`,
 })

@@ -317,3 +317,60 @@ iframe[title="reCAPTCHA"] {
         transform: translateY(0);
     }
 }
+
+/* Speed/air lines streaming past a delivery truck. */
+@keyframes menu-truck-air-line {
+    0% {
+        transform: translateX(0);
+        opacity: 0;
+    }
+    20% {
+        opacity: 0.95;
+    }
+    100% {
+        transform: translateX(-7px);
+        opacity: 0;
+    }
+}
+
+.menu-truck-air {
+    padding-left: 5px;
+}
+
+.menu-truck-air-lines {
+    pointer-events: none;
+    position: absolute;
+    left: -1px;
+    top: 50%;
+    display: flex;
+    width: 6px;
+    flex-direction: column;
+    gap: 1.5px;
+    transform: translateY(-50%);
+}
+
+.menu-truck-air-lines > span {
+    display: block;
+    height: 1px;
+    border-radius: 999px;
+    background: currentColor;
+    opacity: 0;
+    transform-origin: right center;
+    animation: menu-truck-air-line 0.7s linear infinite;
+}
+
+.menu-truck-air-lines > span:nth-child(1) {
+    width: 5px;
+    animation-delay: 0s;
+}
+
+.menu-truck-air-lines > span:nth-child(2) {
+    width: 4px;
+    margin-left: 1px;
+    animation-delay: 0.22s;
+}
+
+.menu-truck-air-lines > span:nth-child(3) {
+    width: 5px;
+    animation-delay: 0.44s;
+}

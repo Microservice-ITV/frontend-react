@@ -5,7 +5,6 @@ import CheckoutItems from '../components/CheckoutItems'
 import CartBundleBanner from '@/features/bundles/components/CartBundleBanner'
 import CheckoutPayment from '../components/CheckoutPayment'
 import CheckoutSummary from '../components/CheckoutSummary'
-import CheckoutSummarySkeleton from '../components/CheckoutSummarySkeleton'
 import { SagaStatusDisplay } from '../components/SagaStatusDisplay'
 import { selectSelectedItems } from '@/features/cart/store/cartSelectors'
 import { useSyncCartAvailableStock } from '@/features/cart/hooks/useSyncCartAvailableStock'
@@ -14,7 +13,7 @@ import { checkoutCart, fetchCheckoutStatus, fetchSagaStatus } from '@/features/c
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Elements } from '@stripe/react-stripe-js'
 import { stripePromise } from '@/lib/stripe'
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
 import { selectAuthUser } from '@/features/auth/store/authSelectors'
 import { clearCheckout, setCurrentCheckout, setSagaId, setCheckoutError } from '@/features/checkout/store/checkoutSlice'
@@ -29,8 +28,12 @@ import type { UserAddress } from '@/features/account/types/addressTypes'
 import { clearShippingCalculate } from '@/features/shipping/store/shippingSlice'
 import { fetchCheckoutShippingCalculation, fetchShopProfilesForCurrentCart } from '@/features/shipping/store/shippingThunks'
 import { useCheckoutDeliveryCompany } from '@/features/shipping/hooks/useCheckoutDeliveryCompany'
+import { shopIdsWithoutSelectableDeliveryCompany } from '../utils/deliveryReadiness'
 import { hasConfirmedStock, isStockReadinessConfirmed } from '../utils/checkoutStatus'
 import { usePayDeliveryFeeNow } from '../hooks/usePayDeliveryFeeNow'
+import { useCheckoutDeliveryOptions } from '../hooks/useCheckoutDeliveryOptions'
+import { isShopStaffUser, readStaffCheckoutAddress } from '../utils/staffCheckoutCustomer'
+import { parseDeliveryFeeInput } from '../utils/checkoutShopShipping'
 
 type StoredCheckoutSession = {
     checkoutId: string
@@ -47,6 +50,11 @@ const CheckoutPage = () => {
     const navigate = useNavigate()
     const { openModal, closeModal } = useGlobalModal()
     const authUser = useAppSelector(selectAuthUser)
+    const staffCheckout = isShopStaffUser(authUser)
+    const staffDeliveryAddress = useMemo(
+        () => (staffCheckout ? readStaffCheckoutAddress() : null),
+        [staffCheckout],
+    )
     const addresses = useAppSelector(selectAccountAddresses)
     const addressesLoading = useAppSelector(selectAccountAddressesLoading)
     const defaultAddress = useAppSelector(selectDefaultAddress)
@@ -55,6 +63,7 @@ const CheckoutPage = () => {
     const [checkoutSessionBootstrapped, setCheckoutSessionBootstrapped] = useState(false)
     const [stockConfirmedSessionKey, setStockConfirmedSessionKey] = useState<string | null>(null)
     const [checkoutPreparationTimedOut, setCheckoutPreparationTimedOut] = useState(false)
+    const [staffDeliveryFeeInput, setStaffDeliveryFeeInput] = useState('')
     const hasAutoPromptedRef = useRef(false)
 
     // Only grab selected items for checkout
@@ -79,12 +88,13 @@ const CheckoutPage = () => {
         [items],
     )
 
-    const selectedDeliveryAddress = useMemo(() => {
+    const accountDeliveryAddress = useMemo(() => {
         const selected = selectedAddressId
             ? addresses.find((address) => address.address_id === selectedAddressId) ?? null
             : null
         return selected ?? defaultAddress ?? null
     }, [addresses, selectedAddressId, defaultAddress])
+    const selectedDeliveryAddress = staffCheckout ? staffDeliveryAddress : accountDeliveryAddress
     const hasDeliveryAddress = !!selectedDeliveryAddress
     const shopIds = useMemo(
         () => [...new Set(items.map((item) => item.shopId).filter(Boolean))],
@@ -94,18 +104,35 @@ const CheckoutPage = () => {
     const shopRoutes = useMemo(
         () => shopIds.map((shopId) => ({
             shopId,
-            fromDistrictId: profilesByShopId[shopId]?.districtId?.trim() ?? '',
-            toDistrictId: selectedDeliveryAddress?.district_id != null
-                ? String(selectedDeliveryAddress.district_id)
+            fromDistrictId: profilesByShopId[shopId]?.cityId?.trim() ?? '',
+            toDistrictId: selectedDeliveryAddress?.city_id != null
+                ? String(selectedDeliveryAddress.city_id)
                 : '',
         })),
-        [profilesByShopId, selectedDeliveryAddress?.district_id, shopIds],
+        [profilesByShopId, selectedDeliveryAddress?.city_id, shopIds],
     )
-    const deliveryCompany = useCheckoutDeliveryCompany(shopIds, shopRoutes)
+    const deliveryOptionsEnabled = useCheckoutDeliveryOptions()
+    const deliveryCompany = useCheckoutDeliveryCompany(shopIds, shopRoutes, deliveryOptionsEnabled)
+    const cartShopIdsWithoutSelectableCompany = useMemo(
+        () => shopIdsWithoutSelectableDeliveryCompany({
+            shopIds,
+            companiesCountByShop: deliveryCompany.companiesCountByShop,
+            unavailableCompanyIdsByShop: deliveryCompany.unavailableCompanyIdsByShop,
+            loading: deliveryCompany.loading,
+            routesReady: deliveryCompany.routesReady,
+        }),
+        [
+            deliveryCompany.companiesCountByShop,
+            deliveryCompany.loading,
+            deliveryCompany.routesReady,
+            deliveryCompany.unavailableCompanyIdsByShop,
+            shopIds,
+        ],
+    )
     useEffect(() => {
-        if (shopIds.length === 0) return
+        if (deliveryOptionsEnabled !== true || shopIds.length === 0) return
         void dispatch(fetchShopProfilesForCurrentCart())
-    }, [dispatch, shopIds])
+    }, [deliveryOptionsEnabled, dispatch, shopIds])
     const quotableCompanyByShopId = useMemo(() => {
         const next: Record<string, string> = {}
         for (const shopId of shopIds) {
@@ -119,6 +146,7 @@ const CheckoutPage = () => {
     const hasQuotableCompany = Object.keys(quotableCompanyByShopId).length > 0
     const prepaidProvider = useAppSelector((state) => state.checkout.prepaidProvider)
     const staffCashSelected = prepaidProvider === 'cash'
+    const showDeliveryCheckoutOptions = deliveryOptionsEnabled === true
     const {
         payDeliveryFeeNow,
         setPayDeliveryFeeNow,
@@ -131,8 +159,8 @@ const CheckoutPage = () => {
         unavailableCompanyIdsByShop: deliveryCompany.unavailableCompanyIdsByShop,
         loading: deliveryCompany.loading,
         routesReady: deliveryCompany.routesReady,
-        forceOff: staffCashSelected,
-        forceOffReason: 'cash',
+        forceOff: staffCheckout || staffCashSelected || !showDeliveryCheckoutOptions,
+        forceOffReason: !showDeliveryCheckoutOptions ? 'company' : staffCheckout ? 'staff' : 'cash',
     })
 
     const shippingCalculateCacheKey = useMemo(() => {
@@ -235,6 +263,10 @@ const CheckoutPage = () => {
     }, [openModal, refreshAddresses])
 
     const openAddressSelectionModal = useCallback(() => {
+        if (staffCheckout) {
+            navigate('/checkout/customer')
+            return
+        }
         if (addresses.length === 0) {
             openCreateAddressModal(true)
             return
@@ -259,6 +291,8 @@ const CheckoutPage = () => {
         })
     }, [
         addresses,
+        navigate,
+        staffCheckout,
         selectedDeliveryAddress?.address_id,
         closeModal,
         openModal,
@@ -267,15 +301,16 @@ const CheckoutPage = () => {
     ])
 
     useEffect(() => {
-        if (!authUser?.id) return
+        if (!authUser?.id || staffCheckout) return
 
         setHasResolvedInitialAddressFetch(false)
         void dispatch(fetchUserAddresses(authUser.id)).finally(() => {
             setHasResolvedInitialAddressFetch(true)
         })
-    }, [authUser?.id, dispatch])
+    }, [authUser?.id, dispatch, staffCheckout])
 
     useEffect(() => {
+        if (staffCheckout) return
         if (!authUser?.id || !hasResolvedInitialAddressFetch || addressesLoading || hasAutoPromptedRef.current) return
         if (addresses.length > 0) return
 
@@ -283,7 +318,7 @@ const CheckoutPage = () => {
         // This prevents entering checkout flow without a deliverable address.
         hasAutoPromptedRef.current = true
         openCreateAddressModal(true)
-    }, [authUser?.id, hasResolvedInitialAddressFetch, addressesLoading, addresses.length, openCreateAddressModal])
+    }, [authUser?.id, hasResolvedInitialAddressFetch, addressesLoading, addresses.length, openCreateAddressModal, staffCheckout])
 
     useEffect(() => {
         if (!selectedAddressId) return
@@ -327,13 +362,14 @@ const CheckoutPage = () => {
 
     // Drop any stale checkout session from Redux/storage when the user has no saved addresses yet.
     useEffect(() => {
+        if (staffCheckout) return
         if (!hasResolvedInitialAddressFetch || addressesLoading) return
         if (addresses.length > 0) return
         dispatch(clearCheckout())
         if (checkoutStorageKey) {
             sessionStorage.removeItem(checkoutStorageKey)
         }
-    }, [addresses.length, addressesLoading, checkoutStorageKey, dispatch, hasResolvedInitialAddressFetch])
+    }, [addresses.length, addressesLoading, checkoutStorageKey, dispatch, hasResolvedInitialAddressFetch, staffCheckout])
 
     useEffect(() => {
         setCheckoutSessionBootstrapped(false)
@@ -558,6 +594,10 @@ const CheckoutPage = () => {
         return () => window.clearInterval(intervalId)
     }, [dispatch, sagaId, sagaPollingActive])
 
+    if (staffCheckout && !staffDeliveryAddress) {
+        return <Navigate to="/checkout/customer" replace />
+    }
+
     return (
         <Elements stripe={stripePromise}>
             <div className="bg-[#f5f5f5] py-3 sm:py-4 lg:py-5">
@@ -568,7 +608,7 @@ const CheckoutPage = () => {
                         <div className="min-w-0 space-y-3">
                             <CheckoutAddress
                                 address={selectedDeliveryAddress}
-                                loading={addressesLoading}
+                                loading={staffCheckout ? false : addressesLoading}
                                 onChangeAddress={openAddressSelectionModal}
                             />
                             <CartBundleBanner items={items} allowAdd />
@@ -578,6 +618,7 @@ const CheckoutPage = () => {
                                 onPayDeliveryFeeNowChange={setPayDeliveryFeeNow}
                                 payDeliveryFeeNowLockedOff={payDeliveryFeeNowLockedOff}
                                 payDeliveryFeeNowLockReason={payDeliveryFeeNowLockReason}
+                                showDeliveryCheckoutOptions={showDeliveryCheckoutOptions}
                                 deliveryCompany={{
                                     companiesByShopId: deliveryCompany.companiesByShopId,
                                     selectedByShopId: deliveryCompany.selectedByShopId,
@@ -590,24 +631,30 @@ const CheckoutPage = () => {
                         </div>
 
                         <aside className="space-y-3 lg:sticky lg:top-4">
-                        <CheckoutPayment totalAmount={amountDueNow(checkout, payDeliveryFeeNow)} />
-
-                            {isStockReady ? (
-                                <CheckoutSummary
-                                    checkout={checkout}
-                                    payDeliveryFeeNow={payDeliveryFeeNow}
-                                    hasDeliveryAddress={hasDeliveryAddress}
-                                    onRequireAddress={openAddressSelectionModal}
-                                    deliveryAddress={selectedDeliveryAddress}
-                                    cartItems={items}
-                                    deliveryQuotePendingConfirmation={deliveryQuotePendingConfirmation}
-                                    deliveryCompanyIdByShopId={deliveryCompany.companyByShopId}
-                                />
-                            ) : checkoutError ? (
-                                <div role="alert" className="rounded-sm border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                                    {checkoutError}
-                                </div>
-                            ) : checkoutPreparationTimedOut ? (
+                            <CheckoutPayment
+                                totalAmount={
+                                    amountDueNow(checkout, payDeliveryFeeNow)
+                                    + (staffCheckout ? parseDeliveryFeeInput(staffDeliveryFeeInput) : 0)
+                                }
+                            />
+                            <CheckoutSummary
+                                checkout={checkout}
+                                payDeliveryFeeNow={payDeliveryFeeNow}
+                                hasDeliveryAddress={hasDeliveryAddress}
+                                onRequireAddress={openAddressSelectionModal}
+                                deliveryAddress={selectedDeliveryAddress}
+                                cartItems={items}
+                                deliveryQuotePendingConfirmation={deliveryQuotePendingConfirmation}
+                                deliveryCompanyIdByShopId={deliveryCompany.companyByShopId}
+                                deliveryCompanySelectionReady={deliveryCompany.routesReady}
+                                cartShopIdsWithoutSelectableCompany={
+                                    showDeliveryCheckoutOptions ? cartShopIdsWithoutSelectableCompany : shopIds
+                                }
+                                editableDeliveryFee={staffCheckout}
+                                deliveryFeeInput={staffDeliveryFeeInput}
+                                onDeliveryFeeInputChange={setStaffDeliveryFeeInput}
+                            />
+                            {checkoutPreparationTimedOut && !isStockReady && (
                                 <div role="alert" className="rounded-sm border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                                     <p>Checkout preparation is taking longer than expected.</p>
                                     <button
@@ -618,8 +665,6 @@ const CheckoutPage = () => {
                                         Retry checkout
                                     </button>
                                 </div>
-                            ) : (
-                                <CheckoutSummarySkeleton />
                             )}
                         </aside>
                     </div>

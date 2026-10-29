@@ -7,10 +7,13 @@ import {
   Bell,
   Shield,
   ShoppingBag,
+  ClipboardList,
   Ticket,
   Coins,
   Pencil,
+  Truck,
 } from "lucide-react";
+import { isShopStaffUser } from "@/features/checkout/utils/staffCheckoutCustomer";
 
 interface AccountSidebarProps {
   onNavigate?: () => void;
@@ -127,6 +130,26 @@ const AccountSidebar = ({ onNavigate }: AccountSidebarProps) => {
           >
             <ShoppingBag className="w-4 h-4 shrink-0 stroke-[2]" />
             <span>My Purchase</span>
+          </NavLink>
+
+          {isShopStaffUser(user) && (
+            <NavLink
+              to="/account/shop-orders"
+              className={navItemClass}
+              onClick={() => onNavigate?.()}
+            >
+              <Truck className="w-4 h-4 shrink-0 stroke-[2]" />
+              <span>Shop Orders</span>
+            </NavLink>
+          )}
+
+          <NavLink
+            to="/account/quantity-approvals"
+            className={navItemClass}
+            onClick={() => onNavigate?.()}
+          >
+            <ClipboardList className="w-4 h-4 shrink-0 stroke-[2]" />
+            <span>Quantity Approvals</span>
           </NavLink>
 
           <NavLink

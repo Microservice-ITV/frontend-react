@@ -31,7 +31,7 @@ export type DeliveryAvailabilityParams = {
     routesReady: boolean
 }
 
-export type PayDeliveryLockReason = 'company' | 'route' | 'cash'
+export type PayDeliveryLockReason = 'company' | 'route' | 'cash' | 'staff'
 
 function shopCompanyCount(
     companiesCountByShop: Record<string, number>,
@@ -76,21 +76,42 @@ export function mustWaiveDeliveryFeeNow(params: DeliveryAvailabilityParams): boo
  * False while companies/routes are still loading.
  */
 export function canPayDeliveryFeeNow(params: DeliveryAvailabilityParams): boolean {
-    const { companiesCount, loading, routesReady, shopIds } = params
+    const { companiesCountByShop, loading, routesReady, shopIds } = params
     if (loading || !routesReady || shopIds.length === 0) return false
+    const companiesCount = shopIds.reduce(
+        (sum, shopId) => sum + shopCompanyCount(companiesCountByShop, shopId),
+        0,
+    )
     if (companiesCount === 0) return false
     return !checkoutHasNoDeliveryRoute(params)
 }
 
+/**
+ * Shops the customer cannot pick a delivery company for.
+ * Empty until company and route lookups have finished, so a slow load is not
+ * treated as "no company".
+ */
+export function shopIdsWithoutSelectableDeliveryCompany(params: DeliveryAvailabilityParams): string[] {
+    const { shopIds, companiesCountByShop, unavailableCompanyIdsByShop, loading, routesReady } = params
+    if (loading || !routesReady) return []
+    return shopIds.filter((shopId) => {
+        const count = shopCompanyCount(companiesCountByShop, shopId)
+        return count === 0 || shopHasNoDeliveryRoute(count, unavailableCompanyIdsByShop[shopId])
+    })
+}
+
+export const NO_DELIVERY_SERVICE_MESSAGE =
+    'No delivery service is available for this order right now. You can arrange delivery and pay the delivery fee separately.'
+
 /** Tooltip / hint when the pay-now switch is forced off. */
 export function payDeliveryFeeNowLockMessage(reason: PayDeliveryLockReason): string {
-    if (reason === 'route') {
-        return 'No delivery route for this address. You cannot pay the delivery fee now.'
-    }
     if (reason === 'cash') {
         return 'Cash checkout does not charge delivery now. Pay the delivery fee when the order arrives.'
     }
-    return 'No delivery company is available. You cannot pay the delivery fee now.'
+    if (reason === 'staff') {
+        return 'Staff checkout does not charge the delivery fee now. Pay the delivery fee separately.'
+    }
+    return NO_DELIVERY_SERVICE_MESSAGE
 }
 
 /** Prefer route over company when both apply for a shop card. */

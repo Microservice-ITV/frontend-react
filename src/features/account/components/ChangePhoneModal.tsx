@@ -43,14 +43,30 @@ const ChangePhoneModal: React.FC<ChangePhoneModalProps> = ({
   if (!isOpen) return null;
 
   const validatePhone = (phone: string) => {
-    // Allows digits, optional leading +, spaces, or dashes (7-15 digits)
+    // Allows Myanmar phone format: +95 or 0 prefix, 7-10 digits
     const cleaned = phone.replace(/[\s-]/g, "");
-    return /^\+?[0-9]{7,15}$/.test(cleaned);
+    return /^(\+95|0)?[0-9]{7,10}$/.test(cleaned);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanPhone = newPhone.trim();
+
+    // Normalize phone number for Myanmar
+    let normalizedPhone = cleanPhone.replace(/[\s-]/g, "");
+
+    // Add +95 prefix if not present
+    if (!normalizedPhone.startsWith("+")) {
+      if (normalizedPhone.startsWith("0")) {
+        normalizedPhone = "+95" + normalizedPhone.substring(1);
+      } else if (normalizedPhone.startsWith("95")) {
+        normalizedPhone = "+" + normalizedPhone;
+      } else if (normalizedPhone.startsWith("9")) {
+        normalizedPhone = "+95" + normalizedPhone;
+      } else {
+        normalizedPhone = "+95" + normalizedPhone;
+      }
+    }
 
     if (!cleanPhone) {
       setError("Please enter your new phone number.");
@@ -58,11 +74,11 @@ const ChangePhoneModal: React.FC<ChangePhoneModalProps> = ({
     }
 
     if (!validatePhone(cleanPhone)) {
-      setError("Please enter a valid phone number (7-15 digits).");
+      setError("Please enter a valid Myanmar phone number (7-10 digits). Example: 0912345678 or +95912345678");
       return;
     }
 
-    if (cleanPhone === currentPhone) {
+    if (normalizedPhone === currentPhone || cleanPhone === currentPhone) {
       setError("New phone number must be different from current phone number.");
       return;
     }
@@ -72,9 +88,9 @@ const ChangePhoneModal: React.FC<ChangePhoneModalProps> = ({
 
     try {
       const response = await authFeatureApi.updateProfile({
-        phone: cleanPhone,
+        phone: normalizedPhone,
       });
-      const savedPhone = response.data?.data?.user?.phone ?? cleanPhone;
+      const savedPhone = response.data?.data?.user?.phone ?? normalizedPhone;
 
       onSuccess?.(savedPhone);
       onClose();
@@ -85,9 +101,9 @@ const ChangePhoneModal: React.FC<ChangePhoneModalProps> = ({
 
       setError(
         apiMessage ||
-          (err instanceof Error
-            ? err.message
-            : "Failed to update phone number. Please try again."),
+        (err instanceof Error
+          ? err.message
+          : "Failed to update phone number. Please try again."),
       );
     } finally {
       setIsLoading(false);
@@ -158,12 +174,11 @@ const ChangePhoneModal: React.FC<ChangePhoneModalProps> = ({
                   if (error) setError(null);
                 }}
                 disabled={isLoading}
-                placeholder="Enter your new phone number (e.g. 09123456789)"
-                className={`w-full pl-10 pr-3.5 py-2.5 text-xs sm:text-sm bg-white border rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none transition-colors ${
-                  error
-                    ? "border-rose-400 focus:border-rose-500 focus:ring-1 focus:ring-rose-500"
-                    : "border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-                }`}
+                placeholder="Enter your new phone number (e.g. 0912345678 or +95912345678)"
+                className={`w-full pl-10 pr-3.5 py-2.5 text-xs sm:text-sm bg-white border rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none transition-colors ${error
+                  ? "border-rose-400 focus:border-rose-500 focus:ring-1 focus:ring-rose-500"
+                  : "border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                  }`}
                 autoFocus
               />
             </div>

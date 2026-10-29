@@ -5,6 +5,8 @@ export type AdminUserRoleChip = {
   code: string
   name: string
   scope: string
+  shopId?: string | null
+  shopName?: string | null
 }
 
 export type AdminUserRow = {

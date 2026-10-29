@@ -162,9 +162,11 @@ export const logout = createAsyncThunk(
                 method: 'POST',
                 credentials: 'include',
                 keepalive: true,
-            }).catch(() => {})
+            }).catch(() => { })
             window.location.replace('/')
-            return
+            // Never settle: if the thunk fulfils, auth clears and route guards
+            // render /login before the browser finishes loading home.
+            return new Promise<never>(() => { })
         }
     }
 )
@@ -311,6 +313,22 @@ export const removeProfileImage = createAsyncThunk<
                 'We could not remove your profile photo. Please try again.'
             )
         )
+    }
+})
+
+export const updateProfile = createAsyncThunk<
+    User,
+    { name?: string; phone?: string; gender?: "male" | "female" | "other" | null; date_of_birth?: string | null },
+    { rejectValue: string }
+>('auth/updateProfile', async (data, { rejectWithValue }) => {
+    try {
+        const res = await authFeatureApi.updateProfile(data)
+        return res.data.data.user
+    } catch (err: unknown) {
+        if (axios.isAxiosError(err) && err.response?.data?.message) {
+            return rejectWithValue(err.response.data.message)
+        }
+        return rejectWithValue('Failed to update profile. Please try again.')
     }
 })
 

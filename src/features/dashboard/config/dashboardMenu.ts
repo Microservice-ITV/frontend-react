@@ -175,8 +175,6 @@ const warehouseSection = (
     if (entry.key === "warehouse-seller-requests") return area === "warehouse_manager"
     if (entry.key === "warehouse-supplier-receive") return false
     if (entry.key === "warehouse-suppliers" && area === "warehouse_manager") return false
-    // Warehouse manager posts GRNs after delivery agent drop-off; sellers track only.
-    if (entry.key === "warehouse-receipts" && area === "seller") return false
     if (entry.key === "warehouse-purchase-tracking" && area !== "seller") return false
     if (area === "seller") return !ADMIN_ONLY_WAREHOUSE_KEYS.has(entry.key)
     if (area === "super_admin") return !ADMIN_HIDDEN_WAREHOUSE_KEYS.has(entry.key)
@@ -198,19 +196,37 @@ const warehouseSection = (
 
 const sellerWarehouseSection = (): DashboardMenuSection => {
   const section = warehouseSection("/seller", "seller", CAPABILITIES.SELLER_DASHBOARD_VIEW)
+  const receiptsIndex = section.items.findIndex((item) =>
+    item.key.endsWith("warehouse-receipts"),
+  )
+  const confirmPickupItem = {
+    key: "seller-delivery-parcels",
+    label: "Confirm and Pickup",
+    to: "/seller/warehouse/parcels",
+    area: "seller" as const,
+    requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+    icon: Truck,
+  }
+  const damageReportsItem = {
+    key: "seller-damage-reports",
+    label: "Damage Reports",
+    to: "/seller/warehouse/damage-reports",
+    area: "seller" as const,
+    requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+    icon: AlertTriangle,
+  }
+  const items =
+    receiptsIndex >= 0
+      ? [
+          ...section.items.slice(0, receiptsIndex),
+          confirmPickupItem,
+          ...section.items.slice(receiptsIndex),
+          damageReportsItem,
+        ]
+      : [...section.items, confirmPickupItem, damageReportsItem]
   return {
     ...section,
-    items: [
-      ...section.items,
-      {
-        key: "seller-damage-reports",
-        label: "Damage Reports",
-        to: "/seller/warehouse/damage-reports",
-        area: "seller",
-        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
-        icon: AlertTriangle,
-      },
-    ],
+    items,
   }
 }
 
@@ -323,6 +339,30 @@ export const DASHBOARD_MENU_SELLER: DashboardMenuSection[] = [
         icon: ShoppingCart,
       }),
       withSearch({
+        key: "seller-quantity-approvals",
+        label: "Quantity Approvals",
+        to: "/seller/quantity-approvals",
+        area: "seller",
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: ClipboardList,
+      }),
+      withSearch({
+        key: "seller-cancel-orders",
+        label: "Cancel Orders",
+        to: "/seller/orders/cancelled",
+        area: "seller",
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: XCircle,
+      }),
+      withSearch({
+        key: "seller-return-orders",
+        label: "Return Orders",
+        to: "/seller/orders/returns",
+        area: "seller",
+        requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
+        icon: PackageCheck,
+      }),
+      withSearch({
         key: "seller-payments",
         label: "Payments",
         to: "/seller/payments",
@@ -390,7 +430,7 @@ export const DASHBOARD_MENU_SELLER: DashboardMenuSection[] = [
       },
       {
         key: "seller-accounting-income",
-        label: "Income",
+        label: "Revenue",
         to: "/seller/accounting/income",
         area: "seller",
         requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
@@ -406,7 +446,7 @@ export const DASHBOARD_MENU_SELLER: DashboardMenuSection[] = [
       },
       {
         key: "seller-accounting-delivery-company-fees",
-        label: "Delivery Expense Fees",
+        label: "Delivery Costs",
         to: "/seller/accounting/delivery-company-fees",
         area: "seller",
         requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
@@ -414,7 +454,7 @@ export const DASHBOARD_MENU_SELLER: DashboardMenuSection[] = [
       },
       {
         key: "seller-accounting-pending-approvals",
-        label: "Pending Approvals",
+        label: "Approvals Queues",
         to: "/seller/accounting/pending-approvals",
         area: "seller",
         requiredCapabilities: [CAPABILITIES.SELLER_DASHBOARD_VIEW],

@@ -3,28 +3,9 @@ import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Link } from "react-router-dom";
-import {
-  ArrowLeftRight,
-  ArrowUpDown,
-  Box,
-  ChevronDown,
-  Plus,
-  Ruler,
-  Trash2,
-  Weight,
-  X,
-} from "lucide-react";
+import { ChevronDown, X } from "lucide-react";
+import VariantSizeEditor from "@/features/seller/components/VariantSizeEditor";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
-import {
-  sanitizeIntegerInput,
-  sanitizeMoneyInput,
-  sanitizePercentInput,
-} from "@/utils/decimalInput";
-import {
-  computeEffectiveSellingPrice,
-  computeProfitThresholdPercent,
-  parseOptionalPercent,
-} from "@/utils/variantPricing";
 import { productServiceAssetUrl } from "@/lib/api/apiConfig";
 
 /** Split a comma-separated tags string into a deduped, trimmed array (max 20). */
@@ -64,21 +45,25 @@ const sanitizeDecimalInput = (value: string, maxDecimals: number = 2) => {
   return clean;
 };
 
-/** Matches product-service `priceField` / `optionalPercent`: parseFloat, positive base, percent ranges. */
-const basePriceField = z
-  .string()
-  .trim()
-  .min(1, "Base price is required")
-  .transform((s) => s.replace(/\.+$/, ""))
-  .refine(
-    (s) => /^\d+(\.\d{1,2})?$/.test(s),
-    "Use numbers only, up to 2 decimal places",
-  )
-  .refine((s) => parseFloat(s) > 0, "Base price must be greater than 0")
-  .refine(
-    (s) => parseFloat(s) <= 9999999,
-    "This price is too high. Please enter a reliable price.",
-  );
+/** Matches product-service `priceField` / `optionalPercent`: parseFloat, positive price, percent ranges. */
+const moneyField = (label: string, required: boolean) =>
+  z
+    .string()
+    .trim()
+    .transform((s) => s.replace(/\.+$/, ""))
+    .refine((s) => !required || s.length > 0, `${label} is required`)
+    .refine(
+      (s) => s === "" || /^\d+(\.\d{1,2})?$/.test(s),
+      "Use numbers only, up to 2 decimal places",
+    )
+    .refine(
+      (s) => s === "" || parseFloat(s) > 0,
+      `${label} must be greater than 0`,
+    )
+    .refine(
+      (s) => s === "" || parseFloat(s) <= 9999999,
+      "This price is too high. Please enter a reliable price.",
+    );
 
 const optionalPercentField = (label: string, max: number) =>
   z
@@ -118,8 +103,9 @@ const variantRowSchema = z.object({
     .min(1, "Color is required")
     .uuid("Color is required"),
   sizeId: z.string().trim().min(1, "Size is required").uuid("Size is required"),
-  basePrice: basePriceField,
-  listPrice: basePriceField,
+  basePrice: moneyField("Base price", false),
+  /** Set after PO via inventory; create/edit keep the column but do not require input. */
+  listPrice: moneyField("Selling price", false),
   discountPercent: optionalPercentField("Discount %", 100),
   stock: z
     .string()
@@ -190,7 +176,7 @@ export const productFormSchema = z
 
 export type ProductFormValues = z.infer<typeof productFormSchema>;
 
-type Option = { id: string; name: string };
+export type Option = { id: string; name: string; code?: string };
 
 type ProductFormProps = {
   mode: "create" | "edit";
@@ -237,6 +223,27 @@ const splitDefaultOptions = (options: Option[]) => {
     else selectable.push(item);
   }
   return { selectable, defaultIds };
+};
+
+const catalogKey = (value?: string | null) =>
+  (value ?? "").trim().toLowerCase().replace(/[\s_-]+/g, "");
+
+/** Drop size rows that collide with a color name/code (e.g. Glacier created under Sizes). */
+const sizesWithoutColorCollisions = (sizes: Option[], colors: Option[]) => {
+  const colorKeys = new Set<string>();
+  for (const color of colors) {
+    const nameKey = catalogKey(color.name);
+    const codeKey = catalogKey(color.code);
+    if (nameKey) colorKeys.add(nameKey);
+    if (codeKey) colorKeys.add(codeKey);
+  }
+  return sizes.filter((size) => {
+    const nameKey = catalogKey(size.name);
+    const codeKey = catalogKey(size.code);
+    if (nameKey && colorKeys.has(nameKey)) return false;
+    if (codeKey && colorKeys.has(codeKey)) return false;
+    return true;
+  });
 };
 
 export const defaultVariantRow = (): ProductFormValues["variants"][number] => ({
@@ -309,7 +316,7 @@ const ProductForm = ({
     defaultValues: initialValues,
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, replace } = useFieldArray({
     control,
     name: "variants",
   });
@@ -379,18 +386,6 @@ const ProductForm = ({
     };
   }, [editableExistingImages, imageFiles, setValue]);
 
-  const removeVariantAt = (index: number) => {
-    const nextLen = fields.length - 1;
-    remove(index);
-    if (nextLen <= 0) return;
-    const currentPrimary = primaryVariantIndex ?? 0;
-    if (index === currentPrimary) {
-      setValue("primaryVariantIndex", 0);
-    } else if (index < currentPrimary) {
-      setValue("primaryVariantIndex", Math.max(0, currentPrimary - 1));
-    }
-  };
-
   const title = useMemo(
     () => (mode === "create" ? "New Product" : "Edit Product"),
     [mode],
@@ -434,10 +429,10 @@ const ProductForm = ({
       <form onSubmit={handleSubmit(handleFormSubmit)}>
         <input type="hidden" {...register("shopId")} />
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
+        <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2">
           {/* Left Column: Product Information */}
-          <div className="lg:sticky lg:top-16 lg:z-10 lg:self-start">
-            <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
+          <div className="h-full">
+            <div className="flex h-full flex-col rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
               <h2 className="text-base font-bold text-slate-900">
                 Product Information
               </h2>
@@ -445,7 +440,7 @@ const ProductForm = ({
                 Enter the basic details for this product.
               </p>
 
-              <div className="mt-6 space-y-4">
+              <div className="mt-6 flex flex-1 flex-col space-y-4">
                 <div>
                   <label
                     htmlFor="name"
@@ -633,7 +628,7 @@ const ProductForm = ({
                   )}
                 </div>
 
-                <div>
+                <div className="flex min-h-0 flex-1 flex-col">
                   <label
                     htmlFor="description"
                     className="mb-1.5 block text-xs font-medium text-slate-700"
@@ -645,16 +640,16 @@ const ProductForm = ({
                     rows={8}
                     placeholder="Product description"
                     {...register("description")}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none placeholder:text-slate-400 focus:border-emerald-500"
+                    className="min-h-32 w-full flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none placeholder:text-slate-400 focus:border-emerald-500"
                   />
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Right Column: Organization & Variants */}
-          <div className="space-y-6">
-            <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
+          {/* Right Column: Organization */}
+          <div className="h-full">
+            <div className="flex h-full flex-col rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
               <h2 className="text-base font-bold text-slate-900">
                 Organization
               </h2>
@@ -665,15 +660,17 @@ const ProductForm = ({
                 <ul className="mt-2 list-disc space-y-1.5 pl-4 text-slate-600 marker:text-slate-400">
                   <li>
                     <span className="font-medium text-slate-700">
-                      Base price
+                      Unit price
                     </span>{" "}
-                    — your cost per unit.
+                    — landed PO cost (subtotal + delivery + other costs) ÷ order
+                    stock, synced after goods receipt.
                   </li>
                   <li>
                     <span className="font-medium text-slate-700">
                       Selling price
                     </span>{" "}
-                    — price before discount; markup % is calculated from this.
+                    — set later in Inventory edit (not on create). Markup % is
+                    calculated from unit price → selling.
                   </li>
                   <li>
                     <span className="font-medium text-slate-700">
@@ -689,18 +686,13 @@ const ProductForm = ({
                   </li>
                 </ul>
                 <p className="mt-2 border-t border-slate-200/80 pt-2 text-slate-500">
-                  You enter base price, selling price, and discount. Markup %
-                  and customer pays are calculated automatically.
-                </p>
-                <p className="mt-2 text-slate-500">
-                  Selling price and discount accept decimals (e.g.{" "}
-                  <span className="font-mono text-slate-600">0.5</span> for half
-                  a percent), matching the product API. Base price uses up to
-                  two decimal places.
+                  Create the product without a selling price. After a PO is
+                  received, unit price syncs from inventory; set selling price
+                  from Inventory edit.
                 </p>
               </div>
 
-              <div className="mt-6 space-y-4">
+              <div className="mt-6 flex flex-1 flex-col space-y-4">
                 <div>
                   <p className="mb-1.5 block text-xs font-medium text-slate-700">
                     Category
@@ -764,567 +756,6 @@ const ProductForm = ({
                 </div>
 
                 <div>
-                  <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-xs font-medium text-slate-700">
-                      Variants (color × size)
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        append(defaultVariantRow());
-                      }}
-                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
-                    >
-                      <Plus size={14} />
-                      Add variant
-                    </button>
-                  </div>
-
-                  <div className="space-y-4">
-                    {fields.map((field, index) => {
-                      const row = variantsWatched?.[index];
-                      const base = row?.basePrice ? Number(row.basePrice) : NaN;
-                      const list = row?.listPrice ? Number(row.listPrice) : NaN;
-                      const disc = parseOptionalPercent(
-                        row?.discountPercent ?? "",
-                      );
-                      const listOk =
-                        !Number.isNaN(base) &&
-                        base > 0 &&
-                        !Number.isNaN(list) &&
-                        list > 0;
-                      const markup = listOk
-                        ? computeProfitThresholdPercent(base, list)
-                        : null;
-                      const effective = listOk
-                        ? computeEffectiveSellingPrice(list, disc)
-                        : null;
-                      const markupDisplay =
-                        markup != null ? `${markup.toFixed(2)}%` : "—";
-
-                      return (
-                        <div
-                          key={field.id}
-                          className="rounded-lg border border-slate-200 bg-slate-50/80 p-3 sm:p-4"
-                        >
-                          <input
-                            type="hidden"
-                            {...register(`variants.${index}.serverVariantId`)}
-                          />
-                          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                            <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-800">
-                              <input
-                                type="radio"
-                                name="primaryVariant"
-                                checked={primaryVariantIndex === index}
-                                onChange={() =>
-                                  setValue("primaryVariantIndex", index, {
-                                    shouldValidate: true,
-                                  })
-                                }
-                                className="h-4 w-4 accent-emerald-600"
-                              />
-                              Primary variant (catalog price / SKU display)
-                            </label>
-                            <button
-                              type="button"
-                              disabled={fields.length <= 1}
-                              onClick={() => removeVariantAt(index)}
-                              className="inline-flex items-center gap-1 text-xs text-red-600 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
-                              title={
-                                fields.length <= 1
-                                  ? "At least one variant is required"
-                                  : "Remove variant"
-                              }
-                            >
-                              <Trash2 size={14} />
-                              Remove
-                            </button>
-                          </div>
-
-                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                            <div>
-                              <p className="mb-1 block text-xs font-medium text-slate-700">
-                                Color
-                              </p>
-                              <Controller
-                                name={`variants.${index}.colorId`}
-                                control={control}
-                                render={({ field: f }) => (
-                                  <SearchableSelect
-                                    value={f.value}
-                                    onChange={f.onChange}
-                                    onBlur={f.onBlur}
-                                    options={colorCatalog.selectable.map((item) => ({
-                                      value: item.id,
-                                      label: item.name,
-                                    }))}
-                                    mode="scroll-only"
-                                    emptyLabel="Select color"
-                                    aria-invalid={
-                                      !!errors.variants?.[index]?.colorId
-                                    }
-                                  />
-                                )}
-                              />
-                              {errors.variants?.[index]?.colorId && (
-                                <p className="mt-1 text-xs text-red-600">
-                                  {errors.variants[index]?.colorId?.message}
-                                </p>
-                              )}
-                            </div>
-                            <div>
-                              <p className="mb-1 block text-xs font-medium text-slate-700">
-                                Size
-                              </p>
-                              <Controller
-                                name={`variants.${index}.sizeId`}
-                                control={control}
-                                render={({ field: f }) => (
-                                  <SearchableSelect
-                                    value={f.value}
-                                    onChange={f.onChange}
-                                    onBlur={f.onBlur}
-                                    options={sizeCatalog.selectable.map((item) => ({
-                                      value: item.id,
-                                      label: item.name,
-                                    }))}
-                                    mode="scroll-only"
-                                    emptyLabel="Select size"
-                                    aria-invalid={
-                                      !!errors.variants?.[index]?.sizeId
-                                    }
-                                  />
-                                )}
-                              />
-                              {errors.variants?.[index]?.sizeId && (
-                                <p className="mt-1 text-xs text-red-600">
-                                  {errors.variants[index]?.sizeId?.message}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                            <div className="min-w-0">
-                              <label
-                                className="mb-1 block text-xs font-medium text-slate-700"
-                                htmlFor={`basePrice-${index}`}
-                              >
-                                Base price
-                              </label>
-                              <Controller
-                                name={`variants.${index}.basePrice`}
-                                control={control}
-                                render={({ field }) => (
-                                  <input
-                                    id={`basePrice-${index}`}
-                                    type="text"
-                                    inputMode="decimal"
-                                    autoComplete="off"
-                                    spellCheck={false}
-                                    placeholder="0.00"
-                                    className="w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                                    name={field.name}
-                                    ref={field.ref}
-                                    value={field.value}
-                                    onBlur={field.onBlur}
-                                    onChange={(e) =>
-                                      field.onChange(
-                                        sanitizeMoneyInput(e.target.value),
-                                      )
-                                    }
-                                  />
-                                )}
-                              />
-                              {errors.variants?.[index]?.basePrice && (
-                                <p className="mt-1 text-xs text-red-600">
-                                  {errors.variants[index]?.basePrice?.message}
-                                </p>
-                              )}
-                            </div>
-                            <div className="min-w-0">
-                              <label
-                                className="mb-1 block text-xs font-medium text-slate-700"
-                                htmlFor={`listPrice-${index}`}
-                              >
-                                Selling price
-                              </label>
-                              <Controller
-                                name={`variants.${index}.listPrice`}
-                                control={control}
-                                render={({ field }) => (
-                                  <input
-                                    id={`listPrice-${index}`}
-                                    type="text"
-                                    inputMode="decimal"
-                                    autoComplete="off"
-                                    spellCheck={false}
-                                    placeholder="0.00"
-                                    className="w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                                    name={field.name}
-                                    ref={field.ref}
-                                    value={field.value}
-                                    onBlur={field.onBlur}
-                                    onChange={(e) =>
-                                      field.onChange(
-                                        sanitizeMoneyInput(e.target.value),
-                                      )
-                                    }
-                                  />
-                                )}
-                              />
-                              {errors.variants?.[index]?.listPrice && (
-                                <p className="mt-1 text-xs text-red-600">
-                                  {errors.variants[index]?.listPrice?.message}
-                                </p>
-                              )}
-                            </div>
-                            <div className="min-w-0">
-                              <label
-                                className="mb-1 block text-xs font-medium text-slate-700"
-                                htmlFor={`markup-${index}`}
-                              >
-                                Markup %
-                              </label>
-                              <div className="relative">
-                                <input
-                                  id={`markup-${index}`}
-                                  type="text"
-                                  inputMode="decimal"
-                                  autoComplete="off"
-                                  spellCheck={false}
-                                  readOnly
-                                  placeholder="0"
-                                  value={markupDisplay}
-                                  title="Automatically calculated from base price and selling price"
-                                  className="w-full min-w-0 cursor-not-allowed rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 pr-7 text-sm font-medium text-slate-700 outline-none"
-                                />
-                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
-                                  %
-                                </span>
-                              </div>
-                            </div>
-                            <div className="min-w-0">
-                              <label
-                                className="mb-1 block text-xs font-medium text-slate-700"
-                                htmlFor={`discount-${index}`}
-                              >
-                                Discount %
-                              </label>
-                              <Controller
-                                name={`variants.${index}.discountPercent`}
-                                control={control}
-                                render={({ field }) => (
-                                  <input
-                                    id={`discount-${index}`}
-                                    type="text"
-                                    inputMode="decimal"
-                                    autoComplete="off"
-                                    spellCheck={false}
-                                    placeholder="0"
-                                    className="w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                                    name={field.name}
-                                    ref={field.ref}
-                                    value={field.value}
-                                    onBlur={field.onBlur}
-                                    onChange={(e) =>
-                                      field.onChange(
-                                        sanitizePercentInput(e.target.value),
-                                      )
-                                    }
-                                  />
-                                )}
-                              />
-                              {errors.variants?.[index]?.discountPercent && (
-                                <p className="mt-1 text-xs text-red-600">
-                                  {
-                                    errors.variants[index]?.discountPercent
-                                      ?.message
-                                  }
-                                </p>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="mt-3">
-                            <label
-                              className="mb-1 block text-xs font-medium text-slate-700"
-                              htmlFor={`stock-${index}`}
-                            >
-                              Stock
-                            </label>
-                            <div className="flex flex-wrap items-center gap-3">
-                              <Controller
-                                name={`variants.${index}.stock`}
-                                control={control}
-                                render={({ field }) => (
-                                  <input
-                                    id={`stock-${index}`}
-                                    type="text"
-                                    inputMode="numeric"
-                                    autoComplete="off"
-                                    spellCheck={false}
-                                    readOnly
-                                    placeholder="0"
-                                    title="Stock is managed by the warehouse and cannot be set here"
-                                    className="w-24 shrink-0 cursor-not-allowed rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 outline-none"
-                                    name={field.name}
-                                    ref={field.ref}
-                                    value={field.value || "0"}
-                                    onBlur={field.onBlur}
-                                  />
-                                )}
-                              />
-                              <p className="min-w-0 flex-1 text-[11px] leading-snug text-slate-500">
-                                Managed by warehouse — increases when inventory
-                                is received.
-                              </p>
-                            </div>
-                            {errors.variants?.[index]?.stock && (
-                              <p className="mt-1 text-xs text-red-600">
-                                {errors.variants[index]?.stock?.message}
-                              </p>
-                            )}
-                          </div>
-
-                          <div className="mt-3 rounded-lg bg-emerald-50 p-3 border border-emerald-100">
-                            <div className="flex flex-wrap items-center gap-4 text-sm">
-                              <div className="flex items-center gap-2">
-                                <span className="text-slate-500">
-                                  Selling price:
-                                </span>
-                                <strong className="text-slate-900">
-                                  {list ? `Ks ${list.toFixed(2)}` : "—"}
-                                </strong>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-slate-500">
-                                  Customer pays:
-                                </span>
-                                <strong className="text-emerald-700">
-                                  {effective != null
-                                    ? `Ks ${effective.toFixed(2)}`
-                                    : "—"}
-                                </strong>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-slate-500">Markup:</span>
-                                <strong className="text-slate-700">
-                                  {markup != null ? `${markup.toFixed(2)}%` : "—"}
-                                </strong>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Dimensions & Weight Section */}
-                          <div className="mt-4 border-t border-slate-200/70 pt-3.5">
-                            {/* Header with Circular Emerald Badge */}
-                            <div className="mb-4 flex items-center gap-2.5">
-                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-emerald-300 bg-emerald-50/60 text-emerald-600 shadow-2xs">
-                                <Box size={16} />
-                              </div>
-                              <div>
-                                <h3 className="text-xs font-bold text-slate-900 sm:text-sm">
-                                  Dimensions & Weight
-                                </h3>
-                                <p className="text-[11px] text-slate-500">
-                                  Enter product size and weight for shipping and
-                                  logistics.
-                                </p>
-                              </div>
-                            </div>
-
-                            {/* 4 Inputs Matching Base Price Height (py-2 text-sm) with Number-Only validation */}
-                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                              {/* Length (DECIMAL 10,2) */}
-                              <div>
-                                <label
-                                  htmlFor={`length-${index}`}
-                                  className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-slate-700"
-                                >
-                                  Length (cm)
-                                </label>
-                                <div className="relative flex items-center">
-                                  <Box
-                                    size={14}
-                                    className="pointer-events-none absolute left-3 text-slate-400"
-                                  />
-                                  <Controller
-                                    name={`variants.${index}.length`}
-                                    control={control}
-                                    render={({ field }) => (
-                                      <input
-                                        id={`length-${index}`}
-                                        type="text"
-                                        inputMode="decimal"
-                                        autoComplete="off"
-                                        placeholder="e.g. 33.10"
-                                        value={field.value ?? ""}
-                                        onBlur={field.onBlur}
-                                        onChange={(e) =>
-                                          field.onChange(
-                                            sanitizeDecimalInput(
-                                              e.target.value,
-                                              2,
-                                            ),
-                                          )
-                                        }
-                                        className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-8.5 pr-3 text-sm text-slate-800 outline-none placeholder:text-slate-300 focus:border-emerald-500"
-                                      />
-                                    )}
-                                  />
-                                </div>
-                                {errors.variants?.[index]?.length && (
-                                  <p className="mt-1 text-xs text-red-600">
-                                    {errors.variants[index]?.length?.message}
-                                  </p>
-                                )}
-                              </div>
-
-                              {/* Width (DECIMAL 10,2) */}
-                              <div>
-                                <label
-                                  htmlFor={`width-${index}`}
-                                  className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-slate-700"
-                                >
-                                  Width (cm)
-                                </label>
-                                <div className="relative flex items-center">
-                                  <ArrowLeftRight
-                                    size={14}
-                                    className="pointer-events-none absolute left-3 text-slate-400"
-                                  />
-                                  <Controller
-                                    name={`variants.${index}.width`}
-                                    control={control}
-                                    render={({ field }) => (
-                                      <input
-                                        id={`width-${index}`}
-                                        type="text"
-                                        inputMode="decimal"
-                                        autoComplete="off"
-                                        placeholder="e.g. 33.10"
-                                        value={field.value ?? ""}
-                                        onBlur={field.onBlur}
-                                        onChange={(e) =>
-                                          field.onChange(
-                                            sanitizeDecimalInput(
-                                              e.target.value,
-                                              2,
-                                            ),
-                                          )
-                                        }
-                                        className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-8.5 pr-3 text-sm text-slate-800 outline-none placeholder:text-slate-300 focus:border-emerald-500"
-                                      />
-                                    )}
-                                  />
-                                </div>
-                                {errors.variants?.[index]?.width && (
-                                  <p className="mt-1 text-xs text-red-600">
-                                    {errors.variants[index]?.width?.message}
-                                  </p>
-                                )}
-                              </div>
-
-                              {/* Height (DECIMAL 10,2) */}
-                              <div>
-                                <label
-                                  htmlFor={`height-${index}`}
-                                  className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-slate-700"
-                                >
-                                  Height (cm)
-                                </label>
-                                <div className="relative flex items-center">
-                                  <ArrowUpDown
-                                    size={14}
-                                    className="pointer-events-none absolute left-3 text-slate-400"
-                                  />
-                                  <Controller
-                                    name={`variants.${index}.height`}
-                                    control={control}
-                                    render={({ field }) => (
-                                      <input
-                                        id={`height-${index}`}
-                                        type="text"
-                                        inputMode="decimal"
-                                        autoComplete="off"
-                                        placeholder="e.g. 33.10"
-                                        value={field.value ?? ""}
-                                        onBlur={field.onBlur}
-                                        onChange={(e) =>
-                                          field.onChange(
-                                            sanitizeDecimalInput(
-                                              e.target.value,
-                                              2,
-                                            ),
-                                          )
-                                        }
-                                        className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-8.5 pr-3 text-sm text-slate-800 outline-none placeholder:text-slate-300 focus:border-emerald-500"
-                                      />
-                                    )}
-                                  />
-                                </div>
-                                {errors.variants?.[index]?.height && (
-                                  <p className="mt-1 text-xs text-red-600">
-                                    {errors.variants[index]?.height?.message}
-                                  </p>
-                                )}
-                              </div>
-
-                              {/* Weight (DECIMAL 10,3 - allows up to 3 decimals) */}
-                              <div>
-                                <label
-                                  htmlFor={`weight-${index}`}
-                                  className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-slate-700"
-                                >
-                                  Weight (kg)
-                                </label>
-                                <div className="relative flex items-center">
-                                  <Weight
-                                    size={14}
-                                    className="pointer-events-none absolute left-3 text-slate-400"
-                                  />
-                                  <Controller
-                                    name={`variants.${index}.weight`}
-                                    control={control}
-                                    render={({ field }) => (
-                                      <input
-                                        id={`weight-${index}`}
-                                        type="text"
-                                        inputMode="decimal"
-                                        autoComplete="off"
-                                        placeholder="e.g. 33.500"
-                                        value={field.value ?? ""}
-                                        onBlur={field.onBlur}
-                                        onChange={(e) =>
-                                          field.onChange(
-                                            sanitizeDecimalInput(
-                                              e.target.value,
-                                              3,
-                                            ),
-                                          )
-                                        }
-                                        className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-8.5 pr-3 text-sm text-slate-800 outline-none placeholder:text-slate-300 focus:border-emerald-500"
-                                      />
-                                    )}
-                                  />
-                                </div>
-                                {errors.variants?.[index]?.weight && (
-                                  <p className="mt-1 text-xs text-red-600">
-                                    {errors.variants[index]?.weight?.message}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div>
                   <label
                     htmlFor="isActive"
                     className="mb-1.5 block text-xs font-medium text-slate-700"
@@ -1367,26 +798,51 @@ const ProductForm = ({
               </div>
             </div>
 
-            <div className="space-y-3">
-              {submitError && !isImageSubmitError && (
-                <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">
-                  {submitError}
-                </p>
-              )}
-              <button
-                type="submit"
-                disabled={isSubmitting || disableSubmit}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70 cursor-pointer"
-              >
-                {isSubmitting ? "Processing..." : submitLabel}
-              </button>
-              <Link
-                to={cancelTo}
-                className="flex w-full items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-              >
-                Cancel
-              </Link>
-            </div>
+          </div>
+        </div>
+
+        <div className="mt-6">
+          <VariantSizeEditor
+            control={control}
+            register={register}
+            errors={errors}
+            setValue={setValue}
+            getValues={getValues}
+            fields={fields}
+            append={append}
+            remove={remove}
+            replace={replace}
+            variants={variantsWatched ?? []}
+            primaryVariantIndex={primaryVariantIndex ?? 0}
+            colors={colorCatalog.selectable}
+            sizes={sizesWithoutColorCollisions(
+              sizeCatalog.selectable,
+              colorCatalog.selectable,
+            )}
+            initialValuesKey={initialValuesKey}
+          />
+        </div>
+
+        <div className="mt-6 space-y-3">
+          {submitError && !isImageSubmitError && (
+            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">
+              {submitError}
+            </p>
+          )}
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <Link
+              to={cancelTo}
+              className="flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:min-w-32"
+            >
+              Cancel
+            </Link>
+            <button
+              type="submit"
+              disabled={isSubmitting || disableSubmit}
+              className="flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70 cursor-pointer sm:min-w-40"
+            >
+              {isSubmitting ? "Processing..." : submitLabel}
+            </button>
           </div>
         </div>
       </form>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAppSelector } from '@/app/hooks'
-import { loadAllDistricts } from '@/features/admin/api/locationOptions'
+import { loadAllCities } from '@/features/admin/api/locationOptions'
 import type { CheckoutDeliveryCompany } from '@/features/shipping/hooks/useCheckoutDeliveryCompany'
 import type { ShopCalculatedShipping } from '@/features/shipping/types/shippingTypes'
 import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
@@ -8,13 +8,14 @@ import { formatDisabledTaxAmount, taxChargeForAmount } from '../api/checkoutApi'
 import {
   DELIVERY_FOLLOW_UP_MESSAGE,
   deliveryUnavailableMessage,
+  NO_DELIVERY_SERVICE_MESSAGE,
   payDeliveryFeeNowLockMessage,
   shopHasNoDeliveryRoute,
   shopPayDeliveryLockReason,
   type PayDeliveryLockReason,
 } from '../utils/deliveryReadiness'
 import { voucherIcon } from '@/assets/icons'
-import { CheckoutTotals, ZERO_DELIVERY_FEE_LABEL } from '../utils/checkoutCalculator'
+import { CheckoutTotals } from '../utils/checkoutCalculator'
 import placeholderImage from '@/public/placeholder.svg'
 import { Truck } from 'lucide-react'
 import CheckoutDeliveryCompanySelect from './CheckoutDeliveryCompanySelect'
@@ -37,6 +38,8 @@ interface CheckoutItemsProps {
   payDeliveryFeeNowLockedOff?: boolean
   /** Why the switch is locked off (e.g. staff cash). */
   payDeliveryFeeNowLockReason?: PayDeliveryLockReason | null
+  /** Super-admin switch. Off hides delivery company and pay-delivery-fee controls. */
+  showDeliveryCheckoutOptions?: boolean
   deliveryCompany: CheckoutDeliveryCompanySelection
 }
 
@@ -62,7 +65,7 @@ type ShippingNoticeKind = 'service' | 'route' | 'company'
 const SHIPPING_NOTICE: Record<ShippingNoticeKind, string> = {
   service: 'Delivery is under maintenance and is not available right now.',
   route: DELIVERY_FOLLOW_UP_MESSAGE,
-  company: 'No delivery company is available right now.',
+  company: NO_DELIVERY_SERVICE_MESSAGE,
 }
 
 const ShippingUnavailableNotice = ({ kind }: { kind: ShippingNoticeKind }) => (
@@ -81,14 +84,9 @@ const SHIPPING_OPTION_SHELL =
 
 const PayOnArrivalCard = () => (
   <div className={`${SHIPPING_OPTION_SHELL} border-gray-200 bg-white text-[13px] leading-5 text-gray-700`}>
-    <div className="flex items-start justify-between gap-3 text-sm font-semibold text-gray-900">
-      <span>Delivery fee</span>
-      <span>{ZERO_DELIVERY_FEE_LABEL}</span>
-    </div>
+    <p className="text-sm font-semibold text-gray-900">Delivery Fee Paid on Arrival</p>
     <p className="mt-2 text-xs leading-5 text-gray-600">
-      You chose to pay the delivery fee when your order arrives.
-      <br />
-      It is not added to this order.
+      The delivery fee is not included in your order total. Please pay the delivery fee separately when your order arrives.
     </p>
   </div>
 )
@@ -113,6 +111,7 @@ const PayDeliveryFeeNowSwitch = ({
   const lockMessage = lockedOff
     ? payDeliveryFeeNowLockMessage(lockReason ?? 'company')
     : null
+  const serviceUnavailable = lockedOff && lockReason !== 'cash' && lockReason !== 'staff'
   const hint =
     lockMessage ??
     (shownOn
@@ -170,7 +169,9 @@ const PayDeliveryFeeNowSwitch = ({
           switchControl
         )}
       </div>
-      <p className="mt-1.5 text-xs leading-5 text-gray-600">{hint}</p>
+      <p className={`mt-1.5 text-xs leading-5 ${serviceUnavailable ? 'text-amber-800' : 'text-gray-600'}`}>
+        {hint}
+      </p>
     </div>
   )
 }
@@ -271,6 +272,7 @@ const CheckoutItems = ({
   onPayDeliveryFeeNowChange,
   payDeliveryFeeNowLockedOff = false,
   payDeliveryFeeNowLockReason = null,
+  showDeliveryCheckoutOptions = true,
   deliveryCompany,
 }: CheckoutItemsProps) => {
   const { groupedByShop } = checkout
@@ -278,6 +280,7 @@ const CheckoutItems = ({
   const calculateStatus = useAppSelector(state => state.shipping.calculateStatus)
   const [cityNames, setCityNames] = useState<Record<string, string>>({})
   const itemTaxes = useAppSelector((state) => state.checkout.itemTaxes)
+  const taxQuoting = useAppSelector((state) => state.checkout.taxQuoting)
   const needsCityNames = Object.values(feesByShopId).some(
     (fee) => fee.calculationMethod === 'CITY_ROUTE' && (fee.fromDistrictId || fee.toDistrictId),
   )
@@ -285,12 +288,12 @@ const CheckoutItems = ({
   useEffect(() => {
     if (!needsCityNames) return
     let cancelled = false
-    void loadAllDistricts()
-      .then((districts) => {
+    void loadAllCities()
+      .then((cities) => {
         if (cancelled) return
         const next: Record<string, string> = {}
-        for (const district of districts) {
-          next[district.id] = district.name
+        for (const city of cities) {
+          next[city.id] = city.name
         }
         setCityNames(next)
       })
@@ -378,9 +381,10 @@ const CheckoutItems = ({
                 const subtotal = item.price * item.quantity
                 const variation = item.variantLabel?.trim() || 'Standard'
                 const variantId = item.variantId ?? ''
+                // No quote yet and none running → tax is off or 0%: show 0% right away.
                 const lineTax = itemTaxes.find(
                   (tax) => tax.productId === item.productId && tax.variantId === variantId,
-                )
+                ) ?? (taxQuoting ? undefined : { productId: item.productId, variantId, taxRate: 0, taxAmount: 0 })
                 const noCategoryTax = Boolean(lineTax?.noCategoryTax)
                 const liveTaxAmount = lineTax && !noCategoryTax
                   ? taxChargeForAmount(subtotal, lineTax.taxRate)
@@ -467,6 +471,7 @@ const CheckoutItems = ({
               </button>
             </div>
 
+            {showDeliveryCheckoutOptions && (
             <div className="border-t border-dashed border-black/10 bg-[#fafdff] px-3 py-3 sm:px-4">
               <div className="mb-2 flex items-center gap-2 text-sm font-medium text-gray-900">
                 <Truck className="h-4 w-4 shrink-0 text-emerald-600" aria-hidden />
@@ -481,6 +486,7 @@ const CheckoutItems = ({
                 onSelect={(companyId) => deliveryCompany.onSelect(shopId, companyId)}
               />
             </div>
+            )}
 
             <div className="border-t border-dashed border-black/10 grid grid-cols-1 bg-[#fafdff] lg:grid-cols-2 lg:items-stretch">
               <div className="px-3 py-3 sm:px-4 sm:py-4 lg:flex lg:border-r lg:border-dashed lg:border-black/10">
@@ -495,6 +501,7 @@ const CheckoutItems = ({
               </div>
 
               <div className="border-t border-dashed border-black/10 px-3 py-3 sm:px-4 sm:py-4 lg:border-t-0">
+                {showDeliveryCheckoutOptions && (
                 <PayDeliveryFeeNowSwitch
                   shopId={shopId}
                   payNow={chargeDeliveryNow}
@@ -502,6 +509,7 @@ const CheckoutItems = ({
                   lockedOff={shopLocksPayNow}
                   lockReason={lockReason}
                 />
+                )}
                 <div className="mb-2 text-sm font-medium text-gray-900">Shipping Option</div>
 
                 {!chargeDeliveryNow ? (

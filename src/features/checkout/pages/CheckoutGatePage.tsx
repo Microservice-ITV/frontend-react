@@ -15,22 +15,23 @@ import CheckoutAddress from '../components/CheckoutAddress'
 import GuestCheckoutAnnouncementBanner from '../components/GuestCheckoutAnnouncementBanner'
 import CheckoutPayment from '../components/CheckoutPayment'
 import CheckoutSummary from '../components/CheckoutSummary'
-import CheckoutSummarySkeleton from '../components/CheckoutSummarySkeleton'
 import { SagaStatusDisplay } from '../components/SagaStatusDisplay'
 import { fetchCheckoutStatus, fetchSagaStatus } from '../store/checkoutThunks'
 import { fetchCheckoutShippingCalculation, fetchShopProfilesForCurrentCart } from '@/features/shipping/store/shippingThunks'
 import { useCheckoutDeliveryCompany } from '@/features/shipping/hooks/useCheckoutDeliveryCompany'
 import { clearShippingCalculate } from '@/features/shipping/store/shippingSlice'
 import { clearCheckout, setCurrentCheckout } from '../store/checkoutSlice'
-import { hasConfirmedStock, isStockReadinessConfirmed } from '../utils/checkoutStatus'
 import { usePayDeliveryFeeNow } from '../hooks/usePayDeliveryFeeNow'
+import { useCheckoutDeliveryOptions } from '../hooks/useCheckoutDeliveryOptions'
+import { shopIdsWithoutSelectableDeliveryCompany } from '../utils/deliveryReadiness'
+import { isQuantityApprovalHold } from '../utils/quantityApprovalHold'
 
 const AuthCheckout = () => {
   const items = useAppSelector(selectSelectedItems)
 
   return (
     <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.checkout}>
-      {items.length === 0 ? <Navigate to="/cart" replace /> : <CheckoutPage />}
+      {items.length === 0 && !isQuantityApprovalHold() ? <Navigate to="/cart" replace /> : <CheckoutPage />}
     </ProtectedRoute>
   )
 }
@@ -41,12 +42,7 @@ const GuestCheckoutPayment = () => {
 
   const items = useAppSelector(selectSelectedItems)
   const { currentCheckout, loading, paymentStatus, sagaId, sagaStatus } = useAppSelector((state) => state.checkout)
-  const [stockConfirmedSessionKey, setStockConfirmedSessionKey] = useState<string | null>(null)
-
-  // If nothing selected, checkout shouldn't be reachable.
-  if (items.length === 0) {
-    return <Navigate to="/cart" replace />
-  }
+  const approvalHold = isQuantityApprovalHold()
 
   const paymentDeliveryAddress = useMemo<UserAddress | null>(() => {
     try {
@@ -83,7 +79,7 @@ const GuestCheckoutPayment = () => {
 
   const hasCheckoutId = Boolean(currentCheckout?.checkout_id || storedCheckoutId)
   const cartMatches = Boolean(storedCartKey && storedCartKey === currentCartKey)
-  const ready = Boolean(paymentDeliveryAddress && hasCheckoutId && cartMatches)
+  const ready = Boolean(paymentDeliveryAddress && hasCheckoutId && (cartMatches || approvalHold))
 
   const feesByShopId = useAppSelector((state) => state.shipping.feesByShopId)
   const totalShippingFee = useAppSelector((state) => state.shipping.totalShippingFee)
@@ -105,18 +101,35 @@ const GuestCheckoutPayment = () => {
   const shopRoutes = useMemo(
     () => shopIds.map((shopId) => ({
       shopId,
-      fromDistrictId: profilesByShopId[shopId]?.districtId?.trim() ?? '',
-      toDistrictId: paymentDeliveryAddress?.district_id != null
-        ? String(paymentDeliveryAddress.district_id)
+      fromDistrictId: profilesByShopId[shopId]?.cityId?.trim() ?? '',
+      toDistrictId: paymentDeliveryAddress?.city_id != null
+        ? String(paymentDeliveryAddress.city_id)
         : '',
     })),
-    [paymentDeliveryAddress?.district_id, profilesByShopId, shopIds],
+    [paymentDeliveryAddress?.city_id, profilesByShopId, shopIds],
   )
-  const deliveryCompany = useCheckoutDeliveryCompany(shopIds, shopRoutes)
+  const deliveryOptionsEnabled = useCheckoutDeliveryOptions()
+  const deliveryCompany = useCheckoutDeliveryCompany(shopIds, shopRoutes, deliveryOptionsEnabled)
+  const cartShopIdsWithoutSelectableCompany = useMemo(
+    () => shopIdsWithoutSelectableDeliveryCompany({
+      shopIds,
+      companiesCountByShop: deliveryCompany.companiesCountByShop,
+      unavailableCompanyIdsByShop: deliveryCompany.unavailableCompanyIdsByShop,
+      loading: deliveryCompany.loading,
+      routesReady: deliveryCompany.routesReady,
+    }),
+    [
+      deliveryCompany.companiesCountByShop,
+      deliveryCompany.loading,
+      deliveryCompany.routesReady,
+      deliveryCompany.unavailableCompanyIdsByShop,
+      shopIds,
+    ],
+  )
   useEffect(() => {
-    if (shopIds.length === 0) return
+    if (deliveryOptionsEnabled !== true || shopIds.length === 0) return
     void dispatch(fetchShopProfilesForCurrentCart())
-  }, [dispatch, shopIds])
+  }, [deliveryOptionsEnabled, dispatch, shopIds])
   const quotableCompanyByShopId = useMemo(() => {
     const next: Record<string, string> = {}
     for (const shopId of shopIds) {
@@ -130,6 +143,7 @@ const GuestCheckoutPayment = () => {
   const hasQuotableCompany = Object.keys(quotableCompanyByShopId).length > 0
   const prepaidProvider = useAppSelector((state) => state.checkout.prepaidProvider)
   const staffCashSelected = prepaidProvider === 'cash'
+  const showDeliveryCheckoutOptions = deliveryOptionsEnabled === true
   const {
     payDeliveryFeeNow,
     setPayDeliveryFeeNow,
@@ -142,8 +156,8 @@ const GuestCheckoutPayment = () => {
     unavailableCompanyIdsByShop: deliveryCompany.unavailableCompanyIdsByShop,
     loading: deliveryCompany.loading,
     routesReady: deliveryCompany.routesReady,
-    forceOff: staffCashSelected,
-    forceOffReason: 'cash',
+    forceOff: staffCashSelected || !showDeliveryCheckoutOptions,
+    forceOffReason: !showDeliveryCheckoutOptions ? 'company' : 'cash',
   })
 
   const shippingCalculateCacheKey = useMemo(() => {
@@ -168,17 +182,6 @@ const GuestCheckoutPayment = () => {
     dispatch(clearCheckout())
     dispatch(clearShippingCalculate())
     navigate('/checkout/guest', { replace: true })
-  }
-
-  if (!ready) {
-    try {
-      sessionStorage.removeItem('dni.guest_checkout.delivery_address')
-      sessionStorage.removeItem('dni.guest_checkout.checkout_id')
-      sessionStorage.removeItem('dni.guest_checkout.cart_key')
-    } catch {
-      // ignore
-    }
-    return <Navigate to="/checkout/guest" replace />
   }
 
   useEffect(() => {
@@ -224,20 +227,6 @@ const GuestCheckoutPayment = () => {
     [],
   )
   const terminalSagaStatuses = useMemo(() => new Set(['COMPLETED', 'FAILED', 'TIMEOUT']), [])
-  const stockReadinessKey = currentCheckout?.checkout_id
-    ? `${currentCheckout.checkout_id}|${currentCartKey}`
-    : null
-  const isStockReady = isStockReadinessConfirmed({
-    paymentStatus,
-    confirmedReadinessKey: stockConfirmedSessionKey,
-  })
-
-  useEffect(() => {
-    if (stockReadinessKey && hasConfirmedStock(paymentStatus)) {
-      setStockConfirmedSessionKey(stockReadinessKey)
-    }
-  }, [paymentStatus, stockReadinessKey])
-
   useEffect(() => {
     if (!currentCheckout?.checkout_id) return
     if (paymentStatus && terminalCheckoutStatuses.has(paymentStatus)) return
@@ -269,6 +258,21 @@ const GuestCheckoutPayment = () => {
     }
   }, [paymentStatus, navigate, currentCheckout?.checkout_id, paymentDeliveryAddress?.phone_no])
 
+  if (items.length === 0 && !approvalHold) {
+    return <Navigate to="/cart" replace />
+  }
+
+  if (!ready) {
+    try {
+      sessionStorage.removeItem('dni.guest_checkout.delivery_address')
+      sessionStorage.removeItem('dni.guest_checkout.checkout_id')
+      sessionStorage.removeItem('dni.guest_checkout.cart_key')
+    } catch {
+      // ignore
+    }
+    return <Navigate to="/checkout/guest" replace />
+  }
+
   return (
     <Elements stripe={stripePromise}>
       <div className="bg-[#f5f5f5] py-3 sm:py-4 lg:py-5">
@@ -287,6 +291,7 @@ const GuestCheckoutPayment = () => {
                 payDeliveryFeeNow={payDeliveryFeeNow}
                 onPayDeliveryFeeNowChange={setPayDeliveryFeeNow}
                 payDeliveryFeeNowLockedOff={payDeliveryFeeNowLockedOff}
+                showDeliveryCheckoutOptions={showDeliveryCheckoutOptions}
                 deliveryCompany={{
                   companiesByShopId: deliveryCompany.companiesByShopId,
                   selectedByShopId: deliveryCompany.selectedByShopId,
@@ -301,20 +306,20 @@ const GuestCheckoutPayment = () => {
             <aside className="space-y-3 lg:sticky lg:top-4">
             <CheckoutPayment totalAmount={amountDueNow(checkoutTotals, payDeliveryFeeNow)} />
 
-              {isStockReady ? (
-                <CheckoutSummary
-                  checkout={checkoutTotals}
-                  payDeliveryFeeNow={payDeliveryFeeNow}
-                  hasDeliveryAddress={true}
-                  onRequireAddress={goToGuestForm}
-                  deliveryAddress={paymentDeliveryAddress}
-                  cartItems={items}
-                  deliveryQuotePendingConfirmation={deliveryQuotePendingConfirmation}
-                  deliveryCompanyIdByShopId={deliveryCompany.companyByShopId}
-                />
-              ) : (
-                <CheckoutSummarySkeleton />
-              )}
+              <CheckoutSummary
+                checkout={checkoutTotals}
+                payDeliveryFeeNow={payDeliveryFeeNow}
+                hasDeliveryAddress={true}
+                onRequireAddress={goToGuestForm}
+                deliveryAddress={paymentDeliveryAddress}
+                cartItems={items}
+                deliveryQuotePendingConfirmation={deliveryQuotePendingConfirmation}
+                deliveryCompanyIdByShopId={deliveryCompany.companyByShopId}
+                deliveryCompanySelectionReady={deliveryCompany.routesReady}
+                cartShopIdsWithoutSelectableCompany={
+                  showDeliveryCheckoutOptions ? cartShopIdsWithoutSelectableCompany : shopIds
+                }
+              />
             </aside>
           </div>
 

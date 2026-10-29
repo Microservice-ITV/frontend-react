@@ -36,21 +36,41 @@ const SetPhoneModal: React.FC<SetPhoneModalProps> = ({
 
   if (!isOpen) return null;
 
+  const handlePhoneChange = (value: string) => {
+    // Remove all non-digit characters
+    const digitsOnly = value.replace(/\D/g, "");
+
+    // Myanmar mobile numbers are 8-10 digits after +95.
+    const limitedDigits = digitsOnly.slice(0, 10);
+
+    setPhone(limitedDigits);
+    setError(null);
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    const cleanPhone = phone.trim();
-    const normalizedPhone = cleanPhone.replace(/[\s-]/g, "");
 
-    if (!cleanPhone || !/^\+?[0-9]{7,15}$/.test(normalizedPhone)) {
-      setError("Please enter a valid phone number (7-15 digits).");
+    const digitsOnly = phone.replace(/\D/g, "");
+
+    // Validate Myanmar mobile number: must be 8-10 digits and start with 9
+    if (digitsOnly.length < 8 || digitsOnly.length > 10) {
+      setError("Myanmar mobile number must be 8-10 digits. Example: 9123456789");
       return;
     }
+
+    if (!digitsOnly.startsWith("9")) {
+      setError("Myanmar mobile number must start with 9. Example: 9123456789");
+      return;
+    }
+
+    // Normalize to E.164 format: +95 + digits
+    const normalizedPhone = "+95" + digitsOnly;
 
     setError(null);
     setIsLoading(true);
 
     try {
-      const response = await authFeatureApi.updateProfile({ phone: cleanPhone });
+      const response = await authFeatureApi.updateProfile({ phone: normalizedPhone });
       const savedPhone = response.data?.data?.user?.phone ?? normalizedPhone;
       onSuccess?.(savedPhone);
       onClose();
@@ -60,9 +80,9 @@ const SetPhoneModal: React.FC<SetPhoneModalProps> = ({
         : undefined;
       setError(
         apiMessage ||
-          (caughtError instanceof Error
-            ? caughtError.message
-            : "Failed to add phone number. Please try again."),
+        (caughtError instanceof Error
+          ? caughtError.message
+          : "Failed to add phone number. Please try again."),
       );
     } finally {
       setIsLoading(false);
@@ -107,24 +127,35 @@ const SetPhoneModal: React.FC<SetPhoneModalProps> = ({
               htmlFor="set-phone-input"
               className="text-sm font-medium text-slate-700"
             >
-              Phone number
+              Mobile number
             </label>
-            <div className="relative mt-2">
-              <Phone className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-              <input
-                id="set-phone-input"
-                type="tel"
-                value={phone}
-                onChange={(event) => {
-                  setPhone(event.target.value);
-                  setError(null);
-                }}
-                placeholder="Enter your phone number"
-                disabled={isLoading}
-                autoFocus
-                className="w-full rounded-lg border border-slate-200 py-2.5 pl-10 pr-3.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-              />
+            <div className="mt-2 flex items-center">
+              <div className="flex items-center rounded-l-lg border border-r-0 border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-600">
+                +95
+              </div>
+              <div className="relative flex-1">
+                <Phone className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+                <input
+                  id="set-phone-input"
+                  type="tel"
+                  value={phone}
+                  onChange={(event) => handlePhoneChange(event.target.value)}
+                  onPaste={(event) => {
+                    event.preventDefault();
+                    const pastedText = event.clipboardData.getData('text');
+                    handlePhoneChange(pastedText);
+                  }}
+                  placeholder="9123456789"
+                  disabled={isLoading}
+                  autoFocus
+                  maxLength={10}
+                  className="w-full rounded-r-lg border border-slate-200 py-2.5 pl-10 pr-3.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
             </div>
+            <p className="mt-1 text-xs text-slate-400">
+              Enter 8-10 digit Myanmar mobile number (starts with 9)
+            </p>
             {error && (
               <p className="mt-2 flex items-center gap-1.5 text-xs text-rose-500">
                 <AlertCircle className="h-3.5 w-3.5" />

@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
-import { login, register, requestPhoneOtp, verifyPhoneOtp, fetchMe, refreshAccessToken, logout, bootstrapAuth, verifyEmail, resendVerification, updateProfileImage, removeProfileImage } from './authThunks'
+import { login, register, requestPhoneOtp, verifyPhoneOtp, fetchMe, refreshAccessToken, logout, bootstrapAuth, verifyEmail, resendVerification, updateProfileImage, removeProfileImage, updateProfile } from './authThunks'
 import type { AuthState } from '../types/authTypes'
 
 const initialState: AuthState = {
@@ -51,6 +51,11 @@ const authSlice = createSlice({
       action: PayloadAction<{ name: string; email: string; password: string }>
     ) {
       state.registerDraft = action.payload
+    },
+
+    markEmailVerified(state) {
+      if (state.user) state.user.email_verified_at = new Date().toISOString()
+      state.requiresVerification = false
     },
 
     forceLogout(state) {
@@ -199,6 +204,11 @@ const authSlice = createSlice({
         state.profileImageError = action.payload ?? 'We could not update your profile photo.'
       })
 
+      // ================= UPDATE PROFILE =================
+      .addCase(updateProfile.fulfilled, (state, action) => {
+        state.user = action.payload
+      })
+
       .addCase(removeProfileImage.pending, (state) => {
         state.profileImageStatus = 'loading'
         state.profileImageError = null
@@ -234,5 +244,6 @@ export const {
   setAccessToken,
   setLoginDraft,
   setRegisterDraft,
+  markEmailVerified,
 } = authSlice.actions
 export default authSlice.reducer

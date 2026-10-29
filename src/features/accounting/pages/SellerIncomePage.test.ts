@@ -18,6 +18,33 @@ const incomeLine = (memo: string | null): AccountingIncomeLine => ({
 })
 
 describe('seller income shop attribution', () => {
+  it('shows the newest income date first', () => {
+    const rows = toIncomeRows(
+      [
+        {
+          ...incomeLine('Revenue recognized (shop=shop-a)'),
+          id: 'older',
+          journalEntry: {
+            ...incomeLine(null).journalEntry,
+            entryDate: '2026-09-28T01:16:08.152Z',
+          },
+        },
+        {
+          ...incomeLine('Revenue recognized (shop=shop-a)'),
+          id: 'newer',
+          journalEntry: {
+            ...incomeLine(null).journalEntry,
+            entryDate: '2026-10-17T01:16:08.152Z',
+          },
+        },
+      ],
+      new Set(['shop-a']),
+      {},
+    )
+
+    expect(rows.map((row) => row.id)).toEqual(['newer', 'older'])
+  })
+
   it('includes income tagged to the owner shop', () => {
     const rows = toIncomeRows(
       [incomeLine('Revenue recognized (shop=SHOP-A)')],
@@ -27,6 +54,7 @@ describe('seller income shop attribution', () => {
 
     expect(rows).toHaveLength(1)
     expect(rows[0].shopId).toBe('shop-a')
+    expect(rows[0].reference).toBe('PAYMENT-290926-0001')
   })
 
   it('does not reassign income explicitly tagged to another shop', () => {

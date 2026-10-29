@@ -20,6 +20,14 @@ function mapRecommendationProduct(product: any): Product | null {
     if (!id) return null
     const price = typeof product.price === 'string' ? parseFloat(product.price) : Number(product.price ?? 0)
     const shopId = String(product.shopId ?? '').trim()
+    const stock =
+        typeof product.totalAvailableStock === 'number'
+            ? Math.max(0, product.totalAvailableStock)
+            : typeof product.shopAvailableStock === 'number'
+              ? Math.max(0, product.shopAvailableStock)
+              : typeof product.stock === 'number'
+                ? Math.max(0, product.stock)
+                : undefined
     return {
         id,
         name: String(product.title ?? product.name ?? ''),
@@ -28,6 +36,7 @@ function mapRecommendationProduct(product: any): Product | null {
         categoryId: String(product.categoryId ?? ''),
         shopId: shopId || undefined,
         tags: normalizeTags(product.tags),
+        ...(stock != null ? { stock } : {}),
     }
 }
 

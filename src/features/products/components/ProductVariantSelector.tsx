@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { productClient } from '@/lib/api/productClient'
 import type { ProductVariant } from '@/features/products/types/productTypes'
 import { variantSellableStock as sellable } from '@/features/products/utils/variantStock'
+import { isLightSwatch, swatchColor } from '@/utils/colorSwatch'
 
 type SizeOption = { id: string; code: string; name: string }
 
@@ -87,61 +88,6 @@ function SelectedCheck() {
             ✓
         </span>
     )
-}
-
-const SWATCH_ALIASES: Record<string, string> = {
-    navy: '#000080',
-    offwhite: '#f4f1ea',
-    cream: '#fffdd0',
-    ivory: '#fffff0',
-    beige: '#f5f5dc',
-    burgundy: '#800020',
-    maroon: '#800000',
-    teal: '#008080',
-    olive: '#808000',
-    gold: '#d4af37',
-    silver: '#c0c0c0',
-    grey: '#808080',
-    gray: '#808080',
-}
-
-const CSS_COLOR_NAMES = new Set([
-    'white', 'black', 'red', 'blue', 'green', 'yellow', 'orange', 'pink', 'purple',
-    'brown', 'navy', 'gray', 'grey', 'beige', 'gold', 'silver', 'maroon', 'teal',
-    'cyan', 'magenta', 'lime', 'aqua', 'coral', 'ivory', 'khaki', 'tan', 'salmon',
-    'indigo', 'violet', 'turquoise', 'chocolate', 'crimson', 'lavender', 'lightblue',
-    'lightgreen', 'lightgray', 'lightgrey', 'darkblue', 'darkgreen', 'darkred',
-    'darkgray', 'darkgrey', 'skyblue',
-])
-
-const LIGHT_SWATCHES = new Set([
-    'white', 'ivory', 'cream', 'beige', 'yellow', 'khaki', 'lightyellow', 'snow',
-    'offwhite', '#ffffff', '#fff', '#fffff0', '#fffdd0', '#f4f1ea', '#f5f5dc', '#c0c0c0',
-])
-
-/** Paint a circle from the color name. Codes like WHT are not CSS colors. */
-function swatchColor(name: string, code: string): string {
-    const trimmedCode = code.trim()
-    if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(trimmedCode)) return trimmedCode
-    const key = name.trim().toLowerCase().replace(/[\s_-]+/g, '')
-    if (SWATCH_ALIASES[key]) return SWATCH_ALIASES[key]
-    if (CSS_COLOR_NAMES.has(key)) return key
-    if (!key) return '#d1d5db'
-    let hash = 0
-    for (let i = 0; i < key.length; i += 1) hash = key.charCodeAt(i) + ((hash << 5) - hash)
-    return `hsl(${Math.abs(hash) % 360} 42% 46%)`
-}
-
-function isLightSwatch(color: string): boolean {
-    const value = color.toLowerCase()
-    if (LIGHT_SWATCHES.has(value)) return true
-    const hex = value.match(/^#([0-9a-f]{6})$/)
-    if (!hex) return false
-    const n = Number.parseInt(hex[1], 16)
-    const r = (n >> 16) & 255
-    const g = (n >> 8) & 255
-    const b = n & 255
-    return (r * 299 + g * 587 + b * 114) / 1000 > 180
 }
 
 type Props = {

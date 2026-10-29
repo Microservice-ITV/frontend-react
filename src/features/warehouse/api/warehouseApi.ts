@@ -164,6 +164,13 @@ export const warehouseApi = {
     )
   },
 
+  /** Seller sets the actual exchange rate of a received PO; its unit price is recalculated. */
+  updateStockExchangeRate(stockId: string, purchaseOrderId: string, exchangeRate: number) {
+    return warehouseClient.patch<
+      Envelope<{ purchaseOrderId: string; exchangeRate: number }>
+    >(`/inventory/stocks/${stockId}/exchange-rate`, { purchaseOrderId, exchangeRate })
+  },
+
   increaseStock(payload: StockMutationPayload & { movementType?: string }) {
     return warehouseClient.post<Envelope<InventoryStock>>(
       '/inventory/increase',

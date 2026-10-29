@@ -246,13 +246,19 @@ export const shippingApi = {
             `/shipping/shops/${encodeURIComponent(shopId)}/delivery-companies`,
             { deliveryCompanyIds },
         )
+    checkoutDeliveryOptions() {
+        return shippingClient.get<{ success: boolean; data: { enabled: boolean } }>(
+            '/shipping/checkout-delivery-options',
+        )
     },
 
-    districtRouteAvailability(fromDistrictId: string, toDistrictId: string) {
+    },
+
+    districtRouteAvailability(fromCityId: string, toCityId: string) {
         return shippingClient.get<unknown>('/shipping/delivery-companies/route-availability', {
             params: {
-                ...(fromDistrictId ? { fromDistrictId } : {}),
-                ...(toDistrictId ? { toDistrictId } : {}),
+                ...(fromCityId ? { fromCityId } : {}),
+                ...(toCityId ? { toCityId } : {}),
             },
         })
     },

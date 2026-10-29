@@ -1,7 +1,6 @@
 import { authClient } from '@/lib/api/authClient'
 import { ecommerceReadClient } from '@/lib/api/ecommerceReadClient'
 import { orderClient } from '@/lib/api/orderClient'
-import { productClient } from '@/lib/api/productClient'
 
 export type SellerOrderItem = {
   productId: string
@@ -63,6 +62,7 @@ export type SellerOrderPayment = {
 export type PaymentRecord = {
   id: string
   orderId: string
+  wayBillNo?: string | null
   invoiceNo?: string | null
   amount: number
   currency: string
@@ -80,6 +80,18 @@ export type PaymentRecord = {
   codCollectionBatchId?: string | null
   /** Seller-scoped money split from payment_allocations; null when unknown. */
   seller?: PaymentSellerShare | null
+}
+
+/** COD amounts awaiting remittance for a seller's already-delivered orders. */
+export const isDeliveredPendingCodPayment = (payment: PaymentRecord): boolean =>
+  payment.provider.trim().toLowerCase() === 'cod'
+  && payment.status.trim().toUpperCase() === 'PENDING'
+  && (payment.sellerDeliveryStatus ?? payment.deliveryStatus)?.trim().toUpperCase() === 'DELIVERED'
+
+/** Prefer the seller's net payout allocation; legacy rows fall back to payment amount. */
+export const sellerPaymentAmountDue = (payment: PaymentRecord): number => {
+  const amount = Number(payment.seller?.payout ?? payment.amount)
+  return Number.isFinite(amount) ? amount : 0
 }
 
 /** Owned amounts (seller's shops only) for one payment record. */
@@ -110,6 +122,7 @@ export type PaymentDetailOrder = {
   reservationId: string | null
   orderStatusId: number
   orderStatus: string
+  wayBillNo?: string | null
   trackingNumber?: string | null
   trackingUrl?: string | null
   courierCode?: string | null
@@ -163,6 +176,12 @@ export type SellerOrder = {
   orderId: string
   customerId: string
   status: string
+  wayBillNo?: string | null
+  cancellationReason?: string | null
+  cancelledAt?: string | null
+  returnDeadlineAt?: string | null
+  returnReason?: string | null
+  returnedAt?: string | null
   createdAt?: string | null
   placedAt?: string | null
   items: SellerOrderItem[]
@@ -192,6 +211,27 @@ export type SellerOrder = {
   } | null
 }
 
+/** Lightweight fields used by the seller order table and dashboard summary. */
+export type SellerOrderSummary = {
+  orderId: string
+  customerId: string
+  status: string
+  wayBillNo?: string | null
+  createdAt?: string | null
+  placedAt?: string | null
+  items: Array<Pick<SellerOrderItem, 'productId' | 'name' | 'shopId'>>
+  totals: Pick<SellerOrderTotals, 'total' | 'currency'>
+  shopBreakdown?: Array<Pick<SellerShopBreakdown, 'shopId' | 'status'>>
+  sellerTotals?: Pick<SellerOrderTotals, 'total' | 'currency'> | null
+  scopedToSeller?: boolean
+  deliveryAddress?: Pick<NonNullable<SellerOrder['deliveryAddress']>, 'recipientName' | 'city'> | null
+}
+
+type SellerOrderStatusInfo = {
+  status: string
+  shopBreakdown?: Array<{ status?: string | null }>
+}
+
 /**
  * Seller-visible fulfillment status for an order: derived from the seller's
  * own shops' shop_order statuses when the read model provides them, falling
@@ -201,10 +241,19 @@ export type SellerOrder = {
  * CONFIRMED) while this seller's shop is ready to ship — the per-shop rows
  * are the source of truth for the seller's actions.
  */
-export const sellerOrderStatus = (order: SellerOrder): string => {
+export const sellerOrderStatus = (order: SellerOrderStatusInfo): string => {
+  const orderStatus = (order.status || '').toUpperCase()
+  if (['DELIVERED', 'COMPLETED', 'CANCELLED', 'RETURNED'].includes(orderStatus)) {
+    return orderStatus
+  }
+
   const rows = (order.shopBreakdown ?? []).filter((row) => row.status)
   if (rows.length > 0) {
     const statuses = rows.map((row) => (row.status || '').toUpperCase())
+    const deliveredLike = ['DELIVERED', 'COMPLETED']
+    if (statuses.every((status) => deliveredLike.includes(status))) {
+      return statuses.includes('DELIVERED') ? 'DELIVERED' : 'COMPLETED'
+    }
     const shippedLike = ['SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETED', 'FULFILLED']
     if (statuses.every((s) => shippedLike.includes(s))) {
       return 'SHIPPED'
@@ -214,11 +263,11 @@ export const sellerOrderStatus = (order: SellerOrder): string => {
     }
     return statuses[0]
   }
-  return (order.status || '').toUpperCase()
+  return orderStatus
 }
 
 /** True when this seller's shops still have unshipped portions of the order. */
-export const canSellerShip = (order: SellerOrder): boolean => {
+export const canSellerShip = (order: SellerOrderStatusInfo): boolean => {
   const rows = order.shopBreakdown ?? []
   if (rows.length > 0) {
     return rows.some((row) => (row.status || '').toUpperCase() === 'READY_FOR_FULFILLMENT')
@@ -247,6 +296,11 @@ export async function fetchCustomerAvatars(
   return avatars
 }
 
+/**
+ * Detail projection for one seller order: everything the order detail page
+ * renders (payment, fulfillment/deliveries, promotions, full address).
+ * Narrowed server-side by the `orderId` argument — never used for lists.
+ */
 const SHOP_ORDERS_QUERY = `
   query ShopOrders($shopId: ID!, $userId: ID) {
     shopOrders(shopId: $shopId, userId: $userId) {
@@ -351,6 +405,45 @@ const SHOP_ORDERS_QUERY = `
   }
 `
 
+/** List projection for the seller order table and dashboard. */
+const SELLER_ORDER_SUMMARY_FIELDS = `
+      orderId
+      customerId
+      status
+      createdAt
+      placedAt
+      items {
+        productId
+        name
+        shopId
+      }
+      totals {
+        total
+        currency
+      }
+      scopedToSeller
+      sellerTotals {
+        total
+        currency
+      }
+      shopBreakdown {
+        shopId
+        status
+      }
+      deliveryAddress {
+        recipientName
+        city
+      }
+`
+
+const SHOP_ORDER_SUMMARIES_QUERY = `
+  query ShopOrderSummaries($shopId: ID!, $userId: ID) {
+    shopOrders(shopId: $shopId, userId: $userId) {
+${SELLER_ORDER_SUMMARY_FIELDS}
+    }
+  }
+`
+
 type GraphQLError = { message?: string }
 
 interface ShopOrdersResponse {
@@ -358,71 +451,230 @@ interface ShopOrdersResponse {
   errors?: GraphQLError[]
 }
 
-export type OwnedShop = {
-  id?: string
-  shopId?: string
-  slug?: string
-  name?: string
+interface ShopOrderSummariesResponse {
+  data?: { shopOrders?: SellerOrderSummary[] }
+  errors?: GraphQLError[]
 }
 
-/**
- * Fetch all orders across every shop owned by the seller, merged and deduped.
- * Falls back to activeShopId when ownership lookup is unavailable.
- */
-export async function fetchOrdersAcrossOwnedShops(
+export type SellerOrderStatusFilter = 'all' | 'to-ship' | 'shipped' | 'completed' | 'cancelled' | 'returned'
+
+type SellerShop = { id: string; shopId: string; name: string; slug: string }
+
+export type PendingShopApproval = {
+  checkout_id: string
+  shop_id: string
+  user_id: string
+  status?: 'pending' | 'approved' | 'rejected' | string
+  rejection_reason?: string | null
+  customer_name?: string | null
+  quantity: number
+  items: Array<{ title: string; qty: number; image_url?: string | null }>
+  created_at?: string | null
+}
+
+export type ShopApprovalDetail = {
+  checkout_id: string
+  shop_id: string
+  user_id: string
+  status: 'pending' | 'approved' | 'rejected' | string
+  quantity: number
+  customer_name?: string | null
+  customer_email?: string | null
+  customer_phone?: string | null
+  rejection_reason?: string | null
+  order_placed?: boolean
+  items: Array<{
+    title: string
+    sku?: string | null
+    qty: number
+    price: number
+    line_total: number
+    image_url?: string | null
+  }>
+  created_at?: string | null
+}
+type SellerShopAccessResponse = {
+  data?: {
+    access_context?: {
+      shops?: Array<{
+        shop_id?: string | null
+        shop_name?: string | null
+        shop_domain?: string | null
+        membership_status?: string | null
+        role?: { code?: string | null } | null
+      }>
+    }
+  }
+}
+
+const resolveSellerShopIds = async (
+  _userId?: string | null,
+  activeShopId?: string | null,
+): Promise<string[]> => {
+  // Shop access comes from the authenticated access context, not creator ID.
+  return activeShopId ? [activeShopId] : []
+}
+
+/** Fetch compact summary fields for the seller order table and dashboard. */
+export async function fetchSellerOrderSummariesAcrossOwnedShops(
   userId?: string | null,
   activeShopId?: string | null,
-): Promise<SellerOrder[]> {
-  let shopIds: string[] = []
+  statusFilter: SellerOrderStatusFilter = 'all',
+  signal?: AbortSignal,
+): Promise<SellerOrderSummary[]> {
+  const shopIds = await resolveSellerShopIds(userId, activeShopId)
+  if (shopIds.length === 0) return []
 
-  if (userId) {
-    try {
-      const shops = await sellerOrderApi.listShopsByUser(userId)
-      shopIds = shops
-        .map((shop) => shop.id ?? shop.shopId ?? '')
-        .filter((id): id is string => Boolean(id))
-    } catch {
-      // Best-effort ownership lookup; fall back below.
-    }
-  }
-
-  if (shopIds.length === 0 && activeShopId) {
-    shopIds = [activeShopId]
-  }
-
-  if (shopIds.length === 0) {
-    return []
-  }
-
-  const results = await Promise.all(
-    shopIds.map((shopId) => sellerOrderApi.shopOrders(shopId, userId ?? undefined).catch(() => [] as SellerOrder[])),
+  // The resolver validates this active shop against the authenticated user's
+  // active memberships and scopes the returned order rows to that shop.
+  const orders = await sellerOrderApi.shopOrderSummaries(
+    shopIds[0],
+    userId ?? undefined,
+    signal,
   )
 
-  const merged = new Map<string, SellerOrder>()
-  for (const orders of results) {
-    for (const order of orders) {
-      if (!merged.has(order.orderId)) {
-        merged.set(order.orderId, order)
-      }
-    }
-  }
-
-  return [...merged.values()].sort((a, b) => {
+  return orders
+    .filter((order) => matchesSellerOrderFilter(order, statusFilter))
+    .sort((a, b) => {
     const aTime = new Date(a.placedAt || a.createdAt || 0).getTime()
     const bTime = new Date(b.placedAt || b.createdAt || 0).getTime()
     return bTime - aTime
-  })
+    })
+}
+
+const matchesSellerOrderFilter = (order: SellerOrderSummary, filter: SellerOrderStatusFilter): boolean => {
+  if (filter === 'all') return true
+  const status = sellerOrderStatus(order).toUpperCase()
+  if (filter === 'to-ship') return canSellerShip(order)
+  if (filter === 'shipped') return ['SHIPPED', 'PARTIALLY_FULFILLED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'].includes(status)
+  if (filter === 'completed') return ['DELIVERED', 'COMPLETED'].includes(status)
+  if (filter === 'cancelled') return status === 'CANCELLED'
+  return status === 'RETURNED'
+}
+
+/** Fetch one full seller-scoped order instead of downloading the seller's history. */
+export async function fetchSellerOrderByIdAcrossOwnedShops(
+  orderId: string,
+  userId?: string | null,
+  activeShopId?: string | null,
+): Promise<SellerOrder | null> {
+  const shopIds = await resolveSellerShopIds(userId, activeShopId)
+  if (shopIds.length === 0) return null
+
+  const orders = await sellerOrderApi.shopOrders(
+    shopIds[0],
+    userId ?? undefined,
+  )
+  return orders.find((order) => order.orderId === orderId) ?? null
+}
+
+export type SellerOrderPage = {
+  items: SellerOrderSummary[]
+  total: number
+  page: number
+  limit: number
+}
+
+export async function fetchSellerOrderPage(
+  params: { userId?: string; activeShopId?: string | null; statusFilter: SellerOrderStatusFilter; search: string; page: number; limit: number },
+  signal?: AbortSignal,
+): Promise<SellerOrderPage> {
+  if (signal?.aborted) throw new DOMException('Request was aborted', 'AbortError')
+  const orders = await fetchSellerOrderSummariesAcrossOwnedShops(
+    params.userId,
+    params.activeShopId,
+    params.statusFilter,
+    signal,
+  )
+  if (signal?.aborted) throw new DOMException('Request was aborted', 'AbortError')
+
+  const term = params.search.trim().toLowerCase()
+  const filtered = term
+    ? orders.filter((order) => [
+        order.orderId,
+        order.wayBillNo,
+        order.customerId,
+        order.status,
+        order.deliveryAddress?.recipientName,
+        order.deliveryAddress?.city,
+        ...order.items.map((item) => item.name),
+      ].some((value) => value?.toLowerCase().includes(term)))
+    : orders
+  const page = Math.max(1, params.page)
+  const limit = Math.max(1, params.limit)
+  const offset = (page - 1) * limit
+  return { items: filtered.slice(offset, offset + limit), total: filtered.length, page, limit }
 }
 
 export const sellerOrderApi = {
-  async listShopsByUser(userId: string): Promise<OwnedShop[]> {
-    const response = await productClient.get<{ success?: boolean; data?: OwnedShop[] }>(
-      `/shops/user/${userId}`,
-    )
-    return response.data.data ?? []
+  /**
+   * Backward-compatible shop lookup for seller pages. The authenticated
+   * access context is authoritative; userId is retained for existing callers
+   * but is never used to discover creator-owned shops.
+   */
+  async listPendingShopApprovals(shopIds: string[]): Promise<PendingShopApproval[]> {
+    const ids = shopIds.map((shopId) => shopId.trim()).filter(Boolean)
+    if (ids.length === 0) return []
+    const response = await orderClient.get<{ approvals?: PendingShopApproval[] }>('/orders/shop-approvals', {
+      params: { shop_ids: ids.join(',') },
+    })
+    return Array.isArray(response.data.approvals) ? response.data.approvals : []
   },
 
-  async shopOrders(shopId: string, userId?: string): Promise<SellerOrder[]> {
+  async approveShopOrder(checkoutId: string, shopId: string, approvedBy?: string | null): Promise<void> {
+    await orderClient.post(`/orders/shop-approvals/${checkoutId}/approve`, {
+      shop_id: shopId,
+      approved_by: approvedBy || undefined,
+    })
+  },
+
+  async getShopApproval(checkoutId: string, shopId: string): Promise<ShopApprovalDetail> {
+    const response = await orderClient.get<ShopApprovalDetail>(`/orders/shop-approvals/${checkoutId}`, {
+      params: { shop_id: shopId },
+    })
+    return response.data
+  },
+
+  async rejectShopOrder(
+    checkoutId: string,
+    shopId: string,
+    rejectedBy?: string | null,
+    reason?: string,
+  ): Promise<void> {
+    await orderClient.post(`/orders/shop-approvals/${checkoutId}/reject`, {
+      shop_id: shopId,
+      rejected_by: rejectedBy || undefined,
+      reason: reason?.trim() || undefined,
+    })
+  },
+
+  async listShopsByUser(_userId: string): Promise<SellerShop[]> {
+    const response = await authClient.get<SellerShopAccessResponse>('/me/access-context')
+    return (response.data.data?.access_context?.shops ?? [])
+      .filter((shop) =>
+        shop.membership_status?.toLowerCase() === 'active'
+        && ['shop_owner', 'shop_admin'].includes(shop.role?.code?.toLowerCase() ?? ''),
+      )
+      .flatMap((shop) => {
+        const id = shop.shop_id?.trim()
+        if (!id) return []
+        return [{
+          id,
+          shopId: id,
+          name: shop.shop_name?.trim() || id,
+          slug: shop.shop_domain?.trim() || id,
+        }]
+      })
+  },
+
+  /**
+   * Full detail projection of the seller's orders. Pass `orderId` to fetch a
+   * single order (detail page); list views should use `shopOrderSummaries`.
+   */
+  async shopOrders(
+    shopId: string,
+    userId?: string,
+  ): Promise<SellerOrder[]> {
     const response = await ecommerceReadClient.post<ShopOrdersResponse>('', {
       query: SHOP_ORDERS_QUERY,
       variables: { shopId, userId },
@@ -430,6 +682,27 @@ export const sellerOrderApi = {
 
     if (response.data.errors?.length) {
       throw new Error(response.data.errors[0]?.message ?? 'Failed to fetch shop orders')
+    }
+
+    return response.data.data?.shopOrders ?? []
+  },
+
+  /**
+   * Compact list projection (order id, waybill, customer, items, status,
+   * total, date) for the seller order table and dashboard summary.
+   */
+  async shopOrderSummaries(
+    shopId: string,
+    userId?: string,
+    signal?: AbortSignal,
+  ): Promise<SellerOrderSummary[]> {
+    const response = await ecommerceReadClient.post<ShopOrderSummariesResponse>('', {
+      query: SHOP_ORDER_SUMMARIES_QUERY,
+      variables: { shopId, userId },
+    }, { signal })
+
+    if (response.data.errors?.length) {
+      throw new Error(response.data.errors[0]?.message ?? 'Failed to fetch seller order summaries')
     }
 
     return response.data.data?.shopOrders ?? []
@@ -455,6 +728,7 @@ export const sellerOrderApi = {
       courier_name?: string
       courier_phone?: string
       tracking_number?: string
+      way_bill_no: string
       tracking_url?: string
       /** Ship only this shop's portion (multi-owner order, per-shop fulfillment). */
       shop_id?: string
@@ -464,10 +738,33 @@ export const sellerOrderApi = {
     order_status?: string
     status?: string
     tracking_number?: string
+    way_bill_no: string
     tracking_url?: string
     courier: { code: string; name: string; phone: string }
   }> {
     const response = await orderClient.post(`/orders/${orderId}/create-shipment`, payload)
+    return response.data
+  },
+
+  async cancelShippedOrder(
+    orderId: string,
+    reason: string,
+  ): Promise<{
+    order_id: string
+    status: string
+    cancellation_reason: string
+    cancelled_at: string
+    return_deadline_at: string
+  }> {
+    const response = await orderClient.post(`/orders/${orderId}/cancel`, { reason })
+    return response.data
+  },
+
+  async markOrderReturned(
+    orderId: string,
+    reason: string,
+  ): Promise<{ order_id: string; status: string; return_reason: string; returned_at: string }> {
+    const response = await orderClient.post(`/orders/${orderId}/return`, { reason })
     return response.data
   },
 
@@ -521,3 +818,4 @@ export const sellerOrderApi = {
     return response.data.data
   },
 }
+

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { useGlobalModal } from "@/components/ui/GlobalModalProvider";
@@ -11,7 +11,7 @@ import type {
   DeliveryCityRateStatus,
 } from "../api/adminShippingApi";
 import { adminShippingApi } from "../api/adminShippingApi";
-import { loadAllDistricts, type DistrictOptionWithCity } from "../api/locationOptions";
+import { loadAllCities, type CityOptionWithState } from "../api/locationOptions";
 import CitySelectField from "../components/CitySelectField";
 import {
   deleteAdminDeliveryCityRate,
@@ -50,7 +50,8 @@ const AdminCityRatesPage = () => {
   const status = useAppSelector(selectAdminDeliveryCityRatesStatus);
   const error = useAppSelector(selectAdminDeliveryCityRatesError);
   const mutationError = useAppSelector(selectAdminDeliveryCityRatesMutationError);
-  const [districts, setDistricts] = useState<DistrictOptionWithCity[]>([]);
+  const [cities, setCities] = useState<CityOptionWithState[]>([]);
+  const [citiesReady, setCitiesReady] = useState(false);
   const [fromDistrictFilter, setFromDistrictFilter] = useState("");
   const [toDistrictFilter, setToDistrictFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<"" | DeliveryCityRateStatus>("");
@@ -72,7 +73,22 @@ const AdminCityRatesPage = () => {
   }, []);
 
   useEffect(() => {
-    void loadAllDistricts().then(setDistricts).catch(() => setDistricts([]));
+    let cancelled = false;
+    void loadAllCities()
+      .then((rows) => {
+        if (cancelled) return;
+        setCities(rows);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setCities([]);
+      })
+      .finally(() => {
+        if (!cancelled) setCitiesReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -87,15 +103,30 @@ const AdminCityRatesPage = () => {
     );
   }, [dispatch, page, rowsPerPage, fromDistrictFilter, toDistrictFilter, statusFilter]);
 
-  const districtOptions = districts.map((district) => ({
-    id: district.id,
-    name: district.name,
-    stateId: 0,
-    stateName: district.cityName,
-  }));
+  const cityOptions = useMemo(
+    () =>
+      cities.map((city) => ({
+        id: city.id,
+        name: city.name,
+        stateId: city.stateId,
+        stateName: city.stateName,
+      })),
+    [cities],
+  );
 
-  const districtName = (districtId: string): string =>
-    districtOptions.find((district) => district.id === districtId)?.name ?? districtId;
+  const cityNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const city of cities) {
+      map.set(city.id, city.name);
+    }
+    return map;
+  }, [cities]);
+
+  const cityName = (cityId: string): string =>
+    cityNameById.get(cityId) ?? "—";
+
+  /** Rates can arrive before city names; wait so the table never flashes raw ids. */
+  const isTableLoading = status === "loading" || !citiesReady;
 
   const totalPages = Math.max(1, Math.ceil(total / rowsPerPage));
 
@@ -113,7 +144,7 @@ const AdminCityRatesPage = () => {
 
   const confirmToggleStatus = (rate: AdminDeliveryCityRateDto) => {
     const next: DeliveryCityRateStatus = rate.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
-    const routeLabel = `${districtName(rate.fromDistrictId)} → ${districtName(rate.toDistrictId)}`;
+    const routeLabel = `${cityName(rate.fromDistrictId)} → ${cityName(rate.toDistrictId)}`;
     const amountLabel = formatMoney(rate.amount, rate.currency);
     confirmStatusToggle({
       openModal,
@@ -148,8 +179,8 @@ const AdminCityRatesPage = () => {
       title: "Delete this route rate?",
       content: (
         <p>
-          This permanently removes the route rate for {districtName(rate.fromDistrictId)} →{" "}
-          {districtName(rate.toDistrictId)} ({formatMoney(rate.amount, rate.currency)}).
+          This permanently removes the route rate for {cityName(rate.fromDistrictId)} →{" "}
+          {cityName(rate.toDistrictId)} ({formatMoney(rate.amount, rate.currency)}).
         </p>
       ),
       primaryLabel: "Delete",
@@ -176,7 +207,7 @@ const AdminCityRatesPage = () => {
         <div>
           <h1 className="text-xl font-bold text-slate-900">Route Rates</h1>
           <p className="mt-0.5 text-sm text-slate-600">
-            Delivery fees between districts (from → to) used for route-based pricing.
+            Delivery fees between cities (from → to) used for route-based pricing.
           </p>
         </div>
         <Link
@@ -200,7 +231,7 @@ const AdminCityRatesPage = () => {
             id="route-rates-from-district"
             label="From cities"
             value={fromDistrictFilter}
-            cities={districtOptions}
+            cities={cityOptions}
             onChange={(districtId) => {
               setFromDistrictFilter(districtId);
               setPage(1);
@@ -214,7 +245,7 @@ const AdminCityRatesPage = () => {
             id="route-rates-to-district"
             label="To cities"
             value={toDistrictFilter}
-            cities={districtOptions}
+            cities={cityOptions}
             onChange={(districtId) => {
               setToDistrictFilter(districtId);
               setPage(1);
@@ -259,14 +290,14 @@ const AdminCityRatesPage = () => {
               </tr>
             </thead>
             <tbody>
-              {status === "loading" && (
+              {isTableLoading && (
                 <tr>
                   <td colSpan={5} className="px-4 py-10 text-center text-sm text-slate-500">
                     Loading route rates...
                   </td>
                 </tr>
               )}
-              {status === "failed" && (
+              {!isTableLoading && status === "failed" && (
                 <tr>
                   <td colSpan={5} className="px-4 py-10 text-center">
                     <p className="text-sm text-red-600">{error ?? "Unable to load route rates."}</p>
@@ -281,7 +312,7 @@ const AdminCityRatesPage = () => {
                   </td>
                 </tr>
               )}
-              {status !== "loading" && status !== "failed" && rates.length === 0 && (
+              {!isTableLoading && status !== "failed" && rates.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-4 py-12 text-center">
                     <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
@@ -289,7 +320,7 @@ const AdminCityRatesPage = () => {
                     </div>
                     <p className="mt-3 text-sm font-medium text-slate-700">No route rates yet</p>
                     <p className="mt-1 text-xs text-slate-500">
-                      Add a route rate between two districts to start charging by route.
+                      Add a route rate between two cities to start charging by route.
                     </p>
                     <Link
                       to="/super-admin/shipping/city-rates/new"
@@ -301,7 +332,7 @@ const AdminCityRatesPage = () => {
                   </td>
                 </tr>
               )}
-              {status !== "loading" &&
+              {!isTableLoading &&
                 status !== "failed" &&
                 rates.map((rate) => (
                   <tr
@@ -315,7 +346,7 @@ const AdminCityRatesPage = () => {
                         </div>
                         <div>
                           <p className="text-xs font-semibold text-slate-900">
-                            {districtName(rate.fromDistrictId)} → {districtName(rate.toDistrictId)}
+                            {cityName(rate.fromDistrictId)} → {cityName(rate.toDistrictId)}
                           </p>
                           <p className="text-xs text-slate-500">
                             {companyNames[rate.deliveryCompanyId] ?? "Company"} · {rate.currency}

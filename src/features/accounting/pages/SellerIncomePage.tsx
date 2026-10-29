@@ -7,6 +7,10 @@ import { authClient } from '@/lib/api/authClient'
 import { accountingClient } from '@/lib/api/accountingClient' 
 import { useAppSelector } from '@/app/hooks' 
 import type { AccountingIncomeLine } from '@/features/admin/api/adminAccountingApi' 
+import {
+  accountingReferenceKey,
+  formatAccountingReferences,
+} from '../utils/accountingReferenceFormatting'
  
 type AccessContextResponse = { 
   data?: { 
@@ -31,6 +35,8 @@ type IncomeRow = {
   dateValue: string 
   date: string 
   reference: string 
+  referenceType: string
+  referenceId: string
   account: string 
   narration: string 
   memo: string 
@@ -59,8 +65,8 @@ export const toIncomeRows = (
   entries: AccountingIncomeLine[], 
   allowedShopIds: Set<string>, 
   shopNames: Record<string, string>, 
-): IncomeRow[] => 
-  entries 
+): IncomeRow[] => {
+  const rows = entries 
     .filter((line) => line.direction === 'CREDIT' && line.account.type === 'INCOME') 
     .map((line) => { 
       const rawShopId = extractShopIdFromMemo(line.memo ?? line.journalEntry.narration) ?? extractShopIdFromMemo(line.journalEntry.narration) 
@@ -73,7 +79,9 @@ export const toIncomeRows = (
         id: line.id, 
         dateValue: line.journalEntry.entryDate.slice(0, 10), 
         date: formatDate(line.journalEntry.entryDate), 
-        reference: `${line.journalEntry.referenceType} · ${line.journalEntry.referenceId}`, 
+        reference: '',
+        referenceType: line.journalEntry.referenceType,
+        referenceId: line.journalEntry.referenceId,
         account: `${line.account.code} · ${line.account.name}`, 
         narration: line.journalEntry.narration ?? '—', 
         memo: line.memo ?? '—', 
@@ -87,6 +95,28 @@ export const toIncomeRows = (
       if (!row.shopId) return false 
       return allowedShopIds.has(row.shopId) 
     }) 
+  const formattedReferences = formatAccountingReferences(
+    rows.map((row) => ({
+      referenceType: row.referenceType,
+      referenceId: row.referenceId,
+      date: row.dateValue,
+    })),
+  )
+
+  return rows
+    .map((row) => ({
+      ...row,
+      reference:
+        formattedReferences.get(
+          accountingReferenceKey({
+            referenceType: row.referenceType,
+            referenceId: row.referenceId,
+            date: row.dateValue,
+          }),
+        ) ?? `${row.referenceType} · ${row.referenceId}`,
+    }))
+    .sort((left, right) => right.dateValue.localeCompare(left.dateValue))
+}
  
 const SellerIncomePage = () => { 
   const authUser = useAppSelector((state) => state.auth.user) 

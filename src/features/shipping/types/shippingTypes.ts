@@ -4,7 +4,8 @@ export type ShippingCalculationMethod = 'REAL_ROUTE' | 'CITY_ROUTE'
 /** Normalized row for cart UI (batch shop-profiles). */
 export type ShopShippingProfileRow = {
     shopId: string
-    /** Shop origin district used for district-route pricing. */
+    /** Shop origin city used for city-route pricing. */
+    cityId?: string | null
     districtId?: string | null
     /** Display / promo line */
     hint?: string
@@ -29,9 +30,9 @@ export type ShopCalculatedShipping = {
     currency?: string
     /** Admin shipping setting used for this quote. */
     calculationMethod?: ShippingCalculationMethod
-    /** Shop district id when calculationMethod is CITY_ROUTE. */
+    /** Shop city id when calculationMethod is CITY_ROUTE. */
     fromDistrictId?: string | null
-    /** Customer district id when calculationMethod is CITY_ROUTE. */
+    /** Customer city id when calculationMethod is CITY_ROUTE. */
     toDistrictId?: string | null
     methodLabel?: string
     etaHint?: string

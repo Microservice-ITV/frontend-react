@@ -15,6 +15,10 @@ import {
 import type { ProfitLossCurrencyReport, ProfitLossOverviewResponse } from "../types/accountingTypes";
 import type { AccountingExpense } from "../types/expenseTypes";
 import { accountingExpensesAdapter } from "../adapters/accountingExpensesAdapter";
+import {
+  getProfitSummaryCardColors,
+  mergeProfitLossReports,
+} from "../utils/profitLossFormatting";
 import DataTablePagination from "@/components/ui/DataTablePagination";
 import { accountingClient } from "@/lib/api/accountingClient";
 import { Download, RefreshCw, TrendingUp, Wallet, CircleDollarSign, ChartColumnIncreasing, CalendarDays } from "lucide-react";
@@ -148,8 +152,7 @@ const getExpenseSlices = (
       expense.status !== "APPROVED" ||
       expense.scope === "PLATFORM" ||
       expense.expenseDate.slice(0, 10) < from ||
-      expense.expenseDate.slice(0, 10) > to ||
-      (report && expense.currency !== report.currency)
+      expense.expenseDate.slice(0, 10) > to
     ) continue;
 
     const label = getExpenseSliceName(expense);
@@ -173,7 +176,6 @@ const SellerProfitLossPage = () => {
   const [report, setReport] = useState<ProfitLossOverviewResponse | null>(null);
   const [previousReport, setPreviousReport] = useState<ProfitLossOverviewResponse | null>(null);
   const [expenses, setExpenses] = useState<AccountingExpense[]>([]);
-  const [selectedCurrency, setSelectedCurrency] = useState("");
   const [status, setStatus] = useState<"loading" | "succeeded" | "failed">("loading");
   const [error, setError] = useState<string | null>(null);
   const [comparisonError, setComparisonError] = useState(false);
@@ -224,17 +226,19 @@ const SellerProfitLossPage = () => {
     void loadReport();
   }, [fromDate, toDate]);
 
-  const currencyReports = report?.reports ?? [];
-  const activeCurrency = currencyReports.some((item) => item.currency === selectedCurrency)
-    ? selectedCurrency
-    : currencyReports[0]?.currency ?? "";
+  const activeReport = useMemo(
+    () => mergeProfitLossReports(report?.reports ?? []),
+    [report],
+  );
+  const activeCurrency = "MMK";
   useEffect(() => {
     setBreakdownPage(1);
-  }, [activeCurrency, fromDate, toDate]);
-  const availableCurrencies = currencyReports.map((item) => item.currency);
-  const activeReport = currencyReports.find((item) => item.currency === activeCurrency);
-  const previousCurrencyReport = previousReport?.reports.find((item) => item.currency === activeCurrency);
+  }, [fromDate, toDate]);
+  const previousCurrencyReport = mergeProfitLossReports(previousReport?.reports ?? []);
   const totals = reportTotal(activeReport);
+  const netProfitColors = getProfitSummaryCardColors(
+    activeReport ? totals.profit : null,
+  );
   const priorTotals = reportTotal(previousCurrencyReport);
   const comparisonText = (current: number, previous: number) =>
     comparisonError
@@ -324,20 +328,6 @@ const SellerProfitLossPage = () => {
               className="min-w-0 bg-transparent outline-none"
             />
           </label>
-          {availableCurrencies.length > 1 && (
-            <label className="sr-only" htmlFor="profit-loss-currency">Currency</label>
-          )}
-          {availableCurrencies.length > 1 && (
-            <select
-              id="profit-loss-currency"
-              aria-label="Currency"
-              value={activeCurrency}
-              onChange={(event) => setSelectedCurrency(event.target.value)}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700"
-            >
-              {availableCurrencies.map((currency) => <option key={currency} value={currency}>{currency}</option>)}
-            </select>
-          )}
           <button
             type="button"
             onClick={exportReport}
@@ -368,7 +358,7 @@ const SellerProfitLossPage = () => {
       )}
       {report && (
         <p className="rounded-lg border border-blue-100 bg-blue-50/70 px-4 py-3 text-xs leading-5 text-blue-900">
-          This is a partial profit and loss report. Refunds, tax, cost of goods sold, payment fees, commission, and shipping costs are not yet included; currencies are reported separately and are not converted.
+          This is a partial profit and loss report. All amounts are shown in MMK. Refunds, tax, cost of goods sold, payment fees, commission, and shipping costs are not yet included.
         </p>
       )}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -398,7 +388,8 @@ const SellerProfitLossPage = () => {
           value={status === "loading" ? "Loading…" : activeReport ? money(totals.profit, activeCurrency) : "—"}
           comparison={comparisonText(totals.profit, priorTotals.profit)}
           icon={Wallet}
-          colors="border-pink-100 bg-gradient-to-br from-pink-50/80 to-white text-pink-500"
+          colors={`${netProfitColors.card} ${netProfitColors.icon}`}
+          valueColor={netProfitColors.value}
         />
       </div>
 
@@ -555,19 +546,21 @@ const SummaryCard = ({
   comparison,
   icon: Icon,
   colors,
+  valueColor,
 }: {
   label: string;
   value: string;
   comparison: string;
   icon: typeof TrendingUp;
   colors: string;
+  valueColor?: string;
 }) => (
   <div className={`rounded-xl border p-4 ${colors}`}>
     <div className="flex items-start gap-3">
       <span className="rounded-full bg-white/75 p-2.5"><Icon size={17} /></span>
       <div className="min-w-0 pt-0.5">
         <p className="text-[11px] font-medium text-slate-600">{label}</p>
-        <p className="mt-1 truncate text-xl font-bold text-slate-900">{value}</p>
+        <p className={`mt-1 truncate text-xl font-bold ${valueColor ?? "text-slate-900"}`}>{value}</p>
         <p className="mt-1 text-[10px] text-slate-500">{comparison}</p>
       </div>
     </div>

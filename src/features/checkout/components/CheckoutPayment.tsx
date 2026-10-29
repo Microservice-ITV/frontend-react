@@ -122,14 +122,8 @@ const CheckoutPayment = ({ totalAmount }: CheckoutPaymentProps) => {
     (providerId: PrepaidProvider) => {
       dispatch(setPrepaidProvider(providerId));
       if (providerId === "cash") {
-        const income = orderTotal;
-        setIncomeInput(normalizeCashDigits(String(income || "")));
-        dispatch(
-          setCashTender({
-            income,
-            refund: calculateCashRefund(income, orderTotal),
-          }),
-        );
+        setIncomeInput("");
+        dispatch(setCashTender(null));
         return;
       }
       setIncomeInput("");
@@ -138,7 +132,7 @@ const CheckoutPayment = ({ totalAmount }: CheckoutPaymentProps) => {
         void checkoutApi.updatePaymentMethod(checkoutId, "prepaid");
       }
     },
-    [dispatch, orderTotal, checkoutId, selectedPaymentMethod],
+    [dispatch, checkoutId, selectedPaymentMethod],
   );
 
   useEffect(() => {
@@ -151,11 +145,9 @@ const CheckoutPayment = ({ totalAmount }: CheckoutPaymentProps) => {
 
   useEffect(() => {
     if (selectedProvider !== "cash") return;
-    // Prefill was base total before tax resolved — lift income once tax is included.
     const income = parseCashAmount(incomeInput);
-    const baseWithoutTax = Math.max(0, orderTotal - Math.max(0, taxAmount));
-    if (taxAmount > 0 && income === baseWithoutTax && baseWithoutTax !== orderTotal) {
-      setIncomeInput(normalizeCashDigits(String(Math.round(orderTotal))));
+    if (!income) {
+      if (cashTender != null) dispatch(setCashTender(null));
       return;
     }
     const refund = calculateCashRefund(income, orderTotal);
@@ -166,7 +158,7 @@ const CheckoutPayment = ({ totalAmount }: CheckoutPaymentProps) => {
       return;
     }
     dispatch(setCashTender({ income, refund }));
-  }, [selectedProvider, incomeInput, orderTotal, taxAmount, cashTender, dispatch]);
+  }, [selectedProvider, incomeInput, orderTotal, cashTender, dispatch]);
 
   const selectedProviderInfo =
     paymentProviders.find((provider) => provider.id === selectedProvider) ??

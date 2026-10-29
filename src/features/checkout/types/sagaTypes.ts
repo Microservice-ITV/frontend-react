@@ -30,4 +30,5 @@ export interface SagaCheckoutResponse {
     saga_id?: string
     checkout_id?: string
     message: string
+    checkout_attempt_count?: number
 }

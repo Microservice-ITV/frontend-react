@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { NavLink, useLocation } from "react-router-dom";
-import brandLogo from "@/public/brand-logo.svg";
-import { X, Zap, ChevronDown } from "lucide-react";
+import shopIcon from "@/public/shop-icon-square.svg";
+import { X, Zap, ChevronDown, Truck } from "lucide-react";
 import { useDashboardMenu } from "../../hooks/useDashboardMenu";
 import type { DashboardArea } from "../../types/dashboardTypes";
 
@@ -16,8 +16,46 @@ type DashboardSidebarProps = {
 type TooltipState = {
   label: string;
   badge?: string | number | null;
+  badgeTone?: "default" | "alert";
+  iconMotion?: "transit";
   top: number;
 };
+
+const badgeClasses = (tone?: "default" | "alert") =>
+  tone === "alert"
+    ? "bg-red-600 text-white"
+    : "bg-emerald-600 text-white";
+
+const badgeDotClasses = (tone?: "default" | "alert") =>
+  tone === "alert" ? "bg-red-500" : "bg-emerald-500";
+
+const TransitBadge = ({
+  count,
+  tone,
+  compact = false,
+}: {
+  count: string | number;
+  tone?: "default" | "alert";
+  compact?: boolean;
+}) => (
+  <span
+    className={`inline-flex shrink-0 items-center justify-center gap-1 rounded-full font-medium text-white ${
+      compact ? "h-5 min-w-5 px-1" : "px-1.5 py-0.5 text-[10px]"
+    } ${badgeClasses(tone)}`}
+    title={`${count} in transit`}
+    aria-label={`${count} in transit`}
+  >
+    <span className="menu-truck-air relative inline-flex items-center" aria-hidden>
+      <span className="menu-truck-air-lines">
+        <span />
+        <span />
+        <span />
+      </span>
+      <Truck size={compact ? 11 : 12} />
+    </span>
+    {!compact && <span>{count}</span>}
+  </span>
+);
 
 const DashboardSidebar = ({
   area,
@@ -40,10 +78,18 @@ const DashboardSidebar = ({
     e: React.MouseEvent<HTMLElement>,
     label: string,
     badge?: string | number | null,
+    badgeTone?: "default" | "alert",
+    iconMotion?: "transit",
   ) => {
     if (!isCollapsed) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    setTooltip({ label, badge, top: rect.top + rect.height / 2 });
+    setTooltip({
+      label,
+      badge,
+      badgeTone,
+      iconMotion,
+      top: rect.top + rect.height / 2,
+    });
   };
 
   const hideTooltip = () => setTooltip(null);
@@ -95,7 +141,15 @@ const DashboardSidebar = ({
                   to={item.to}
                   end={isParentPath(item.to)}
                   onClick={onClose}
-                  onMouseEnter={(e) => showTooltip(e, item.label, item.badge)}
+                  onMouseEnter={(e) =>
+                    showTooltip(
+                      e,
+                      item.label,
+                      item.badge,
+                      item.badgeTone,
+                      item.iconMotion,
+                    )
+                  }
                   onMouseLeave={hideTooltip}
                   className={({ isActive }) =>
                     `group relative flex min-w-0 flex-1 items-center rounded-md py-1.5 text-xs transition-colors ${
@@ -114,12 +168,23 @@ const DashboardSidebar = ({
                   {Icon && (
                     <span className="relative shrink-0">
                       <Icon size={18} />
-                      {item.badge != null && (
+                      {item.badge != null && item.iconMotion == null && (
                         <span
-                          className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-white"
+                          className={`absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full ring-2 ring-white ${badgeDotClasses(item.badgeTone)}`}
                           aria-hidden
                         />
                       )}
+                      {isCollapsed &&
+                        item.badge != null &&
+                        item.iconMotion === "transit" && (
+                          <span className="absolute -right-2 -top-2">
+                            <TransitBadge
+                              count={item.badge}
+                              tone={item.badgeTone}
+                              compact
+                            />
+                          </span>
+                        )}
                     </span>
                   )}
 
@@ -128,8 +193,13 @@ const DashboardSidebar = ({
                       <span className="min-w-0 flex-1 truncate">
                         {item.label}
                       </span>
-                      {item.badge != null && (
-                        <span className="shrink-0 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-medium text-white">
+                      {item.badge != null && item.iconMotion === "transit" && (
+                        <TransitBadge count={item.badge} tone={item.badgeTone} />
+                      )}
+                      {item.badge != null && item.iconMotion == null && (
+                        <span
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${badgeClasses(item.badgeTone)}`}
+                        >
                           {item.badge}
                         </span>
                       )}
@@ -171,9 +241,9 @@ const DashboardSidebar = ({
         >
           <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden">
             <img
-              src={brandLogo}
-              alt="Brand Logo"
-              className="w-8 h-8 rounded-sm object-contain"
+              src={shopIcon}
+              alt="Daily Need Items"
+              className="h-8 w-8 object-contain"
             />
           </div>
           {!isCollapsed && (
@@ -285,8 +355,13 @@ const DashboardSidebar = ({
             }}
           >
             {tooltip.label}
-            {tooltip.badge != null && (
-              <span className="rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px]">
+            {tooltip.badge != null && tooltip.iconMotion === "transit" && (
+              <TransitBadge count={tooltip.badge} tone={tooltip.badgeTone} />
+            )}
+            {tooltip.badge != null && tooltip.iconMotion == null && (
+              <span
+                className={`rounded-full px-1.5 py-0.5 text-[10px] ${badgeClasses(tooltip.badgeTone)}`}
+              >
                 {tooltip.badge}
               </span>
             )}

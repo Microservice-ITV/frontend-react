@@ -13,7 +13,8 @@ import { useWarehouses } from '@/features/warehouse/hooks/useWarehouseData'
 import { productApi } from '@/features/products/api/productApi'
 import { sellerProductApi } from '@/features/seller/api/sellerProductApi'
 import { productClient } from '@/lib/api/productClient'
-import { sanitizeIntegerInput } from '@/utils/decimalInput'
+import { sanitizeIntegerInput, sanitizeMoneyInput } from '@/utils/decimalInput'
+import { notifyDashboardMenuBadgesChanged } from '@/features/dashboard/dashboardMenuBadges'
 import { purchaseApi, purchaseErrorMessage } from '../api/purchaseApi'
 import { useSuppliers } from '../hooks/usePurchaseData'
 import { purchasePaths, type PurchaseAreaBase } from '../config/purchasePaths'
@@ -120,6 +121,9 @@ type ProductVariantRow = {
   colorId?: string
   sizeId?: string
   basePrice?: number | string
+  listPrice?: number | string
+  effectiveSellingPrice?: number | string
+  price?: number | string
   stock?: number | string
   warehouseStockMirror?: number | string
   availableStock?: number | string
@@ -152,7 +156,6 @@ type ProductVariantSnapshot = {
   width: number | null
   height: number | null
   weight: number | null
-  basePrice: number | null
   /** Catalog sellable qty (shop + warehouse mirror) when destination stock is unavailable. */
   availableStock: number
 }
@@ -176,7 +179,6 @@ const mapProductVariants = (rows: ProductVariantRow[] | undefined): ProductVaria
       const colorId = variant.colorId ?? variant.color?.id ?? ''
       const sizeId = variant.sizeId ?? variant.size?.id ?? ''
       if (!colorId || !sizeId) return null
-      const base = Number(variant.basePrice)
       const available =
         Number(variant.availableStock) ||
         Math.max(0, Number(variant.stock) || 0) +
@@ -191,7 +193,6 @@ const mapProductVariants = (rows: ProductVariantRow[] | undefined): ProductVaria
         width: variant.width != null && variant.width !== '' ? Number(variant.width) : null,
         height: variant.height != null && variant.height !== '' ? Number(variant.height) : null,
         weight: variant.weight != null && variant.weight !== '' ? Number(variant.weight) : null,
-        basePrice: Number.isFinite(base) ? base : null,
         availableStock: Number.isFinite(available) ? available : 0,
       } satisfies ProductVariantSnapshot
     })
@@ -234,7 +235,8 @@ const draftFromVariant = (
   width: dimText(variant.width),
   height: dimText(variant.height),
   weightPerUnit: dimText(variant.weight) || '0',
-  unitCost: variant.basePrice != null ? String(variant.basePrice) : '0',
+  // Unit price is entered on the PO line (Order stock × Unit price → Line total).
+  unitCost: '',
   quantity,
   fromCatalog: true,
 })
@@ -415,7 +417,7 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
   const [supplierId, setSupplierId] = useState(searchParams.get('supplier_id') ?? '')
   const [contact, setContact] = useState('')
   const [currency, setCurrency] = useState('USD')
-  const [exchangeRate, setExchangeRate] = useState('1')
+  const [exchangeRate, setExchangeRate] = useState('4500')
   const [expectedAt, setExpectedAt] = useState('')
   const [paymentTerms, setPaymentTerms] = useState('')
   const [warehouseId, setWarehouseId] = useState(searchParams.get('warehouse_id') ?? '')
@@ -565,6 +567,9 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
     [costs],
   )
 
+  const rateValue = num(exchangeRate)
+  const foreignSubtotal = rateValue > 0 ? round2(subtotal / rateValue) : 0
+  const foreignSymbol = currency === 'USD' ? '$' : `${currency} `
   const deliveryTotal = stageFeeTotal
   const otherCostsTotal = additionalCostsTotal
   const totalAmount = round2(subtotal + deliveryTotal + otherCostsTotal)
@@ -820,6 +825,8 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
     }
     if (validItems.some((item) => num(item.quantity) <= 0))
       return 'Every line item needs a quantity greater than zero.'
+    if (validItems.some((item) => num(item.unitCost) <= 0))
+      return 'Enter a unit price greater than zero for every line item.'
     const incompleteLeg = stages.find(
       (stage) => !stage.fromLocation.trim() || !stage.toLocation.trim(),
     )
@@ -926,6 +933,7 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
       if (mode === 'approval' && orderKind !== 'SUPPLIER' && created?.id) {
         await purchaseApi.updatePurchaseOrderStatus(created.id, 'PENDING_APPROVAL')
       }
+      notifyDashboardMenuBadgesChanged()
       navigate(paths.orders)
     } catch (err) {
       setFormError(purchaseErrorMessage(err))
@@ -1099,14 +1107,29 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
         title="Products Line Items"
         subtitle="Select a product, then set order stock for each variant."
         action={
-          <button
-            type="button"
-            className={subtleButtonClass}
-            onClick={() => setItems((current) => [...current, emptyItem()])}
-          >
-            <Plus size={13} />
-            Add product
-          </button>
+          <div className="flex items-center gap-3">
+            {currency !== 'MMK' && rateValue > 0 && (
+              <span
+                className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs tabular-nums text-slate-600"
+                title={`Subtotal ÷ exchange rate (${rateValue.toLocaleString('en-US')})`}
+              >
+                MMK {subtotal.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                <span className="mx-1.5 text-slate-400">→</span>
+                <span className="font-semibold text-slate-900">
+                  {foreignSymbol}
+                  {foreignSubtotal.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                </span>
+              </span>
+            )}
+            <button
+              type="button"
+              className={subtleButtonClass}
+              onClick={() => setItems((current) => [...current, emptyItem()])}
+            >
+              <Plus size={13} />
+              Add product
+            </button>
+          </div>
         }
       >
         <div className="space-y-4">
@@ -1236,8 +1259,21 @@ const CreatePurchaseOrderPage = ({ base }: CreatePurchaseOrderPageProps) => {
                                   aria-label={`Order stock for ${colorLabel} / ${sizeLabel}`}
                                 />
                               </td>
-                              <td className="px-3 py-2.5 text-right text-sm font-medium text-slate-700">
-                                {formatMoney(num(item.unitCost))}
+                              <td className="px-3 py-2.5">
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  autoComplete="off"
+                                  className={`${cellInputClass} text-right text-sm`}
+                                  value={item.unitCost}
+                                  placeholder="0.00"
+                                  onChange={(event) =>
+                                    updateItem(item.key, {
+                                      unitCost: sanitizeMoneyInput(event.target.value),
+                                    })
+                                  }
+                                  aria-label={`Unit price for ${colorLabel} / ${sizeLabel}`}
+                                />
                               </td>
                               <td className="px-3 py-2.5 text-right text-sm font-medium text-slate-800">
                                 {formatMoney(lineNet(item))}

@@ -35,6 +35,7 @@ import WishlistPage from "@/features/wishlist/pages/WishlistPage";
 import CheckoutSuccessPage from "@/features/checkout/pages/CheckoutSuccessPage";
 import CheckoutGatePage from "@/features/checkout/pages/CheckoutGatePage";
 import GuestCheckoutPage from "@/features/checkout/pages/GuestCheckoutPage.tsx";
+import StaffCheckoutDetailsPage from "@/features/checkout/pages/StaffCheckoutDetailsPage";
 import GuestCheckoutSuccessPage from "@/features/checkout/pages/GuestCheckoutSuccessPage";
 import CategoriesPage from "@/features/categories/pages/CategoriesPage";
 import AboutUsPage from "@/features/about/pages/AboutUsPage";
@@ -56,14 +57,19 @@ import EmployeePortalLayout from "@/features/account/components/EmployeePortalLa
 import ProfilePage from "@/features/account/pages/ProfilePage";
 import BanksCardsPage from "@/features/account/pages/BanksCardsPage";
 import AddressesPage from "@/features/account/pages/AddressesPage";
+import PrivacyPage from "@/features/account/pages/PrivacyPage";
 import ChangePasswordPage from "@/features/account/pages/ChangePasswordPage";
 import NotificationsPage from "@/features/account/pages/NotificationsPage";
 import NotificationsCenterPage from "@/features/account/pages/NotificationsCenterPage";
 import OrdersPage from "@/features/account/pages/OrdersPage";
+import QuantityApprovalsPage from "@/features/account/pages/QuantityApprovalsPage";
+import QuantityApprovalDetailPage from "@/features/account/pages/QuantityApprovalDetailPage";
 import OrderTrackingPage from "@/features/account/pages/OrderTrackingPage";
+import StaffShopOrdersPage from "@/features/account/pages/StaffShopOrdersPage";
 import CustomerInvoicesPage from "@/features/account/pages/CustomerInvoicesPage";
 import CustomerInvoiceDetailPage from "@/features/account/pages/CustomerInvoiceDetailPage";
 import CustomerInvoicePrintPage from "@/features/account/pages/CustomerInvoicePrintPage";
+import CustomerReceiptPrintPage from "@/features/account/pages/CustomerReceiptPrintPage";
 import ScopedInvoiceDetailPage from "@/features/invoices/pages/ScopedInvoiceDetailPage";
 import VouchersPage from "@/features/account/pages/VouchersPage";
 import CoinsPage from "@/features/account/pages/CoinsPage";
@@ -111,6 +117,7 @@ import {
   MyPerformancePage,
 } from "@/features/performance/pages";
 import InventoryPage from "@/features/warehouse/pages/InventoryPage";
+import InventoryEditPage from "@/features/warehouse/pages/InventoryEditPage";
 import MovementsPage from "@/features/warehouse/pages/MovementsPage";
 import AssignWarehouseManagerPage from "@/features/warehouse/pages/AssignWarehouseManagerPage";
 import AssignDeliveryAgentPage from "@/features/warehouse/pages/AssignDeliveryAgentPage";
@@ -131,6 +138,8 @@ import DamageReportsPage from "@/features/purchase/pages/DamageReportsPage";
 import DeliveryOverviewPage from "@/features/purchase/pages/DeliveryOverviewPage";
 import SellerOverviewPage from "@/features/seller/pages/SellerOverviewPage";
 import SellerOrdersPage from "@/features/seller/pages/SellerOrdersPage";
+import SellerQuantityApprovalsPage from "@/features/seller/pages/SellerQuantityApprovalsPage";
+import SellerQuantityApprovalDetailPage from "@/features/seller/pages/SellerQuantityApprovalDetailPage";
 import SellerOrderDetailPage from "@/features/seller/pages/SellerOrderDetailPage";
 import SellerProductsPage from "@/features/seller/pages/SellerProductsPage";
 import SellerUsersPage from "@/features/seller/pages/SellerUsersPage";
@@ -236,6 +245,14 @@ const AppRoutes = () => {
 
       {/* Unified checkout (guest + logged-in) */}
       <Route path="/checkout" element={<CheckoutGatePage />} />
+      <Route
+        path="/checkout/customer"
+        element={
+          <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.checkout}>
+            <StaffCheckoutDetailsPage />
+          </ProtectedRoute>
+        }
+      />
 
       <Route
         path="/account/invoices/:invoiceNumber/print"
@@ -270,6 +287,7 @@ const AppRoutes = () => {
               path="notifications-center"
               element={<NotificationsCenterPage />}
             />
+            <Route path="privacy" element={<PrivacyPage />} />
             <Route
               path="orders"
               element={
@@ -277,6 +295,26 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.accountOrders}
                 >
                   <OrdersPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="quantity-approvals"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.accountOrders}
+                >
+                  <QuantityApprovalsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="quantity-approvals/:checkoutId"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.accountOrders}
+                >
+                  <QuantityApprovalDetailPage />
                 </ProtectedRoute>
               }
             />
@@ -290,6 +328,7 @@ const AppRoutes = () => {
                 </ProtectedRoute>
               }
             />
+            <Route path="shop-orders" element={<StaffShopOrdersPage />} />
             <Route path="invoices" element={<CustomerInvoicesPage />} />
             <Route path="invoices/:invoiceNumber" element={<CustomerInvoiceDetailPage />} />
             <Route path="my-vouchers" element={<VouchersPage />} />
@@ -435,6 +474,14 @@ const AppRoutes = () => {
               }
             />
             <Route
+              path="warehouse/inventory/edit"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.warehouse}>
+                  <InventoryEditPage base="/seller" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="warehouse/movements"
               element={
                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.warehouse}>
@@ -491,6 +538,14 @@ const AppRoutes = () => {
               }
             />
             <Route
+              path="warehouse/parcels"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.purchase}>
+                  <DeliveryParcelsPage base="/seller" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="warehouse/receipts"
               element={
                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.purchase}>
@@ -524,6 +579,38 @@ const AppRoutes = () => {
                     title="Seller Analytics"
                     description="Analytics widgets for traffic, conversion rate, and sales trends will live here."
                   />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="quantity-approvals/:checkoutId"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerOrders}>
+                  <SellerQuantityApprovalDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="quantity-approvals"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerOrders}>
+                  <SellerQuantityApprovalsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="orders/cancelled"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerOrders}>
+                  <SellerOrdersPage fixedFilter="cancelled" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="orders/returns"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerOrders}>
+                  <SellerOrdersPage fixedFilter="returned" />
                 </ProtectedRoute>
               }
             />
@@ -2336,7 +2423,7 @@ const AppRoutes = () => {
               }
             />
 
-          <Route
+            <Route
               path="finance"
               element={
                 <ProtectedRoute
@@ -2356,9 +2443,9 @@ const AppRoutes = () => {
                     title="Accounting"
                     description="Platform accounting, payments, and financial reporting will be managed here."
                   />
-                  </ProtectedRoute>
-  }
-/>
+                </ProtectedRoute>
+              }
+            />
 
             <Route
               path="finance/transactions"
@@ -2669,6 +2756,10 @@ const AppRoutes = () => {
         path="/account/invoices/:invoiceNumber/print"
         element={<CustomerInvoicePrintPage />}
       />
+      <Route
+        path="/account/invoices/:invoiceNumber/receipt/print"
+        element={<CustomerReceiptPrintPage />}
+      />
       <Route path="/oauth-success" element={<OAuthSuccessPage />} />
       <Route path="/oauth-error" element={<OAuthErrorPage />} />
       <Route path="/forbidden" element={<ForbiddenPage />} />
@@ -2747,4 +2838,3 @@ const AppRoutes = () => {
 };
 
 export default AppRoutes;
-

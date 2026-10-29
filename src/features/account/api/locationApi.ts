@@ -8,6 +8,11 @@ export interface LocationOption {
 export interface StateOption extends LocationOption {}
 export interface CityOption extends LocationOption {}
 export interface DistrictOption extends LocationOption {}
+
+export interface DistrictWithCityOption extends DistrictOption {
+  city_id: number
+  city_name: string
+}
 export interface WardOption extends LocationOption {}
 
 export const locationApi = {
@@ -32,6 +37,13 @@ export const locationApi = {
       success: boolean
       data: { city_id: number; districts: DistrictOption[] }
     }>(`/locations/cities/${cityId}/districts`)
+  },
+
+  getAllDistricts() {
+    return authClient.get<{
+      success: boolean
+      data: { districts: DistrictWithCityOption[] }
+    }>('/locations/districts')
   },
 
   getWards(districtId: number) {

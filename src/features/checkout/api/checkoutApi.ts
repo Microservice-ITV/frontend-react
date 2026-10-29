@@ -8,7 +8,8 @@ import { promotionClient } from '@/lib/api/promotionClient'
 export type CheckoutShopShippingPayload = {
   shop_id: string
   shipping_fee: number
-  delivery_company_id: string
+  /** Null when the shop has no company, or none can serve this route. */
+  delivery_company_id: string | null
 }
 
 export type CheckoutAddressPayload = {
@@ -317,6 +318,16 @@ export type CartTaxLine = {
   categoryId?: string
   price: number
   quantity: number
+}
+
+/** False when tax is off or every category rate is 0%, so the quote can be skipped. */
+export async function isTaxActive(): Promise<boolean> {
+  try {
+    const response = await orderClient.get<{ tax_active?: boolean }>('/saga/orders/tax-status')
+    return response.data.tax_active !== false
+  } catch {
+    return true
+  }
 }
 
 /** Quote tax from product categories. Shipping is not included. */

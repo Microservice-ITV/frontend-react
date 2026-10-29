@@ -1,8 +1,8 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { adminShippingApi, type AdminDeliveryCityRateDto } from "../api/adminShippingApi";
-import { loadAllDistricts, type DistrictOptionWithCity } from "../api/locationOptions";
+import { loadAllCities, type CityOptionWithState } from "../api/locationOptions";
 import CitySelectField from "../components/CitySelectField";
 import DeliveryCompanyField from "../components/DeliveryCompanyField";
 
@@ -29,7 +29,7 @@ const AdminCityRateFormPage = ({ mode }: AdminCityRateFormPageProps) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const [districts, setDistricts] = useState<DistrictOptionWithCity[]>([]);
+  const [cities, setCities] = useState<CityOptionWithState[]>([]);
   const [citiesLoading, setCitiesLoading] = useState(true);
 
   const [loading, setLoading] = useState(mode === "edit");
@@ -46,9 +46,9 @@ const AdminCityRateFormPage = ({ mode }: AdminCityRateFormPageProps) => {
   const [effectiveUntil, setEffectiveUntil] = useState("");
 
   useEffect(() => {
-    void loadAllDistricts()
-      .then(setDistricts)
-      .catch(() => setDistricts([]))
+    void loadAllCities()
+      .then(setCities)
+      .catch(() => setCities([]))
       .finally(() => setCitiesLoading(false));
   }, []);
 
@@ -90,10 +90,10 @@ const AdminCityRateFormPage = ({ mode }: AdminCityRateFormPageProps) => {
   }, [mode, id]);
 
   const validate = (): string | null => {
-    if (!fromDistrictId) return "From district is required.";
+    if (!fromDistrictId) return "From city is required.";
     if (!deliveryCompanyId) return "Delivery company is required.";
-    if (!toDistrictId) return "To district is required.";
-    if (fromDistrictId === toDistrictId) return "From and to districts must be different.";
+    if (!toDistrictId) return "To city is required.";
+    if (fromDistrictId === toDistrictId) return "From and to cities must be different.";
     const parsedAmount = Number(amount);
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       return "Amount must be greater than zero.";
@@ -105,6 +105,17 @@ const AdminCityRateFormPage = ({ mode }: AdminCityRateFormPageProps) => {
     }
     return null;
   };
+
+  const cityOptions = useMemo(
+    () =>
+      cities.map((city) => ({
+        id: city.id,
+        name: city.name,
+        stateId: city.stateId,
+        stateName: city.stateName,
+      })),
+    [cities],
+  );
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -162,13 +173,6 @@ const AdminCityRateFormPage = ({ mode }: AdminCityRateFormPageProps) => {
         </span>
       </nav>
 
-      {citiesLoading && mode === "create" && (
-        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
-          Loading districts...
-        </div>
-      )}
-
       {loading && (
         <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
           Loading route rate...
@@ -196,7 +200,7 @@ const AdminCityRateFormPage = ({ mode }: AdminCityRateFormPageProps) => {
         </div>
       )}
 
-      {!loading && !loadError && !citiesLoading && (
+      {!loading && !loadError && (
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <button
@@ -211,7 +215,7 @@ const AdminCityRateFormPage = ({ mode }: AdminCityRateFormPageProps) => {
               {mode === "create" ? "New route rate" : "Edit route rate"}
             </h1>
             <p className="mt-0.5 text-sm text-slate-600">
-              Flat delivery fee charged between a from-district and a to-district.
+              Flat delivery fee charged between a from city and a to city.
             </p>
           </div>
 
@@ -235,33 +239,25 @@ const AdminCityRateFormPage = ({ mode }: AdminCityRateFormPageProps) => {
                 id="city-rate-from"
                 label="From cities"
                 value={fromDistrictId}
-                cities={districts.map((district) => ({
-                  id: district.id,
-                  name: district.name,
-                  stateId: 0,
-                  stateName: district.cityName,
-                }))}
+                cities={cityOptions}
                 onChange={setFromDistrictId}
                 disabled={mode === "edit"}
-                placeholder="Select from cities"
+                loading={citiesLoading}
+                placeholder={citiesLoading ? "Loading cities..." : "Select from city"}
               />
               <CitySelectField
                 id="city-rate-to"
                 label="To cities"
                 value={toDistrictId}
-                cities={districts.map((district) => ({
-                  id: district.id,
-                  name: district.name,
-                  stateId: 0,
-                  stateName: district.cityName,
-                }))}
+                cities={cityOptions}
                 onChange={setToDistrictId}
                 disabled={mode === "edit"}
-                placeholder="Select to district"
+                loading={citiesLoading}
+                placeholder={citiesLoading ? "Loading cities..." : "Select to city"}
               />
               {mode === "edit" && (
                 <p className="text-xs text-slate-400 sm:col-span-2">
-                  From and to districts cannot be changed after creation.
+                  From and to cities cannot be changed after creation.
                 </p>
               )}
 

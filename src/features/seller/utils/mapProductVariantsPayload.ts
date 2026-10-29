@@ -22,8 +22,10 @@ export function mapProductFormToVariantsPayload(
   values: ProductFormValues,
 ): SellerProductVariantPayload[] {
   return values.variants.map((v, i) => {
-    const basePrice = Number(v.basePrice)
-    const listPrice = Number(v.listPrice)
+    // Selling price is set after PO via Inventory. Create may send 0; edit keeps
+    // any value already stored (shown read-only on the form).
+    const listPrice = v.listPrice.trim() ? Number(v.listPrice) : 0
+    const basePrice = v.basePrice.trim() ? Number(v.basePrice) : 0
 
     return {
       ...(v.serverVariantId ? { id: v.serverVariantId } : {}),
@@ -31,10 +33,8 @@ export function mapProductFormToVariantsPayload(
       sizeId: v.sizeId,
       basePrice,
       listPrice,
-      // The form collects selling/list price, not a markup input. Derive the
-      // percentage expected by Product Service from those two values.
       profitThresholdPercent:
-        Number.isFinite(basePrice) && basePrice > 0 && Number.isFinite(listPrice)
+        Number.isFinite(basePrice) && basePrice > 0 && Number.isFinite(listPrice) && listPrice > 0
           ? computeProfitThresholdPercent(basePrice, listPrice)
           : 0,
       discountPercent: parseOptionalPercent(v.discountPercent),

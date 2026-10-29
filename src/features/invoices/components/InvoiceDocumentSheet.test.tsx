@@ -65,12 +65,19 @@ const renderInvoice = (invoice: InvoiceDocumentFixture) =>
 afterEach(cleanup)
 
 describe('InvoiceDocumentSheet', () => {
-  it('renders a COD invoice as UNPAID and does not offer payment-slip submission', () => {
-    renderInvoice(createInvoice({ paymentMethod: 'COD', status: 'UNPAID' }))
+  it('shows the inspection policy in place of payment information and COD beside totals', () => {
+    const { container } = render(<InvoiceDocumentSheet
+      invoice={createInvoice({ paymentMethod: 'COD', status: 'UNPAID' })}
+      showActions={false}
+    />)
 
     expect(screen.getByText('DNI-INV-20261006-000007')).toBeTruthy()
-    expect(screen.getByText('Cash on delivery')).toBeTruthy()
+    const paymentMethod = screen.getByText('Cash on delivery')
+    expect(paymentMethod.closest('.total-section')).toBeTruthy()
+    expect(screen.getAllByText(/Customers may inspect the package before making payment/)).toHaveLength(1)
+    expect(screen.queryByText('Payment Information')).toBeNull()
     expect(screen.getByLabelText('Payment Status: UNPAID')).toBeTruthy()
+    expect(container.querySelector('.total-section')).toContainElement(paymentMethod)
     expect(screen.queryByRole('button', { name: /submit payment slip/i })).toBeNull()
   })
 
@@ -78,10 +85,10 @@ describe('InvoiceDocumentSheet', () => {
     renderInvoice(createInvoice({ paymentMethod: 'COD', status: 'PAID' }))
 
     expect(screen.getByLabelText('Payment Status: PAID')).toBeTruthy()
-    expect(screen.getByText('PAID')).toBeTruthy()
+    expect(screen.queryByText('Payment Status', { selector: 'dt' })).toBeNull()
   })
 
-  it('renders a Stripe-paid invoice with the available payment reference', () => {
+  it('shows the payment method without a Payment Information panel or reference ID', () => {
     renderInvoice(createInvoice({
       paymentMethod: 'STRIPE',
       paymentGatewayRef: 'pi_confirmed_123',
@@ -89,8 +96,16 @@ describe('InvoiceDocumentSheet', () => {
     }))
 
     expect(screen.getByText('Stripe / Card')).toBeTruthy()
-    expect(screen.getByText('pi_confirmed_123')).toBeTruthy()
+    expect(screen.queryByText('Payment Information')).toBeNull()
+    expect(screen.queryByText('pi_confirmed_123')).toBeNull()
     expect(screen.getByLabelText('Payment Status: PAID')).toBeTruthy()
+  })
+
+  it('renders the inspection policy and supports the compact dashboard variant', () => {
+    const { container } = render(<InvoiceDocumentSheet invoice={createInvoice()} showActions={false} compact />)
+
+    expect(screen.getByText('Customers may inspect the package before making payment, subject to the delivery provider’s inspection policy.')).toBeTruthy()
+    expect(container.querySelector('.invoice-document-compact')).toBeTruthy()
   })
 
   it('shows a backend-provided discount', () => {
@@ -176,7 +191,7 @@ describe('InvoiceDocumentSheet', () => {
     const logo = screen.getByRole('img', { name: 'Daily Need Items' }) as HTMLImageElement
     expect(logo.getAttribute('src')).toBe('/logo.svg')
     expect(logo.className).toContain('invoice-logo')
-    expect(logo.parentElement?.parentElement?.parentElement?.className).toContain('invoice-header')
+    expect(logo.closest('.invoice-header')).toBeTruthy()
     expect(INVOICE_DOCUMENT_STYLES).toContain('--invoice-accent: var(--dni-primary-600, #059669)')
     expect(INVOICE_DOCUMENT_STYLES).toContain('.invoice-header::before')
     expect(INVOICE_DOCUMENT_STYLES).not.toContain('filter: brightness(0) invert(1)')

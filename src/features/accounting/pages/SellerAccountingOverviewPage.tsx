@@ -16,6 +16,11 @@ import { accountingClient } from "@/lib/api/accountingClient";
 import type { AccountingIncomeLine } from "@/features/admin/api/adminAccountingApi";
 import AccountingStatusBadge from "../components/AccountingStatusBadge";
 import { accountingExpensesAdapter } from "../adapters/accountingExpensesAdapter";
+import {
+  accountingReferenceKey,
+  formatAccountingReferences,
+  toExpenseReferenceInput,
+} from "../utils/accountingReferenceFormatting";
 import type { AccountingExpense } from "../types/expenseTypes";
 
 const money = (value: number, currency = "MMK") =>
@@ -25,21 +30,39 @@ export const getPostedExpenseTotal = (expenses: AccountingExpense[]) =>
     (sum, expense) => expense.status === "APPROVED" ? sum + Number(expense.amount) : sum,
     0,
   );
-export const getDeliveryFeeTotals = (
+export const getDeliveryFeeTotal = (
   lines: Pick<AccountingIncomeLine, "direction" | "amount" | "memo" | "account" | "currency">[],
-) =>
-  lines.reduce<Record<string, number>>((totals, line) => {
+): number =>
+  lines.reduce((total, line) => {
     if (
       line.direction !== "CREDIT" ||
       line.account.code !== "2000" ||
       !/^Delivery fee payable(?:\s|$)/i.test(line.memo ?? "")
     ) {
-      return totals;
+      return total;
     }
-    const currency = line.currency?.toUpperCase() ?? line.memo?.match(/\(([A-Z]{3})\)/i)?.[1]?.toUpperCase() ?? "UNKNOWN";
-    totals[currency] = (totals[currency] ?? 0) + Number(line.amount);
-    return totals;
-  }, {});
+    return total + Number(line.amount);
+  }, 0);
+export const getNetBalanceCardStyles = (netBalance: number) => {
+  if (netBalance > 0) {
+    return {
+      cardTone: "border-emerald-100 bg-gradient-to-br from-emerald-50/80 to-white",
+      iconTone: "bg-emerald-50 text-emerald-600",
+    };
+  }
+  if (netBalance < 0) {
+    return {
+      cardTone: "border-red-100 bg-gradient-to-br from-red-50/80 to-white",
+      iconTone: "bg-red-50 text-red-600",
+      valueTone: "text-red-700",
+    };
+  }
+  return {
+    cardTone: "border-slate-200 bg-white",
+    iconTone: "bg-slate-50 text-slate-500",
+    valueTone: "text-slate-900",
+  };
+};
 const errorMessage = (error: unknown) => {
   if (error && typeof error === "object" && "response" in error) {
     const response = (error as { response?: { data?: { error?: unknown } } })
@@ -152,38 +175,67 @@ const SellerAccountingOverviewPage = () => {
     (sum, line) => sum + Number(line.amount),
     0,
   );
-  const deliveryFeeTotals = getDeliveryFeeTotals(deliveryFeeLines);
-  const deliveryFeeTotalLabel = Object.entries(deliveryFeeTotals)
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([currency, amount]) => money(amount, currency))
-    .join(" · ") || money(0);
-  const activities = useMemo<ActivityRow[]>(() => [
-    ...incomeLines.map((line) => ({
-      id: `income-${line.id}`,
-      type: "INCOME" as const,
-      reference: `${line.journalEntry.referenceType} · ${line.journalEntry.referenceId}`,
-      description: line.journalEntry.narration ?? "Income",
-      category: `${line.account.code} · ${line.account.name}`,
-      status: line.journalEntry.status,
-      date: formatDate(line.journalEntry.entryDate),
-      dateValue: line.journalEntry.entryDate,
-      amount: Number(line.amount),
-      currency: "MMK",
-    })),
-    ...expenses.map((expense) => ({
-      id: `expense-${expense.id}`,
-      type: "EXPENSE" as const,
-      reference: expense.expenseNo,
-      description: expense.description ?? "Expense",
-      category: expense.expenseType?.name ?? expense.expenseTypeId,
-      status: expense.status,
-      date: formatDate(expense.expenseDate),
-      dateValue: expense.expenseDate,
-      amount: Number(expense.amount),
-      currency: expense.currency,
-      expenseNo: expense.expenseNo,
-    })),
-  ].sort((left, right) => right.dateValue.localeCompare(left.dateValue)), [expenses, incomeLines]);
+  const netBalance = totalIncome - totalExpenses;
+  const netBalanceCardStyles = getNetBalanceCardStyles(netBalance);
+  const deliveryFeeTotal = getDeliveryFeeTotal(deliveryFeeLines);
+  const activities = useMemo<ActivityRow[]>(() => {
+    const incomeWithInputs = incomeLines.map((line) => ({
+      line,
+      input: {
+        referenceType: line.journalEntry.referenceType,
+        referenceId: line.journalEntry.referenceId,
+        date: line.journalEntry.entryDate,
+      },
+    }));
+    const expensesWithInputs = expenses.map((expense) => ({
+      expense,
+      input: toExpenseReferenceInput({
+        expenseNo: expense.expenseNo,
+        expenseDate: expense.expenseDate,
+        categoryCode: expense.expenseType?.code,
+        description: expense.description,
+      }),
+    }));
+    const formattedReferences = formatAccountingReferences(
+      [
+        ...incomeWithInputs.map(({ input }) => input),
+        ...expensesWithInputs.map(({ input }) => input),
+      ],
+    );
+
+    return [
+      ...incomeWithInputs.map(({ line, input }) => ({
+        id: `income-${line.id}`,
+        type: "INCOME" as const,
+        reference:
+          formattedReferences.get(accountingReferenceKey(input)) ??
+          `${line.journalEntry.referenceType} · ${line.journalEntry.referenceId}`,
+        description: line.journalEntry.narration ?? "Income",
+        category: `${line.account.code} · ${line.account.name}`,
+        status: line.journalEntry.status,
+        date: formatDate(line.journalEntry.entryDate),
+        dateValue: line.journalEntry.entryDate,
+        amount: Number(line.amount),
+        currency: "MMK",
+      })),
+      ...expensesWithInputs.map(({ expense, input }) => ({
+          id: `expense-${expense.id}`,
+          type: "EXPENSE" as const,
+          reference:
+            formattedReferences.get(
+              accountingReferenceKey(input),
+            ) ?? expense.expenseNo,
+          description: expense.description ?? "Expense",
+          category: expense.expenseType?.name ?? expense.expenseTypeId,
+          status: expense.status,
+          date: formatDate(expense.expenseDate),
+          dateValue: expense.expenseDate,
+          amount: Number(expense.amount),
+          currency: expense.currency,
+          expenseNo: expense.expenseNo,
+        })),
+    ].sort((left, right) => right.dateValue.localeCompare(left.dateValue));
+  }, [expenses, incomeLines]);
   const filteredActivities = useMemo(() => {
     const query = search.trim().toLowerCase();
     return activities.filter((activity) => {
@@ -258,24 +310,29 @@ const SellerAccountingOverviewPage = () => {
           value={status === "loading" ? "..." : money(totalIncome)}
           icon={ReceiptText}
           tone="bg-emerald-50 text-emerald-600"
+          to="/seller/accounting/income"
         />
         <SummaryCard
           label="Total expenses"
           value={status === "loading" ? "..." : money(totalExpenses)}
           icon={ArrowDownRight}
           tone="bg-red-50 text-red-600"
+          to="/seller/accounting/expenses"
         />
         <SummaryCard
           label="Shipping fee total"
-          value={status === "loading" ? "..." : deliveryFeeTotalLabel}
+          value={status === "loading" ? "..." : money(deliveryFeeTotal, "MMK")}
           icon={CircleDollarSign}
           tone="bg-amber-50 text-amber-600"
         />
         <SummaryCard
           label="Net balance"
-          value={status === "loading" ? "..." : money(totalIncome - totalExpenses)}
+          value={status === "loading" ? "..." : money(netBalance)}
           icon={BookOpen}
-          tone="bg-blue-50 text-blue-600"
+          tone={netBalanceCardStyles.iconTone}
+          cardTone={netBalanceCardStyles.cardTone}
+          valueTone={netBalanceCardStyles.valueTone}
+          to="/seller/accounting/profit-loss"
         />
       </div>
       <div className="rounded-xl border border-slate-200 bg-white p-4">
@@ -316,7 +373,7 @@ const SellerAccountingOverviewPage = () => {
               {visibleActivities.map((activity) => (
                 <tr key={activity.id} className="border-b border-slate-100 last:border-0">
                   <td className="px-2 py-3 text-xs font-semibold text-slate-900">
-                    {activity.expenseNo ? <Link to={`/seller/accounting/expenses/${encodeURIComponent(activity.expenseNo)}`} className="hover:text-emerald-700">{activity.reference}</Link> : activity.reference}
+                    {activity.expenseNo ? <Link to={`/seller/accounting/expenses/${encodeURIComponent(activity.expenseNo)}?displayId=${encodeURIComponent(activity.reference)}`} className="hover:text-emerald-700">{activity.reference}</Link> : activity.reference}
                   </td>
                   <td className="max-w-55 px-2 py-3 text-xs text-slate-700 truncate">{activity.description}</td>
                   <td className="px-2 py-3 text-xs text-slate-600">{activity.category}</td>
@@ -354,21 +411,45 @@ const SummaryCard = ({
   value,
   icon: Icon,
   tone,
+  cardTone,
+  valueTone,
+  to,
 }: {
   label: string;
   value: string;
   icon: LucideIcon;
   tone: string;
-}) => (
-  <div className="rounded-xl border border-slate-200 bg-white p-4">
-    <div className="flex items-center justify-between">
-      <p className="text-xs font-medium text-slate-500">{label}</p>
-      <span className={`rounded-lg p-2 ${tone}`}>
-        <Icon size={16} />
-      </span>
-    </div>
-    <p className="mt-2 text-xl font-bold text-slate-900">{value}</p>
-  </div>
-);
+  cardTone?: string;
+  valueTone?: string;
+  to?: string;
+}) => {
+  const content = (
+    <>
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-medium text-slate-500">{label}</p>
+        <span className={`rounded-lg p-2 ${tone}`}>
+          <Icon size={16} />
+        </span>
+      </div>
+      <p className={`mt-2 text-xl font-bold ${valueTone ?? "text-slate-900"}`}>
+        {value}
+      </p>
+    </>
+  );
+
+  const className = `block rounded-xl border p-4 ${cardTone ?? "border-slate-200 bg-white"} ${
+    to
+      ? "transition-colors hover:border-emerald-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+      : ""
+  }`;
+
+  return to ? (
+    <Link to={to} className={className}>
+      {content}
+    </Link>
+  ) : (
+    <div className={className}>{content}</div>
+  );
+};
 
 export default SellerAccountingOverviewPage;

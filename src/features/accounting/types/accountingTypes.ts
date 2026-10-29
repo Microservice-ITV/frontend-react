@@ -8,6 +8,7 @@ export type AccountingAccount = {
 
 export type AccountingIncomeLine = {
   id: string
+  shopId?: string | null
   direction: string
   amount: number | string
   currency?: string

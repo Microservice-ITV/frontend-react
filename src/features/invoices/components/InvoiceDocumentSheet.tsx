@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import {
   CalendarDays,
-  CreditCard,
   Download,
   Heart,
   ImageOff,
@@ -46,10 +45,10 @@ type InvoiceDocumentSheetProps = {
   isDownloading?: boolean
   /** Set false when the host page renders its own action bar. */
   showActions?: boolean
-  /** Set false to hide the Payment information block. */
-  showPaymentInformation?: boolean
   /** `print` renders the document alone, for the print/PDF route. */
   mode?: 'screen' | 'print'
+  /** Compact presentation for seller and admin dashboard invoice views. */
+  compact?: boolean
 }
 
 const SectionLabel = ({ children }: { children: string }) => (
@@ -86,8 +85,8 @@ const InvoiceDocumentSheet = ({
   onDownload,
   isDownloading = false,
   showActions = true,
-  showPaymentInformation = true,
   mode = 'screen',
+  compact = false,
 }: InvoiceDocumentSheetProps) => {
   const lineItems = invoice.lineItems ?? []
   const isPrint = mode === 'print'
@@ -118,12 +117,11 @@ const InvoiceDocumentSheet = ({
     ...textToLines(invoice.rejectionReason),
     ...textToLines(invoice.refundReason),
   ]
-  const paymentReference = invoice.paymentGatewayRef?.trim() || ''
   const otherCharges = invoice.otherCharges?.filter((charge) => charge.label.trim()) ?? []
   return (
     <article
       data-invoice-root={isPrint ? 'print' : 'screen'}
-      className={`invoice-document w-full overflow-hidden bg-white invoice-ink ${isPrint ? '' : 'rounded-xl border invoice-border shadow-sm'}`}
+      className={`invoice-document w-full overflow-hidden bg-white invoice-ink ${compact ? 'invoice-document-compact' : ''} ${isPrint ? '' : 'rounded-xl border invoice-border shadow-sm'}`}
     >
       <style>{`${INVOICE_DOCUMENT_STYLES}${INVOICE_PRINT_STYLES}`}</style>
 
@@ -297,38 +295,20 @@ const InvoiceDocumentSheet = ({
         )}
       </section>
 
-      <section
-        className={`mx-5 mt-5 grid gap-4 sm:mx-8 ${showPaymentInformation ? 'sm:grid-cols-2' : ''}`}
-        data-print-keep-together
-      >
-        {showPaymentInformation && (
-          <div className="rounded-xl border invoice-border invoice-soft p-4 sm:p-5">
-            <div className="flex items-center gap-2">
-              <CreditCard size={19} className="invoice-accent-text" aria-hidden="true" />
-              <SectionLabel>Payment Information</SectionLabel>
-            </div>
-            <dl className="mt-4 space-y-3 border-t invoice-border pt-3 text-[13px]">
-              <div>
-                <dt className="text-xs invoice-muted">Payment Method</dt>
-                <dd className="mt-1 min-w-0 break-words font-medium invoice-ink">
-                  {formatPaymentMethodLabel(invoice.paymentMethod)}
-                </dd>
-              </div>
-              <div className="invoice-status-badge rounded-lg border px-3 py-2">
-                <dt className="text-xs font-medium">Payment Status</dt>
-                <dd className="mt-1 text-sm font-bold uppercase tracking-wide">{invoice.status}</dd>
-              </div>
-              {paymentReference && <div>
-                <dt className="text-xs invoice-muted">Payment / reference ID</dt>
-                <dd className="mt-1 min-w-0 break-all text-[12px] font-medium invoice-ink">
-                  {paymentReference}
-                </dd>
-              </div>}
-            </dl>
-          </div>
-        )}
+      <section className="mx-5 mt-5 grid gap-4 sm:mx-8 sm:grid-cols-2" data-print-keep-together>
+        <div className="rounded-xl border invoice-border invoice-soft p-4 sm:p-5">
+          <SectionLabel>Delivery note</SectionLabel>
+          <p className="mt-3 text-[12px] leading-relaxed invoice-muted">
+            Customers may inspect the package before making payment, subject to the delivery provider’s inspection policy.
+          </p>
+        </div>
 
-        <div className={`total-section w-full rounded-xl border invoice-border bg-white p-4 sm:p-5 ${showPaymentInformation ? '' : 'ml-auto max-w-sm'}`}>
+        <div className="total-section w-full rounded-xl border invoice-border bg-white p-4 sm:p-5">
+          {invoice.paymentMethod && (
+            <p className="mb-2 text-right text-xs font-bold invoice-ink">
+              {formatPaymentMethodLabel(invoice.paymentMethod)}
+            </p>
+          )}
           <dl className="space-y-2 text-[13px]">
             <div className="flex justify-between gap-6">
               <dt className="invoice-muted">Subtotal</dt>

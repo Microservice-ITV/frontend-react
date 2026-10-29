@@ -76,6 +76,25 @@ export interface InventoryStock {
   colorName?: string | null
   sizeName?: string | null
   variantLabel?: string | null
+  /** Unit price in effect: the seller's override, else the PO calculation. */
+  unitPrice?: number | null
+  /** Landed cost per unit from the purchase order that supplied the stock. */
+  poUnitPrice?: number | null
+  /** Seller-entered unit price (null = follow the PO). */
+  unitPriceOverride?: number | null
+  /** Posted POs that supplied this variant, newest first. */
+  poHistory?: Array<{
+    purchaseOrderId: string
+    orderNumber: string
+    receivedAt: string | null
+    quantity: number
+    unitPrice: number
+    currency: string
+    /** Rate entered on the PO. */
+    poExchangeRate: number
+    /** Received rate if set, else the PO rate; unitPrice is based on it. */
+    exchangeRate: number
+  }>
   length?: number | null
   width?: number | null
   height?: number | null
@@ -100,7 +119,10 @@ export interface InventoryMovement {
   /** Readable actor label resolved by warehouse-service (name or email). */
   createdByName?: string | null
   createdAt: string
-  /** Transfer routing (enriched from warehouse_transfers when listing). */
+  /**
+   * Routing labels enriched when listing: transfer warehouses, supplier name for
+   * purchase receive/return, seller shop name for warehouse orders.
+   */
   fromWarehouseId?: string | null
   toWarehouseId?: string | null
   fromWarehouseName?: string | null

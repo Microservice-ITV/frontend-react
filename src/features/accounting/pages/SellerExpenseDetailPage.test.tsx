@@ -96,6 +96,7 @@ describe('SellerExpenseDetailPage', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
     vi.spyOn(accountingExpensesAdapter, 'getByReference').mockResolvedValue(mockExpense as any)
+    vi.spyOn(accountingExpensesAdapter, 'list').mockResolvedValue([mockExpense as any])
     vi.spyOn(accountingExpensesAdapter, 'getApprovalStatus').mockResolvedValue(mockApprovalStatus as any)
     vi.spyOn(accountingExpensesAdapter, 'approveExpense').mockResolvedValue({
       expenseId: 'exp-123',
@@ -141,9 +142,57 @@ describe('SellerExpenseDetailPage', () => {
     expect(approveButton).toBeEnabled()
     expect(rejectButton).toBeEnabled()
     expect(returnButton).toBeEnabled()
+    expect(screen.getAllByText('EXP-210926-0001')).toHaveLength(2)
 
     await user.click(approveButton)
     expect(accountingExpensesAdapter.approveExpense).toHaveBeenCalledWith('exp-123', 'approval-1')
+  })
+
+  it('formats Deli expense details according to per-order charging basis', async () => {
+    const deliExpense = {
+      ...mockExpense,
+      expenseNo: 'DELI-ORDER-0123456789abcdef',
+      expenseType: { id: 'deli-category', code: 'DELI', name: 'Deli' },
+      description: 'Delivery charge (PER_ORDER)',
+    }
+    vi.spyOn(accountingExpensesAdapter, 'getByReference').mockResolvedValue(deliExpense as any)
+    vi.spyOn(accountingExpensesAdapter, 'list').mockResolvedValue([
+      deliExpense as any,
+      {
+        ...deliExpense,
+        id: 'exp-124',
+        expenseNo: 'DELI-ORDER-fedcba9876543210',
+      } as any,
+    ])
+
+    renderPage()
+    await waitFor(() =>
+      expect(screen.getAllByText('DELI-ORDER-210926-0001')).toHaveLength(2),
+    )
+  })
+
+  it('keeps the display ID from the expenses list when opening details', async () => {
+    const deliExpense = {
+      ...mockExpense,
+      expenseNo: 'DELI-ORDER-0123456789abcdef',
+      expenseType: { id: 'deli-category', code: 'DELI', name: 'Deli' },
+      description: 'Delivery charge (PER_ORDER)',
+    }
+    vi.spyOn(accountingExpensesAdapter, 'getByReference').mockResolvedValue(deliExpense as any)
+    const listExpenses = vi.spyOn(accountingExpensesAdapter, 'list')
+
+    renderPage(
+      'approver-1',
+      '/seller/accounting/expenses/DELI-ORDER-0123456789abcdef?displayId=DELI-ORDER-210926-0002',
+    )
+
+    await waitFor(() =>
+      expect(screen.getAllByText('DELI-ORDER-210926-0002')).toHaveLength(2),
+    )
+    expect(accountingExpensesAdapter.getByReference).toHaveBeenCalledWith(
+      'DELI-ORDER-0123456789abcdef',
+    )
+    expect(listExpenses).not.toHaveBeenCalled()
   })
 
   it('hides action buttons when the user is not the current approver', async () => {

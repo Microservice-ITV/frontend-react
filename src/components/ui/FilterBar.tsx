@@ -114,25 +114,45 @@ const FilterBar = ({
         ))}
 
         {dateRange && (
-          <div>
-            <FieldLabel>Date range</FieldLabel>
-            <div className="flex items-center gap-2">
-              <input
-                type="date"
-                value={dateRange.from}
-                onChange={(event) => dateRange.onFromChange(event.target.value)}
-                className={clsx(CONTROL_CLASS, 'w-[150px]')}
-                aria-label="From date"
-              />
-              <span className="text-xs text-slate-400">→</span>
-              <input
-                type="date"
-                value={dateRange.to}
-                onChange={(event) => dateRange.onToChange(event.target.value)}
-                className={clsx(CONTROL_CLASS, 'w-[150px]')}
-                aria-label="To date"
-              />
-            </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+              Date range
+            </span>
+            <input
+              type="date"
+              value={dateRange.from}
+              onChange={(event) => dateRange.onFromChange(event.target.value)}
+              onClick={(event) => {
+                const input = event.currentTarget
+                if (typeof input.showPicker === 'function') {
+                  try {
+                    input.showPicker()
+                  } catch {
+                    /* ignore */
+                  }
+                }
+              }}
+              className={clsx(CONTROL_CLASS, 'w-[150px] cursor-pointer')}
+              aria-label="From date"
+            />
+            <span className="text-xs text-slate-400">→</span>
+            <input
+              type="date"
+              value={dateRange.to}
+              onChange={(event) => dateRange.onToChange(event.target.value)}
+              onClick={(event) => {
+                const input = event.currentTarget
+                if (typeof input.showPicker === 'function') {
+                  try {
+                    input.showPicker()
+                  } catch {
+                    /* ignore */
+                  }
+                }
+              }}
+              className={clsx(CONTROL_CLASS, 'w-[150px] cursor-pointer')}
+              aria-label="To date"
+            />
           </div>
         )}
 

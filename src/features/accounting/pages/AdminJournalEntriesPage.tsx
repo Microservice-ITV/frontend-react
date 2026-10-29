@@ -7,6 +7,7 @@ import {
   Download,
   Eye,
   FileText,
+  Info,
   Landmark,
   RefreshCw,
   Scale,
@@ -18,6 +19,10 @@ import * as XLSX from 'xlsx'
 import DataTablePagination from '@/components/ui/DataTablePagination'
 import { ecommerceReadRestClient } from '@/lib/api/ecommerceReadRestClient'
 import AccountingStatusBadge from '../components/AccountingStatusBadge'
+import {
+  accountingReferenceKey,
+  formatAccountingReferences,
+} from '../utils/accountingReferenceFormatting'
 
 type JournalLine = {
   id: string
@@ -55,6 +60,14 @@ const getLineNarration = (entry: JournalEntry, line: JournalLine, lineIndex: num
   const firstDebitIndex = entry.lines.findIndex((entryLine) => entryLine.direction === 'DEBIT')
   return lineIndex === firstDebitIndex ? entry.narration ?? '—' : '—'
 }
+
+const entryGroupStyles = [
+  { background: 'bg-blue-50/70 hover:bg-blue-50', border: 'border-blue-200', accent: 'border-l-blue-500' },
+  { background: 'bg-amber-50/70 hover:bg-amber-50', border: 'border-amber-200', accent: 'border-l-amber-500' },
+  { background: 'bg-emerald-50/70 hover:bg-emerald-50', border: 'border-emerald-200', accent: 'border-l-emerald-500' },
+  { background: 'bg-violet-50/70 hover:bg-violet-50', border: 'border-violet-200', accent: 'border-l-violet-500' },
+  { background: 'bg-rose-50/70 hover:bg-rose-50', border: 'border-rose-200', accent: 'border-l-rose-500' },
+]
 
 const monthStart = () => {
   const now = new Date()
@@ -101,6 +114,22 @@ const AdminJournalEntriesPage = ({
 
   useEffect(() => { void loadEntries() }, [])
 
+  const formattedJournalReferences = useMemo(() => {
+    const references = formatAccountingReferences(entries.map((entry) => ({
+      referenceType: entry.referenceType,
+      referenceId: entry.referenceId,
+      date: entry.entryDate,
+    })))
+    return new Map(entries.map((entry) => [
+      entry.id,
+      references.get(accountingReferenceKey({
+        referenceType: entry.referenceType,
+        referenceId: entry.referenceId,
+        date: entry.entryDate,
+      })) ?? `${entry.referenceType} · ${entry.referenceId}`,
+    ]))
+  }, [entries])
+
   const accounts = useMemo(() => {
     const unique = new Map<string, string>()
     entries.forEach((entry) => entry.lines.forEach((line) => {
@@ -127,6 +156,7 @@ const AdminJournalEntriesPage = ({
       const matchesSearch = !query || [
         entry.referenceType,
         entry.referenceId,
+        formattedJournalReferences.get(entry.id) ?? '',
         entry.narration ?? '',
         entry.status,
         lineText,
@@ -141,7 +171,7 @@ const AdminJournalEntriesPage = ({
         && (!fromDate || dateValue >= fromDate)
         && (!toDate || dateValue <= toDate)
     })
-  }, [accountFilter, entries, entryTypeFilter, fromDate, search, statusFilter, toDate])
+  }, [accountFilter, entries, entryTypeFilter, formattedJournalReferences, fromDate, search, statusFilter, toDate])
 
   const totalPages = Math.max(1, Math.ceil(filteredEntries.length / rowsPerPage))
   const currentPage = Math.min(page, totalPages)
@@ -168,7 +198,7 @@ const AdminJournalEntriesPage = ({
     const rows = [
       ['Reference', 'Entry Date', 'Account', 'Description', 'Narration', 'Debit', 'Credit', 'Status'],
       ...filteredEntries.flatMap((entry) => entry.lines.map((line, lineIndex) => [
-        lineIndex === 0 ? `${entry.referenceType} · ${entry.referenceId}` : '(same ref)',
+        lineIndex === 0 ? (formattedJournalReferences.get(entry.id) ?? entry.referenceId) : '(same ref)',
         entry.entryDate.slice(0, 10),
         `${line.account.code} · ${line.account.name}`,
         entry.narration ?? '',
@@ -186,7 +216,9 @@ const AdminJournalEntriesPage = ({
 
   const copyReference = async (entry: JournalEntry) => {
     try {
-      await navigator.clipboard.writeText(entry.referenceId)
+      await navigator.clipboard.writeText(
+        formattedJournalReferences.get(entry.id) ?? entry.referenceId,
+      )
       setNotice('Reference copied to clipboard.')
     } catch {
       setNotice('Could not copy the reference. Select and copy it from the entry details.')
@@ -265,7 +297,12 @@ const AdminJournalEntriesPage = ({
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map(({ label, value, detail, icon: Icon, tone }) => (
-          <div key={label} className="flex min-w-0 items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
+          <div key={label} className={`flex min-w-0 items-center gap-3 rounded-xl border px-4 py-4 shadow-sm ${
+            tone === 'blue' ? 'border-blue-100 bg-blue-50/60'
+              : tone === 'green' ? 'border-emerald-100 bg-emerald-50/60'
+                : tone === 'violet' ? 'border-violet-100 bg-violet-50/60'
+                  : 'border-amber-100 bg-amber-50/60'
+          }`}>
             <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${
               tone === 'blue' ? 'bg-blue-50 text-blue-600'
                 : tone === 'green' ? 'bg-emerald-50 text-emerald-600'
@@ -339,11 +376,21 @@ const AdminJournalEntriesPage = ({
           </div>
         </div>
 
+        <p role="note" className="flex items-center gap-2 border-b border-blue-100 bg-blue-50/60 px-4 py-2 text-xs text-blue-800">
+          <Info size={14} className="shrink-0" />
+          To see all lines for an entry, open the menu beside its reference and select View Details.
+        </p>
+
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1180px]">
+          <table className="w-full min-w-[1000px] table-fixed">
+            <colgroup>
+              {['4%', '17%', '10%', '12%', '15%', '16%', '9%', '9%', '8%'].map((width, index) => (
+                <col key={index} style={{ width }} />
+              ))}
+            </colgroup>
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/80">
-                {['#', 'Reference', 'Entry Date', 'Account', 'Description', 'Narration', 'Debit', 'Credit', 'Status', ''].map((heading, index) => (
+                {['#', 'Reference', 'Entry Date', 'Account', 'Description', 'Narration', 'Debit', 'Credit', 'Status'].map((heading, index) => (
                   <th key={`${heading}-${index}`} className={`px-3 py-3 text-[11px] font-semibold text-slate-500 ${index === 6 || index === 7 ? 'text-right' : 'text-left'}`}>
                     {heading}
                   </th>
@@ -351,25 +398,52 @@ const AdminJournalEntriesPage = ({
               </tr>
             </thead>
             <tbody>
-              {status === 'loading' && <tr><td colSpan={10} className="px-4 py-12 text-center text-sm text-slate-500">Loading journal entries...</td></tr>}
-              {status === 'failed' && <tr><td colSpan={10} className="px-4 py-12 text-center text-sm text-red-600">{error}</td></tr>}
-              {status === 'succeeded' && visibleEntries.length === 0 && <tr><td colSpan={10} className="px-4 py-12 text-center text-sm text-slate-500">No journal entries found for these filters.</td></tr>}
+              {status === 'loading' && <tr><td colSpan={9} className="px-4 py-12 text-center text-sm text-slate-500">Loading journal entries...</td></tr>}
+              {status === 'failed' && <tr><td colSpan={9} className="px-4 py-12 text-center text-sm text-red-600">{error}</td></tr>}
+              {status === 'succeeded' && visibleEntries.length === 0 && <tr><td colSpan={9} className="px-4 py-12 text-center text-sm text-slate-500">No journal entries found for these filters.</td></tr>}
               {status === 'succeeded' && visibleEntries.flatMap((entry, entryIndex) => entry.lines.map((line, lineIndex) => {
                 const rowNumber = (currentPage - 1) * rowsPerPage + entryIndex + 1
                 const lineDescription = line.memo ?? entry.narration ?? '—'
+                const groupStyle = entryGroupStyles[entryIndex % entryGroupStyles.length] ?? entryGroupStyles[0]
                 return (
                   <tr
                     key={`${entry.id}-${line.id}`}
-                    className={`border-b border-slate-100 last:border-0 hover:bg-blue-50/40 ${lineIndex === 0 ? 'border-t border-t-slate-200' : ''}`}
+                    className={`group border-x border-l-4 ${groupStyle.border} ${groupStyle.accent} ${groupStyle.background} ${
+                      lineIndex === 0 ? 'border-t-2' : 'border-t'
+                    } ${
+                      lineIndex === entry.lines.length - 1 ? 'border-b-2' : 'border-b-0'
+                    }`}
                   >
-                    <td className="px-3 py-3 text-xs text-slate-400">{lineIndex === 0 ? rowNumber : ''}</td>
-                    <td className="max-w-[180px] px-3 py-3 text-xs font-semibold text-blue-700">
+                    <td className="w-9 px-2 py-3 text-xs text-slate-400">{lineIndex === 0 ? rowNumber : ''}</td>
+                    <td className="relative max-w-[180px] px-3 py-3 text-xs font-semibold text-blue-700">
                       {lineIndex === 0 ? (
                         <>
-                          <span className="block truncate" title={entry.referenceId}>{entry.referenceId}</span>
-                          <span className="mt-1 inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-blue-600">
-                            {entry.referenceType}
+                          <span
+                            className="block truncate pr-5"
+                            title={formattedJournalReferences.get(entry.id) ?? entry.referenceId}
+                          >
+                            {formattedJournalReferences.get(entry.id) ?? entry.referenceId}
                           </span>
+                          <button
+                            type="button"
+                            aria-label={`Actions for ${formattedJournalReferences.get(entry.id) ?? entry.referenceId}`}
+                            title="Entry actions: view details or copy reference"
+                            aria-expanded={openActionsId === entry.id}
+                            onClick={() => setOpenActionsId(openActionsId === entry.id ? null : entry.id)}
+                            className="absolute right-2 top-2 rounded-md px-1.5 py-0.5 text-slate-500 hover:bg-white/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                          >
+                            <span className="text-base leading-none">···</span>
+                          </button>
+                          {openActionsId === entry.id && (
+                            <div className="absolute right-2 top-8 z-20 w-36 rounded-lg border border-slate-200 bg-white py-1 text-left shadow-lg">
+                              <button type="button" onClick={() => { setSelectedEntry(entry); setOpenActionsId(null) }} className="flex w-full items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50">
+                                <Eye size={14} /> View Details
+                              </button>
+                              <button type="button" onClick={() => void copyReference(entry)} className="flex w-full items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50">
+                                <Copy size={14} /> Copy Reference
+                              </button>
+                            </div>
+                          )}
                         </>
                       ) : <span className="font-normal text-slate-400">(same ref)</span>}
                     </td>
@@ -393,31 +467,6 @@ const AdminJournalEntriesPage = ({
                       {line.direction === 'CREDIT' ? formatAmount(Number(line.amount)) : '—'}
                     </td>
                     <td className="px-3 py-3"><AccountingStatusBadge status={entry.status} /></td>
-                    <td className="relative px-3 py-3 text-right">
-                      {lineIndex === 0 && (
-                        <>
-                          <button
-                            type="button"
-                            aria-label={`Actions for ${entry.referenceId}`}
-                            aria-expanded={openActionsId === entry.id}
-                            onClick={() => setOpenActionsId(openActionsId === entry.id ? null : entry.id)}
-                            className="rounded-md px-2 py-1 text-slate-500 hover:bg-slate-100"
-                          >
-                            <span className="text-lg leading-none">···</span>
-                          </button>
-                          {openActionsId === entry.id && (
-                            <div className="absolute right-3 top-10 z-20 w-40 rounded-lg border border-slate-200 bg-white py-1 text-left shadow-lg">
-                              <button type="button" onClick={() => { setSelectedEntry(entry); setOpenActionsId(null) }} className="flex w-full items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50">
-                                <Eye size={14} /> View Details
-                              </button>
-                              <button type="button" onClick={() => void copyReference(entry)} className="flex w-full items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50">
-                                <Copy size={14} /> Copy Reference
-                              </button>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </td>
                   </tr>
                 )
               }))}
@@ -447,7 +496,9 @@ const AdminJournalEntriesPage = ({
             <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4">
               <div>
                 <h2 id="journal-entry-details-title" className="text-base font-bold text-slate-900">Journal Entry Details</h2>
-                <p className="mt-1 break-all text-xs text-slate-500">{selectedEntry.referenceType} · {selectedEntry.referenceId}</p>
+                <p className="mt-1 break-all text-xs text-slate-500">
+                  {formattedJournalReferences.get(selectedEntry.id) ?? selectedEntry.referenceId}
+                </p>
               </div>
               <button type="button" aria-label="Close details" onClick={() => setSelectedEntry(null)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={17} /></button>
             </div>

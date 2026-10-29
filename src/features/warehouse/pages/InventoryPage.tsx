@@ -1,15 +1,18 @@
-import { useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { ArrowLeftRight, Eye, Warehouse } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { ArrowLeftRight, Eye, Pencil, Warehouse } from 'lucide-react'
 import DataTable, { type DataTableColumn } from '@/components/ui/DataTable'
 import FilterBar from '@/components/ui/FilterBar'
 import ModalDrawer from '@/components/ui/ModalDrawer'
 import RowActionMenu from '@/components/ui/RowActionMenu'
+import DetailRow from '../components/DetailRow'
 import { StockStatusBadge } from '../components/StockStatusBadge'
 import { primaryButtonClass } from '../components/forms/FormField'
 import TransferStockForm from '../components/forms/TransferStockForm'
 import type { WarehouseAreaBase } from '../config/warehousePaths'
+import { warehousePaths } from '../config/warehousePaths'
 import { filterInventoryRows, useInventoryRows, useWarehouses } from '../hooks/useWarehouseData'
+import { formatUnitPrice, useVariantPricing } from '../hooks/useVariantPricing'
 import { productLabel, useProductNames } from '../hooks/useProductNames'
 import {
   AVAILABILITY_LABELS,
@@ -17,7 +20,7 @@ import {
   type InventoryRow,
   type StockOperationKind,
 } from '../types/warehouseTypes'
-import { parseVariantId, variantDisplayLabel } from '../utils/variantLabel'
+import { variantDisplayLabel } from '../utils/variantLabel'
 
 export type InventoryPageProps = {
   base: WarehouseAreaBase
@@ -44,7 +47,11 @@ const OPERATION_META: Record<
 const InventoryPage = ({ base }: InventoryPageProps) => {
   const isSeller = base === '/seller'
   const canTransfer = isSeller || base === '/warehouse-manager'
+  const canEditPrice = isSeller
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const paths = warehousePaths(base)
 
   const [search, setSearch] = useState('')
   const [warehouseFilter, setWarehouseFilter] = useState(
@@ -60,12 +67,25 @@ const InventoryPage = ({ base }: InventoryPageProps) => {
   const [detailRow, setDetailRow] = useState<InventoryRow | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
+  // Notice handed over by the edit page after saving prices.
+  useEffect(() => {
+    const message = (location.state as { notice?: string } | null)?.notice
+    if (!message) return
+    setNotice(message)
+    window.setTimeout(() => setNotice(null), 4000)
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: null })
+  }, [location, navigate])
+
   // Seller: warehouses they created + warehouses they received goods into.
   const { warehouses, loading: warehousesLoading, error: warehousesError } = useWarehouses(
     isSeller ? { status: 'ACTIVE', includePurchased: true } : undefined,
   )
   const warehouseInventory = useInventoryRows(warehouses)
   const productNames = useProductNames()
+  const detailPricing = useVariantPricing(detailRow?.productId, detailRow?.variantId, {
+    colorName: detailRow?.colorName,
+    sizeName: detailRow?.sizeName,
+  })
 
   const rows = warehouseInventory.rows
   const loading = warehouseInventory.loading
@@ -133,15 +153,6 @@ const InventoryPage = ({ base }: InventoryPageProps) => {
       colorName: row.colorName,
       sizeName: row.sizeName,
     })
-
-  const detailVariant = detailRow
-    ? {
-        ...parseVariantId(detailRow.variantId),
-        colorName: detailRow.colorName || parseVariantId(detailRow.variantId).colorName,
-        sizeName: detailRow.sizeName || parseVariantId(detailRow.variantId).sizeName,
-        label: rowVariantLabel(detailRow),
-      }
-    : null
 
   const columns: Array<DataTableColumn<InventoryRow>> = [
     {
@@ -241,6 +252,21 @@ const InventoryPage = ({ base }: InventoryPageProps) => {
               icon: <Eye size={14} />,
               onClick: () => setDetailRow(row),
             },
+            ...(canEditPrice
+              ? [
+                  {
+                    key: 'edit',
+                    label: 'Edit prices',
+                    icon: <Pencil size={14} />,
+                    onClick: () =>
+                      navigate(
+                        `${paths.inventoryEdit}?warehouseId=${encodeURIComponent(
+                          row.warehouseId,
+                        )}&stockId=${encodeURIComponent(row.id)}`,
+                      ),
+                  },
+                ]
+              : []),
             ...(canTransfer
               ? [
                   {
@@ -430,87 +456,90 @@ const InventoryPage = ({ base }: InventoryPageProps) => {
           title="Inventory details"
           subtitle={productLabel(productNames, detailRow.productId)}
           variant="modal"
-          size="md"
+          size="sm"
+          fitContent
         >
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {[
-                {
-                  label: 'Product',
-                  value: productLabel(productNames, detailRow.productId),
-                  span: true,
-                },
-                { label: 'Warehouse', value: detailRow.warehouseName },
-                {
-                  label: 'Variant',
-                  value: rowVariantLabel(detailRow),
-                },
-                { label: 'Color', value: detailRow.colorName || detailVariant?.colorName },
-                { label: 'Size', value: detailRow.sizeName || detailVariant?.sizeName },
-                { label: 'Unit', value: detailRow.unit },
-                { label: 'On hand', value: String(detailRow.onHandQty) },
-                { label: 'Reserved', value: String(detailRow.reservedQty) },
-                { label: 'Available', value: String(detailRow.availableQty) },
-                {
-                  label: 'Length (cm)',
-                  value:
-                    detailRow.length != null && Number(detailRow.length) > 0
-                      ? String(detailRow.length)
-                      : null,
-                },
-                {
-                  label: 'Width (cm)',
-                  value:
-                    detailRow.width != null && Number(detailRow.width) > 0
-                      ? String(detailRow.width)
-                      : null,
-                },
-                {
-                  label: 'Height (cm)',
-                  value:
-                    detailRow.height != null && Number(detailRow.height) > 0
-                      ? String(detailRow.height)
-                      : null,
-                },
-                {
-                  label: 'Weight / unit',
-                  value:
-                    detailRow.weightPerUnit != null && Number(detailRow.weightPerUnit) > 0
-                      ? String(detailRow.weightPerUnit)
-                      : null,
-                },
-                {
-                  label: 'Volume / unit',
-                  value:
-                    detailRow.volumePerUnit != null && Number(detailRow.volumePerUnit) > 0
-                      ? String(detailRow.volumePerUnit)
-                      : null,
-                },
-              ]
-                .filter((cell) => cell.value != null && String(cell.value).trim() !== '')
-                .map((cell) => (
-                  <div
-                    key={cell.label}
-                    className={`rounded-lg border border-slate-200 bg-white px-3 py-2 ${
-                      cell.span ? 'col-span-2 sm:col-span-3' : ''
-                    }`}
-                  >
-                    <p className="text-[11px] uppercase tracking-wide text-slate-400">
-                      {cell.label}
-                    </p>
-                    <p className="text-sm text-slate-700">{cell.value}</p>
-                  </div>
-                ))}
-              <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-                <p className="text-[11px] uppercase tracking-wide text-slate-400">Status</p>
-                <div className="mt-0.5">
-                  <StockStatusBadge status={detailRow.availabilityStatus} />
-                </div>
-              </div>
-            </div>
+          <div>
+            <DetailRow
+              dense
+              label="Product"
+              value={productLabel(productNames, detailRow.productId)}
+            />
+            <DetailRow dense label="Warehouse" value={detailRow.warehouseName} />
+            <DetailRow dense label="Variant" value={rowVariantLabel(detailRow)} />
+            <DetailRow
+              dense
+              label="Unit price"
+              value={formatUnitPrice(detailRow.unitPrice)}
+            />
+            <DetailRow
+              dense
+              label="Selling price"
+              value={
+                detailPricing.loading
+                  ? 'Loading…'
+                  : formatUnitPrice(detailPricing.sellingPrice)
+              }
+            />
+            <DetailRow dense label="On hand" value={String(detailRow.onHandQty)} />
+            <DetailRow dense label="Reserved" value={String(detailRow.reservedQty)} />
+            <DetailRow
+              dense
+              label="Available"
+              value={String(detailRow.availableQty)}
+            />
+            {detailRow.length != null && Number(detailRow.length) > 0 && (
+              <DetailRow dense label="Length (cm)" value={String(detailRow.length)} />
+            )}
+            {detailRow.width != null && Number(detailRow.width) > 0 && (
+              <DetailRow dense label="Width (cm)" value={String(detailRow.width)} />
+            )}
+            {detailRow.height != null && Number(detailRow.height) > 0 && (
+              <DetailRow dense label="Height (cm)" value={String(detailRow.height)} />
+            )}
+            {detailRow.weightPerUnit != null &&
+              Number(detailRow.weightPerUnit) > 0 && (
+                <DetailRow
+                  dense
+                  label="Weight / unit"
+                  value={String(detailRow.weightPerUnit)}
+                />
+              )}
+            {detailRow.volumePerUnit != null &&
+              Number(detailRow.volumePerUnit) > 0 && (
+                <DetailRow
+                  dense
+                  label="Volume / unit"
+                  value={String(detailRow.volumePerUnit)}
+                />
+              )}
+            <DetailRow
+              dense
+              label="Status"
+              value={<StockStatusBadge status={detailRow.availabilityStatus} />}
+            />
+          </div>
 
-            {canTransfer && (
-              <div className="flex justify-end">
+          {(canTransfer || canEditPrice) && (
+            <div className="mt-3 flex items-center justify-end gap-2">
+              {canEditPrice && (
+                <button
+                  type="button"
+                  className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                  onClick={() => {
+                    navigate(
+                      `${paths.inventoryEdit}?warehouseId=${encodeURIComponent(
+                        detailRow.warehouseId,
+                      )}&stockId=${encodeURIComponent(detailRow.id)}`,
+                    )
+                    setDetailRow(null)
+                  }}
+                >
+                  <Pencil size={14} />
+                  Edit prices
+                </button>
+              )}
+              {canTransfer && (
                 <button
                   type="button"
                   className={primaryButtonClass}
@@ -526,9 +555,9 @@ const InventoryPage = ({ base }: InventoryPageProps) => {
                   <ArrowLeftRight size={14} />
                   Transfer
                 </button>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </ModalDrawer>
       )}
     </div>

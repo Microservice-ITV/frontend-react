@@ -6,6 +6,7 @@ import {
   verifyEmail,
   resendVerification,
 } from "@/features/auth/store/authThunks";
+import { markEmailVerified } from "@/features/auth/store/authSlice";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
@@ -18,6 +19,11 @@ export const VerifyEmailPage = () => {
 
   const searchParams = new URLSearchParams(location.search);
   const email = searchParams.get("email") || "";
+  const returnTo = searchParams.get("returnTo");
+  const safeReturnTo =
+    returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")
+      ? returnTo
+      : null;
 
   const [otp, setOtp] = useState<string[]>(Array(6).fill(""));
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -59,7 +65,8 @@ export const VerifyEmailPage = () => {
 
     try {
       await dispatch(verifyEmail({ token: code })).unwrap();
-      navigate("/login", { replace: true });
+      dispatch(markEmailVerified());
+      navigate(safeReturnTo ?? "/login", { replace: true });
     } catch {
       setOtp(Array(6).fill(""));
       inputRefs.current[0]?.focus();

@@ -13,7 +13,7 @@ const DNI_PREFIX = 'DNI-'
  * `INV-20261005-000004` -> `DNI-INV-20261005-000004`
  * `DNI-INV-20261005-000002` -> `DNI-INV-20261005-000002` (unchanged)
  */
-const withDniPrefix = (raw: string | null | undefined, code: 'INV' | 'ORD'): string => {
+const withDniPrefix = (raw: string | null | undefined, code: 'INV' | 'ORD' | 'REC'): string => {
   const trimmed = (raw ?? '').trim()
   if (!trimmed) return ''
 
@@ -29,6 +29,10 @@ export const formatInvoiceNumber = (raw: string | null | undefined): string =>
 
 export const formatOrderReference = (raw: string | null | undefined): string =>
   withDniPrefix(raw, 'ORD')
+  /** Formats a receipt number with DNI prefix exactly once. */
+  export const formatReceiptNumber = (raw: string | null | undefined): string =>
+    withDniPrefix(raw, 'REC')
+
 
 /** Formats an amount using the invoice's own currency. No conversion is performed. */
 export const formatCurrency = (
@@ -156,6 +160,19 @@ export const formatInvoiceDate = (value: string | null | undefined): string => {
   if (Number.isNaN(date.getTime())) return '—'
   return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
+
+/** Formats thermal document timestamps with the local date and hour/minute. */
+export const formatThermalDateTime = (value: string | null | undefined): string => {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
+  const formattedDate = date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+  const formattedTime = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+  return `${formattedDate}, ${formattedTime}`
+}
+
+/** Kept as a named export for existing thermal receipt consumers. */
+export const formatReceiptDate = formatThermalDateTime
 
 const ADDRESS_KEYS = [
   'address_line_1', 'addressLine1', 'address_line_2', 'addressLine2',
