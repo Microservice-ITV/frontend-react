@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { logout } from '@/features/auth/store/authThunks'
 import { extractRoleFromUser } from '@/app/rbac/normalizers'
@@ -16,6 +16,26 @@ export const SELLER_DASHBOARD_OVERVIEW_PATH = '/seller/overview'
 const NavbarTopUtilityBar = () => {
     const dispatch = useAppDispatch()
     const { isAuthenticated, user } = useAppSelector((s) => s.auth)
+    const [menuOpen, setMenuOpen] = useState(false)
+    const menuRef = useRef<HTMLDivElement>(null)
+
+    useEffect(() => {
+        if (!menuOpen) return
+        const handlePointerDown = (e: PointerEvent) => {
+            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+                setMenuOpen(false)
+            }
+        }
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setMenuOpen(false)
+        }
+        document.addEventListener('pointerdown', handlePointerDown)
+        document.addEventListener('keydown', handleKeyDown)
+        return () => {
+            document.removeEventListener('pointerdown', handlePointerDown)
+            document.removeEventListener('keydown', handleKeyDown)
+        }
+    }, [menuOpen])
 
     const startSellingTo = useMemo(() => {
         if (!user) return START_SELLING_PATH
@@ -74,8 +94,14 @@ const NavbarTopUtilityBar = () => {
 
                 <div className="flex space-x-4 items-center">
                     {isAuthenticated && user ? (
-                        <div className="relative z-[100] group">
-                            <button className="flex items-center gap-2 text-gray-800 hover:text-black cursor-pointer">
+                        <div ref={menuRef} className="relative z-[100] group">
+                            <button
+                                type="button"
+                                onClick={() => setMenuOpen((o) => !o)}
+                                aria-haspopup="menu"
+                                aria-expanded={menuOpen}
+                                className="flex items-center gap-2 py-1 text-gray-800 hover:text-black cursor-pointer touch-manipulation"
+                            >
                                 <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
                                     {user.profile_image ? (
                                         <img
@@ -99,25 +125,37 @@ const NavbarTopUtilityBar = () => {
                             </button>
 
                             <div
-                                className="
+                                role="menu"
+                                className={`
                                         absolute right-0 top-full mt-2 z-[200] w-48 bg-white rounded-sm
-                                        shadow-[0_2px_8px_rgba(0,0,0,0.15)] opacity-0 invisible translate-y-[-4px]
-                                        group-hover:opacity-100 group-hover:visible group-hover:translate-y-0
+                                        shadow-[0_2px_8px_rgba(0,0,0,0.15)]
+                                        md:group-hover:opacity-100 md:group-hover:visible md:group-hover:translate-y-0
                                         transition-all duration-150 ease-out
-                                    "
+                                        ${menuOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible translate-y-[-4px]'}
+                                    `}
                             >
                                 <div className="absolute -top-2 right-6 w-4 h-4 bg-white rotate-45" />
 
-                                <Link to="/account/profile" className="block px-4 py-3 text-sm hover:bg-gray-100">
+                                <Link
+                                    to="/account/profile"
+                                    onClick={() => setMenuOpen(false)}
+                                    className="block px-4 py-3 text-sm hover:bg-gray-100"
+                                >
                                     My Account
                                 </Link>
 
-                                <Link to="/account/orders" className="block px-4 py-3 text-sm hover:bg-gray-100">
+                                <Link
+                                    to="/account/orders"
+                                    onClick={() => setMenuOpen(false)}
+                                    className="block px-4 py-3 text-sm hover:bg-gray-100"
+                                >
                                     My Purchase
                                 </Link>
 
                                 <button
+                                    type="button"
                                     onClick={() => {
+                                        setMenuOpen(false)
                                         dispatch(logout())
                                     }}
                                     className="w-full text-left px-4 py-3 text-sm hover:bg-gray-100 cursor-pointer"

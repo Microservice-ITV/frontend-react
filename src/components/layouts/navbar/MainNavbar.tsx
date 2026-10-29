@@ -47,8 +47,14 @@ const MainNavbar = () => {
     clearMobileSearch,
   } = useNavbarSearch();
 
-  const goToProduct = (productId: string) => navigate(`/products/${productId}`);
-  const goToShop = (shopId: string) => navigate(`/shops/${shopId}`);
+  const goToProduct = (productId: string) => {
+    setIsMobileSearchOpen(false);
+    navigate(`/products/${productId}`);
+  };
+  const goToShop = (shopId: string) => {
+    setIsMobileSearchOpen(false);
+    navigate(`/shops/${shopId}`);
+  };
 
   return (
     <header className="sticky top-0 z-50 bg-emerald-50">
@@ -57,7 +63,7 @@ const MainNavbar = () => {
 
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex h-20 items-center gap-4 sm:gap-6">
+          <div className="flex h-20 items-center gap-3 sm:gap-6">
             <BrandLogo />
 
             <div
@@ -127,50 +133,44 @@ const MainNavbar = () => {
                 )}
             </div>
 
-            <div className="flex-1 min-w-0 md:hidden">
-              <div
+            <div className="ml-auto flex flex-shrink-0 items-center gap-4 min-[360px]:gap-5 sm:gap-6">
+              <button
+                type="button"
                 onClick={() => setIsMobileSearchOpen(true)}
-                className="flex items-center border border-gray-300 rounded-sm bg-white px-3 py-2 cursor-pointer"
+                className="flex items-center flex-shrink-0 cursor-pointer md:hidden"
+                aria-label="Search"
               >
-                <Search
-                  size={16}
-                  className="text-gray-400 mr-2 flex-shrink-0"
-                />
-                <span className="text-sm text-gray-400 truncate">
-                  {selectedCategory
-                    ? `Search in ${selectedCategory.name}`
-                    : "Search products, shops and more"}
-                </span>
-              </div>
-            </div>
+                <Search size={22} />
+              </button>
 
-            {isAuthenticated && (
+              {isAuthenticated && (
+                <Link
+                  to="/wishlist"
+                  className="relative flex items-center flex-shrink-0"
+                  aria-label="Wishlist"
+                >
+                  <Heart size={22} className="md:size-[26px]" />
+                  {wishlistCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] flex items-center justify-center rounded-full bg-rose-500 text-white text-[10px] leading-none px-[3px]">
+                      {wishlistCount > 99 ? "99+" : wishlistCount}
+                    </span>
+                  )}
+                </Link>
+              )}
+
               <Link
-                to="/wishlist"
+                to="/cart"
                 className="relative flex items-center flex-shrink-0"
-                aria-label="Wishlist"
+                aria-label="Cart"
               >
-                <Heart size={22} className="md:size-[26px]" />
-                {wishlistCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] flex items-center justify-center rounded-full bg-rose-500 text-white text-[10px] leading-none px-[3px]">
-                    {wishlistCount > 99 ? "99+" : wishlistCount}
+                <ShoppingCart size={22} className="md:size-[26px]" />
+                {cartCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] flex items-center justify-center rounded-full bg-emerald-600 text-white text-[10px] leading-none px-[3px]">
+                    {cartCount}
                   </span>
                 )}
               </Link>
-            )}
-
-            <Link
-              to="/cart"
-              className="relative flex items-center flex-shrink-0"
-              aria-label="Cart"
-            >
-              <ShoppingCart size={22} className="md:size-[26px]" />
-              {cartCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] flex items-center justify-center rounded-full bg-emerald-600 text-white text-[10px] leading-none px-[3px]">
-                  {cartCount}
-                </span>
-              )}
-            </Link>
+            </div>
           </div>
         </div>
       </div>

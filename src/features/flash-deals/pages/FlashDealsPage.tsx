@@ -228,7 +228,7 @@ const FlashDealsPage = () => {
   return (
     <div className="bg-[#f5f5f5] text-gray-900">
       <section className="border-[var(--dni-border)] bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-center gap-3 px-4 py-1.5 sm:px-6">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-x-3 gap-y-2 px-4 py-1.5 sm:flex-nowrap sm:px-6">
           <span className="hidden h-px w-10 bg-[#d1d5db] sm:block" />
           <div className="flex items-center gap-1.5 text-[var(--dni-primary)]">
             <Zap size={18} className="fill-current" aria-hidden />
@@ -239,7 +239,7 @@ const FlashDealsPage = () => {
               Deals
             </span>
           </div>
-          <div className="ml-2 border-l border-[var(--dni-cart-border)] pl-4">
+          <div className="border-[var(--dni-cart-border)] sm:ml-2 sm:border-l sm:pl-4">
             <FlashDealCountdown
               hours={hours}
               minutes={minutes}
