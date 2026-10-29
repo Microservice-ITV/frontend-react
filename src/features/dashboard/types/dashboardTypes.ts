@@ -2,7 +2,13 @@ import type { LucideIcon } from 'lucide-react'
 import type { Capability } from '@/app/rbac/types'
 import type { SearchHit } from '../api/globalSearchApi'
 
-export type DashboardArea = 'seller' | 'super_admin' | 'warehouse_manager' | 'delivery_agent'
+export type DashboardArea =
+  | 'seller'
+  | 'super_admin'
+  | 'warehouse_manager'
+  | 'delivery_agent'
+  | 'payroll'
+  | 'employee'
 
 export type SearchConfig = {
   enabled: boolean

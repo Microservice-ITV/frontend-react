@@ -69,4 +69,51 @@ export const ROUTE_ACCESS = {
   sellerPendingApprovals: [CAPABILITIES.SELLER_DASHBOARD_VIEW],
   superAdminFinanceOverview: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
   superAdminFinanceTransactions: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+  /** HR — employee management, departments, positions, salary grades */
+  superAdminEmployees: [CAPABILITIES.PLATFORM_ADMIN_VIEW],
+  /** HR — attendance records, adjustments, overtime review */
+  attendanceRecords: [CAPABILITIES.ATTENDANCE_REVIEW],
+  /** HR — shift definitions */
+  attendanceShifts: [CAPABILITIES.ATTENDANCE_MANAGE],
+  /** HR — shift schedules and assignments */
+  attendanceSchedules: [CAPABILITIES.ATTENDANCE_MANAGE],
+  /** HR — overtime request approvals */
+  attendanceOvertime: [CAPABILITIES.ATTENDANCE_REVIEW],
+  /** Self-service attendance (all roles with attendance visibility) */
+  attendanceMy: [CAPABILITIES.ATTENDANCE_VIEW],
+  /** HR — leave types and policies configuration */
+  leaveConfig: [CAPABILITIES.LEAVE_MANAGE],
+  /** HR — leave balances and manual adjustments */
+  leaveBalances: [CAPABILITIES.LEAVE_MANAGE],
+  /** HR — all leave requests (create on behalf of employees) */
+  leaveRequests: [CAPABILITIES.LEAVE_MANAGE],
+  /** HR — leave approval queue */
+  leaveApprovals: [CAPABILITIES.LEAVE_REVIEW],
+  /** Self-service leave (balances, requests, cancel) */
+  leaveMy: [CAPABILITIES.LEAVE_VIEW],
+  /** Warehouse manager — leave requests from their staff (read-only) */
+  warehouseLeaveRequests: [CAPABILITIES.LEAVE_VIEW],
+  /** Warehouse manager — approval queue scoped to their own staff */
+  warehouseLeaveApprovals: [CAPABILITIES.LEAVE_REVIEW],
+  /** HR / payroll — payroll policy configuration */
+  payrollPolicies: [CAPABILITIES.PAYROLL_POLICIES_MANAGE],
+  /** Payroll runs list & detail */
+  payrollRuns: [CAPABILITIES.PAYROLL_VIEW],
+  /** Payslip administration */
+  payrollPayslips: [CAPABILITIES.PAYSLIP_VIEW],
+  /** Salary payment records */
+  payrollPayments: [CAPABILITIES.PAYROLL_VIEW],
+  /** Payroll dashboard area root (any payroll-capable role) */
+  payrollDashboard: [CAPABILITIES.PAYROLL_VIEW, CAPABILITIES.PAYSLIP_VIEW_OWN],
+  /** Self-service performance */
+  performanceMy: [CAPABILITIES.PERFORMANCE_READ_OWN],
+  performanceCycles: [CAPABILITIES.PERFORMANCE_READ],
+  performanceKpis: [CAPABILITIES.PERFORMANCE_READ],
+  performanceReviews: [CAPABILITIES.PERFORMANCE_READ],
+  performanceReviewsManage: [CAPABILITIES.PERFORMANCE_MANAGE],
+  performanceReviewsReview: [CAPABILITIES.PERFORMANCE_REVIEW],
+  bonusPolicies: [CAPABILITIES.BONUS_POLICIES_MANAGE],
+  bonusAwards: [CAPABILITIES.BONUS_READ],
+  /** Self-service payslips */
+  payrollMyPayslips: [CAPABILITIES.PAYSLIP_VIEW_OWN],
 } as const

@@ -451,7 +451,12 @@ export function getSearchConfig(key: string): SearchConfig | undefined {
 }
 
 export function getSearchConfigsForArea(area: DashboardArea): SearchConfig[] {
-  if (area === 'warehouse_manager' || area === 'delivery_agent') return []
+  if (
+    area === 'warehouse_manager' ||
+    area === 'delivery_agent' ||
+    area === 'employee'
+  )
+    return []
   return Object.entries(searchConfigs)
     .filter(([key]) => key.startsWith(area === 'seller' ? 'seller-' : 'admin-'))
     .map(([, config]) => config)

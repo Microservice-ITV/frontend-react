@@ -12,6 +12,7 @@ export interface User {
   role_name?: string | null;
   active_shop_id?: string | null;
   active_shop_name?: string | null;
+  active_shop_role?: string | null;
   /** Shop IDs where this user is assigned as staff (customer login; staff-only features). */
   staff_shop_ids?: string[] | null;
   roles?: Array<string | { code?: string; name?: string }>;

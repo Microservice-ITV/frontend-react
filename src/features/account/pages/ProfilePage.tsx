@@ -1,7 +1,8 @@
-import { FormEvent, useEffect, useRef, useState, ChangeEvent } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState, ChangeEvent } from "react";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import {
   Camera,
+  CalendarPlus,
   ChevronDown,
   Loader2,
   Lock,
@@ -9,13 +10,39 @@ import {
   User,
   CheckCircle2,
   AlertCircle,
+  XCircle,
 } from "lucide-react";
 import ChangeEmailModal from "../components/ChangeEmailModal";
 import ChangePasswordModal from "../components/ChangePasswordModal";
 import ChangePhoneModal from "../components/ChangePhoneModal";
 import SetPasswordModal from "../components/SetPasswordModal";
 import SetPhoneModal from "../components/SetPhoneModal";
+import DataTable, { type DataTableColumn } from "@/components/ui/DataTable";
+import RowActionMenu from "@/components/ui/RowActionMenu";
+import { useGlobalModal } from "@/components/ui/GlobalModalProvider";
+import {
+  FormField,
+  primaryButtonClass,
+  textInputClass,
+} from "@/features/employees/components/forms/FormField";
+import { useCan } from "@/app/rbac/hooks";
+import { CAPABILITIES } from "@/app/rbac/capabilities";
+import { leaveApi, leaveErrorMessage } from "@/features/leave/api/leaveApi";
+import { LeaveRequestStatusBadge } from "@/features/leave/components/LeaveBadges";
+import {
+  useLeavePolicies,
+  useMyLeaveBalances,
+  useMyLeaveRequests,
+} from "@/features/leave/hooks/useLeaveData";
+import {
+  formatDate,
+  formatDays,
+  type LeaveBalance,
+  type LeaveRequest,
+  type LeaveRequestPayload,
+} from "@/features/leave/types/leaveTypes";
 import { authFeatureApi } from "@/features/auth/api/authApi";
+import { employeeApi } from "@/features/employees/api/employeeApi";
 import {
   PROFILE_IMAGE_ACCEPT,
   PROFILE_IMAGE_HINT,
@@ -40,6 +67,8 @@ const MONTHS = [
   "November",
   "December",
 ];
+
+const currentYear = new Date().getFullYear();
 
 const parseDateOfBirth = (value: string | null | undefined) => {
   const date = value?.slice(0, 10);
@@ -81,6 +110,38 @@ const ProfilePage = () => {
   const [isSetPhoneModalOpen, setIsSetPhoneModalOpen] = useState(false);
   const [isSetPasswordModalOpen, setIsSetPasswordModalOpen] = useState(false);
 
+  // Self-service leave is shown to employees/staff who have a linked HR
+  // employee record. The lookup also confirms their managed department.
+  const { openModal } = useGlobalModal();
+  const canViewLeave = useCan(CAPABILITIES.LEAVE_VIEW);
+  const [leaveProfile, setLeaveProfile] = useState<{
+    loading: boolean;
+    found: boolean;
+    department?: string | null;
+    position?: string | null;
+  }>({ loading: false, found: false });
+  const [leaveStatus, setLeaveStatus] = useState("");
+  const leaveEnabled = canViewLeave && leaveProfile.found;
+  const { leavePolicies } = useLeavePolicies({ search: undefined }, leaveEnabled);
+  const {
+    leaveBalances,
+    loading: balancesLoading,
+    error: balancesError,
+  } = useMyLeaveBalances({ leave_year: currentYear }, leaveEnabled);
+  const {
+    leaveRequests,
+    loading: requestsLoading,
+    error: requestsError,
+    reload: reloadRequests,
+  } = useMyLeaveRequests({ status: leaveStatus || undefined }, leaveEnabled);
+
+  const activePolicies = useMemo(
+    () => leavePolicies.filter((policy) => policy.leave_type?.is_active !== false),
+    [leavePolicies],
+  );
+
+  const leaveRows = leaveRequests.slice(0, 5);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -118,6 +179,38 @@ const ProfilePage = () => {
       }
     };
   }, []);
+
+  // Look up the signed-in user's employee record so the leave form only
+  // appears for real staff (linked profile), and can show their department.
+  useEffect(() => {
+    if (!user || !canViewLeave) {
+      setLeaveProfile({ loading: false, found: false });
+      return;
+    }
+
+    let active = true;
+    setLeaveProfile({ loading: true, found: false });
+
+    employeeApi
+      .getMyEmployee()
+      .then((res) => {
+        if (!active) return;
+        const employee = res.data.data.employee;
+        setLeaveProfile({
+          loading: false,
+          found: true,
+          department: employee.department?.name ?? null,
+          position: employee.position?.title ?? null,
+        });
+      })
+      .catch(() => {
+        if (active) setLeaveProfile({ loading: false, found: false });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [user, canViewLeave]);
 
   const handlePhotoSelected = (e: ChangeEvent<HTMLInputElement>) => {
     photo.select(e.target.files?.[0]);
@@ -222,6 +315,176 @@ const ProfilePage = () => {
       setIsSaving(false);
     }
   };
+
+  const openLeaveRequest = () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const payload: LeaveRequestPayload = {
+      leave_policy_id: activePolicies[0]?.id ?? "",
+      start_date: today,
+      end_date: today,
+      reason: "",
+    };
+
+    openModal({
+      title: "Request leave",
+      content: (
+        <div className="grid gap-3">
+          <FormField label="Leave type" required>
+            <select
+              defaultValue={payload.leave_policy_id}
+              onChange={(event) => {
+                payload.leave_policy_id = event.target.value;
+              }}
+              className={textInputClass}
+            >
+              <option value="">Select a leave type</option>
+              {activePolicies.map((policy) => (
+                <option key={policy.id} value={policy.id}>
+                  {policy.leave_type?.name ?? policy.name}
+                </option>
+              ))}
+            </select>
+          </FormField>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <FormField label="Start date" required>
+              <input
+                type="date"
+                defaultValue={payload.start_date}
+                onChange={(event) => {
+                  payload.start_date = event.target.value;
+                }}
+                className={textInputClass}
+              />
+            </FormField>
+            <FormField label="End date" required>
+              <input
+                type="date"
+                defaultValue={payload.end_date}
+                onChange={(event) => {
+                  payload.end_date = event.target.value;
+                }}
+                className={textInputClass}
+              />
+            </FormField>
+          </div>
+          <FormField label="Reason">
+            <textarea
+              rows={3}
+              onChange={(event) => {
+                payload.reason = event.target.value;
+              }}
+              className={textInputClass}
+            />
+          </FormField>
+        </div>
+      ),
+      primaryLabel: "Submit request",
+      onPrimary: async () => {
+        try {
+          await leaveApi.createMyLeaveRequest({
+            ...payload,
+            reason: payload.reason || null,
+          });
+        } catch (err) {
+          throw new Error(leaveErrorMessage(err));
+        }
+        await reloadRequests();
+      },
+    });
+  };
+
+  const confirmLeaveCancel = (request: LeaveRequest) => {
+    const payload = { reason: "" };
+
+    openModal({
+      title: "Cancel leave request",
+      content: (
+        <div className="grid gap-3">
+          <p className="text-sm text-slate-500">
+            Cancel your {formatDays(request.requested_days)} request (
+            {formatDate(request.start_date)} → {formatDate(request.end_date)})?
+          </p>
+          <FormField label="Reason">
+            <textarea
+              rows={3}
+              onChange={(event) => {
+                payload.reason = event.target.value;
+              }}
+              className={textInputClass}
+            />
+          </FormField>
+        </div>
+      ),
+      primaryLabel: "Cancel request",
+      primaryVariant: "danger",
+      onPrimary: async () => {
+        try {
+          await leaveApi.cancelLeaveRequest(request.id, payload.reason || null);
+        } catch (err) {
+          throw new Error(leaveErrorMessage(err));
+        }
+        await reloadRequests();
+      },
+    });
+  };
+
+  const leaveRequestColumns: Array<DataTableColumn<LeaveRequest>> = [
+    {
+      key: "leave",
+      header: "Leave type",
+      render: (row) =>
+        row.leave_policy?.leave_type?.name ?? row.leave_policy?.name ?? "—",
+    },
+    {
+      key: "dates",
+      header: "Dates",
+      width: "200px",
+      hideBelow: "md",
+      render: (row) => (
+        <span className="text-xs text-slate-600">
+          {formatDate(row.start_date)} → {formatDate(row.end_date)}
+        </span>
+      ),
+    },
+    {
+      key: "days",
+      header: "Days",
+      width: "90px",
+      sortValue: (row) => Number(row.requested_days),
+      render: (row) => formatDays(row.requested_days),
+    },
+    {
+      key: "status",
+      header: "Status",
+      width: "120px",
+      sortValue: (row) => row.status,
+      render: (row) => <LeaveRequestStatusBadge status={row.status} />,
+    },
+    {
+      key: "actions",
+      header: "",
+      align: "right",
+      width: "60px",
+      render: (row) =>
+        row.status === "PENDING" ? (
+          <RowActionMenu
+            ariaLabel="Leave request actions"
+            items={[
+              {
+                key: "cancel",
+                label: "Cancel request",
+                icon: <XCircle size={16} className="shrink-0 text-rose-600" />,
+                className:
+                  "flex w-full items-center gap-3 px-4 py-2 text-left text-xs text-red-600 hover:bg-slate-50 cursor-pointer",
+                onClick: () => confirmLeaveCancel(row),
+              },
+            ]}
+          />
+        ) : null,
+    },
+  ];
+
+  const showLeaveSection = canViewLeave && leaveProfile.found;
 
   return (
     <div className="bg-white rounded-lg border border-slate-200/80 shadow-xs p-6 sm:p-8 flex-1 flex flex-col justify-between h-full">
@@ -662,6 +925,116 @@ const ProfilePage = () => {
           </button>
         </div>
       </div>
+
+      {showLeaveSection && (
+        <section className="mt-8 border-t border-slate-100 pt-6 space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                My Leave
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                {leaveProfile.department
+                  ? `Request leave for your ${leaveProfile.department} position.`
+                  : "Submit a leave request and track its status."}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              className={primaryButtonClass}
+              onClick={openLeaveRequest}
+            >
+              <CalendarPlus size={16} />
+              Request leave
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              My balances
+            </h3>
+            <DataTable<LeaveBalance>
+              columns={[
+                {
+                  key: "leave",
+                  header: "Leave type",
+                  render: (row) => (
+                    <span className="font-medium text-slate-900">
+                      {row.leave_policy?.leave_type?.name ??
+                        row.leave_policy?.name ??
+                        "—"}
+                    </span>
+                  ),
+                },
+                {
+                  key: "entitled",
+                  header: "Entitled",
+                  width: "110px",
+                  render: (row) => formatDays(row.entitled_days),
+                },
+                {
+                  key: "pending",
+                  header: "Pending",
+                  width: "110px",
+                  hideBelow: "md",
+                  render: (row) => formatDays(row.pending_days),
+                },
+                {
+                  key: "available",
+                  header: "Available",
+                  width: "120px",
+                  render: (row) => (
+                    <span className="font-medium text-slate-900">
+                      {formatDays(row.available_days ?? 0)}
+                    </span>
+                  ),
+                },
+              ]}
+              rows={leaveBalances}
+              rowKey={(row) => row.id}
+              loading={balancesLoading}
+              error={balancesError}
+              emptyMessage="No leave balances yet."
+              itemLabel="balances"
+              minWidth="560px"
+              fixedLayout
+            />
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                My requests
+              </h3>
+
+              <select
+                value={leaveStatus}
+                onChange={(event) => setLeaveStatus(event.target.value)}
+                className="px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-md text-slate-700 focus:outline-none focus:border-emerald-600 cursor-pointer"
+              >
+                <option value="">All statuses</option>
+                <option value="PENDING">Pending</option>
+                <option value="APPROVED">Approved</option>
+                <option value="REJECTED">Rejected</option>
+                <option value="CANCELLED">Cancelled</option>
+              </select>
+            </div>
+
+            <DataTable<LeaveRequest>
+              columns={leaveRequestColumns}
+              rows={leaveRows}
+              rowKey={(row) => row.id}
+              loading={requestsLoading}
+              error={requestsError}
+              emptyMessage="No leave requests yet."
+              itemLabel="requests"
+              minWidth="640px"
+              fixedLayout
+            />
+          </div>
+        </section>
+      )}
 
       <ChangeEmailModal
         isOpen={isEmailModalOpen}
