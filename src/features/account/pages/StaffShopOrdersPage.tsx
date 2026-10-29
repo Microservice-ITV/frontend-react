@@ -6,6 +6,8 @@ import ModalDrawer from '@/components/ui/ModalDrawer'
 import DataTablePagination from '@/components/ui/DataTablePagination'
 import { Typing } from '@/components/loading-ui/typing'
 import OrderProductImage from '../components/OrderProductImage'
+import CheckoutDeliveryCompanySelect from '@/features/checkout/components/CheckoutDeliveryCompanySelect'
+import type { CheckoutDeliveryCompany } from '@/features/shipping/hooks/useCheckoutDeliveryCompany'
 import { isShopStaffUser } from '@/features/checkout/utils/staffCheckoutCustomer'
 import {
   staffShopOrdersApi,
@@ -72,10 +74,29 @@ const ShipOrderModal = ({ order, shopId, onClose, onShipped }: ShipModalProps) =
     Object.fromEntries(order.items.map((_, index) => [index, true])),
   )
   const [wayBillNo, setWayBillNo] = useState(order.wayBillNo ?? '')
+  const [companies, setCompanies] = useState<CheckoutDeliveryCompany[] | null>(null)
+  const [deliveryCompanyId, setDeliveryCompanyId] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const allPacked = order.items.length > 0 && order.items.every((_, index) => packed[index])
+  const companyReady = companies !== null && (companies.length === 0 || deliveryCompanyId !== '')
   const address = order.deliveryAddress
+
+  useEffect(() => {
+    let cancelled = false
+    staffShopOrdersApi.deliveryCompanies(shopId)
+      .then((rows) => {
+        if (cancelled) return
+        setCompanies(rows)
+        if (rows.length === 1) setDeliveryCompanyId(rows[0].id)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setCompanies([])
+        setError(errorMessage(err, 'Delivery companies could not be loaded.'))
+      })
+    return () => { cancelled = true }
+  }, [shopId])
 
   const toggleSelectAll = (checked: boolean) => {
     setPacked(Object.fromEntries(order.items.map((_, index) => [index, checked])))
@@ -85,7 +106,7 @@ const ShipOrderModal = ({ order, shopId, onClose, onShipped }: ShipModalProps) =
     setSubmitting(true)
     setError('')
     try {
-      await staffShopOrdersApi.ship(order.orderId, shopId, wayBillNo.trim())
+      await staffShopOrdersApi.ship(order.orderId, shopId, wayBillNo.trim(), deliveryCompanyId)
       onShipped(order.orderId)
     } catch (err) {
       setError(errorMessage(err, 'Failed to ship this order. Please try again.'))
@@ -117,7 +138,7 @@ const ShipOrderModal = ({ order, shopId, onClose, onShipped }: ShipModalProps) =
           <button
             type="button"
             onClick={() => void submit()}
-            disabled={!allPacked || !wayBillNo.trim() || submitting}
+            disabled={!allPacked || !wayBillNo.trim() || !companyReady || submitting}
             className="inline-flex items-center gap-2 rounded-sm bg-[#008f51] px-4 py-2 text-sm font-semibold text-white hover:bg-[#007a45] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitting ? <Typing className="h-5 w-6 text-white!" /> : <><Truck size={16} /> Ship order</>}
@@ -171,6 +192,19 @@ const ShipOrderModal = ({ order, shopId, onClose, onShipped }: ShipModalProps) =
               ))}
             </ul>
           </div>
+
+          {(companies === null || companies.length > 0) && (
+            <div>
+              <p className="mb-2 text-xs font-semibold text-slate-700">Delivery company <span className="text-red-600">*</span></p>
+              <CheckoutDeliveryCompanySelect
+                companies={companies ?? []}
+                selectedId={deliveryCompanyId}
+                loading={companies === null}
+                error=""
+                onSelect={setDeliveryCompanyId}
+              />
+            </div>
+          )}
 
           <label className="block">
             <span className="mb-1 block text-xs font-semibold text-slate-700">Waybill No <span className="text-red-600">*</span></span>

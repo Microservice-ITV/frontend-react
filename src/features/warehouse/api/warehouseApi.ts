@@ -109,11 +109,11 @@ export const warehouseApi = {
     )
   },
 
-  /** Seller sets the unit price of one stock row; null goes back to the PO price. */
-  updateStockUnitPrice(stockId: string, unitPrice: number | null) {
+  /** Seller sets the actual exchange rate of a received PO; its unit price is recalculated. */
+  updateStockExchangeRate(stockId: string, purchaseOrderId: string, exchangeRate: number) {
     return warehouseClient.patch<
-      Envelope<{ id: string; unitPriceOverride: number | null }>
-    >(`/inventory/stocks/${stockId}/unit-price`, { unitPrice })
+      Envelope<{ purchaseOrderId: string; exchangeRate: number }>
+    >(`/inventory/stocks/${stockId}/exchange-rate`, { purchaseOrderId, exchangeRate })
   },
 
   increaseStock(payload: StockMutationPayload & { movementType?: string }) {

@@ -84,7 +84,7 @@ function isCompany(value: unknown): value is CheckoutDeliveryCompany {
   )
 }
 
-function readActiveCompanies(data: unknown): CheckoutDeliveryCompany[] {
+export function readActiveCompanies(data: unknown): CheckoutDeliveryCompany[] {
   const root = data && typeof data === 'object' ? (data as { data?: unknown }).data ?? data : null
   const body = root && typeof root === 'object' ? (root as Record<string, unknown>) : {}
   const companies = Array.isArray(body.companies) ? body.companies.filter(isCompany) : []

@@ -76,6 +76,19 @@ export interface InventoryStock {
   poUnitPrice?: number | null
   /** Seller-entered unit price (null = follow the PO). */
   unitPriceOverride?: number | null
+  /** Posted POs that supplied this variant, newest first. */
+  poHistory?: Array<{
+    purchaseOrderId: string
+    orderNumber: string
+    receivedAt: string | null
+    quantity: number
+    unitPrice: number
+    currency: string
+    /** Rate entered on the PO. */
+    poExchangeRate: number
+    /** Received rate if set, else the PO rate; unitPrice is based on it. */
+    exchangeRate: number
+  }>
   length?: number | null
   width?: number | null
   height?: number | null
