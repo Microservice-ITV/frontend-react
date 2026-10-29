@@ -228,6 +228,9 @@ export const THERMAL_PRINT_STYLES_58MM = `
   /* Dashboard invoice printing uses a body-level copy of the same print sheet
      as PDF downloads, so dashboard layout cannot extend the roll page. */
   body.thermal-invoice-printing #root { display: none !important; }
+  body.thermal-printing .thermal-print-source { display: block !important; }
+  body.thermal-invoice-printing .thermal-print-source { display: none !important; }
+  body.thermal-printing [data-thermal-pdf-preview] { height: auto !important; min-height: 0 !important; overflow: visible !important; border: 0 !important; box-shadow: none !important; }
 
   html:has(body.thermal-printing),
   body.thermal-printing,

@@ -67,8 +67,8 @@ export function loadAllCities(): Promise<CityOptionWithState[]> {
 }
 
 /**
- * Loads every district under every city. District ids are the auth `districts.id`
- * stored as text on `delivery_city_rates.from_district_id` / `to_district_id`.
+ * Loads every district under every city. District ids are the auth `districts.id`.
+ * City-route rates store auth `cities.id` on `from_district_id` / `to_district_id`.
  */
 export function loadAllDistricts(): Promise<DistrictOptionWithCity[]> {
   if (!districtsPromise) {

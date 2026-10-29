@@ -8,6 +8,9 @@ import InvoiceTableSkeleton from '@/features/invoices/components/InvoiceTableSke
 import { formatInvoiceNumber } from '@/features/invoices/lib/invoiceFormat'
 import { useAppSelector } from '@/app/hooks'
 import { selectIsAuthenticated } from '@/features/auth/store/authSelectors'
+import { selectAuthUser } from '@/features/auth/store/authSelectors'
+import { hasStaffInvoiceAccess } from '@/features/invoices/lib/staffInvoiceAccess'
+import ScopedInvoiceDetailPage from '@/features/invoices/pages/ScopedInvoiceDetailPage'
 import { usePageTitle } from '@/components/routing/PageTitle'
 
 /**
@@ -18,6 +21,8 @@ import { usePageTitle } from '@/components/routing/PageTitle'
 const CustomerInvoiceDetailPage = () => {
   const { invoiceNumber } = useParams<{ invoiceNumber: string }>()
   const isAuthenticated = useAppSelector(selectIsAuthenticated)
+  const authUser = useAppSelector(selectAuthUser)
+  const isStaffInvoiceView = hasStaffInvoiceAccess(authUser)
 
   const [invoice, setInvoice] = useState<InvoiceDocument | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -29,6 +34,11 @@ const CustomerInvoiceDetailPage = () => {
   usePageTitle(invoice?.invoiceNumber ? `Invoice ${invoice.invoiceNumber}` : 'Invoice')
 
   const loadInvoice = useCallback(async () => {
+    if (isStaffInvoiceView) {
+      setInvoice(null)
+      setIsLoading(false)
+      return
+    }
     if (!isAuthenticated) {
       setInvoice(null)
       setIsLoading(false)
@@ -47,7 +57,7 @@ const CustomerInvoiceDetailPage = () => {
     } finally {
       setIsLoading(false)
     }
-  }, [invoiceNumber, isAuthenticated])
+  }, [invoiceNumber, isAuthenticated, isStaffInvoiceView])
 
   useEffect(() => {
     void loadInvoice()
@@ -70,6 +80,10 @@ const CustomerInvoiceDetailPage = () => {
     } finally {
       setIsDownloading(false)
     }
+  }
+
+  if (isStaffInvoiceView) {
+    return <ScopedInvoiceDetailPage backTo="/account/invoices" backLabel="Back to invoices" />
   }
 
 return (
