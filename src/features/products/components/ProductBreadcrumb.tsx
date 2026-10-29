@@ -7,7 +7,7 @@ interface Props {
 
 const ProductBreadcrumb = ({ product }: Props) => {
     return (
-        <nav className="flex items-center text-sm text-gray-500">
+        <nav className="hidden md:flex items-center text-sm text-gray-500">
             <Link to="/" className="hover:text-blue-600">
                 Home
             </Link>

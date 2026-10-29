@@ -5,7 +5,27 @@
     <link rel="icon" type="image/svg+xml" href="/shop-icon-square.svg?v=5" />
     <link rel="shortcut icon" href="/shop-icon-square.svg?v=5" />
     <link rel="apple-touch-icon" href="/shop-icon-square.svg?v=5" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <!-- Must apply before the app bundle's CSS loads, otherwise the reCAPTCHA
+         badge (fixed, offset past the right edge) widens the page on mobile. -->
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+        overflow-x: clip;
+      }
+      #root {
+        max-width: 100%;
+        overflow-x: clip;
+      }
+      .grecaptcha-badge {
+        display: none !important;
+      }
+    </style>
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

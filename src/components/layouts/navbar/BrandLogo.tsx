@@ -24,7 +24,7 @@ const BrandLogo = ({ compactOnMobile = true }: BrandLogoProps) => {
 
       {compactOnMobile ? (
         <>
-          <span className="block text-xl font-bold tracking-wide md:hidden">DNI</span>
+          <span className="block whitespace-nowrap text-base font-bold min-[360px]:text-lg md:hidden">Daily Need Items</span>
           <span className="hidden min-w-0 md:flex md:flex-col md:leading-tight">
             <span className="text-xl font-bold sm:text-2xl">Daily Need Items</span>
             <span className="text-[11px] font-medium normal-case text-slate-500 sm:text-xs">
