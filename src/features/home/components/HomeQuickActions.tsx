@@ -56,14 +56,14 @@ const HomeQuickActions = () => {
         to="#"
         className="group flex flex-col items-center gap-2 text-center"
       >
-        <div className="w-16 h-16 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden transition-all group-hover:border-gray-200 group-hover:shadow-md">
+        <div className="flex h-17 w-17 items-center justify-center overflow-hidden rounded-2xl border border-gray-100 bg-gray-50 transition-all group-hover:border-gray-200 group-hover:shadow-md">
           {feature.iconUrl ? (
             <ResponsiveAssetImage
               src={feature.iconUrl}
               alt={feature.name}
               className="max-w-[80%] max-h-[80%] object-contain transition-transform group-hover:scale-105"
-              variant="thumb"
-              sizes="64px"
+              variant="full"
+              lockVariant
               loading="lazy"
             />
           ) : (
