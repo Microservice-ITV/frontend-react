@@ -54,7 +54,7 @@ const initialState: CheckoutState = {
     clientSecret: null,
     isPlacingOrder: false,
     isAwaitingFinalStatus: false,
-    paymentMethod: 'prepaid',
+    paymentMethod: 'cod',
     sessionPaymentMethod: null,
     prepaidProvider: 'card',
     cashTender: null,
@@ -85,6 +85,7 @@ const checkoutSlice = createSlice({
             state.loading = false
             state.isPlacingOrder = false
             state.isAwaitingFinalStatus = false
+            state.paymentMethod = 'cod'
             state.sessionPaymentMethod = null
             state.prepaidProvider = 'card'
             state.cashTender = null
