@@ -96,4 +96,18 @@ export default defineConfig({
       '@': fileURLToPath(new URL('.', import.meta.url)),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Only isolate libs that stay out of the entry graph. Forcing splits for
+        // packages that share React (maps/stripe/leaflet/socket) causes those
+        // chunks to be modulepreloaded on every refresh.
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return
+          if (id.includes('xlsx')) return 'vendor-xlsx'
+          if (id.includes('pdfjs-dist')) return 'vendor-pdf'
+        },
+      },
+    },
+  },
 })

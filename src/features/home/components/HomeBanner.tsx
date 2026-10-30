@@ -10,10 +10,12 @@ const BannerImage = ({
   src,
   alt,
   className,
+  priority = false,
 }: {
   src?: string;
   alt: string;
   className: string;
+  priority?: boolean;
 }) => {
   const [failed, setFailed] = useState(false);
 
@@ -27,7 +29,9 @@ const BannerImage = ({
           src={src}
           alt={alt}
           className="absolute inset-0 h-full w-full object-cover"
-          loading="lazy"
+          loading={priority ? "eager" : "lazy"}
+          decoding="async"
+          fetchPriority={priority ? "high" : "low"}
           onError={() => setFailed(true)}
         />
       ) : null}
@@ -130,12 +134,13 @@ const HomeBanner = () => {
               className="flex transition-transform duration-500"
               style={{ transform: `translateX(-${current * 100}%)` }}
             >
-              {heroSlides.map((banner) => (
+              {heroSlides.map((banner, index) => (
                 <div key={banner.key} className="min-w-full">
                   <BannerImage
                     src={banner.imageUrl}
                     alt="Hero Banner"
                     className="w-full h-[235px] object-cover"
+                    priority={index === 0}
                   />
                 </div>
               ))}

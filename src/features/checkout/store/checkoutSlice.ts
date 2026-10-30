@@ -40,6 +40,8 @@ interface CheckoutState {
     taxQuoting: boolean
     loading: boolean
     error: string | null
+    /** True while checkout shows its preparing loader (hides storefront footer). */
+    isPreparingUi: boolean
 }
 
 const initialState: CheckoutState = {
@@ -61,6 +63,7 @@ const initialState: CheckoutState = {
     taxQuoting: false,
     loading: false,
     error: null,
+    isPreparingUi: false,
 }
 
 const checkoutSlice = createSlice({
@@ -88,6 +91,10 @@ const checkoutSlice = createSlice({
             state.taxAmount = 0
             state.itemTaxes = []
             state.taxQuoting = false
+            state.isPreparingUi = false
+        },
+        setCheckoutPreparingUi(state, action: { payload: boolean }) {
+            state.isPreparingUi = action.payload
         },
         setPaymentMethod(state, action: { payload: PaymentMethod }) {
             state.paymentMethod = action.payload
@@ -328,6 +335,7 @@ export const {
     setCheckoutTaxAmount,
     setItemTaxes,
     setTaxQuoting,
+    setCheckoutPreparingUi,
 } = checkoutSlice.actions
 
 export const selectPrepaidProvider = (state: { checkout: CheckoutState }) =>

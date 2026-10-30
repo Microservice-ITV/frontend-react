@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { matchPath, useLocation, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { bootstrapAuth, fetchMe } from '@/features/auth/store/authThunks'
@@ -14,9 +14,14 @@ import { extractRoleFromUser } from '@/app/rbac/normalizers'
 import { getDefaultLandingPathByRole } from '@/app/rbac/navigation'
 import SpinPage from '@/components/spin/SpinPage'
 import { HomeScreenReadyProvider } from '@/features/home/homeScreenReady'
-import { AIAssistantWidget } from '@/components/ai/AIAssistantWidget'
 import { useNotificationRealtime } from '@/features/notifications/socket/useNotificationRealtime'
 import { isInvoicePrintRoute } from '@/routes/invoicePrintRoutes'
+
+const AIAssistantWidget = lazy(() =>
+  import('@/components/ai/AIAssistantWidget').then((m) => ({
+    default: m.AIAssistantWidget,
+  })),
+)
 
 const CONTENT_READY_TIMEOUT_MS = 12000
 
@@ -27,6 +32,7 @@ function App() {
   const { pathname } = useLocation()
   const userId = useAppSelector((state) => state.auth.user?.id ?? null)
   const accessToken = useAppSelector((state) => state.auth.accessToken)
+  const isCheckoutPreparingUi = useAppSelector((state) => state.checkout.isPreparingUi)
   const [isHomeScreenReady, setIsHomeScreenReady] = useState(false)
   const [contentSettled, setContentSettled] = useState(false)
   const mainRef = useRef<HTMLElement>(null)
@@ -182,7 +188,7 @@ function App() {
           </div>
         </main>
 
-        {!hideGlobalChrome && !showSplash && <Footer />}
+        {!hideGlobalChrome && !showSplash && !isCheckoutPreparingUi && <Footer />}
 
         {showSplash && (
           <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#f5f5f5]">
@@ -190,7 +196,11 @@ function App() {
           </div>
         )}
 
-        {!showSplash && !isDashboardRoute && <AIAssistantWidget />}
+        {!showSplash && !isDashboardRoute && !isCheckoutPreparingUi && (
+          <Suspense fallback={null}>
+            <AIAssistantWidget />
+          </Suspense>
+        )}
       </div>
     </HomeScreenReadyProvider>
   )

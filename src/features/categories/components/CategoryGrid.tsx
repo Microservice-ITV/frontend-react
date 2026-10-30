@@ -41,6 +41,7 @@ const CategoryImage = ({ src, alt }: { src?: string; alt: string }) => {
             loaded ? "opacity-100" : "opacity-0",
           ].join(" ")}
           loading="lazy"
+          decoding="async"
           onLoad={() => setLoaded(true)}
           onError={() => {
             setFailed(true);

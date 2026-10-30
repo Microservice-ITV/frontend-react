@@ -147,7 +147,15 @@ const BundlePromoBanner = ({ bundles, addingId, onAdd }: BundlePromoBannerProps)
                       aria-label={`Select ${item.name}`}
                     />
                     <div className="h-12 w-12 shrink-0 overflow-hidden rounded bg-slate-100">
-                      {item.image && <img src={productServiceAssetUrl(item.image)} alt="" className="h-full w-full object-cover" />}
+                      {item.image && (
+                        <img
+                          src={productServiceAssetUrl(item.image)}
+                          alt=""
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      )}
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm text-gray-900">{item.name}</p>

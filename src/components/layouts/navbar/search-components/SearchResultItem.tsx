@@ -31,6 +31,8 @@ const SearchResultItem = ({
               src={product.images[0]}
               alt={product.name}
               className="w-full h-full object-cover"
+              loading="lazy"
+              decoding="async"
             />
           ) : (
             <Search size={16} className="text-gray-400" />

@@ -1,10 +1,22 @@
-import { GoogleMapLocationPicker } from './googleMapLocationPicker'
+import { lazy, Suspense } from 'react'
 import { MapErrorBoundary } from './MapErrorBoundary'
-import { OpenStreetMapLocationPicker } from './openStreetMapLocationPicker'
 import type { MapLocationPickerProps } from './mapLocationPickerTypes'
+import { MAP_PICKER_HEIGHT_PX } from './mapConstants'
 
 export type { MapLocationPickerProps } from './mapLocationPickerTypes'
 export { DEFAULT_MAP_CENTER, MAP_PICKER_HEIGHT_PX } from './mapConstants'
+
+const GoogleMapLocationPicker = lazy(() =>
+  import('./googleMapLocationPicker').then((m) => ({
+    default: m.GoogleMapLocationPicker,
+  })),
+)
+
+const OpenStreetMapLocationPicker = lazy(() =>
+  import('./openStreetMapLocationPicker').then((m) => ({
+    default: m.OpenStreetMapLocationPicker,
+  })),
+)
 
 /** `google` = Google Maps (needs key + billing). `osm` = free Leaflet tiles (default/fallback). */
 export function getMapProvider(): 'osm' | 'google' {
@@ -33,5 +45,15 @@ export function MapLocationPicker(props: MapLocationPickerProps) {
             <OpenStreetMapLocationPicker {...props} />
         )
 
-    return <MapErrorBoundary>{picker}</MapErrorBoundary>
+    return (
+      <MapErrorBoundary>
+        <Suspense
+          fallback={
+            <div className="w-full" style={{ height: MAP_PICKER_HEIGHT_PX }} aria-hidden />
+          }
+        >
+          {picker}
+        </Suspense>
+      </MapErrorBoundary>
+    )
 }
