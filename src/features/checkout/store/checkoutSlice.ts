@@ -54,7 +54,7 @@ const initialState: CheckoutState = {
     clientSecret: null,
     isPlacingOrder: false,
     isAwaitingFinalStatus: false,
-    paymentMethod: 'cod',
+    paymentMethod: 'prepaid',
     sessionPaymentMethod: null,
     prepaidProvider: 'card',
     cashTender: null,

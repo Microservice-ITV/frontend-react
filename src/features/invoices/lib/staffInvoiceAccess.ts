@@ -1,6 +1,6 @@
 import { CAPABILITIES } from '@/app/rbac/capabilities'
 import { ROLE_CAPABILITIES } from '@/app/rbac/policies'
-import { extractRoleFromUser } from '@/app/rbac/normalizers'
+import { extractRolesFromUser } from '@/app/rbac/normalizers'
 import type { User } from '@/features/auth/types/authTypes'
 
 /**
@@ -12,7 +12,7 @@ import type { User } from '@/features/auth/types/authTypes'
 export const hasStaffInvoiceAccess = (user: User | null): boolean => {
   if (!user) return false
 
-  const capabilities = ROLE_CAPABILITIES[extractRoleFromUser(user)] ?? []
+  const capabilities = ROLE_CAPABILITIES[extractRolesFromUser(user)] ?? []
   const hasSellerCapability = capabilities.includes(CAPABILITIES.SELLER_DASHBOARD_VIEW)
   const hasStaffMembership = (user.staff_shop_ids ?? []).some((shopId) => shopId.trim().length > 0)
   return hasSellerCapability || hasStaffMembership

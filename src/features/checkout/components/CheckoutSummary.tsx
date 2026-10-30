@@ -50,6 +50,9 @@ import {
 
 let activeCartTaxRequest = 0
 
+const QUANTITY_APPROVAL_PENDING_MESSAGE =
+  'You have a quantity approval waiting. You can place a new order after it is approved or rejected.'
+
 interface CheckoutSummaryProps {
   checkout: CheckoutTotals
   /** On by default. Off places the order with a delivery fee of 0.00. */
@@ -243,6 +246,7 @@ const CheckoutSummary = ({
   const [phoneModalOpen, setPhoneModalOpen] = useState(false)
   const [shopApprovalModalOpen, setShopApprovalModalOpen] = useState(false)
   const [shopApprovalRejected, setShopApprovalRejected] = useState(false)
+  const [pendingApprovalBlockOpen, setPendingApprovalBlockOpen] = useState(false)
   const [emailVerifyModalOpen, setEmailVerifyModalOpen] = useState(false)
   const [guestPhoneModalOpen, setGuestPhoneModalOpen] = useState(false)
   const [guestPhoneDigits, setGuestPhoneDigits] = useState<string[]>(() => Array(6).fill(''))
@@ -278,6 +282,12 @@ const CheckoutSummary = ({
     !staffCheckout &&
     checkoutAttemptCount >= 3 &&
     !emailChallengePassed
+
+  useEffect(() => {
+    if (typeof error === 'string' && error.includes(QUANTITY_APPROVAL_PENDING_MESSAGE)) {
+      setPendingApprovalBlockOpen(true)
+    }
+  }, [error])
 
   useEffect(() => {
     if (!phoneModalOpen && !emailVerifyModalOpen) return
@@ -895,6 +905,17 @@ const CheckoutSummary = ({
         return
       }
 
+      if (responseData?.code === 'quantity_approval_pending') {
+        dispatch(setCheckoutError(
+          typeof responseData.error === 'string' && responseData.error.trim()
+            ? responseData.error
+            : QUANTITY_APPROVAL_PENDING_MESSAGE,
+        ))
+        dispatch(setAwaitingFinalStatus(false))
+        dispatch(setCheckoutPlacingOrder(false))
+        return
+      }
+
       if (
         responseData?.code === 'shop_admin_approval_required' ||
         responseData?.code === 'shop_admin_approval_rejected'
@@ -1133,6 +1154,66 @@ const CheckoutSummary = ({
                 Go to profile
                 <ArrowRight className="h-4 w-4" />
               </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+      {pendingApprovalBlockOpen && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <button
+            type="button"
+            aria-label="Close dialog"
+            className="absolute inset-0 h-full w-full cursor-default"
+            onClick={() => setPendingApprovalBlockOpen(false)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pending-approval-block-title"
+            className="relative z-10 w-full max-w-md bg-white rounded-sm shadow-lg"
+          >
+            <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-6 pt-5 pb-4">
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-emerald-50 text-emerald-600">
+                  <TriangleAlert className="h-5 w-5" />
+                </span>
+                <h2 id="pending-approval-block-title" className="text-lg font-medium text-gray-900">
+                  Quantity approval pending
+                </h2>
+              </div>
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={() => setPendingApprovalBlockOpen(false)}
+                className="cursor-pointer text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="px-6 py-4 text-sm leading-6 text-gray-700">
+              {QUANTITY_APPROVAL_PENDING_MESSAGE}
+            </div>
+            <div className="flex items-center justify-end gap-3 border-t border-gray-100 px-6 pt-4 pb-5">
+              <button
+                type="button"
+                onClick={() => setPendingApprovalBlockOpen(false)}
+                className="inline-flex cursor-pointer items-center justify-center border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 rounded-sm hover:bg-gray-50"
+              >
+                Close
+              </button>
+              {user && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPendingApprovalBlockOpen(false)
+                    navigate('/account/quantity-approvals')
+                  }}
+                  className="inline-flex cursor-pointer items-center justify-center bg-emerald-600 px-5 py-2 text-sm font-medium text-white rounded-sm hover:bg-emerald-700"
+                >
+                  Quantity Approvals
+                </button>
+              )}
             </div>
           </div>
         </div>,

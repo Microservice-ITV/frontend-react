@@ -28,6 +28,16 @@ const TOPBAR_ROUTE_CONFIG: Record<DashboardArea, TopbarRouteConfig> = {
     settingsPath: '/delivery-agent/overview',
     notificationsPath: '/delivery-agent/overview',
   },
+  payroll: {
+    newOrderPath: '#',
+    settingsPath: '/payroll/runs',
+    notificationsPath: '/payroll/runs',
+  },
+  employee: {
+    newOrderPath: '/employee/my-leave',
+    settingsPath: '/employee/my-leave',
+    notificationsPath: '/employee/my-leave',
+  },
 }
 
 export const getTopbarRouteConfig = (area: DashboardArea): TopbarRouteConfig =>

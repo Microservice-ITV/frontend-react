@@ -29,7 +29,6 @@ const WarehouseDetailPage = ({ base }: WarehouseDetailPageProps) => {
   const navigate = useNavigate()
   const paths = warehousePaths(base)
   const { openModal } = useGlobalModal()
-  const canMutateWarehouse = base === '/seller' || base === '/warehouse-manager'
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [warehouse, setWarehouse] = useState<Warehouse | null>(null)
@@ -91,12 +90,8 @@ const WarehouseDetailPage = ({ base }: WarehouseDetailPageProps) => {
       primaryVariant: 'danger',
       secondaryLabel: 'Cancel',
       onPrimary: async () => {
-        try {
-          await warehouseApi.deleteWarehouse(id)
-          navigate(paths.warehouses)
-        } catch (err) {
-          throw new Error(warehouseErrorMessage(err))
-        }
+        await warehouseApi.deleteWarehouse(id)
+        navigate(paths.warehouses)
       },
     })
   }
@@ -129,7 +124,6 @@ const WarehouseDetailPage = ({ base }: WarehouseDetailPageProps) => {
         <>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <h1 className="text-xl font-bold tracking-tight text-slate-900">{displayName}</h1>
-            {canMutateWarehouse && (
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -148,7 +142,6 @@ const WarehouseDetailPage = ({ base }: WarehouseDetailPageProps) => {
                 Delete
               </button>
             </div>
-            )}
           </div>
 
           <section className="space-y-2">

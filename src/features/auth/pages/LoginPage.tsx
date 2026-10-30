@@ -5,8 +5,10 @@ import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { fetchMe, login } from '@/features/auth/store/authThunks'
 import { setLoginDraft } from '@/features/auth/store/authSlice'
 import { getRecaptchaToken } from '@/utils/recaptcha'
-import { extractRoleFromUser } from '@/app/rbac/normalizers'
+import { extractRolesFromUser, extractRolesFromUser } from '@/app/rbac/normalizers'
 import { resolvePostLoginPath } from '@/app/rbac/navigation'
+import { selectRoleCapabilities } from '@/app/rbac/selectors'
+import { getEmployeePortalRoute } from '@/features/employees/utils/employeePortal'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
@@ -20,6 +22,7 @@ export const LoginPage = () => {
   const from = location.state?.from?.pathname || '/'
 
   const { status, isAuthenticated, user, error, loginDraft } = useAppSelector((s) => s.auth)
+  const userCapabilities = useAppSelector(selectRoleCapabilities)
 
   const [email, setEmail] = useState(loginDraft.email)
   const [password, setPassword] = useState(loginDraft.password)
@@ -50,11 +53,23 @@ export const LoginPage = () => {
   // Redirect after login success
   useEffect(() => {
     if (isAuthenticated && user) {
-      const role = extractRoleFromUser(user)
-      const nextPath = resolvePostLoginPath(role, from)
-      navigate(nextPath, { replace: true })
+      const handleRedirect = async () => {
+        // Check if user has an employee profile first
+        const portalRoute = await getEmployeePortalRoute(userCapabilities)
+        if (portalRoute) {
+          navigate(portalRoute, { replace: true })
+          return
+        }
+
+        // Fallback to role-based redirect for non-employee users
+        const role = extractRolesFromUser(user)
+        const nextPath = resolvePostLoginPath(role, from, extractRolesFromUser(user))
+        navigate(nextPath, { replace: true })
+      }
+
+      handleRedirect()
     }
-  }, [isAuthenticated, user, from, navigate])
+  }, [isAuthenticated, user, from, navigate, userCapabilities])
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 pt-8 pb-12 flex flex-col items-center">

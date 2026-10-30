@@ -114,7 +114,7 @@ const WarehouseFormPage = ({ base, mode }: WarehouseFormPageProps) => {
       }
       if (mode === 'edit' && id) {
         await warehouseApi.updateWarehouse(id, payload)
-        navigate(paths.warehouses)
+        navigate(paths.warehouseDetail(id))
       } else {
         await warehouseApi.createWarehouse(payload)
         navigate(paths.warehouses)

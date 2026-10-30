@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { BuyerHomeRoute, GuestRoute, ProtectedRoute } from "./RouteGuards";
+import RootEmployeeGuard from "./RootEmployeeGuard";
 import { ROUTE_ACCESS } from "./routeAccessMap";
 import { CATALOG_ENTITY_CONFIG } from "@/features/seller/config/catalogEntityConfig";
 import SpinPage from "@/components/spin/SpinPage";
@@ -57,6 +58,7 @@ const MediaContactPage = lazy(() => import("@/features/media/pages/MediaContactP
 const AmbassadorProgrammePage = lazy(() => import("@/features/ambassador/pages/AmbassadorProgrammePage"));
 const NotFoundPage = lazy(() => import("@/features/common/pages/NotFoundPage"));
 const AccountLayout = lazy(() => import("@/features/account/pages/AccountLayout"));
+const EmployeePortalLayout = lazy(() => import("@/features/account/components/EmployeePortalLayout"));
 const ProfilePage = lazy(() => import("@/features/account/pages/ProfilePage"));
 const BanksCardsPage = lazy(() => import("@/features/account/pages/BanksCardsPage"));
 const AddressesPage = lazy(() => import("@/features/account/pages/AddressesPage"));
@@ -82,6 +84,40 @@ const WarehouseOverviewPage = lazy(() => import("@/features/warehouse/pages/Ware
 const WarehousesPage = lazy(() => import("@/features/warehouse/pages/WarehousesPage"));
 const WarehouseDetailPage = lazy(() => import("@/features/warehouse/pages/WarehouseDetailPage"));
 const WarehouseFormPage = lazy(() => import("@/features/warehouse/pages/WarehouseFormPage"));
+const EmployeesPage = lazy(() => import("@/features/employees/pages/EmployeesPage"));
+const EmployeeFormPage = lazy(() => import("@/features/employees/pages/EmployeeFormPage"));
+const EmployeeDetailPage = lazy(() => import("@/features/employees/pages/EmployeeDetailPage"));
+const DepartmentsPage = lazy(() => import("@/features/employees/pages/DepartmentsPage"));
+const DesignationsPage = lazy(() => import("@/features/employees/pages/DesignationsPage"));
+const PositionsPage = lazy(() => import("@/features/employees/pages/PositionsPage"));
+const SalaryGradesPage = lazy(() => import("@/features/employees/pages/SalaryGradesPage"));
+const MyProfilePage = lazy(() => import("@/features/employees/pages/MyProfilePage"));
+const AttendanceRecordsPage = lazy(() => import("@/features/attendance/pages/AttendanceRecordsPage"));
+const ShiftsPage = lazy(() => import("@/features/attendance/pages/ShiftsPage"));
+const ShiftSchedulesPage = lazy(() => import("@/features/attendance/pages/ShiftSchedulesPage"));
+const OvertimeRequestsPage = lazy(() => import("@/features/attendance/pages/OvertimeRequestsPage"));
+const MyAttendancePage = lazy(() => import("@/features/attendance/pages/MyAttendancePage"));
+const LeaveTypesPage = lazy(() => import("@/features/leave/pages/LeaveTypesPage"));
+const LeavePoliciesPage = lazy(() => import("@/features/leave/pages/LeavePoliciesPage"));
+const LeaveSettingsPage = lazy(() => import("@/features/leave/pages/LeaveSettingsPage"));
+const LeaveBalancesPage = lazy(() => import("@/features/leave/pages/LeaveBalancesPage"));
+const LeaveRequestsPage = lazy(() => import("@/features/leave/pages/LeaveRequestsPage"));
+const LeaveApprovalsPage = lazy(() => import("@/features/leave/pages/LeaveApprovalsPage"));
+const MyLeavePage = lazy(() => import("@/features/leave/pages/MyLeavePage"));
+const PayrollPoliciesPage = lazy(() => import("@/features/payroll/pages/PayrollPoliciesPage"));
+const PayrollRunsPage = lazy(() => import("@/features/payroll/pages/PayrollRunsPage"));
+const PayrollRunDetailPage = lazy(() => import("@/features/payroll/pages/PayrollRunDetailPage"));
+const PayslipsPage = lazy(() => import("@/features/payroll/pages/PayslipsPage"));
+const MyPayslipsPage = lazy(() => import("@/features/payroll/pages/MyPayslipsPage"));
+const PaymentRecordsPage = lazy(() => import("@/features/payroll/pages/PaymentRecordsPage"));
+const PerformanceCyclesPage = lazy(() => import("@/features/performance/pages").then((m) => ({ default: m.PerformanceCyclesPage })));
+const KpisPage = lazy(() => import("@/features/performance/pages").then((m) => ({ default: m.KpisPage })));
+const PerformanceReviewsPage = lazy(() => import("@/features/performance/pages").then((m) => ({ default: m.PerformanceReviewsPage })));
+const PerformanceCycleDetailPage = lazy(() => import("@/features/performance/pages").then((m) => ({ default: m.PerformanceCycleDetailPage })));
+const PerformanceReviewDetailPage = lazy(() => import("@/features/performance/pages").then((m) => ({ default: m.PerformanceReviewDetailPage })));
+const BonusPoliciesPage = lazy(() => import("@/features/performance/pages").then((m) => ({ default: m.BonusPoliciesPage })));
+const BonusAwardsPage = lazy(() => import("@/features/performance/pages").then((m) => ({ default: m.BonusAwardsPage })));
+const MyPerformancePage = lazy(() => import("@/features/performance/pages").then((m) => ({ default: m.MyPerformancePage })));
 const InventoryPage = lazy(() => import("@/features/warehouse/pages/InventoryPage"));
 const InventoryEditPage = lazy(() => import("@/features/warehouse/pages/InventoryEditPage"));
 const MovementsPage = lazy(() => import("@/features/warehouse/pages/MovementsPage"));
@@ -153,6 +189,7 @@ const AdminIncomePage = lazy(() => import("@/features/admin/pages/AdminIncomePag
 const AdminExpensePage = lazy(() => import("@/features/admin/pages/AdminExpensePage"));
 const AdminExpenseCategoriesPage = lazy(() => import("@/features/admin/pages/AdminExpenseCategoriesPage"));
 const SellerDeliveryCompanyFeesPage = lazy(() => import("@/features/seller/pages/SellerDeliveryCompanyFeesPage"));
+const SellerDeliveryCompaniesPage = lazy(() => import("@/features/seller/pages/SellerDeliveryCompaniesPage"));
 const CommonNotificationsPage = lazy(() => import("@/features/common/pages/CommonNotificationsPage"));
 const CommonChatPage = lazy(() => import("@/features/common/pages/CommonChatPage"));
 const CommonHelpSupportPage = lazy(() => import("@/features/common/pages/CommonHelpSupportPage"));
@@ -307,6 +344,51 @@ const AppRoutes = () => {
             <Route path="my-coins" element={<CoinsPage />} />
           </Route>
         </Route>
+
+        {/* Employee Leave Portal - unified entry point that routes based on department/position */}
+        <Route
+          path="/employee"
+          element={
+            <ProtectedRoute
+              requiredCapabilities={ROUTE_ACCESS.leaveMy}
+              allowEmployees
+            >
+              <EmployeePortalLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="my-leave" element={<MyLeavePage />} />
+        </Route>
+
+        {/* Direct department portal routes (for bookmarks/deep links) */}
+        <Route
+          path="/warehouse"
+          element={
+            <ProtectedRoute
+              requiredCapabilities={ROUTE_ACCESS.leaveMy}
+              allowEmployees
+            >
+              <DashboardLayout area="warehouse_manager" />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="my-leave" element={<MyLeavePage />} />
+        </Route>
+
+        <Route
+          path="/delivery"
+          element={
+            <ProtectedRoute
+              requiredCapabilities={ROUTE_ACCESS.leaveMy}
+              allowEmployees
+            >
+              <DashboardLayout area="delivery_agent" />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="my-leave" element={<MyLeavePage />} />
+        </Route>
+
         <Route
           path="/checkout/success"
           element={
@@ -316,6 +398,14 @@ const AppRoutes = () => {
           }
         />
         {/* /checkout is now handled by CheckoutGatePage above */}
+        <Route
+          path="/attendance"
+          element={
+            <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.attendanceMy}>
+              <MyAttendancePage />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/become-a-seller"
           element={
@@ -876,6 +966,14 @@ const AppRoutes = () => {
               }
             />
             <Route
+              path="delivery-companies"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerDeliveryCompanies}>
+                  <SellerDeliveryCompaniesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="accounting/delivery-company-fees"
               element={
                 <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.sellerAccounting}>
@@ -1231,6 +1329,152 @@ const AppRoutes = () => {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="leave/requests"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.warehouseLeaveRequests}>
+                  <LeaveRequestsPage hideCreate />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="leave/approvals"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.warehouseLeaveApprovals}>
+                  <LeaveApprovalsPage scopeToCurrentUser />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="leave/me"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.leaveMy}>
+                  <MyLeavePage />
+                </ProtectedRoute>
+              }
+            />
+          </Route>
+        </Route>
+        <Route path="/payroll" element={<DashboardLayout area="payroll" />}>
+          <Route
+            element={
+              <ProtectedRoute
+                requiredCapabilities={ROUTE_ACCESS.payrollDashboard}
+                allowedRoles={[
+                  "SUPER_ADMIN",
+                  "HR_MANAGER",
+                  "PAYROLL_OFFICER",
+                  "PAYROLL_APPROVER",
+                  "FINANCE",
+                ]}
+              />
+            }
+          >
+            <Route index element={<Navigate to="runs" replace />} />
+            <Route
+              path="policies"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.payrollPolicies}>
+                  <PayrollPoliciesPage root="/payroll" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="runs"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.payrollRuns}>
+                  <PayrollRunsPage root="/payroll" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="runs/:id"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.payrollRuns}>
+                  <PayrollRunDetailPage root="/payroll" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="payslips"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.payrollPayslips}>
+                  <PayslipsPage root="/payroll" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="payslips/me"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.payrollMyPayslips}>
+                  <MyPayslipsPage root="/payroll" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="payments"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.payrollPayments}>
+                  <PaymentRecordsPage root="/payroll" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="performance/cycles"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.performanceCycles}>
+                  <PerformanceCyclesPage root="/payroll/performance" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="performance/cycles/:id"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.performanceCycles}>
+                  <PerformanceCycleDetailPage root="/payroll/performance" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="performance/kpis"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.performanceKpis}>
+                  <KpisPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="performance/reviews"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.performanceReviews}>
+                  <PerformanceReviewsPage root="/payroll/performance" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="performance/reviews/:id"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.performanceReviews}>
+                  <PerformanceReviewDetailPage root="/payroll/performance" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="performance/bonus-policies"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.bonusPolicies}>
+                  <BonusPoliciesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="performance/bonus-awards"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.bonusAwards}>
+                  <BonusAwardsPage root="/payroll/performance" />
+                </ProtectedRoute>
+              }
+            />
           </Route>
         </Route>
         <Route path="/super-admin" element={<DashboardLayout area="super_admin" />}>
@@ -1238,7 +1482,7 @@ const AppRoutes = () => {
             element={
               <ProtectedRoute
                 requiredCapabilities={ROUTE_ACCESS.superAdminDashboard}
-                allowedRoles={["SUPER_ADMIN"]}
+                allowedRoles={["SUPER_ADMIN", "HR_MANAGER"]}
               />
             }
           >
@@ -2222,9 +2466,291 @@ const AppRoutes = () => {
                 </ProtectedRoute>
               }
             />
+
+            <Route
+              path="employees"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminEmployees}>
+                  <EmployeesPage base="/super-admin" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="employees/new"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminEmployees}>
+                  <EmployeeFormPage base="/super-admin" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="employees/departments"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminEmployees}>
+                  <DepartmentsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="employees/positions"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminEmployees}>
+                  <PositionsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="employees/designations"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminEmployees}>
+                  <DesignationsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="employees/salary-grades"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminEmployees}>
+                  <SalaryGradesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="employees/me"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminEmployees}>
+                  <MyProfilePage base="/super-admin" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="employees/:id/edit"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminEmployees}>
+                  <EmployeeFormPage base="/super-admin" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="employees/:id"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminEmployees}>
+                  <EmployeeDetailPage base="/super-admin" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="attendance"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.attendanceRecords}>
+                  <AttendanceRecordsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="attendance/me"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.attendanceMy}>
+                  <MyAttendancePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shifts"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.attendanceShifts}>
+                  <ShiftsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shift-schedules"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.attendanceSchedules}>
+                  <ShiftSchedulesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="overtime-requests"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.attendanceOvertime}>
+                  <OvertimeRequestsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="leave-settings"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.leaveConfig}>
+                  <LeaveSettingsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="leave-types"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.leaveConfig}>
+                  <LeaveTypesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="leave-policies"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.leaveConfig}>
+                  <LeavePoliciesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="leave-balances"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.leaveBalances}>
+                  <LeaveBalancesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="leave-requests"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.leaveRequests}>
+                  <LeaveRequestsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="leave-approvals"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.leaveApprovals}>
+                  <LeaveApprovalsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="leave/me"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.leaveMy}>
+                  <MyLeavePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="payroll/policies"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.payrollPolicies}>
+                  <PayrollPoliciesPage root="/super-admin/payroll" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="payroll/runs"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.payrollRuns}>
+                  <PayrollRunsPage root="/super-admin/payroll" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="payroll/runs/:id"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.payrollRuns}>
+                  <PayrollRunDetailPage root="/super-admin/payroll" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="payroll/payslips"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.payrollPayslips}>
+                  <PayslipsPage root="/super-admin/payroll" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="payroll/payslips/me"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.payrollMyPayslips}>
+                  <MyPayslipsPage root="/super-admin/payroll" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="payroll/payments"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.payrollPayments}>
+                  <PaymentRecordsPage root="/super-admin/payroll" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="performance/cycles"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.performanceCycles}>
+                  <PerformanceCyclesPage root="/super-admin/performance" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="performance/cycles/:id"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.performanceCycles}>
+                  <PerformanceCycleDetailPage root="/super-admin/performance" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="performance/kpis"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.performanceKpis}>
+                  <KpisPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="performance/reviews"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.performanceReviews}>
+                  <PerformanceReviewsPage root="/super-admin/performance" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="performance/reviews/:id"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.performanceReviews}>
+                  <PerformanceReviewDetailPage root="/super-admin/performance" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="performance/bonus-policies"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.bonusPolicies}>
+                  <BonusPoliciesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="performance/bonus-awards"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.bonusAwards}>
+                  <BonusAwardsPage root="/super-admin/performance" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="performance/me"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.performanceMy}>
+                  <MyPerformancePage />
+                </ProtectedRoute>
+              }
+            />
           </Route>
         </Route>
       </Route>
+
 
       {/* Public routes */}
       {/*
@@ -2250,7 +2776,9 @@ const AppRoutes = () => {
         path="/"
         element={
           <BuyerHomeRoute>
-            <HomePage />
+            <RootEmployeeGuard>
+              <HomePage />
+            </RootEmployeeGuard>
           </BuyerHomeRoute>
         }
       />

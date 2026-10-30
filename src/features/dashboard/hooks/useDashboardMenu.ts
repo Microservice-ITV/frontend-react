@@ -15,6 +15,8 @@ import {
   DASHBOARD_MENU_ADMIN,
   DASHBOARD_MENU_WAREHOUSE_MANAGER,
   DASHBOARD_MENU_DELIVERY_AGENT,
+  DASHBOARD_MENU_PAYROLL,
+  DASHBOARD_MENU_EMPLOYEE,
 } from '../config/dashboardMenu'
 import type { DashboardArea, DashboardMenuSection } from '../types/dashboardTypes'
 
@@ -39,7 +41,11 @@ export const useDashboardMenu = (area: DashboardArea): DashboardMenuSection[] =>
         ? DASHBOARD_MENU_WAREHOUSE_MANAGER
         : area === 'delivery_agent'
           ? DASHBOARD_MENU_DELIVERY_AGENT
-          : DASHBOARD_MENU_ADMIN
+          : area === 'payroll'
+            ? DASHBOARD_MENU_PAYROLL
+            : area === 'employee'
+              ? DASHBOARD_MENU_EMPLOYEE
+              : DASHBOARD_MENU_ADMIN
 
   const [receiptCount, setReceiptCount] = useState(0)
   const [trackingCount, setTrackingCount] = useState(0)

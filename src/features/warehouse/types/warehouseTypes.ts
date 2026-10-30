@@ -57,6 +57,12 @@ export interface Warehouse {
   sellerUserId?: string | null
 }
 
+export interface WarehouseManagerOption {
+  id: string
+  name: string
+  email: string | null
+}
+
 export interface InventoryStock {
   id: string
   warehouseId: string

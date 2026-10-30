@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { INVOICE_SERVICE_BASE_URL } from './apiConfig'
 import { setupAuthInterceptors } from './setupAuthInterceptors'
-import { extractRoleFromUser } from '@/app/rbac/normalizers'
+import { extractRolesFromUser } from '@/app/rbac/normalizers'
 
 export type InvoiceStatus =
   | 'UNPAID'
@@ -236,7 +236,7 @@ invoiceClient.interceptors.request.use(async (config) => {
     WAREHOUSE_MANAGER: 'customer',
     DELIVERY_AGENT: 'customer',
     USER: 'customer',
-  }[extractRoleFromUser(user)]
+  }[extractRolesFromUser(user)]
 
   if (isCustomerScopedRequest) {
     config.headers.set('x-user-role', 'customer')

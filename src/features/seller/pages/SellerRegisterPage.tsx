@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { CheckCircle2 } from 'lucide-react'
 import { Link, Navigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
-import { extractRoleFromUser } from '@/app/rbac/normalizers'
+import { extractRolesFromUser } from '@/app/rbac/normalizers'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
 import { Typing } from '@/components/loading-ui/typing'
 import { NewAddressModal } from '@/features/account/components/NewAddressModal'
@@ -341,7 +341,7 @@ const SellerRegisterPage = () => {
         openEditPickupModal()
     }, [openCreatePickupModal, openEditPickupModal, shopInfo.pickupAddressId])
 
-    const role = user ? extractRoleFromUser(user) : null
+    const role = user ? extractRolesFromUser(user) : null
     if (role === 'SHOP_OWNER' || role === 'SHOP_ADMIN') {
         return <Navigate to="/seller/overview" replace />
     }

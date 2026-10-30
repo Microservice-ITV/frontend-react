@@ -10,7 +10,7 @@ import ScrollToTop from './components/routing/ScrollToTop'
 import GoogleAnalytics from './components/analytics/GoogleAnalytics'
 import { setAccessToken, setHasSession } from './features/auth/store/authSlice'
 import { setSessionCookie } from '@/utils/session'
-import { extractRoleFromUser } from '@/app/rbac/normalizers'
+import { extractRolesFromUser } from '@/app/rbac/normalizers'
 import { getDefaultLandingPathByRole } from '@/app/rbac/navigation'
 import SpinPage from '@/components/spin/SpinPage'
 import { HomeScreenReadyProvider } from '@/features/home/homeScreenReady'
@@ -48,7 +48,14 @@ function App() {
     pathname === '/warehouse-manager' ||
     pathname.startsWith('/warehouse-manager/') ||
     pathname === '/delivery-agent' ||
-    pathname.startsWith('/delivery-agent/')
+    pathname.startsWith('/delivery-agent/') ||
+    pathname === '/warehouse' ||
+    pathname.startsWith('/warehouse/') ||
+    pathname === '/delivery' ||
+    pathname.startsWith('/delivery/') ||
+    pathname === '/employee' ||
+    pathname.startsWith('/employee/')
+  
   const isInvoicePrintRoutePath = isInvoicePrintRoute(pathname)
   const hideGlobalChrome = isDashboardRoute || isInvoicePrintRoutePath
 
@@ -79,7 +86,7 @@ function App() {
         dispatch(setHasSession(true))
         setSessionCookie()
         const user = await dispatch(fetchMe()).unwrap()
-        const role = extractRoleFromUser(user)
+        const role = extractRolesFromUser(user)
         navigate(getDefaultLandingPathByRole(role), { replace: true })
       } catch {
         // Ignore failures; user can retry login

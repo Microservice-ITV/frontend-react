@@ -1,12 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, ChevronDown, Download, Loader2, Printer, Receipt, X } from 'lucide-react'
 import { useAppSelector } from '@/app/hooks'
-import { selectIsAuthenticated } from '@/features/auth/store/authSelectors'
+import { selectAuthUser, selectIsAuthenticated } from '@/features/auth/store/authSelectors'
 import InvoiceDocumentSheet from '@/features/invoices/components/InvoiceDocumentSheet'
-import InvoiceThermalSheet from '@/features/invoices/components/InvoiceThermalSheet'
-import ReceiptDocumentSheet from '@/features/invoices/components/ReceiptDocumentSheet'
 import ThermalPdfPreview from '@/features/invoices/components/ThermalPdfPreview'
 import InvoiceEmptyState from '@/features/invoices/components/InvoiceEmptyState'
 import InvoiceTableSkeleton from '@/features/invoices/components/InvoiceTableSkeleton'
@@ -22,6 +19,7 @@ type ScopedInvoiceDetailPageProps = {
 const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageProps) => {
   const { invoiceNumber } = useParams<{ invoiceNumber: string }>()
   const isAuthenticated = useAppSelector(selectIsAuthenticated)
+  const authUser = useAppSelector(selectAuthUser)
   const [invoice, setInvoice] = useState<InvoiceDocument | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isDownloading, setIsDownloading] = useState(false)
@@ -34,14 +32,21 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
   const [pendingA4Print, setPendingA4Print] = useState(false)
   const [receiptData, setReceiptData] = useState<ReceiptDocument | null>(null)
   const [isReceiptLoading, setIsReceiptLoading] = useState(false)
-  const [isThermalInvoicePrinting, setIsThermalInvoicePrinting] = useState(false)
+  const [isThermalPrinting, setIsThermalPrinting] = useState(false)
+  const [isThermalPrintPreparing, setIsThermalPrintPreparing] = useState(false)
+  const [thermalPrintError, setThermalPrintError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [receiptError, setReceiptError] = useState<string | null>(null)
   const [thermalPdf, setThermalPdf] = useState<Blob | null>(null)
+  const [thermalPdfKey, setThermalPdfKey] = useState<string | null>(null)
   const [isThermalPdfLoading, setIsThermalPdfLoading] = useState(false)
   const [thermalPdfError, setThermalPdfError] = useState<string | null>(null)
   const thermalPdfRequests = useRef(new Map<string, Promise<Blob | null>>())
   const receiptRequests = useRef(new Map<string, Promise<ReceiptDocument | null>>())
+  const thermalPrintInProgress = useRef(false)
+  const thermalPrintCleanup = useRef(new Set<() => void>())
+  const currentThermalContext = useRef<string | null>(null)
+  const isMounted = useRef(true)
 
   usePageTitle(invoice?.invoiceNumber ? `Invoice ${invoice.invoiceNumber}` : 'Invoice')
 
@@ -142,8 +147,8 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
   }
 
   const getThermalPdf = useCallback((kind: 'invoice' | 'receipt', width: '58mm' | '80mm') => {
-    if (!invoice) return Promise.resolve(null)
-    const key = `${invoice.id}:${invoice.updatedAt ?? ''}:${kind}:${width}`
+    if (!isAuthenticated || !invoice) return Promise.resolve(null)
+    const key = `${isAuthenticated ? 'authenticated' : 'unauthenticated'}:${authUser?.id ?? ''}:${invoice.id}:${invoice.updatedAt ?? ''}:${kind}:${width}`
     const pending = thermalPdfRequests.current.get(key)
     if (pending) return pending
 
@@ -151,9 +156,11 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
       ? downloadThermalInvoicePdf(invoice.id, width)
       : downloadReceiptPdf(invoice.id, { width })
     thermalPdfRequests.current.set(key, request)
-    void request.catch(() => thermalPdfRequests.current.delete(key))
+    void request.catch(() => {
+      if (thermalPdfRequests.current.get(key) === request) thermalPdfRequests.current.delete(key)
+    })
     return request
-  }, [invoice])
+  }, [authUser?.id, invoice, isAuthenticated])
 
   const getReceiptData = useCallback((invoiceId: string) => {
     const pending = receiptRequests.current.get(invoiceId)
@@ -165,10 +172,18 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
   }, [])
 
   useEffect(() => {
-    if (documentView === 'a4' || !invoice) return
+    // Do not carry authorized PDF blobs or pending requests across invoice
+    // revisions, accounts, or authentication changes.
+    thermalPdfRequests.current.clear()
+  }, [authUser?.id, invoice?.id, invoice?.updatedAt, isAuthenticated])
+
+  useEffect(() => {
+    if (!isAuthenticated || documentView === 'a4' || !invoice) return
 
     let active = true
+    const key = `${isAuthenticated ? 'authenticated' : 'unauthenticated'}:${authUser?.id ?? ''}:${invoice.id}:${invoice.updatedAt ?? ''}:${documentView}:${thermalWidth}`
     setThermalPdf(null)
+    setThermalPdfKey(null)
     setThermalPdfError(null)
     setIsThermalPdfLoading(true)
     void getThermalPdf(documentView, thermalWidth)
@@ -176,6 +191,7 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
         if (!active) return
         if (!blob) throw new Error(`No ${documentView} PDF is available for this invoice.`)
         setThermalPdf(blob)
+        setThermalPdfKey(key)
       })
       .catch((previewError: unknown) => {
         if (active) setThermalPdfError(previewError instanceof Error ? previewError.message : 'Unable to load the PDF preview.')
@@ -185,25 +201,22 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
       })
 
     return () => { active = false }
-  }, [documentView, getThermalPdf, invoice, thermalWidth])
+  }, [authUser?.id, documentView, getThermalPdf, invoice, isAuthenticated, thermalWidth])
+
+  const visibleThermalPdfKey = isAuthenticated && invoice && documentView !== 'a4'
+    ? `authenticated:${authUser?.id ?? ''}:${invoice.id}:${invoice.updatedAt ?? ''}:${documentView}:${thermalWidth}`
+    : null
+  const visibleThermalPdf = thermalPdfKey === visibleThermalPdfKey ? thermalPdf : null
+  currentThermalContext.current = visibleThermalPdfKey
 
   useEffect(() => {
-    if (!invoice) return
-
-    // A4 PDFs already exist in storage. Warm the thermal variants in the
-    // background after the authorized invoice details load, so the first
-    // thermal download usually uses a completed PDF instead of launching a
-    // Chromium render after the user clicks Download.
-    const warmups: Promise<Blob | null>[] = [
-      getThermalPdf('invoice', '58mm'),
-      getThermalPdf('invoice', '80mm'),
-    ]
-    if (invoice.status === 'PAID') {
-      warmups.push(getThermalPdf('receipt', '58mm'))
-      warmups.push(getThermalPdf('receipt', '80mm'))
+    isMounted.current = true
+    return () => {
+      isMounted.current = false
+      currentThermalContext.current = null
+      for (const cleanup of [...thermalPrintCleanup.current]) cleanup()
     }
-    void Promise.allSettled(warmups)
-  }, [getThermalPdf, invoice])
+  }, [])
 
   useEffect(() => {
     if (!invoice || invoice.status !== 'PAID') return
@@ -255,42 +268,124 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
     setReceiptError(null)
   }
 
-  const handleThermalPrint = () => {
-    if (documentView === 'invoice') {
-      const cleanupInvoice = () => {
-        document.body.classList.remove('thermal-printing', 'thermal-invoice-printing')
-        setIsThermalInvoicePrinting(false)
-      }
-      document.body.classList.add('thermal-printing', 'thermal-invoice-printing')
-      window.addEventListener('afterprint', cleanupInvoice, { once: true })
-      setIsThermalInvoicePrinting(true)
-      return
-    }
+  const handleThermalPrint = async () => {
+    if (!invoice || !isAuthenticated || documentView === 'a4' || thermalPrintInProgress.current) return
+    if (documentView === 'receipt' && (invoice.status !== 'PAID' || !receiptData || isReceiptLoading)) return
 
-    const cleanup = () => document.body.classList.remove('thermal-printing')
-    document.body.classList.add('thermal-printing')
-    window.addEventListener('afterprint', cleanup, { once: true })
-    try {
-      window.print()
-    } catch (printError) {
-      window.removeEventListener('afterprint', cleanup)
+    const kind = documentView
+    const width = thermalWidth
+    const expectedKey = visibleThermalPdfKey
+    if (!expectedKey) return
+    setThermalPrintError(null)
+    thermalPrintInProgress.current = true
+    setIsThermalPrinting(true)
+    setIsThermalPrintPreparing(true)
+
+    const printFrame = document.createElement('iframe')
+    printFrame.title = `Thermal ${kind} print document`
+    printFrame.setAttribute('aria-hidden', 'true')
+    printFrame.tabIndex = -1
+    Object.assign(printFrame.style, {
+      position: 'fixed', left: '0', bottom: '0', width: '1px', height: '1px',
+      border: '0', opacity: '0', pointerEvents: 'none',
+    })
+    let objectUrl: string | null = null
+    let completed = false
+    let printStarted = false
+    let loadTimeout = 0
+    let completionTimeout = 0
+    let focusCleanupTimeout = 0
+    const cleanup = () => {
+      if (completed) return
+      completed = true
+      if (loadTimeout) window.clearTimeout(loadTimeout)
+      if (completionTimeout) window.clearTimeout(completionTimeout)
+      if (focusCleanupTimeout) window.clearTimeout(focusCleanupTimeout)
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+      printFrame.removeEventListener('load', onPdfLoaded)
+      printFrame.removeEventListener('error', onFrameError)
+      printFrame.contentWindow?.removeEventListener('afterprint', onAfterPrint)
+      window.removeEventListener('afterprint', onAfterPrint)
+      window.removeEventListener('focus', onPrintDialogClosed)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+      printFrame.remove()
+      thermalPrintCleanup.current.delete(cleanup)
+      thermalPrintInProgress.current = false
+      if (isMounted.current) {
+        setIsThermalPrinting(false)
+        setIsThermalPrintPreparing(false)
+      }
+    }
+    const onAfterPrint = () => cleanup()
+    const onPrintDialogClosed = () => {
+      if (!printStarted || focusCleanupTimeout) return
+      focusCleanupTimeout = window.setTimeout(cleanup, 250)
+    }
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') onPrintDialogClosed()
+    }
+    const onPdfLoaded = () => {
+      if (!objectUrl || printStarted) return
+      if (currentThermalContext.current !== expectedKey || !isAuthenticated) {
+        cleanup()
+        return
+      }
+      printStarted = true
+      printFrame.removeEventListener('load', onPdfLoaded)
+      if (loadTimeout) window.clearTimeout(loadTimeout)
+      setIsThermalPrintPreparing(false)
+      try {
+        const printWindow = printFrame.contentWindow
+        if (!printWindow) throw new Error('Unable to access the thermal PDF print frame.')
+        printWindow.focus()
+        window.addEventListener('focus', onPrintDialogClosed)
+        document.addEventListener('visibilitychange', onVisibilityChange)
+        completionTimeout = window.setTimeout(cleanup, 120000)
+        printWindow.print()
+        // PDF viewers can return before their print dialog finishes opening.
+        // Unlock the control now, but retain the frame and Blob until the
+        // dialog closes so the viewer can still read the selected PDF.
+        thermalPrintInProgress.current = false
+        if (isMounted.current) {
+          setIsThermalPrinting(false)
+          setIsThermalPrintPreparing(false)
+        }
+      } catch (printError: unknown) {
+        cleanup()
+        setThermalPrintError(printError instanceof Error ? printError.message : 'Unable to open the print dialog.')
+      }
+    }
+    const onFrameError = () => {
       cleanup()
-      throw printError
+      setThermalPrintError('Unable to load the thermal PDF for printing.')
+    }
+    thermalPrintCleanup.current.add(cleanup)
+
+    try {
+      const blob = visibleThermalPdf && thermalPdfKey === expectedKey
+        ? visibleThermalPdf
+        : await getThermalPdf(kind, width)
+      if (!blob) throw new Error(`No ${kind} PDF is available for this invoice.`)
+      if (currentThermalContext.current !== expectedKey || !isAuthenticated) {
+        cleanup()
+        return
+      }
+      objectUrl = URL.createObjectURL(blob)
+      printFrame.addEventListener('load', onPdfLoaded)
+      printFrame.addEventListener('error', onFrameError)
+      printFrame.src = objectUrl
+      document.body.appendChild(printFrame)
+      printFrame.contentWindow?.addEventListener('afterprint', onAfterPrint, { once: true })
+      window.addEventListener('afterprint', onAfterPrint, { once: true })
+      loadTimeout = window.setTimeout(() => {
+        cleanup()
+        setThermalPrintError('The thermal PDF did not finish loading for printing. Please try again.')
+      }, 30000)
+    } catch (printError: unknown) {
+      cleanup()
+      setThermalPrintError(printError instanceof Error ? printError.message : 'Unable to prepare the thermal PDF for printing.')
     }
   }
-
-  useEffect(() => {
-    if (!isThermalInvoicePrinting || !invoice) return
-    const timer = window.setTimeout(() => {
-      try {
-        window.print()
-      } catch {
-        document.body.classList.remove('thermal-printing', 'thermal-invoice-printing')
-        setIsThermalInvoicePrinting(false)
-      }
-    }, 0)
-    return () => window.clearTimeout(timer)
-  }, [invoice, isThermalInvoicePrinting])
 
   const handleA4Print = () => {
     // Clear thermal print mode before switching, then let React commit the A4
@@ -351,6 +446,8 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
                         setIsPrintDropdownOpen(false)
                         handleThermalView('58mm', 'invoice')
                       }}
+                      onMouseEnter={() => void getThermalPdf('invoice', '58mm').catch(() => undefined)}
+                      onFocus={() => void getThermalPdf('invoice', '58mm').catch(() => undefined)}
                       className="flex w-full items-center px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
                     >
                       Thermal 58mm
@@ -361,6 +458,8 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
                         setIsPrintDropdownOpen(false)
                         handleThermalView('80mm', 'invoice')
                       }}
+                      onMouseEnter={() => void getThermalPdf('invoice', '80mm').catch(() => undefined)}
+                      onFocus={() => void getThermalPdf('invoice', '80mm').catch(() => undefined)}
                       className="flex w-full items-center px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
                     >
                       Thermal 80mm
@@ -389,6 +488,8 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
                           setIsReceiptDropdownOpen(false)
                           handleThermalView('58mm', 'receipt')
                         }}
+                        onMouseEnter={() => void getThermalPdf('receipt', '58mm').catch(() => undefined)}
+                        onFocus={() => void getThermalPdf('receipt', '58mm').catch(() => undefined)}
                         className="flex w-full items-center px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
                       >
                         Thermal 58mm
@@ -399,6 +500,8 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
                           setIsReceiptDropdownOpen(false)
                           handleThermalView('80mm', 'receipt')
                         }}
+                        onMouseEnter={() => void getThermalPdf('receipt', '80mm').catch(() => undefined)}
+                        onFocus={() => void getThermalPdf('receipt', '80mm').catch(() => undefined)}
                         className="flex w-full items-center px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
                       >
                         Thermal 80mm
@@ -470,11 +573,11 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
                     <button
                       type="button"
                       onClick={handleThermalPrint}
-                      disabled={documentView === 'receipt' && (!receiptData || isReceiptLoading)}
+                      disabled={isThermalPrinting || (documentView === 'receipt' && (!receiptData || isReceiptLoading))}
                       className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg bg-emerald-700 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      <Printer size={15} />
-                      Print {documentView === 'invoice' ? 'Invoice' : 'Receipt'} ({thermalWidth})
+                      {isThermalPrintPreparing ? <Loader2 size={15} className="animate-spin" /> : <Printer size={15} />}
+                      {isThermalPrintPreparing ? 'Preparing…' : `Print ${documentView === 'invoice' ? 'Invoice' : 'Receipt'} (${thermalWidth})`}
                     </button>
                     <button
                       type="button"
@@ -486,6 +589,7 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
                     </button>
                 </div>
                 {downloadError && <p role="alert" className="mb-3 text-sm text-rose-600">{downloadError}</p>}
+                {thermalPrintError && <p role="alert" className="mb-3 text-sm text-rose-600">{thermalPrintError}</p>}
 
                 {documentView === 'receipt' && !receiptData && !isReceiptLoading ? (
                   <div role={receiptError ? 'alert' : 'status'} className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-center text-sm text-amber-800">
@@ -493,41 +597,18 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
                   </div>
                 ) : (
                   <ThermalPdfPreview
-                    pdf={thermalPdf}
+                    pdf={visibleThermalPdf}
                     loading={isThermalPdfLoading}
                     kind={documentView}
                     width={thermalWidth}
                     errorMessage={thermalPdfError}
-                    fallback={documentView === 'invoice'
-                      ? <InvoiceThermalSheet invoice={invoice} width={thermalWidth} mode="screen" showActions={false} />
-                      : receiptData
-                        ? <ReceiptDocumentSheet receipt={receiptData} invoice={invoice} width={thermalWidth} mode="screen" showActions={false} />
-                        : <p role="status" className="px-4 text-sm text-slate-600">Loading receipt details…</p>}
                   />
-                )}
-                {thermalPdf && documentView === 'invoice' ? (
-                  <div className="thermal-print-source" style={{ display: 'none' }}>
-                    <InvoiceThermalSheet invoice={invoice} width={thermalWidth} mode="screen" showActions={false} />
-                  </div>
-                ) : thermalPdf && receiptData && (
-                  <div className="thermal-print-source" style={{ display: 'none' }}>
-                    <ReceiptDocumentSheet receipt={receiptData} invoice={invoice} width={thermalWidth} mode="screen" showActions={false} />
-                  </div>
                 )}
               </div>
             )}
           </>
         )}
       </div>
-      {isThermalInvoicePrinting && invoice && createPortal(
-        <InvoiceThermalSheet
-          invoice={invoice}
-          width={thermalWidth}
-          mode="print"
-          showActions={false}
-        />,
-        document.body,
-      )}
     </section>
   )
 }

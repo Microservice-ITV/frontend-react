@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import type { ReactNode } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { InvoiceDocument, ReceiptDocument } from '@/lib/api/invoiceClient'
@@ -24,11 +23,13 @@ vi.mock('@/lib/api/invoiceClient', () => ({
 vi.mock('@/features/invoices/components/ThermalPdfPreview', async () => {
   const React = await import('react')
   return {
-    default: ({ kind, width, pdf, fallback }: { kind: string; width: string; pdf: Blob | null; fallback?: ReactNode }) => React.createElement('div', {
+    default: ({ kind, width, pdf }: { kind: string; width: string; pdf: Blob | null }) => React.createElement('div', {
       'data-testid': 'thermal-pdf-preview',
       'data-document-kind': kind,
       'data-paper-width': width,
-    }, pdf ? null : fallback),
+    }, pdf
+      ? React.createElement('span', { 'data-testid': 'backend-pdf-loaded' })
+      : React.createElement('p', { role: 'status' }, 'Preparing PDF preview…')),
   }
 })
 vi.mock('@/app/hooks', () => ({ useAppSelector: () => true }))
@@ -72,59 +73,57 @@ describe('ScopedInvoiceDetailPage thermal receipt preview', () => {
   })
   afterEach(() => cleanup())
 
-  it.each(['58mm', '80mm'] as const)('renders a real receipt inline at %s', async (width) => {
+  it('does not prefetch every thermal variant and shares the hovered selection request with preview', async () => {
+    renderPage('UNPAID')
+    await screen.findByRole('button', { name: /^Print Invoice$/i })
+    expect(thermalDownloadMock).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: /^Print Invoice$/i }))
+    const option = screen.getByRole('button', { name: /thermal 80mm/i })
+    fireEvent.mouseEnter(option)
+    expect(thermalDownloadMock).toHaveBeenCalledTimes(1)
+    expect(thermalDownloadMock).toHaveBeenCalledWith('invoice-1', '80mm')
+    fireEvent.click(option)
+
+    await screen.findByTestId('thermal-pdf-preview')
+    expect(thermalDownloadMock).toHaveBeenCalledTimes(1)
+    expect(screen.getByTestId('thermal-pdf-preview')).toHaveAttribute('data-paper-width', '80mm')
+  })
+
+  it('shows a loading state instead of the previous PDF when switching paper widths', async () => {
+    let resolve80mm!: (blob: Blob) => void
+    thermalDownloadMock.mockImplementation((_invoiceId: string, width: string) => width === '58mm'
+      ? Promise.resolve(new Blob(['58mm pdf']))
+      : new Promise((resolve) => { resolve80mm = resolve }))
+    renderPage('UNPAID')
+    await screen.findByRole('button', { name: /^Print Invoice$/i })
+
+    fireEvent.click(screen.getByRole('button', { name: /^Print Invoice$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /thermal 58mm/i }))
+    await screen.findByTestId('backend-pdf-loaded')
+    fireEvent.click(screen.getByRole('button', { name: /close preview/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^Print Invoice$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /thermal 80mm/i }))
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Preparing PDF preview…')
+    expect(screen.queryByTestId('backend-pdf-loaded')).not.toBeInTheDocument()
+    resolve80mm(new Blob(['80mm pdf']))
+    await screen.findByTestId('backend-pdf-loaded')
+    expect(screen.getByTestId('thermal-pdf-preview')).toHaveAttribute('data-paper-width', '80mm')
+  })
+
+  it.each(['58mm', '80mm'] as const)('renders the backend receipt PDF preview at %s without the legacy React sheet', async (width) => {
     getReceiptMock.mockResolvedValue(receipt)
     renderPage()
     await screen.findByRole('button', { name: /^Print Invoice$/i })
-    expect(document.querySelector('.invoice-document')).toBeInTheDocument()
-    expect(document.querySelector('.thermal-receipt')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /^Print Receipt$/i }))
     fireEvent.click(screen.getByRole('button', { name: new RegExp(`Thermal ${width}`) }))
-    expect(await screen.findByTestId('thermal-preview-actions')).toBeInTheDocument()
-    expect(screen.queryByText('Thermal Receipt Preview')).not.toBeInTheDocument()
-    expect(screen.queryByText('POS thermal receipt format for printing')).not.toBeInTheDocument()
-    expect(await screen.findByTestId('thermal-pdf-preview')).toHaveAttribute('data-paper-width', width)
+    expect(await screen.findByTestId('backend-pdf-loaded')).toBeInTheDocument()
+    expect(screen.getByTestId('thermal-pdf-preview')).toHaveAttribute('data-paper-width', width)
     expect(screen.getByTestId('thermal-pdf-preview')).toHaveAttribute('data-document-kind', 'receipt')
-    expect(document.querySelector('.invoice-document')).not.toBeInTheDocument()
-    expect(document.querySelector('[data-receipt-root="screen"]')).toBeInTheDocument()
-    expect(screen.getByText('DNI-REC-RCP-1')).toBeInTheDocument()
-    expect(screen.queryByText('Sample Street, Yangon, Myanmar')).not.toBeInTheDocument()
-    const receiptPolicy = document.querySelector('[data-receipt-root="screen"] .receipt-policy-note')
-    expect(receiptPolicy).toBeInTheDocument()
-    expect(receiptPolicy).toHaveTextContent('Please keep this receipt for your records.')
-    expect(screen.queryByText('Customers may inspect the package before making payment, subject to the delivery provider’s inspection policy.')).not.toBeInTheDocument()
-    expect(document.querySelector('[data-receipt-root="screen"]')).not.toHaveTextContent('Payment Details')
-    expect(document.querySelector('[data-receipt-root="screen"]')).not.toHaveTextContent('customer@example.test')
-    expect(document.querySelector('[data-receipt-root="screen"]')).not.toHaveTextContent('Reference:')
-    expect(document.querySelector('[data-receipt-root="screen"]')).not.toHaveTextContent('Status:')
-    expect(document.querySelector('[data-receipt-root="screen"] style')?.textContent).toContain('break-after: avoid-page')
-    expect(receiptPolicy?.previousElementSibling).toHaveClass('receipt-footer-main')
-    expect(document.querySelector('[data-receipt-root="screen"] .receipt-qr-container')).toHaveClass('receipt-qr-footer')
-    expect(document.querySelector('[data-receipt-root="screen"] .receipt-qr-container')?.firstElementChild).toHaveClass('receipt-qr-image')
-    expect(document.querySelector('[data-receipt-root="screen"]')).toHaveStyle({ width: width === '58mm' ? '52mm' : '70mm' })
-    expect(document.querySelector('[data-receipt-root="screen"] .receipt-item-block')).toHaveTextContent('Pet Supplies sample')
-    const receiptItems = document.querySelector('[data-receipt-root="screen"]')
-    expect(receiptItems?.querySelector('.receipt-item-heading')).toHaveTextContent('ItemQtyAmount')
-    expect(receiptItems?.querySelector('.receipt-item-row:not(.receipt-item-heading)')).toHaveTextContent('Pet Supplies sample')
-    expect(receiptItems?.querySelector('.receipt-item-row:not(.receipt-item-heading) .receipt-item-qty')).toHaveTextContent('1')
-    expect(receiptItems?.querySelector('.receipt-item-row:not(.receipt-item-heading) .receipt-item-price')).toHaveTextContent('MMK 190,000')
-    expect(receiptItems?.querySelectorAll('.receipt-item-row')).toHaveLength(2)
-    expect(receiptItems?.querySelector('.receipt-item-block')?.children).toHaveLength(1)
-    expect(getReceiptMock).toHaveBeenCalledWith('invoice-1')
-
-    const printSpy = vi.spyOn(window, 'print').mockImplementation(() => undefined)
-    fireEvent.click(screen.getByRole('button', { name: new RegExp(`print receipt \\(${width}\\)`, 'i') }))
-    expect(printSpy).toHaveBeenCalledOnce()
-    expect(document.body).toHaveClass('thermal-printing')
-    expect(document.querySelector('.invoice-document')).not.toBeInTheDocument()
-    expect(document.querySelector('[data-receipt-root="screen"]')).toBeInTheDocument()
-    window.dispatchEvent(new Event('afterprint'))
-    expect(document.body).not.toHaveClass('thermal-printing')
-    fireEvent.click(screen.getByRole('button', { name: /close preview/i }))
-    expect(document.querySelector('.invoice-document')).toBeInTheDocument()
-    expect(document.querySelector('.thermal-receipt')).not.toBeInTheDocument()
-    expect(printSpy).toHaveBeenCalledOnce()
-    printSpy.mockRestore()
+    expect(document.querySelector('[data-receipt-root]')).not.toBeInTheDocument()
+    expect(document.querySelector('[data-invoice-thermal-root]')).not.toBeInTheDocument()
+    expect(document.querySelector('.thermal-print-source')).not.toBeInTheDocument()
   })
 
   it('centers the invoice showcase within the 960px dashboard workspace', async () => {
@@ -148,7 +147,7 @@ describe('ScopedInvoiceDetailPage thermal receipt preview', () => {
     expect(await screen.findByTestId('thermal-pdf-preview')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /print receipt/i })).toBeDisabled()
     resolveReceipt(receipt)
-    expect(await screen.findByText('DNI-REC-RCP-1')).toBeInTheDocument()
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: /print receipt/i })).toBeEnabled())
     expect(document.querySelector('.invoice-document')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /close preview/i }))
     getReceiptMock.mockRejectedValueOnce(new Error('Forbidden'))
@@ -165,7 +164,7 @@ describe('ScopedInvoiceDetailPage thermal receipt preview', () => {
     a4PrintSpy.mockRestore()
   })
 
-  it('starts receipt PDF download while the inline receipt preview is still loading', async () => {
+  it('starts receipt PDF download while receipt data is still loading', async () => {
     getReceiptMock.mockReturnValue(new Promise(() => undefined))
     receiptDownloadMock.mockResolvedValue(new Blob(['thermal receipt']))
     vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:receipt'), revokeObjectURL: vi.fn() }))
@@ -174,7 +173,8 @@ describe('ScopedInvoiceDetailPage thermal receipt preview', () => {
     await screen.findByRole('button', { name: /^Print Invoice$/i })
     fireEvent.click(screen.getByRole('button', { name: /^Print Receipt$/i }))
     fireEvent.click(screen.getByRole('button', { name: /thermal 58mm/i }))
-    await screen.findByText(/loading receipt details/i)
+    expect(await screen.findByTestId('thermal-pdf-preview')).toBeInTheDocument()
+    expect(screen.queryByText(/loading receipt details/i)).not.toBeInTheDocument()
 
     const downloadButton = screen.getByRole('button', { name: /Download PDF receipt 58mm/i })
     expect(downloadButton).toBeEnabled()
@@ -193,58 +193,180 @@ describe('ScopedInvoiceDetailPage thermal receipt preview', () => {
     expect(receiptDownloadMock).not.toHaveBeenCalled()
   })
 
-  it.each(['58mm', '80mm'] as const)('shows the A4 design initially and prints a compact thermal invoice inline at %s', async (width) => {
+  it.each(['58mm', '80mm'] as const)('shows the A4 design initially and switches to the backend thermal invoice PDF at %s', async (width) => {
     renderPage('UNPAID')
     await screen.findByRole('button', { name: /^Print Invoice$/i })
-    expect(screen.queryByText('Thermal Invoice Preview')).not.toBeInTheDocument()
+    expect(document.querySelector('.invoice-document')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /^Print Invoice$/i }))
     fireEvent.click(screen.getByRole('button', { name: new RegExp(`thermal ${width}`, 'i') }))
-    expect(await screen.findByTestId('thermal-preview-actions')).toBeInTheDocument()
-    expect(screen.queryByText('Thermal Invoice Preview')).not.toBeInTheDocument()
-    expect(screen.queryByText('POS thermal invoice format for printing')).not.toBeInTheDocument()
-    const actionRow = screen.getByTestId('thermal-preview-actions')
-    expect(actionRow).toHaveClass('flex-nowrap', 'overflow-x-auto')
-    expect(actionRow.querySelector('a')).toHaveTextContent('Invoices')
-    actionRow.querySelectorAll('a, button').forEach((action) => expect(action).toHaveClass('shrink-0', 'whitespace-nowrap'))
-    expect(within(actionRow).getByRole('button', { name: new RegExp(`Download PDF invoice ${width}`, 'i') })).toBeInTheDocument()
-    expect(within(actionRow).getByRole('button', { name: new RegExp(`Print Invoice \\(${width}\\)`, 'i') })).toBeInTheDocument()
-    expect(within(actionRow).getByRole('button', { name: /close preview/i })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /^A4 Invoice$/i })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /^Print A4 Invoice$/i })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /^Print Invoice$/i })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /^Download PDF$/i })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /close preview/i })).toBeInTheDocument()
-    expect(await screen.findByTestId('thermal-pdf-preview')).toHaveAttribute('data-paper-width', width)
+    expect(await screen.findByTestId('backend-pdf-loaded')).toBeInTheDocument()
+    expect(screen.getByTestId('thermal-pdf-preview')).toHaveAttribute('data-paper-width', width)
     expect(screen.getByTestId('thermal-pdf-preview')).toHaveAttribute('data-document-kind', 'invoice')
     expect(document.querySelector('.invoice-document')).not.toBeInTheDocument()
-    expect(document.querySelector('[data-invoice-thermal-root="screen"]')).toBeInTheDocument()
-    expect(screen.getAllByText('Sample Street, Yangon, Myanmar')).toHaveLength(1)
-    const receipt = document.querySelector('[data-invoice-thermal-root="screen"]')
-    expect(receipt).toHaveStyle({ width: width === '58mm' ? '52mm' : '70mm' })
-    expect(receipt).not.toHaveTextContent('Payment Details')
-    expect(receipt).not.toHaveTextContent('customer@example.test')
-    expect(receipt).not.toHaveTextContent('Reference:')
-    expect(receipt).not.toHaveTextContent('Status:')
-    expect(receipt?.querySelector('.receipt-item-block')).toHaveTextContent('Pet Supplies sample')
-    expect(receipt?.querySelector('.receipt-item-heading')).toHaveTextContent('ItemQtyAmount')
-    expect(receipt?.querySelector('.receipt-item-row:not(.receipt-item-heading) .receipt-item-qty')).toHaveTextContent('1')
-    expect(receipt?.querySelector('.receipt-item-row:not(.receipt-item-heading) .receipt-item-price')).toHaveTextContent('MMK 190,000')
-    expect(receipt?.querySelectorAll('.receipt-item-row')).toHaveLength(2)
-    expect(receipt?.querySelector('.receipt-item-block')?.children).toHaveLength(1)
-    expect(receipt?.querySelector('.receipt-qr-image')).toHaveStyle({ width: width === '58mm' ? '12mm' : '15mm' })
-    const printSpy = vi.spyOn(window, 'print').mockImplementation(() => undefined)
-    fireEvent.click(screen.getByRole('button', { name: new RegExp(`print invoice \\(${width}\\)`, 'i') }))
-    await vi.waitFor(() => expect(printSpy).toHaveBeenCalledOnce())
-    expect(document.body).toHaveClass('thermal-printing')
-    expect(document.body).toHaveClass('thermal-invoice-printing')
-    expect(document.querySelector('[data-invoice-thermal-root="print"]')).toBeInTheDocument()
+    expect(document.querySelector('[data-invoice-thermal-root]')).not.toBeInTheDocument()
+    expect(document.querySelector('[data-receipt-root]')).not.toBeInTheDocument()
+    expect(document.querySelector('.thermal-print-source')).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['invoice', '58mm'], ['invoice', '80mm'], ['receipt', '58mm'], ['receipt', '80mm'],
+  ] as const)('prints the selected backend %s PDF at %s from the current page', async (kind, width) => {
+    if (kind === 'receipt') getReceiptMock.mockResolvedValue(receipt)
+    const createUrl = vi.fn(() => `blob:${kind}-${width}`)
+    const revokeUrl = vi.fn()
+    const open = vi.spyOn(window, 'open')
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: createUrl, revokeObjectURL: revokeUrl }))
+    renderPage()
+    await screen.findByRole('button', { name: /^Print Invoice$/i })
+    fireEvent.click(screen.getByRole('button', { name: kind === 'receipt' ? /^Print Receipt$/i : /^Print Invoice$/i }))
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(`thermal ${width}`, 'i') }))
+    await screen.findByTestId('backend-pdf-loaded')
+    if (kind === 'receipt') await vi.waitFor(() => expect(screen.getByRole('button', { name: new RegExp(`Print Receipt \\(${width}\\)`, 'i') })).toBeEnabled())
+
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(`Print ${kind} \\(${width}\\)`, 'i') }))
+    const frame = await screen.findByTitle(`Thermal ${kind} print document`)
+    const frameWindow = frame.contentWindow
+    if (!frameWindow) throw new Error('Missing thermal print frame window')
+    const framePrint = vi.spyOn(frameWindow, 'print').mockImplementation(() => undefined)
+    const frameFocus = vi.spyOn(frameWindow, 'focus').mockImplementation(() => undefined)
+    const documentLabel = kind === 'invoice' ? 'Invoice' : 'Receipt'
+    fireEvent.load(frame)
+    await vi.waitFor(() => expect(framePrint).toHaveBeenCalledOnce())
+    expect(frameFocus).toHaveBeenCalledOnce()
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: `Print ${documentLabel} (${width})` })).toBeEnabled())
+    expect(screen.getByTitle(`Thermal ${kind} print document`)).toBeInTheDocument()
+    frameWindow.dispatchEvent(new Event('afterprint'))
+    expect(screen.queryByTitle(`Thermal ${kind} print document`)).not.toBeInTheDocument()
+    expect(open).not.toHaveBeenCalled()
+    if (kind === 'invoice') expect(thermalDownloadMock).toHaveBeenCalledWith('invoice-1', width)
+    else expect(receiptDownloadMock).toHaveBeenCalledWith('invoice-1', { width })
+    expect(kind === 'invoice' ? thermalDownloadMock : receiptDownloadMock).toHaveBeenCalledTimes(1)
+    expect(document.querySelector('[data-invoice-thermal-root]')).not.toBeInTheDocument()
+    expect(document.querySelector('[data-receipt-root]')).not.toBeInTheDocument()
+    expect(document.querySelector('.thermal-print-source')).not.toBeInTheDocument()
+    frameWindow.dispatchEvent(new Event('afterprint'))
+    expect(screen.queryByTitle(`Thermal ${kind} print document`)).not.toBeInTheDocument()
+    expect(revokeUrl).toHaveBeenCalledWith(`blob:${kind}-${width}`)
+    open.mockRestore()
+    vi.unstubAllGlobals()
+  })
+
+  it('reuses the preview in-flight PDF, shows Preparing only while waiting, and prints after it loads', async () => {
+    let resolvePdf!: (blob: Blob) => void
+    thermalDownloadMock.mockReturnValue(new Promise((resolve) => { resolvePdf = resolve }))
+    const frameUrl = vi.fn(() => 'blob:pending')
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: frameUrl, revokeObjectURL: vi.fn() }))
+    renderPage('UNPAID')
+    await screen.findByRole('button', { name: /^Print Invoice$/i })
+    fireEvent.click(screen.getByRole('button', { name: /^Print Invoice$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /thermal 58mm/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Print Invoice (58mm)' }))
+    expect(screen.getByRole('button', { name: 'Preparing…' })).toBeDisabled()
+    expect(thermalDownloadMock).toHaveBeenCalledTimes(1)
+    resolvePdf(new Blob(['final backend PDF']))
+    const frame = await screen.findByTitle('Thermal invoice print document')
+    const frameWindow = frame.contentWindow
+    if (!frameWindow) throw new Error('Missing thermal print frame window')
+    const framePrint = vi.spyOn(frameWindow, 'print').mockImplementation(() => undefined)
+    vi.spyOn(frameWindow, 'focus').mockImplementation(() => undefined)
+    fireEvent.load(frame)
+    await vi.waitFor(() => expect(framePrint).toHaveBeenCalledOnce())
+    expect(screen.getByRole('button', { name: 'Print Invoice (58mm)' })).toBeEnabled()
+    expect(screen.getByTitle('Thermal invoice print document')).toBeInTheDocument()
     window.dispatchEvent(new Event('afterprint'))
-    expect(document.body).not.toHaveClass('thermal-printing')
+    expect(screen.queryByTitle('Thermal invoice print document')).not.toBeInTheDocument()
+    vi.unstubAllGlobals()
+  })
+
+  it('restores print controls immediately after repeated prints and cancellation while switching document and width', async () => {
+    getReceiptMock.mockResolvedValue(receipt)
+    vi.stubGlobal('URL', Object.assign(URL, {
+      createObjectURL: vi.fn(() => `blob:thermal-${Math.random()}`),
+      revokeObjectURL: vi.fn(),
+    }))
+    renderPage()
+    await screen.findByRole('button', { name: /^Print Invoice$/i })
+    fireEvent.click(screen.getByRole('button', { name: /^Print Invoice$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /thermal 58mm/i }))
+    await screen.findByTestId('backend-pdf-loaded')
+
+    const printAndClose = async (kind: 'invoice' | 'receipt', width: '58mm' | '80mm', closeWith: 'afterprint' | 'focus') => {
+      const action = screen.getByRole('button', { name: `Print ${kind === 'invoice' ? 'Invoice' : 'Receipt'} (${width})` })
+      fireEvent.click(action)
+      const frame = await screen.findByTitle(`Thermal ${kind} print document`)
+      const frameWindow = frame.contentWindow
+      if (!frameWindow) throw new Error('Missing thermal print frame window')
+      const framePrint = vi.spyOn(frameWindow, 'print').mockImplementation(() => undefined)
+      vi.spyOn(frameWindow, 'focus').mockImplementation(() => undefined)
+      fireEvent.load(frame)
+      await vi.waitFor(() => expect(framePrint).toHaveBeenCalledOnce())
+      // The UI is re-enabled as soon as print() returns, without releasing
+      // the Blob URL before the PDF viewer reports that its dialog is closed.
+      expect(screen.getByRole('button', { name: `Print ${kind === 'invoice' ? 'Invoice' : 'Receipt'} (${width})` })).toBeEnabled()
+      expect(screen.getByTitle(`Thermal ${kind} print document`)).toBeInTheDocument()
+      if (closeWith === 'afterprint') frameWindow.dispatchEvent(new Event('afterprint'))
+      else window.dispatchEvent(new Event('focus'))
+      await vi.waitFor(() => expect(screen.queryByTitle(`Thermal ${kind} print document`)).not.toBeInTheDocument())
+      expect(screen.queryByTitle(`Thermal ${kind} print document`)).not.toBeInTheDocument()
+      framePrint.mockRestore()
+    }
+
+    await printAndClose('invoice', '58mm', 'afterprint')
+    await printAndClose('invoice', '58mm', 'focus')
+
     fireEvent.click(screen.getByRole('button', { name: /close preview/i }))
-    expect(document.querySelector('.invoice-document')).toBeInTheDocument()
-    expect(document.querySelector('.thermal-receipt')).not.toBeInTheDocument()
-    expect(printSpy).toHaveBeenCalledOnce()
-    printSpy.mockRestore()
+    fireEvent.click(screen.getByRole('button', { name: /^Print Receipt$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /thermal 80mm/i }))
+    await screen.findByTestId('backend-pdf-loaded')
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Print Receipt (80mm)' })).toBeEnabled())
+    await printAndClose('receipt', '80mm', 'afterprint')
+    vi.unstubAllGlobals()
+  })
+
+  it('restores the print button when the hidden PDF iframe fails to load', async () => {
+    renderPage('UNPAID')
+    await screen.findByRole('button', { name: /^Print Invoice$/i })
+    fireEvent.click(screen.getByRole('button', { name: /^Print Invoice$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /thermal 58mm/i }))
+    await screen.findByTestId('backend-pdf-loaded')
+    fireEvent.click(screen.getByRole('button', { name: 'Print Invoice (58mm)' }))
+    const frame = await screen.findByTitle('Thermal invoice print document')
+    fireEvent.error(frame)
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Print Invoice (58mm)' })).toBeEnabled())
+    expect(screen.getByRole('alert')).toHaveTextContent('Unable to load the thermal PDF for printing.')
+    expect(screen.queryByTitle('Thermal invoice print document')).not.toBeInTheDocument()
+  })
+
+  it('does not print a pending PDF after the selected preview is closed', async () => {
+    let resolvePdf!: (blob: Blob) => void
+    thermalDownloadMock.mockReturnValue(new Promise((resolve) => { resolvePdf = resolve }))
+    const open = vi.spyOn(window, 'open')
+    renderPage('UNPAID')
+    await screen.findByRole('button', { name: /^Print Invoice$/i })
+    fireEvent.click(screen.getByRole('button', { name: /^Print Invoice$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /thermal 58mm/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Print Invoice (58mm)' }))
+    fireEvent.click(screen.getByRole('button', { name: /close preview/i }))
+    resolvePdf(new Blob(['now stale']))
+    await vi.waitFor(() => expect(document.querySelector('iframe[title="Thermal invoice print document"]')).not.toBeInTheDocument())
+    expect(open).not.toHaveBeenCalled()
+    open.mockRestore()
+  })
+
+  it('shows a backend failure without opening a new tab or leaving Preparing active', async () => {
+    thermalDownloadMock.mockRejectedValue(new Error('PDF service unavailable'))
+    const open = vi.spyOn(window, 'open')
+    renderPage('UNPAID')
+    await screen.findByRole('button', { name: /^Print Invoice$/i })
+    fireEvent.click(screen.getByRole('button', { name: /^Print Invoice$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /thermal 58mm/i }))
+    await screen.findByTestId('thermal-pdf-preview')
+    fireEvent.click(screen.getByRole('button', { name: 'Print Invoice (58mm)' }))
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Print Invoice (58mm)' })).toBeEnabled())
+    expect(screen.getByRole('button', { name: 'Print Invoice (58mm)' })).toBeEnabled()
+    expect(open).not.toHaveBeenCalled()
+    expect(screen.queryByTitle(/thermal invoice print document/i)).not.toBeInTheDocument()
+    open.mockRestore()
   })
 
   it('prints only the selected A4 invoice when A4 is active', async () => {
@@ -257,6 +379,19 @@ describe('ScopedInvoiceDetailPage thermal receipt preview', () => {
     expect(document.querySelector('.thermal-receipt')).not.toBeInTheDocument()
     expect(document.body).not.toHaveClass('thermal-printing')
     printSpy.mockRestore()
+  })
+
+  it('shows only the PDF loading state until the backend thermal invoice is ready', async () => {
+    thermalDownloadMock.mockReturnValue(new Promise(() => undefined))
+    renderPage('UNPAID')
+    await screen.findByRole('button', { name: /^Print Invoice$/i })
+    fireEvent.click(screen.getByRole('button', { name: /^Print Invoice$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /thermal 58mm/i }))
+
+    expect(await screen.findByTestId('thermal-pdf-preview')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Preparing PDF preview…')
+    expect(document.querySelector('[data-invoice-thermal-root="screen"]')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('thermal-preview-fallback')).not.toBeInTheDocument()
   })
 
   it('downloads thermal invoice PDFs with the selected width and prevents duplicate clicks', async () => {
@@ -295,7 +430,7 @@ describe('ScopedInvoiceDetailPage thermal receipt preview', () => {
     await screen.findByRole('button', { name: /^Print Invoice$/i })
     fireEvent.click(screen.getByRole('button', { name: /^Print Receipt$/i }))
     fireEvent.click(screen.getByRole('button', { name: /thermal 58mm/i }))
-    await screen.findByText('DNI-REC-RCP-1')
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: /print receipt/i })).toBeEnabled())
     fireEvent.click(screen.getByRole('button', { name: /download pdf receipt 58mm/i }))
     await vi.waitFor(() => expect(receiptDownloadMock).toHaveBeenCalledWith('invoice-1', { width: '58mm' }))
     expect(clickedFilename).toHaveBeenCalledWith('INV-1-receipt-58mm.pdf')
@@ -332,7 +467,7 @@ describe('ScopedInvoiceDetailPage thermal receipt preview', () => {
     fireEvent.click(screen.getByRole('button', { name: kind === 'receipt' ? /^Print Receipt$/i : /^Print Invoice$/i }))
     fireEvent.click(screen.getByRole('button', { name: new RegExp(`thermal ${width}`, 'i') }))
     await screen.findByTestId('thermal-preview-actions')
-    if (kind === 'receipt') await screen.findByText('DNI-REC-RCP-1')
+    if (kind === 'receipt') await vi.waitFor(() => expect(screen.getByRole('button', { name: new RegExp(`Print Receipt \\(${width}\\)`,'i') })).toBeEnabled())
     fireEvent.click(screen.getByRole('button', { name: /download pdf/i }))
     if (kind === 'receipt') {
       await vi.waitFor(() => expect(receiptDownloadMock).toHaveBeenCalledWith('invoice-1', { width }))
@@ -353,7 +488,7 @@ describe('ScopedInvoiceDetailPage thermal receipt preview', () => {
     fireEvent.click(screen.getByRole('button', { name: kind === 'receipt' ? /^Print Receipt$/i : /^Print Invoice$/i }))
     fireEvent.click(screen.getByRole('button', { name: new RegExp(`thermal ${width}`, 'i') }))
     await screen.findByTestId('thermal-preview-actions')
-    if (kind === 'receipt') await screen.findByText('DNI-REC-RCP-1')
+    if (kind === 'receipt') await vi.waitFor(() => expect(screen.getByRole('button', { name: new RegExp(`Print Receipt \\(${width}\\)`,'i') })).toBeEnabled())
 
     const printSpy = vi.spyOn(window, 'print').mockImplementation(() => undefined)
     fireEvent.click(screen.getByRole('button', { name: /close preview/i }))
