@@ -65,10 +65,44 @@ export const ASSET_BASE_URL = (
     PRODUCT_SERVICE_BASE_URL.replace(/\/api\/v\d+(?:\/.*)?$/i, '')
 ).replace(/\/+$/, '')
 
+/** Same-origin Spaces proxy path — Network shows `/dnistore/...`, not digitaloceanspaces.com. */
+export const DNISTORE_ASSET_PREFIX = '/dnistore'
+
 const isLocalAssetBase =
     /^(https?:\/\/)?(?:localhost|127\.0\.0\.1|0\.0\.0\.0)(?::\d+)?$/i.test(
         ASSET_BASE_URL,
+    ) || import.meta.env.VITE_APP_ENV === 'local'
+
+const isDigitalOceanSpacesUrl = (value: string): boolean =>
+    /(?:^https?:\/\/)?(?:[\w.-]+\.)?digitaloceanspaces\.com(?:\/|$)/i.test(
+        value,
     )
+
+/**
+ * Normalize any stored/API image value to `categories/foo.webp` (no bucket, no uploads/).
+ */
+function extractAssetObjectKey(path: string): string {
+    let assetPath = path.trim()
+
+    if (/^https?:\/\//i.test(assetPath)) {
+        try {
+            assetPath = new URL(assetPath).pathname
+        } catch {
+            return ''
+        }
+    }
+
+    assetPath = assetPath.replace(/^\/+/, '')
+
+    while (/^uploads\//i.test(assetPath)) {
+        assetPath = assetPath.replace(/^uploads\//i, '')
+    }
+    while (/^dnistore\//i.test(assetPath)) {
+        assetPath = assetPath.replace(/^dnistore\//i, '')
+    }
+
+    return assetPath
+}
 
 export function productServiceAssetUrl(
     path: string | undefined | null,
@@ -83,55 +117,50 @@ export function productServiceAssetUrl(
         return trimmed
     }
 
-    const cdnBaseUrl = import.meta.env.VITE_APP_ENV === 'local'
-        ? 'http://localhost:5001/uploads'
-        : 'https://dnistore.sgp1.cdn.digitaloceanspaces.com'
-    if (
-        /^https:\/\/dnistore\.sgp1\.cdn\.digitaloceanspaces\.com\//i.test(
-            trimmed,
-        )
-    ) {
-        return trimmed
+    // Already same-origin proxied path.
+    if (/^\/dnistore\//i.test(trimmed)) {
+        return trimmed.split(/[?#]/, 1)[0]
     }
 
-    let assetPath = trimmed
+    let candidate = trimmed
 
     if (/^https?:\/\//i.test(trimmed)) {
         try {
             const url = new URL(trimmed)
             const productUrl = new URL(PRODUCT_SERVICE_BASE_URL)
+            const isProductOrigin = url.origin === productUrl.origin
+            const isSpaces = isDigitalOceanSpacesUrl(trimmed)
 
-            if (url.origin === productUrl.origin) {
-                assetPath = url.pathname
-
-                if (productUrl.pathname !== '/') {
-                    assetPath = assetPath.replace(
-                        new RegExp(`^${productUrl.pathname}`),
-                        '',
-                    )
-                }
-            } else {
+            if (!isProductOrigin && !isSpaces) {
+                // Unrelated absolute URL (e.g. external placeholder).
                 return trimmed
+            }
+
+            candidate = url.pathname
+            if (isProductOrigin && productUrl.pathname !== '/') {
+                candidate = candidate.replace(
+                    new RegExp(`^${productUrl.pathname}`),
+                    '',
+                )
             }
         } catch {
             return ''
         }
     }
 
-    assetPath = assetPath
-        .replace(/^\/+/, '')
-        .replace(/^dnistore\//i, '')
-        .replace(/^uploads\//i, '')
+    const assetKey = extractAssetObjectKey(candidate)
+    if (!assetKey) return ''
 
     if (isLocalAssetBase) {
         const localBase = PRODUCT_SERVICE_BASE_URL
             .replace(/\/api\/v\d+(?:\/.*)?$/i, '')
             .replace(/\/+$/, '')
 
-        return `${localBase}/uploads/${assetPath}`
+        return `${localBase}/uploads/${assetKey}`
     }
 
-    return `${ASSET_BASE_URL}/${assetPath}`
+    // Production: relative `/dnistore/categories/...` (proxied by nginx → Spaces/CDN).
+    return `${DNISTORE_ASSET_PREFIX}/${assetKey}`
 }
 
 export type ProductImageVariant = 'thumb' | 'card' | 'full'
