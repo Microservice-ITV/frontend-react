@@ -5,7 +5,7 @@ import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { fetchMe, login } from '@/features/auth/store/authThunks'
 import { setLoginDraft } from '@/features/auth/store/authSlice'
 import { getRecaptchaToken } from '@/utils/recaptcha'
-import { extractRolesFromUser, extractRolesFromUser } from '@/app/rbac/normalizers'
+import { extractRoleFromUser, extractRolesFromUser } from '@/app/rbac/normalizers'
 import { resolvePostLoginPath } from '@/app/rbac/navigation'
 import { selectRoleCapabilities } from '@/app/rbac/selectors'
 import { getEmployeePortalRoute } from '@/features/employees/utils/employeePortal'
@@ -62,7 +62,7 @@ export const LoginPage = () => {
         }
 
         // Fallback to role-based redirect for non-employee users
-        const role = extractRolesFromUser(user)
+        const role = extractRoleFromUser(user)
         const nextPath = resolvePostLoginPath(role, from, extractRolesFromUser(user))
         navigate(nextPath, { replace: true })
       }

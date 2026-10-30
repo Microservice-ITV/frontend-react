@@ -1,13 +1,13 @@
 import type { RootState } from '@/app/store'
-import { ROLE_CAPABILITIES } from './policies'
-import { extractRolesFromUser } from './normalizers'
+import { getCapabilitiesForRoles } from './policies'
+import { extractRoleFromUser, extractRolesFromUser } from './normalizers'
 import type { AppRole, Capability } from './types'
 
 export const selectAuthRole = (state: RootState): AppRole =>
-  extractRolesFromUser(state.auth.user)
+  extractRoleFromUser(state.auth.user)
 
 export const selectRoleCapabilities = (state: RootState): Capability[] =>
-  ROLE_CAPABILITIES[selectAuthRole(state)]
+  getCapabilitiesForRoles(extractRolesFromUser(state.auth.user))
 
 export const can = (state: RootState, capability: Capability): boolean => {
   const capabilities = selectRoleCapabilities(state)

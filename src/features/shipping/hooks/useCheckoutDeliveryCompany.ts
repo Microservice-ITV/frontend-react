@@ -87,16 +87,8 @@ function isCompany(value: unknown): value is CheckoutDeliveryCompany {
 export function readActiveCompanies(data: unknown): CheckoutDeliveryCompany[] {
   const root = data && typeof data === 'object' ? (data as { data?: unknown }).data ?? data : null
   const body = root && typeof root === 'object' ? (root as Record<string, unknown>) : {}
-  const shops = Array.isArray(body.shops) ? body.shops : []
-  const out: Record<string, CheckoutDeliveryCompany[]> = {}
-  for (const shop of shops) {
-    if (!shop || typeof shop !== 'object') continue
-    const row = shop as Record<string, unknown>
-    if (typeof row.shopId !== 'string' || !row.shopId.trim()) continue
-    const companies = Array.isArray(row.companies) ? row.companies.filter(isCompany) : []
-    out[row.shopId] = companies.filter((company) => company.status === 'ACTIVE')
-  }
-  return out
+  const companies = Array.isArray(body.companies) ? body.companies.filter(isCompany) : []
+  return companies.filter((company) => company.status === 'ACTIVE')
 }
 
 function usableCompanies(
@@ -132,25 +124,12 @@ export function useCheckoutDeliveryCompany(
     let cancelled = false
 
     const load = async () => {
-      if (shopIds.length === 0) {
-        setCompaniesByShopId({})
-        setLoading(false)
-        setError('')
-        return
-      }
-
       setLoading(true)
       setError('')
       try {
-        const res = await shippingApi.batchShopDeliveryCompanies(shopIds)
-        const byShop = readCompaniesByShop(res.data)
-        if (!cancelled) {
-          const next: Record<string, CheckoutDeliveryCompany[]> = {}
-          for (const shopId of shopIds) {
-            next[shopId] = byShop[shopId] ?? []
-          }
-          setCompaniesByShopId(next)
-        }
+        const res = await shippingApi.listActiveDeliveryCompanies()
+        const companies = readActiveCompanies(res.data)
+        if (!cancelled) setCatalog(companies)
       } catch {
         if (!cancelled) setError('Delivery companies could not be loaded.')
       } finally {
@@ -215,6 +194,24 @@ export function useCheckoutDeliveryCompany(
       cancelled = true
     }
   }, [enabled, shopKey, shopIds])
+
+  // Checkout offers the active platform catalog narrowed to the Delivery Companies
+  // each shop has an active fee configuration for (Accounting is the source of truth).
+  const companiesByShopId = useMemo(() => {
+    const next: Record<string, CheckoutDeliveryCompany[]> = {}
+    for (const shopId of shopIds) {
+      const configured = configuredCompanyIdsByShop[shopId]
+      if (!configurationsReady || !configured || configured.length === 0) {
+        next[shopId] = []
+        continue
+      }
+      const configuredSet = new Set(configured)
+      next[shopId] = catalog.filter(
+        (company) => company.status === 'ACTIVE' && configuredSet.has(company.id),
+      )
+    }
+    return next
+  }, [catalog, configuredCompanyIdsByShop, configurationsReady, shopIds, shopKey])
 
   useEffect(() => {
     if (enabled !== true || loading) return
@@ -333,7 +330,7 @@ export function useCheckoutDeliveryCompany(
       if (available.length === 0) return !selected
       return Boolean(selected && available.some((company) => company.id === selected))
     })
-  }, [companiesByShopId, loading, routesReady, selectedByShopId, shopIds, unavailableCompanyIdsByShop])
+  }, [companiesByShopId, loading, routesReady, configurationsReady, selectedByShopId, shopIds, unavailableCompanyIdsByShop])
 
   const companyByShopId = useMemo(() => {
     const next: Record<string, string> = {}

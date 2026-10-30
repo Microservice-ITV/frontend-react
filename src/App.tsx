@@ -10,7 +10,7 @@ import ScrollToTop from './components/routing/ScrollToTop'
 import GoogleAnalytics from './components/analytics/GoogleAnalytics'
 import { setAccessToken, setHasSession } from './features/auth/store/authSlice'
 import { setSessionCookie } from '@/utils/session'
-import { extractRolesFromUser } from '@/app/rbac/normalizers'
+import { extractRoleFromUser } from '@/app/rbac/normalizers'
 import { getDefaultLandingPathByRole } from '@/app/rbac/navigation'
 import SpinPage from '@/components/spin/SpinPage'
 import { HomeScreenReadyProvider } from '@/features/home/homeScreenReady'
@@ -86,7 +86,7 @@ function App() {
         dispatch(setHasSession(true))
         setSessionCookie()
         const user = await dispatch(fetchMe()).unwrap()
-        const role = extractRolesFromUser(user)
+        const role = extractRoleFromUser(user)
         navigate(getDefaultLandingPathByRole(role), { replace: true })
       } catch {
         // Ignore failures; user can retry login
