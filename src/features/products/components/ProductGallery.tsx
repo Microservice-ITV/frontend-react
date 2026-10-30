@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { productServiceAssetUrl } from "@/lib/api/apiConfig";
+import ResponsiveAssetImage from "@/components/media/ResponsiveAssetImage";
 interface Props {
   images: string[];
 }
@@ -67,12 +67,13 @@ const ProductGallery = ({ images }: Props) => {
 
   return (
     <div className="w-full min-w-0 lg:w-[450px] lg:max-w-full flex-shrink-0">
-      <img
-        src={productServiceAssetUrl(activeSrc)}
+      <ResponsiveAssetImage
+        src={activeSrc}
         alt="Product"
         className="w-full h-auto max-h-[70vh] object-contain bg-white"
+        variant="full"
+        sizes="(max-width: 1024px) 100vw, 450px"
         loading="eager"
-        decoding="async"
         fetchPriority="high"
       />
 
@@ -113,12 +114,13 @@ const ProductGallery = ({ images }: Props) => {
                                 cursor-pointer overflow-hidden
                             `}
             >
-              <img
-                src={productServiceAssetUrl(img)}
+              <ResponsiveAssetImage
+                src={img}
                 alt=""
                 className="h-full w-full object-contain"
+                variant="thumb"
+                sizes="80px"
                 loading="lazy"
-                decoding="async"
               />
             </button>
           ))}

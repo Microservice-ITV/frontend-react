@@ -5,6 +5,7 @@ import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { fetchHomeQuickActions } from '../store/homeThunks'
 import { isRequestSettled, useReportHomeSection } from '../homeScreenReady'
 import { Typing } from '@/components/loading-ui/typing'
+import ResponsiveAssetImage from '@/components/media/ResponsiveAssetImage'
 import type { HomeFeature } from '../store/homeTypes'
 
 const DESKTOP_PAGE_SIZE = 7
@@ -57,12 +58,13 @@ const HomeQuickActions = () => {
       >
         <div className="w-16 h-16 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden transition-all group-hover:border-gray-200 group-hover:shadow-md">
           {feature.iconUrl ? (
-            <img
+            <ResponsiveAssetImage
               src={feature.iconUrl}
               alt={feature.name}
               className="max-w-[80%] max-h-[80%] object-contain transition-transform group-hover:scale-105"
+              variant="thumb"
+              sizes="64px"
               loading="lazy"
-              decoding="async"
             />
           ) : (
             <span className="text-xs text-gray-400">Icon</span>
