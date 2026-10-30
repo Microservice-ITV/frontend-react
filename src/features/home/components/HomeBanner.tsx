@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useReportHomeSection } from "@/features/home/homeScreenReady";
 import { heroBannerApi } from "@/features/heroBanners/api/heroBannerApi";
 import { promoCardApi } from "@/features/promoCards/api/promoCardApi";
+import ResponsiveAssetImage from "@/components/media/ResponsiveAssetImage";
 import { ChevronLeft, ChevronRight, ImageIcon } from "lucide-react";
 import type { HeroBanner } from "@/features/heroBanners/types/heroBannerTypes";
 import type { PromoCard } from "@/features/promoCards/types/promoCardTypes";
@@ -25,12 +26,17 @@ const BannerImage = ({
     >
       <ImageIcon className="h-10 w-10 text-gray-300" aria-hidden />
       {src && !failed ? (
-        <img
+        <ResponsiveAssetImage
           src={src}
           alt={alt}
           className="absolute inset-0 h-full w-full object-cover"
+          variant={priority ? "full" : "card"}
+          sizes={
+            priority
+              ? "(max-width: 1024px) 100vw, 70vw"
+              : "(max-width: 1024px) 100vw, 30vw"
+          }
           loading={priority ? "eager" : "lazy"}
-          decoding="async"
           fetchPriority={priority ? "high" : "low"}
           onError={() => setFailed(true)}
         />

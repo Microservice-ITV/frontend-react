@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import ResponsiveAssetImage from '@/components/media/ResponsiveAssetImage'
 import type { TopOrderedProduct } from '../types/topOrderedProductTypes'
 
 interface Props {
@@ -31,12 +32,13 @@ const TopOrderedProductCard = ({ product }: Props) => {
                     </span>
                 </div>
 
-                <img
+                <ResponsiveAssetImage
                     src={product.image}
                     alt={product.name}
                     className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.03]"
+                    variant="card"
+                    sizes="200px"
                     loading="lazy"
-                    decoding="async"
                 />
 
                 {/* Monthly sales bar overlapping bottom of image */}

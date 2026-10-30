@@ -133,3 +133,36 @@ export function productServiceAssetUrl(
 
     return `${ASSET_BASE_URL}/${assetPath}`
 }
+
+export type ProductImageVariant = 'thumb' | 'card' | 'full'
+
+const VARIANT_WIDTH: Record<ProductImageVariant, number> = {
+    thumb: 200,
+    card: 600,
+    full: 1200,
+}
+
+const VARIANT_PATH_RE = /-(thumb|card|full)\.webp(?=[?#]|$)/i
+
+/** Swap `-full.webp` / `-card.webp` / `-thumb.webp` for the requested size. Legacy URLs unchanged. */
+export function productImageVariantUrl(
+    path: string | undefined | null,
+    variant: ProductImageVariant = 'card',
+): string {
+    const url = productServiceAssetUrl(path)
+    if (!url) return ''
+    if (!VARIANT_PATH_RE.test(url)) return url
+    return url.replace(VARIANT_PATH_RE, `-${variant}.webp`)
+}
+
+/** Browser picks phone vs desktop size when the asset has multi-size uploads. */
+export function productImageSrcSet(
+    path: string | undefined | null,
+): string | undefined {
+    const url = productServiceAssetUrl(path)
+    if (!url || !VARIANT_PATH_RE.test(url)) return undefined
+
+    return (Object.keys(VARIANT_WIDTH) as ProductImageVariant[])
+        .map((variant) => `${productImageVariantUrl(path, variant)} ${VARIANT_WIDTH[variant]}w`)
+        .join(', ')
+}
