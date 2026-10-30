@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { ArrowLeftRight } from 'lucide-react'
 import { sellerProductApi, sellerProductErrorMessage } from '@/features/seller/api/sellerProductApi'
 import { warehouseApi, warehouseErrorMessage } from '../api/warehouseApi'
 import DetailRow from '../components/DetailRow'
@@ -24,6 +25,12 @@ const inputClass =
 const labelClass = 'block text-xs font-medium text-slate-600'
 const sectionClass = 'rounded-xl border border-slate-200 bg-white p-5 sm:p-6'
 
+const formatForeign = (currency: string, amount: number) =>
+  `${currency === 'USD' ? '$' : `${currency} `}${amount.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`
+
 const InventoryEditPage = ({ base }: InventoryEditPageProps) => {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -40,7 +47,10 @@ const InventoryEditPage = ({ base }: InventoryEditPageProps) => {
   const [submitError, setSubmitError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [sellingPrice, setSellingPrice] = useState('')
-  const [unitPrice, setUnitPrice] = useState('')
+  const [rateOrderId, setRateOrderId] = useState('')
+  const [exchangeRate, setExchangeRate] = useState('')
+  const [isRateSaving, setIsRateSaving] = useState(false)
+  const [rateError, setRateError] = useState('')
 
   useEffect(() => {
     if (!warehouseId) {
@@ -65,7 +75,9 @@ const InventoryEditPage = ({ base }: InventoryEditPageProps) => {
           return
         }
         setStock(row)
-        setUnitPrice(row.unitPrice != null ? String(row.unitPrice) : '')
+        const latest = row.poHistory?.find((po) => po.currency !== 'MMK' && po.poExchangeRate > 1)
+        setRateOrderId(latest?.purchaseOrderId ?? '')
+        setExchangeRate(latest ? String(latest.exchangeRate) : '')
         setWarehouseName(warehouseResponse?.data?.data?.name ?? '')
       } catch (error) {
         if (!cancelled) setLoadError(warehouseErrorMessage(error))
@@ -98,8 +110,35 @@ const InventoryEditPage = ({ base }: InventoryEditPageProps) => {
       })
     : ''
 
-  const poUnitPrice = stock?.poUnitPrice ?? null
-  const hasUnitPriceOverride = stock?.unitPriceOverride != null
+  const ratePos = stock?.poHistory?.filter((po) => po.currency !== 'MMK' && po.poExchangeRate > 1) ?? []
+  const ratePo = ratePos.find((po) => po.purchaseOrderId === rateOrderId)
+  const nextRate = Number(exchangeRate)
+  // Foreign cost is fixed by the PO rate; the MMK unit price follows the received rate.
+  const foreignTotal = ratePo ? (ratePo.quantity * ratePo.unitPrice) / ratePo.exchangeRate : 0
+  const previewUnitPrice =
+    ratePo && nextRate > 0 ? Math.round(((foreignTotal * nextRate) / ratePo.quantity) * 100) / 100 : null
+  const rateChanged = ratePo != null && nextRate > 0 && nextRate !== ratePo.exchangeRate
+
+  const handleRateUpdate = async () => {
+    if (!stock || !ratePo || previewUnitPrice == null) return
+    setRateError('')
+    setIsRateSaving(true)
+    try {
+      await warehouseApi.updateStockExchangeRate(stock.id, ratePo.purchaseOrderId, nextRate)
+      setStock({
+        ...stock,
+        poHistory: stock.poHistory?.map((po) =>
+          po.purchaseOrderId === ratePo.purchaseOrderId
+            ? { ...po, exchangeRate: nextRate, unitPrice: previewUnitPrice }
+            : po,
+        ),
+      })
+    } catch (error) {
+      setRateError(warehouseErrorMessage(error))
+    } finally {
+      setIsRateSaving(false)
+    }
+  }
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
@@ -110,17 +149,8 @@ const InventoryEditPage = ({ base }: InventoryEditPageProps) => {
       setSubmitError('Enter a selling price greater than 0.')
       return
     }
-    const trimmedUnit = unitPrice.trim()
-    const nextUnit = trimmedUnit === '' ? null : Number(trimmedUnit)
-    if (nextUnit != null && (!Number.isFinite(nextUnit) || nextUnit <= 0)) {
-      setSubmitError('Enter a unit price greater than 0, or leave it empty to use the PO price.')
-      return
-    }
 
     const sellingChanged = pricing.sellingPrice == null || nextSelling !== pricing.sellingPrice
-    // Clearing the field, or entering the PO price, drops the override.
-    const nextOverride = nextUnit == null || nextUnit === poUnitPrice ? null : nextUnit
-    const unitChanged = nextOverride !== (stock.unitPriceOverride ?? null)
 
     if (sellingChanged && !pricing.variantId) {
       setSubmitError('This stock row is not linked to a product variant yet.')
@@ -129,14 +159,8 @@ const InventoryEditPage = ({ base }: InventoryEditPageProps) => {
     setSubmitError('')
     setIsSubmitting(true)
     try {
-      // Always push unit-price update so warehouse re-publishes inventory.updated
-      // and product "Unit price" stays in sync with PO landed cost.
-      try {
-        await warehouseApi.updateStockUnitPrice(stock.id, nextOverride)
-      } catch (error) {
-        setSubmitError(warehouseErrorMessage(error))
-        return
-      }
+      // Selling price first so any later inventory.updated → product.updated
+      // snapshot already includes the new storefront price (avoids stale overwrite).
       if (sellingChanged && pricing.variantId) {
         try {
           await sellerProductApi.updateVariantSellingPrice(
@@ -152,15 +176,9 @@ const InventoryEditPage = ({ base }: InventoryEditPageProps) => {
           return
         }
       }
-      const notice =
-        sellingChanged && unitChanged
-          ? 'Selling price and unit price updated.'
-          : sellingChanged
-            ? 'Selling price updated.'
-            : unitChanged
-              ? 'Unit price updated.'
-              : 'Unit price synced to product.'
-      navigate(paths.inventory, { state: { notice } })
+      navigate(paths.inventory, {
+        state: { notice: sellingChanged ? 'Selling price updated.' : 'No changes made.' },
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -204,8 +222,7 @@ const InventoryEditPage = ({ base }: InventoryEditPageProps) => {
             <div>
               <h1 className="text-xl font-bold text-slate-900">Edit prices</h1>
               <p className="mt-0.5 text-sm text-slate-600">
-                The selling price updates the product selling price everywhere. The unit price
-                only applies to this stock row.
+                The selling price updates the product selling price everywhere.
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -245,10 +262,6 @@ const InventoryEditPage = ({ base }: InventoryEditPageProps) => {
                 />
                 <DetailRow label="Warehouse" value={warehouseName || '—'} />
                 <DetailRow label="Variant" value={variantLabel || '—'} />
-                <DetailRow
-                  label="Unit price (from PO)"
-                  value={formatUnitPrice(poUnitPrice)}
-                />
                 <DetailRow label="On hand" value={String(stock.onHandQty)} />
                 <DetailRow label="Reserved" value={String(stock.reservedQty)} />
                 <DetailRow label="Available" value={String(stock.availableQty)} />
@@ -298,44 +311,152 @@ const InventoryEditPage = ({ base }: InventoryEditPageProps) => {
             </section>
 
             <section className={sectionClass}>
-              <h2 className="text-sm font-semibold text-slate-900">Unit price</h2>
+              <h2 className="text-sm font-semibold text-slate-900">Exchange rate</h2>
               <p className="mt-0.5 text-xs text-slate-500">
-                Calculated from the purchase order: (Subtotal + Delivery + Other costs) / Order
-                stock. Change it to correct the cost of this stock in this warehouse.
+                Enter the actual rate when the goods arrived. The unit price is recalculated from
+                the foreign price.
               </p>
-              <div className="mt-4">
-                <label htmlFor="inventory-unit-price" className={labelClass}>
-                  Unit price
-                </label>
-                <input
-                  id="inventory-unit-price"
-                  type="number"
-                  min={0.01}
-                  step="0.01"
-                  value={unitPrice}
-                  onChange={(event) => setUnitPrice(event.target.value)}
-                  className={inputClass}
-                  placeholder={poUnitPrice != null ? String(poUnitPrice) : 'e.g. 12000'}
-                />
-                <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
-                  <span>
-                    From PO: {formatUnitPrice(poUnitPrice)}
-                    {hasUnitPriceOverride && ' · currently using your price'}
-                  </span>
-                  {poUnitPrice != null && unitPrice !== String(poUnitPrice) && (
+              {ratePo ? (
+                <div className="mt-4 space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <span className={labelClass}>Purchase order</span>
+                      <p className={`${inputClass} bg-slate-50 font-medium`}>{ratePo.orderNumber}</p>
+                      <p className="mt-1 text-xs text-slate-500">Select a row in the history below.</p>
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="inventory-exchange-rate"
+                        className="flex items-center gap-1 text-xs font-medium text-slate-600"
+                      >
+                        Exchange rate (MMK
+                        <ArrowLeftRight size={12} className="text-slate-500" aria-label="to" />
+                        {ratePo.currency})
+                      </label>
+                      <input
+                        id="inventory-exchange-rate"
+                        type="number"
+                        min={0.000001}
+                        step="any"
+                        value={exchangeRate}
+                        onChange={(event) => setExchangeRate(event.target.value)}
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1 rounded-lg bg-slate-50 px-3 py-2.5 text-xs tabular-nums text-slate-600">
+                    <p>Purchase Order Exchange Rate: {ratePo.poExchangeRate.toLocaleString('en-US')}</p>
+                    <p>
+                      Foreign Price: {formatForeign(ratePo.currency, foreignTotal)} ({ratePo.quantity}{' '}
+                      units)
+                    </p>
+                    <p className="font-medium text-slate-900">
+                      Unit Price = {formatForeign(ratePo.currency, foreignTotal)} ×{' '}
+                      {nextRate > 0 ? nextRate.toLocaleString('en-US') : '—'} ÷ {ratePo.quantity} ={' '}
+                      {formatUnitPrice(previewUnitPrice)}
+                    </p> 
+                  </div>
+                  {rateError && <p className="text-xs text-red-700">{rateError}</p>}
+                  <div className="flex justify-end">
                     <button
                       type="button"
-                      onClick={() => setUnitPrice(String(poUnitPrice))}
-                      className="cursor-pointer font-medium text-emerald-700 hover:text-emerald-800"
+                      onClick={() => void handleRateUpdate()}
+                      disabled={!rateChanged || isRateSaving}
+                      className="cursor-pointer rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      Use PO price
+                      {isRateSaving ? 'Updating…' : 'Update exchange rate'}
                     </button>
-                  )}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <p className="mt-4 text-sm text-slate-500">
+                  No foreign-currency purchase order with an exchange rate for this stock.
+                </p>
+              )}
             </section>
             </div>
           </div>
+
+          <section className={sectionClass}>
+            <h2 className="text-sm font-semibold text-slate-900">Purchase order history</h2>
+            <p className="mt-0.5 text-xs text-slate-500">
+              Unit price per PO received for this variant, newest first. Select a row to update
+              its exchange rate.
+            </p>
+            {stock.poHistory?.length ? (
+              <div className="-mx-5 mt-4 sm:-mx-6">
+              <table className="w-full text-sm [&_tr>*:first-child]:pl-5 sm:[&_tr>*:first-child]:pl-6 [&_tr>*:last-child]:pr-5 sm:[&_tr>*:last-child]:pr-6">
+                <thead>
+                  <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
+                    <th className="w-12 py-2" aria-label="Select" />
+                    <th className="py-2 font-medium">Purchase Order number</th>
+                    <th className="py-2 font-medium">Received Date</th>
+                    <th className="py-2 text-right font-medium">Quantity</th>
+                    <th className="py-2 text-right font-medium">Unit price</th>
+                    <th className="py-2 text-right font-medium">Exchange rate</th>
+                    <th className="py-2 text-right font-medium">Foreign price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stock.poHistory.map((row) => {
+                    const converts = row.currency !== 'MMK' && row.poExchangeRate > 1
+                    const selected = converts && row.purchaseOrderId === rateOrderId
+                    const select = () => {
+                      if (!converts || selected) return
+                      setRateOrderId(row.purchaseOrderId)
+                      setExchangeRate(String(row.exchangeRate))
+                      setRateError('')
+                    }
+                    return (
+                      <tr
+                        key={row.orderNumber}
+                        onClick={select}
+                        className={`border-b border-slate-100 last:border-b-0 ${
+                          selected
+                            ? 'bg-emerald-50'
+                            : converts
+                              ? 'cursor-pointer hover:bg-slate-50'
+                              : 'text-slate-400'
+                        }`}
+                      >
+                        <td className="py-2.5">
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            disabled={!converts}
+                            onChange={select}
+                            aria-label={`Select ${row.orderNumber}`}
+                            className="cursor-pointer rounded border-slate-300 disabled:cursor-not-allowed"
+                          />
+                        </td>
+                        <td className="py-2.5 font-medium text-slate-900">{row.orderNumber}</td>
+                        <td className="py-2.5 text-slate-600">
+                          {row.receivedAt ? new Date(row.receivedAt).toLocaleDateString() : '—'}
+                        </td>
+                        <td className="py-2.5 text-right tabular-nums text-slate-700">{row.quantity}</td>
+                        <td className="py-2.5 text-right tabular-nums font-medium text-slate-900">
+                          {formatUnitPrice(row.unitPrice)}
+                        </td>
+                        <td className="py-2.5 text-right tabular-nums text-slate-700">
+                          {converts
+                            ? `${row.exchangeRate !== row.poExchangeRate ? `${row.poExchangeRate.toLocaleString('en-US')} → ` : ''}${row.exchangeRate.toLocaleString('en-US')} / ${row.currency}`
+                            : '—'}
+                        </td>
+                        <td className="py-2.5 text-right tabular-nums font-medium text-slate-900">
+                          {converts
+                            ? formatForeign(row.currency, (row.quantity * row.unitPrice) / row.exchangeRate)
+                            : '—'}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+              </div>
+            ) : (
+              <p className="mt-4 text-sm text-slate-500">No purchase orders received yet.</p>
+            )}
+          </section>
         </form>
       )}
     </div>

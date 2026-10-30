@@ -1,5 +1,6 @@
 import { Search } from "lucide-react";
 import type { Product } from "@/features/products/types/productTypes";
+import { formatKsPrice } from "@/features/products/utils/formatProductPrice";
 
 interface SearchResultItemProps {
   product: Product;
@@ -30,6 +31,8 @@ const SearchResultItem = ({
               src={product.images[0]}
               alt={product.name}
               className="w-full h-full object-cover"
+              loading="lazy"
+              decoding="async"
             />
           ) : (
             <Search size={16} className="text-gray-400" />
@@ -45,7 +48,7 @@ const SearchResultItem = ({
         </div>
       </div>
       <div className="text-sm font-semibold text-emerald-600 pl-3 flex-shrink-0">
-        ${product.price}
+        {formatKsPrice(product.price)}
       </div>
     </div>
   );

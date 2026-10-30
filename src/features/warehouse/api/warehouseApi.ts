@@ -1,4 +1,5 @@
 import type { AxiosError } from 'axios'
+import { adminUsersApi } from '@/features/admin/api/adminUsersApi'
 import { warehouseClient } from '@/lib/api/warehouseClient'
 import type {
   InventoryMovement,
@@ -6,6 +7,7 @@ import type {
   StockMutationPayload,
   TransferPayload,
   Warehouse,
+  WarehouseManagerOption,
   WarehousePayload,
   WarehouseStatus,
   WarehouseTransfer,
@@ -52,6 +54,59 @@ export const warehouseErrorMessage = (error: unknown): string => {
  * purchase service.
  */
 export const warehouseApi = {
+  async listWarehouseManagers(): Promise<{
+    data: Envelope<{ users: WarehouseManagerOption[]; warnings: string[] }>
+  }> {
+    const [employeeResult, assignedResult] = await Promise.allSettled([
+      warehouseClient.get<Envelope<{ users: WarehouseManagerOption[] }>>(
+        '/warehouse-managers',
+      ),
+      adminUsersApi.listWarehouseManagers(),
+    ])
+    const warnings: string[] = []
+    const usersById = new Map<string, WarehouseManagerOption>()
+
+    if (employeeResult.status === 'fulfilled') {
+      for (const user of employeeResult.value.data.data?.users ?? []) {
+        usersById.set(user.id, user)
+      }
+    } else {
+      warnings.push(`Employee directory: ${warehouseErrorMessage(employeeResult.reason)}`)
+    }
+
+    if (assignedResult.status === 'fulfilled') {
+      for (const user of assignedResult.value.data.data?.users ?? []) {
+        const employeeUser = usersById.get(user.id)
+        usersById.set(user.id, {
+          id: user.id,
+          name: employeeUser?.name || user.name,
+          email: employeeUser?.email || user.email,
+        })
+      }
+    } else {
+      warnings.push(
+        `Admin-assigned managers: ${adminUsersApi.getApiErrorMessage(
+          assignedResult.reason,
+          'Could not load admin-assigned warehouse managers.',
+        )}`,
+      )
+    }
+
+    if (usersById.size === 0 && warnings.length > 0) {
+      throw new Error(warnings.join(' '))
+    }
+
+    return {
+      data: {
+        success: true,
+        data: {
+          users: [...usersById.values()].sort((a, b) => a.name.localeCompare(b.name)),
+          warnings,
+        },
+      },
+    }
+  },
+
   listWarehouses(params?: {
     status?: WarehouseStatus | ''
     shopId?: string
@@ -109,11 +164,11 @@ export const warehouseApi = {
     )
   },
 
-  /** Seller sets the unit price of one stock row; null goes back to the PO price. */
-  updateStockUnitPrice(stockId: string, unitPrice: number | null) {
+  /** Seller sets the actual exchange rate of a received PO; its unit price is recalculated. */
+  updateStockExchangeRate(stockId: string, purchaseOrderId: string, exchangeRate: number) {
     return warehouseClient.patch<
-      Envelope<{ id: string; unitPriceOverride: number | null }>
-    >(`/inventory/stocks/${stockId}/unit-price`, { unitPrice })
+      Envelope<{ purchaseOrderId: string; exchangeRate: number }>
+    >(`/inventory/stocks/${stockId}/exchange-rate`, { purchaseOrderId, exchangeRate })
   },
 
   increaseStock(payload: StockMutationPayload & { movementType?: string }) {

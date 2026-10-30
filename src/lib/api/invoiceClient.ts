@@ -11,6 +11,39 @@ export type InvoiceStatus =
   | 'VOID'
   | 'REFUNDED'
 
+export type ReceiptStatus = 'ISSUED' | 'VOID' | 'REFUNDED'
+
+export type ReceiptDocument = {
+  id: string
+  receiptNumber: string
+  invoiceId: string
+  invoiceNumber: string
+  orderId: string
+  orderReference: string | null
+  shopId: string
+  shopName: string | null
+  customerId: string
+  customerName: string | null
+  customerEmail: string | null
+  subtotal: string
+  deliveryFee: string
+  taxAmount: string
+  discountAmount: string
+  grandTotal: string
+  currency: string
+  paymentMethod: string | null
+  paymentGatewayRef: string | null
+  status: ReceiptStatus
+  pdfUrl: string | null
+  pdfStatus: string
+  pdfError: string | null
+  pdfAttemptCount: number
+  pdfUpdatedAt: string | null
+  issuedAt: string
+  createdAt: string
+  updatedAt: string
+}
+
 export type InvoiceDocument = {
   id: string
   invoiceNumber: string
@@ -189,11 +222,14 @@ invoiceClient.interceptors.request.use(async (config) => {
     && config.headers.get('x-user-role') === 'customer'
   const isCustomerPdfRequest = /^\/invoices\/[^/]+\/pdf$/.test(url)
     && config.headers.get('x-user-role') === 'customer'
-  const isCustomerScopedRequest = isMyInvoicesRequest || isCustomerInvoiceRequest || isCustomerPdfRequest
+  const isCustomerReceiptRequest = /^\/invoices\/[^/]+\/receipt(?:\/pdf)?$/.test(url)
+    && config.headers.get('x-user-role') === 'customer'
+  const isCustomerScopedRequest = isMyInvoicesRequest || isCustomerInvoiceRequest || isCustomerPdfRequest || isCustomerReceiptRequest
   const isAllShopInvoicesRequest = url.endsWith('/invoices/shop-invoices')
   const isAdminInvoiceRequest = url.includes('/invoices/admin/') || url.startsWith('/admin/invoices/')
   const isSellerInvoiceRequest = url.includes('/invoices/shop-invoices') || url.includes('/invoices/manage')
-  const role = {
+  const hasStaffMembership = (user?.staff_shop_ids ?? []).some((shopId) => shopId.trim().length > 0)
+  const role = hasStaffMembership ? 'shopAdmin' : {
     SUPER_ADMIN: 'admin',
     SHOP_OWNER: 'shopAdmin',
     SHOP_ADMIN: 'shopAdmin',
@@ -213,7 +249,10 @@ invoiceClient.interceptors.request.use(async (config) => {
     config.headers.set('x-user-role', role)
   }
 
-  if (!isCustomerScopedRequest && user?.active_shop_id) {
+  if (isAllShopInvoicesRequest) {
+    config.headers.delete('x-shop-id')
+  }
+  if (!isCustomerScopedRequest && !isAllShopInvoicesRequest && user?.active_shop_id) {
     config.headers.set('x-shop-id', user.active_shop_id)
   }
   if (user?.id) {
@@ -472,6 +511,16 @@ export const downloadInvoicePdf = async (
   return response.data
 }
 
+export const downloadThermalInvoicePdf = async (
+  invoiceId: string,
+  width: '58mm' | '80mm',
+): Promise<Blob> => {
+  const response = await invoiceClient.get<Blob>(`/invoices/${invoiceId}/thermal-pdf`, {
+    params: { width }, responseType: 'blob',
+  })
+  return response.data
+}
+
 /**
  * Fetch an invoice for the print route using a short-lived, single-invoice print
  * token issued by the invoice service (used by the headless PDF renderer).
@@ -487,4 +536,65 @@ export const getInvoiceForPrint = async (
   )
 
   return normalizeInvoiceItems(response.data.data)
+}
+
+export const getReceiptForPrint = async (
+  invoiceNumber: string,
+  printToken: string,
+): Promise<{ invoice: InvoiceDocument; receipt: ReceiptDocument }> => {
+  const response = await invoiceClient.get<InvoiceApiResponse<{ invoice: InvoiceDocument; receipt: ReceiptDocument }>>(
+    `/invoices/print/${encodeURIComponent(invoiceNumber)}/receipt`,
+    { headers: { 'x-print-token': printToken } },
+  )
+  return { invoice: normalizeInvoiceItems(response.data.data.invoice), receipt: response.data.data.receipt }
+}
+
+/**
+ * Get receipt for an invoice. Returns null if invoice is not paid or receipt doesn't exist.
+ */
+export const getReceiptForInvoice = async (
+  invoiceId: string,
+  options: { asCustomer?: boolean } = {},
+): Promise<ReceiptDocument | null> => {
+  try {
+    const response = await invoiceClient.get<InvoiceApiResponse<ReceiptDocument>>(
+      `/invoices/${invoiceId}/receipt`,
+      {
+        ...(options.asCustomer ? { headers: { 'x-user-role': 'customer' } } : {}),
+      },
+    )
+    return response.data.data
+  } catch (error) {
+    // Handle 404 (no receipt) gracefully
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      return null
+    }
+    throw error
+  }
+}
+
+/**
+ * Download receipt PDF. Returns null if receipt doesn't exist or user is not authorized.
+ */
+export const downloadReceiptPdf = async (
+  invoiceId: string,
+  options: { asCustomer?: boolean; width?: '58mm' | '80mm' } = {},
+): Promise<Blob | null> => {
+  try {
+    const response = await invoiceClient.get<Blob>(
+      `/invoices/${invoiceId}/receipt/pdf`,
+      {
+        responseType: 'blob',
+        ...(options.width ? { params: { width: options.width } } : {}),
+        ...(options.asCustomer ? { headers: { 'x-user-role': 'customer' } } : {}),
+      },
+    )
+    return response.data
+  } catch (error) {
+    // Handle 404 (no receipt) gracefully
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      return null
+    }
+    throw error
+  }
 }

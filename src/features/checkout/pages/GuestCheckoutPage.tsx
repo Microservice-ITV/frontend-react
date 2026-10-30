@@ -5,13 +5,14 @@ import { useSyncCartAvailableStock } from '@/features/cart/hooks/useSyncCartAvai
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { SearchableSelect } from '@/components/ui/SearchableSelect'
-import { useEffect, useMemo, useState } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { guestCheckoutCart } from '../store/checkoutThunks'
 import { clearCheckout, setCheckoutError } from '../store/checkoutSlice'
-import { loadAllDistricts, type DistrictOptionWithCity } from '@/features/admin/api/locationOptions'
+import { loadAllCities, type CityOptionWithState } from '@/features/admin/api/locationOptions'
 import {
   formatDisabledTaxAmount,
+  isTaxActive,
   isTaxChargeEnabled,
   resolveCartTax,
 } from '../api/checkoutApi'
@@ -40,6 +41,24 @@ const exampleBadgeClass =
   'flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-[11px] font-semibold text-white'
 const exampleValueClass = 'mt-2 text-sm font-medium leading-5 text-gray-900'
 
+const FILL_IN_TOUR_DISMISS_KEY = 'dni.guest_checkout.fill_in_tour_dismissed'
+
+function dismissedFillInTourVisit() {
+  try {
+    return sessionStorage.getItem(FILL_IN_TOUR_DISMISS_KEY)
+  } catch {
+    return null
+  }
+}
+
+function rememberDismissedFillInTour(visitKey: string) {
+  try {
+    sessionStorage.setItem(FILL_IN_TOUR_DISMISS_KEY, visitKey)
+  } catch {
+    // Ignore storage failures. The tour can show again after a refresh.
+  }
+}
+
 function ExampleStep({
   step,
   label,
@@ -67,6 +86,7 @@ const GuestCheckoutPage = () => {
   const dispatch = useAppDispatch()
   useSyncCartAvailableStock()
   const navigate = useNavigate()
+  const location = useLocation()
 
   const items = useAppSelector(selectSelectedItems)
   const { loading } = useAppSelector((state) => state.checkout)
@@ -85,11 +105,11 @@ const GuestCheckoutPage = () => {
   const [phone, setPhone] = useState('')
   const [phoneTouched, setPhoneTouched] = useState(false)
   const [address, setAddress] = useState('')
-  const [districts, setDistricts] = useState<DistrictOptionWithCity[]>([])
-  const [selectedDistrictId, setSelectedDistrictId] = useState<string>('')
-  const selectedDistrict = useMemo(
-    () => districts.find((d) => d.id === selectedDistrictId) ?? null,
-    [districts, selectedDistrictId],
+  const [cities, setCities] = useState<CityOptionWithState[]>([])
+  const [selectedCityId, setSelectedCityId] = useState<string>('')
+  const selectedCity = useMemo(
+    () => cities.find((city) => city.id === selectedCityId) ?? null,
+    [cities, selectedCityId],
   )
 
   const [submitting, setSubmitting] = useState(false)
@@ -97,6 +117,63 @@ const GuestCheckoutPage = () => {
   const [taxAmount, setTaxAmount] = useState(0)
   const [taxEnabled, setTaxEnabled] = useState(true)
   const [taxLoading, setTaxLoading] = useState(false)
+  const fillInGuideRef = useRef<HTMLDivElement>(null)
+  const checkoutFormRef = useRef<HTMLDivElement>(null)
+  const [fillInTourOpen, setFillInTourOpen] = useState(false)
+  const [fillInTourRect, setFillInTourRect] = useState<{
+    top: number
+    left: number
+    width: number
+    height: number
+  } | null>(null)
+
+  const pageReady = entryOk && items.length > 0
+
+  const dismissFillInTour = () => {
+    rememberDismissedFillInTour(location.key)
+    setFillInTourOpen(false)
+  }
+
+  const finishFillInTour = () => {
+    dismissFillInTour()
+    checkoutFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  useEffect(() => {
+    if (!pageReady || dismissedFillInTourVisit() === location.key) return
+
+    const timer = window.setTimeout(() => {
+      fillInGuideRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      setFillInTourOpen(true)
+    }, 150)
+
+    return () => window.clearTimeout(timer)
+  }, [pageReady, location.key])
+
+  useEffect(() => {
+    if (!fillInTourOpen) return
+
+    const measure = () => {
+      const box = fillInGuideRef.current?.getBoundingClientRect()
+      if (!box) return
+      setFillInTourRect({ top: box.top, left: box.left, width: box.width, height: box.height })
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      rememberDismissedFillInTour(location.key)
+      setFillInTourOpen(false)
+    }
+
+    measure()
+    window.addEventListener('resize', measure)
+    window.addEventListener('scroll', measure, true)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('resize', measure)
+      window.removeEventListener('scroll', measure, true)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [fillInTourOpen, location.key])
 
   const merchandiseSubtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const taxLinesKey = items
@@ -106,29 +183,36 @@ const GuestCheckoutPage = () => {
   useEffect(() => {
     if (items.length === 0) return
     let cancelled = false
-    setTaxLoading(true)
-    void resolveCartTax(
-      items.map((item) => ({
-        productId: item.productId,
-        categoryId: item.categoryId,
-        price: item.price,
-        quantity: item.quantity,
-      })),
-    )
-      .then((resolved) => {
+    void (async () => {
+      const active = await isTaxActive()
+      if (cancelled) return
+      if (!active) {
+        setTaxAmount(0)
+        setTaxEnabled(false)
+        return
+      }
+      setTaxLoading(true)
+      try {
+        const resolved = await resolveCartTax(
+          items.map((item) => ({
+            productId: item.productId,
+            categoryId: item.categoryId,
+            price: item.price,
+            quantity: item.quantity,
+          })),
+        )
         if (cancelled) return
         setTaxAmount(resolved.taxAmount)
         setTaxEnabled(isTaxChargeEnabled(resolved.quote))
-      })
-      .catch(() => {
+      } catch {
         if (!cancelled) {
           setTaxAmount(0)
           setTaxEnabled(true)
         }
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setTaxLoading(false)
-      })
+      }
+    })()
     return () => {
       cancelled = true
     }
@@ -136,12 +220,12 @@ const GuestCheckoutPage = () => {
 
   useEffect(() => {
     let cancelled = false
-    void loadAllDistricts()
+    void loadAllCities()
       .then((list) => {
-        if (!cancelled) setDistricts(list)
+        if (!cancelled) setCities(list)
       })
       .catch(() => {
-        if (!cancelled) setDistricts([])
+        if (!cancelled) setCities([])
       })
     return () => {
       cancelled = true
@@ -167,19 +251,19 @@ const GuestCheckoutPage = () => {
       : null
 
   const deliveryAddress: UserAddress | null = useMemo(() => {
-    if (!fullName.trim() || !phoneE164 || !selectedDistrict || !address.trim()) return null
+    if (!fullName.trim() || !phoneE164 || !selectedCity || !address.trim()) return null
 
     return {
       address_id: `guest-${guestId}`,
       country_code: 'MM',
       country: 'Myanmar',
-      state_id: null,
-      city_id: Number(selectedDistrict.cityId),
-      district_id: Number(selectedDistrict.id),
+      state_id: selectedCity.stateId,
+      city_id: Number(selectedCity.id),
+      district_id: null,
       ward_id: null,
-      state: null,
-      city: selectedDistrict.cityName,
-      district: selectedDistrict.name,
+      state: selectedCity.stateName,
+      city: selectedCity.name,
+      district: null,
       ward: null,
       address_line_1: address.trim(),
       address_line_2: null,
@@ -196,7 +280,7 @@ const GuestCheckoutPage = () => {
       is_shipping: true,
       is_billing: false,
     }
-  }, [fullName, phoneE164, selectedDistrict, address, guestId])
+  }, [fullName, phoneE164, selectedCity, address, guestId])
 
   const canContinue =
     !!deliveryAddress &&
@@ -259,13 +343,12 @@ const GuestCheckoutPage = () => {
       }
 
       navigate('/checkout', { replace: true })
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const guestError = e as { message?: string }
       const message =
         typeof e === 'string'
           ? e
-          : e?.message ??
-            e?.response?.data?.message ??
-            e?.response?.data?.error ??
+          : guestError?.message ??
             'Unable to start checkout. Please try again.'
       setSubmitError(String(message))
     } finally {
@@ -280,7 +363,7 @@ const GuestCheckoutPage = () => {
   return (
     <div className="bg-gray-50 px-4 pt-8 pb-12">
       <div className="mx-auto w-full max-w-3xl space-y-4">
-        <div>
+        <div ref={checkoutFormRef} className="scroll-mt-28">
         <Card className="p-6">
           <h1 className="flex items-center gap-2 text-lg font-semibold text-gray-900">
             <UserRound className="h-5 w-5 text-emerald-600" aria-hidden="true" />
@@ -361,10 +444,10 @@ const GuestCheckoutPage = () => {
                 id="guest-city"
                 placeholder="Search city..."
                 emptyLabel="Select City"
-                options={districts.map((d) => ({ value: d.id, label: d.name }))}
-                value={selectedDistrictId}
-                onChange={setSelectedDistrictId}
-                disabled={districts.length === 0}
+                options={cities.map((city) => ({ value: city.id, label: city.name }))}
+                value={selectedCityId}
+                onChange={setSelectedCityId}
+                disabled={cities.length === 0}
               />
             </div>
             <div className="md:col-span-2">
@@ -419,7 +502,10 @@ const GuestCheckoutPage = () => {
         </Card>
         </div>
 
-        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-4">
+        <div
+          ref={fillInGuideRef}
+          className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-4"
+        >
           <p className="flex items-center gap-2 text-sm font-semibold text-emerald-800">
             <Lightbulb className="h-4 w-4" aria-hidden="true" />
             How to fill in (example)
@@ -442,6 +528,51 @@ const GuestCheckoutPage = () => {
           </div>
         </div>
       </div>
+
+      {fillInTourOpen && fillInTourRect && (
+        <div className="fixed inset-0 z-[80]" role="presentation">
+          <button
+            type="button"
+            aria-label="Dismiss fill-in guide"
+            className="absolute inset-0 cursor-default"
+            onClick={dismissFillInTour}
+          />
+          <div
+            className="pointer-events-none absolute rounded-md ring-2 ring-emerald-400"
+            style={{
+              top: fillInTourRect.top - 6,
+              left: fillInTourRect.left - 6,
+              width: fillInTourRect.width + 12,
+              height: fillInTourRect.height + 12,
+              boxShadow: '0 0 0 9999px rgba(17, 24, 39, 0.55)',
+            }}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="fill-in-tour-title"
+            className="absolute w-[min(20rem,calc(100vw-2rem))] rounded-md bg-white p-4 shadow-lg"
+            style={{
+              left: Math.max(16, Math.min(fillInTourRect.left, window.innerWidth - 336)),
+              top: Math.max(16, fillInTourRect.top - 148),
+            }}
+          >
+            <p id="fill-in-tour-title" className="text-sm font-semibold text-gray-900">
+              How to fill in
+            </p>
+            <p className="mt-1 text-sm leading-5 text-gray-600">
+              Use these examples for your name, phone number, city, and address.
+            </p>
+            <button
+              type="button"
+              onClick={finishFillInTour}
+              className="mt-3 h-9 rounded-sm bg-emerald-600 px-4 text-sm font-medium text-white hover:bg-emerald-700"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

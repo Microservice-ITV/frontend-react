@@ -62,6 +62,7 @@ const HomeQuickActions = () => {
               alt={feature.name}
               className="max-w-[80%] max-h-[80%] object-contain transition-transform group-hover:scale-105"
               loading="lazy"
+              decoding="async"
             />
           ) : (
             <span className="text-xs text-gray-400">Icon</span>

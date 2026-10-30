@@ -24,13 +24,14 @@ import { clearCheckout, setCurrentCheckout } from '../store/checkoutSlice'
 import { usePayDeliveryFeeNow } from '../hooks/usePayDeliveryFeeNow'
 import { useCheckoutDeliveryOptions } from '../hooks/useCheckoutDeliveryOptions'
 import { shopIdsWithoutSelectableDeliveryCompany } from '../utils/deliveryReadiness'
+import { isQuantityApprovalHold } from '../utils/quantityApprovalHold'
 
 const AuthCheckout = () => {
   const items = useAppSelector(selectSelectedItems)
 
   return (
     <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.checkout}>
-      {items.length === 0 ? <Navigate to="/cart" replace /> : <CheckoutPage />}
+      {items.length === 0 && !isQuantityApprovalHold() ? <Navigate to="/cart" replace /> : <CheckoutPage />}
     </ProtectedRoute>
   )
 }
@@ -41,11 +42,7 @@ const GuestCheckoutPayment = () => {
 
   const items = useAppSelector(selectSelectedItems)
   const { currentCheckout, loading, paymentStatus, sagaId, sagaStatus } = useAppSelector((state) => state.checkout)
-
-  // If nothing selected, checkout shouldn't be reachable.
-  if (items.length === 0) {
-    return <Navigate to="/cart" replace />
-  }
+  const approvalHold = isQuantityApprovalHold()
 
   const paymentDeliveryAddress = useMemo<UserAddress | null>(() => {
     try {
@@ -82,7 +79,7 @@ const GuestCheckoutPayment = () => {
 
   const hasCheckoutId = Boolean(currentCheckout?.checkout_id || storedCheckoutId)
   const cartMatches = Boolean(storedCartKey && storedCartKey === currentCartKey)
-  const ready = Boolean(paymentDeliveryAddress && hasCheckoutId && cartMatches)
+  const ready = Boolean(paymentDeliveryAddress && hasCheckoutId && (cartMatches || approvalHold))
 
   const feesByShopId = useAppSelector((state) => state.shipping.feesByShopId)
   const totalShippingFee = useAppSelector((state) => state.shipping.totalShippingFee)
@@ -104,14 +101,15 @@ const GuestCheckoutPayment = () => {
   const shopRoutes = useMemo(
     () => shopIds.map((shopId) => ({
       shopId,
-      fromDistrictId: profilesByShopId[shopId]?.districtId?.trim() ?? '',
-      toDistrictId: paymentDeliveryAddress?.district_id != null
-        ? String(paymentDeliveryAddress.district_id)
+      fromDistrictId: profilesByShopId[shopId]?.cityId?.trim() ?? '',
+      toDistrictId: paymentDeliveryAddress?.city_id != null
+        ? String(paymentDeliveryAddress.city_id)
         : '',
     })),
-    [paymentDeliveryAddress?.district_id, profilesByShopId, shopIds],
+    [paymentDeliveryAddress?.city_id, profilesByShopId, shopIds],
   )
-  const deliveryCompany = useCheckoutDeliveryCompany(shopIds, shopRoutes)
+  const deliveryOptionsEnabled = useCheckoutDeliveryOptions()
+  const deliveryCompany = useCheckoutDeliveryCompany(shopIds, shopRoutes, deliveryOptionsEnabled)
   const cartShopIdsWithoutSelectableCompany = useMemo(
     () => shopIdsWithoutSelectableDeliveryCompany({
       shopIds,
@@ -129,9 +127,9 @@ const GuestCheckoutPayment = () => {
     ],
   )
   useEffect(() => {
-    if (shopIds.length === 0) return
+    if (deliveryOptionsEnabled !== true || shopIds.length === 0) return
     void dispatch(fetchShopProfilesForCurrentCart())
-  }, [dispatch, shopIds])
+  }, [deliveryOptionsEnabled, dispatch, shopIds])
   const quotableCompanyByShopId = useMemo(() => {
     const next: Record<string, string> = {}
     for (const shopId of shopIds) {
@@ -145,7 +143,7 @@ const GuestCheckoutPayment = () => {
   const hasQuotableCompany = Object.keys(quotableCompanyByShopId).length > 0
   const prepaidProvider = useAppSelector((state) => state.checkout.prepaidProvider)
   const staffCashSelected = prepaidProvider === 'cash'
-  const showDeliveryCheckoutOptions = useCheckoutDeliveryOptions()
+  const showDeliveryCheckoutOptions = deliveryOptionsEnabled === true
   const {
     payDeliveryFeeNow,
     setPayDeliveryFeeNow,
@@ -184,17 +182,6 @@ const GuestCheckoutPayment = () => {
     dispatch(clearCheckout())
     dispatch(clearShippingCalculate())
     navigate('/checkout/guest', { replace: true })
-  }
-
-  if (!ready) {
-    try {
-      sessionStorage.removeItem('dni.guest_checkout.delivery_address')
-      sessionStorage.removeItem('dni.guest_checkout.checkout_id')
-      sessionStorage.removeItem('dni.guest_checkout.cart_key')
-    } catch {
-      // ignore
-    }
-    return <Navigate to="/checkout/guest" replace />
   }
 
   useEffect(() => {
@@ -270,6 +257,21 @@ const GuestCheckoutPayment = () => {
       })
     }
   }, [paymentStatus, navigate, currentCheckout?.checkout_id, paymentDeliveryAddress?.phone_no])
+
+  if (items.length === 0 && !approvalHold) {
+    return <Navigate to="/cart" replace />
+  }
+
+  if (!ready) {
+    try {
+      sessionStorage.removeItem('dni.guest_checkout.delivery_address')
+      sessionStorage.removeItem('dni.guest_checkout.checkout_id')
+      sessionStorage.removeItem('dni.guest_checkout.cart_key')
+    } catch {
+      // ignore
+    }
+    return <Navigate to="/checkout/guest" replace />
+  }
 
   return (
     <Elements stripe={stripePromise}>

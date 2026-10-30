@@ -36,8 +36,12 @@ interface CheckoutState {
     /** Cart tax amount used in payment totals (cash order total, etc.). */
     taxAmount: number
     itemTaxes: CheckoutLineTax[]
+    /** True only while a real tax quote is running (tax is on with a rate above 0%). */
+    taxQuoting: boolean
     loading: boolean
     error: string | null
+    /** True while checkout shows its preparing loader (hides storefront footer). */
+    isPreparingUi: boolean
 }
 
 const initialState: CheckoutState = {
@@ -56,8 +60,10 @@ const initialState: CheckoutState = {
     cashTender: null,
     taxAmount: 0,
     itemTaxes: [],
+    taxQuoting: false,
     loading: false,
     error: null,
+    isPreparingUi: false,
 }
 
 const checkoutSlice = createSlice({
@@ -79,11 +85,17 @@ const checkoutSlice = createSlice({
             state.loading = false
             state.isPlacingOrder = false
             state.isAwaitingFinalStatus = false
+            state.paymentMethod = 'cod'
             state.sessionPaymentMethod = null
             state.prepaidProvider = 'card'
             state.cashTender = null
             state.taxAmount = 0
             state.itemTaxes = []
+            state.taxQuoting = false
+            state.isPreparingUi = false
+        },
+        setCheckoutPreparingUi(state, action: { payload: boolean }) {
+            state.isPreparingUi = action.payload
         },
         setPaymentMethod(state, action: { payload: PaymentMethod }) {
             state.paymentMethod = action.payload
@@ -107,6 +119,9 @@ const checkoutSlice = createSlice({
         },
         setItemTaxes(state, action: { payload: CheckoutLineTax[] }) {
             state.itemTaxes = action.payload
+        },
+        setTaxQuoting(state, action: { payload: boolean }) {
+            state.taxQuoting = action.payload
         },
         setCheckoutPlacingOrder(state, action: { payload: boolean }) {
             state.isPlacingOrder = action.payload
@@ -188,7 +203,7 @@ const checkoutSlice = createSlice({
             })
             .addCase(guestCheckoutCart.rejected, (state, action) => {
                 state.loading = false
-                state.error = action.payload ?? 'Checkout failed'
+                state.error = action.payload?.message ?? 'Checkout failed'
             })
             .addCase(fetchCheckoutStatus.pending, () => {
                 // Polling must not set loading. That flag blocks a payment-method
@@ -320,6 +335,8 @@ export const {
     setCashTender,
     setCheckoutTaxAmount,
     setItemTaxes,
+    setTaxQuoting,
+    setCheckoutPreparingUi,
 } = checkoutSlice.actions
 
 export const selectPrepaidProvider = (state: { checkout: CheckoutState }) =>

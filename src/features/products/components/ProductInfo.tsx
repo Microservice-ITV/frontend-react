@@ -331,7 +331,7 @@ const ProductInfo = ({ product, onSelectedVariantChange }: Props) => {
       )}
 
       {/* Trust badges — horizontal row */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-3">
+      <div className="hidden gap-3 md:grid md:grid-cols-3">
         <div className="flex items-start gap-3">
           <TrustIconCircle>
             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">

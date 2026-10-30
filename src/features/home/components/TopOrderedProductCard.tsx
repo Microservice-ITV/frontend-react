@@ -36,6 +36,7 @@ const TopOrderedProductCard = ({ product }: Props) => {
                     alt={product.name}
                     className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.03]"
                     loading="lazy"
+                    decoding="async"
                 />
 
                 {/* Monthly sales bar overlapping bottom of image */}

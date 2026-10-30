@@ -40,6 +40,8 @@ const CartItemRow = ({ item }: CartItemRowProps) => {
                         src={item.image}
                         alt={item.name}
                         className="w-20 h-20 object-cover border border-[var(--dni-cart-border)]"
+                        loading="lazy"
+                        decoding="async"
                     />
 
                     <div className="flex flex-col md:justify-center gap-1 min-h-[80px]">

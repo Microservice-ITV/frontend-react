@@ -7,6 +7,7 @@ import {
   Bell,
   Shield,
   ShoppingBag,
+  ClipboardList,
   Ticket,
   Coins,
   Pencil,
@@ -141,6 +142,15 @@ const AccountSidebar = ({ onNavigate }: AccountSidebarProps) => {
               <span>Shop Orders</span>
             </NavLink>
           )}
+
+          <NavLink
+            to="/account/quantity-approvals"
+            className={navItemClass}
+            onClick={() => onNavigate?.()}
+          >
+            <ClipboardList className="w-4 h-4 shrink-0 stroke-[2]" />
+            <span>Quantity Approvals</span>
+          </NavLink>
 
           <NavLink
             to="/account/invoices"

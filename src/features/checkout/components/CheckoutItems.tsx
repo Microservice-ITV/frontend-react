@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAppSelector } from '@/app/hooks'
-import { loadAllDistricts } from '@/features/admin/api/locationOptions'
+import { loadAllCities } from '@/features/admin/api/locationOptions'
 import type { CheckoutDeliveryCompany } from '@/features/shipping/hooks/useCheckoutDeliveryCompany'
 import type { ShopCalculatedShipping } from '@/features/shipping/types/shippingTypes'
 import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
@@ -280,6 +280,7 @@ const CheckoutItems = ({
   const calculateStatus = useAppSelector(state => state.shipping.calculateStatus)
   const [cityNames, setCityNames] = useState<Record<string, string>>({})
   const itemTaxes = useAppSelector((state) => state.checkout.itemTaxes)
+  const taxQuoting = useAppSelector((state) => state.checkout.taxQuoting)
   const needsCityNames = Object.values(feesByShopId).some(
     (fee) => fee.calculationMethod === 'CITY_ROUTE' && (fee.fromDistrictId || fee.toDistrictId),
   )
@@ -287,12 +288,12 @@ const CheckoutItems = ({
   useEffect(() => {
     if (!needsCityNames) return
     let cancelled = false
-    void loadAllDistricts()
-      .then((districts) => {
+    void loadAllCities()
+      .then((cities) => {
         if (cancelled) return
         const next: Record<string, string> = {}
-        for (const district of districts) {
-          next[district.id] = district.name
+        for (const city of cities) {
+          next[city.id] = city.name
         }
         setCityNames(next)
       })
@@ -380,9 +381,10 @@ const CheckoutItems = ({
                 const subtotal = item.price * item.quantity
                 const variation = item.variantLabel?.trim() || 'Standard'
                 const variantId = item.variantId ?? ''
+                // No quote yet and none running → tax is off or 0%: show 0% right away.
                 const lineTax = itemTaxes.find(
                   (tax) => tax.productId === item.productId && tax.variantId === variantId,
-                )
+                ) ?? (taxQuoting ? undefined : { productId: item.productId, variantId, taxRate: 0, taxAmount: 0 })
                 const noCategoryTax = Boolean(lineTax?.noCategoryTax)
                 const liveTaxAmount = lineTax && !noCategoryTax
                   ? taxChargeForAmount(subtotal, lineTax.taxRate)
@@ -414,6 +416,8 @@ const CheckoutItems = ({
                       <img
                         src={item.image || placeholderImage}
                         alt={item.name}
+                        loading="lazy"
+                        decoding="async"
                         onError={e => {
                           const img = e.currentTarget
                           img.onerror = null

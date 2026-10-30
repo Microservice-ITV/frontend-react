@@ -246,7 +246,13 @@ const ProductVariantSelector = ({
         return (
             <span className="relative h-8 w-8 shrink-0 overflow-hidden rounded border border-gray-100 bg-gray-50">
                 {src ? (
-                    <img src={src} alt="" className="h-full w-full object-cover" />
+                    <img
+                      src={src}
+                      alt=""
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                      decoding="async"
+                    />
                 ) : (
                     <span className="flex h-full w-full items-center justify-center text-[10px] text-gray-400">
                         ·

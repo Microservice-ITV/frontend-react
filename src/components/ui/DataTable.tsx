@@ -34,6 +34,8 @@ export type DataTableProps<T> = {
   footer?: ReactNode
   minWidth?: string
   fixedLayout?: boolean
+  /** Renders the table without its own card, so a parent can wrap it. */
+  embedded?: boolean
   onRowClick?: (row: T) => void
 }
 
@@ -85,6 +87,7 @@ function DataTable<T>({
   footer,
   minWidth = '860px',
   fixedLayout = false,
+  embedded = false,
   onRowClick,
 }: DataTableProps<T>) {
   const [sort, setSort] = useState<{ key: string; direction: SortDirection } | null>(
@@ -192,7 +195,7 @@ function DataTable<T>({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+    <div className={embedded ? undefined : 'overflow-hidden rounded-xl border border-slate-200 bg-white'}>
       <div className="overflow-x-auto">
         <table className={clsx('w-full', fixedLayout && 'table-fixed')} style={{ minWidth }}>
           <thead>

@@ -2,6 +2,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  email_verified_at?: string | null;
   /** Resolved (or CDN) URL of the user's profile image, null when none is set. */
   profile_image?: string | null;
   phone?: string | null;
@@ -13,6 +14,7 @@ export interface User {
   role_name?: string | null;
   active_shop_id?: string | null;
   active_shop_name?: string | null;
+  active_shop_role?: string | null;
   /** Shop IDs where this user is assigned as staff (customer login; staff-only features). */
   staff_shop_ids?: string[] | null;
   roles?: Array<string | { code?: string; name?: string }>;

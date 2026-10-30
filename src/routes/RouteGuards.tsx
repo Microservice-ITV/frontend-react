@@ -4,8 +4,9 @@ import { selectAuthUser, selectIsAuthenticated, selectIsAuthBootstrapping } from
 import type { Capability } from '@/app/rbac/types'
 import type { AppRole } from '@/app/rbac/types'
 import { canAny } from '@/app/rbac/selectors'
-import { extractRoleFromUser } from '@/app/rbac/normalizers'
+import { extractRoleFromUser, extractRolesFromUser } from '@/app/rbac/normalizers'
 import { getDefaultLandingPathByRole, resolvePostLoginPath } from '@/app/rbac/navigation'
+import { useLeaveEligibilityState } from '@/features/leave/hooks/useLeaveEligibility'
 import type { ReactNode } from 'react'
 import { Typing } from '@/components/loading-ui/typing'
 
@@ -39,7 +40,7 @@ export const GuestRoute = () => {
 
   if (isAuthenticated && authUser) {
     const role = extractRoleFromUser(authUser)
-    const target = resolvePostLoginPath(role, from)
+    const target = resolvePostLoginPath(role, from, extractRolesFromUser(authUser))
     return <Navigate to={target} replace />
   }
 
@@ -50,6 +51,8 @@ export const GuestRoute = () => {
 type ProtectedRouteProps = {
   requiredCapabilities?: readonly Capability[]
   allowedRoles?: readonly AppRole[]
+  /** Also admit users linked to an active employee record (leave self-service). */
+  allowEmployees?: boolean
   unauthorizedRedirectTo?: string
   children?: ReactNode
 }
@@ -57,6 +60,7 @@ type ProtectedRouteProps = {
 export const ProtectedRoute = ({
   requiredCapabilities = [],
   allowedRoles,
+  allowEmployees = false,
   unauthorizedRedirectTo = '/forbidden',
   children,
 }: ProtectedRouteProps) => {
@@ -64,6 +68,7 @@ export const ProtectedRoute = ({
   const isAuthenticated = useAppSelector(selectIsAuthenticated)
   const authUser = useAppSelector(selectAuthUser)
   const hasRequiredCapabilities = useAppSelector((state) => canAny(state, requiredCapabilities))
+  const employeeEligibility = useLeaveEligibilityState(allowEmployees)
   const location = useLocation()
 
   if (isAuthBootstrapping) return <ContentLoading />
@@ -82,13 +87,22 @@ export const ProtectedRoute = ({
   // protected pages while the navbar still shows Login/Register.
   if (!authUser) return <ContentLoading />
 
-  if (requiredCapabilities.length > 0 && !hasRequiredCapabilities) {
+  // Employee-linked users may not have the leave capability yet; wait for the
+  // employee lookup to resolve before deciding to redirect.
+  if (allowEmployees && !hasRequiredCapabilities && employeeEligibility.loading) {
+    return <ContentLoading />
+  }
+
+  const capabilitySatisfied =
+    requiredCapabilities.length === 0 || hasRequiredCapabilities || (allowEmployees && employeeEligibility.eligible)
+
+  if (!capabilitySatisfied) {
     return <Navigate to={unauthorizedRedirectTo} replace />
   }
 
   if (allowedRoles && authUser) {
-    const role = extractRoleFromUser(authUser)
-    if (!allowedRoles.includes(role)) {
+    const roles = extractRolesFromUser(authUser)
+    if (!roles.some((role) => allowedRoles.includes(role))) {
       return <Navigate to={unauthorizedRedirectTo} replace />
     }
   }
@@ -117,7 +131,7 @@ export const BuyerHomeRoute = ({ children }: BuyerHomeRouteProps) => {
   }
 
   const role = extractRoleFromUser(authUser)
-  if (role !== 'USER') {
+  if (role !== 'USER' && role !== 'EMPLOYEE') {
     return <Navigate to={getDefaultLandingPathByRole(role)} replace />
   }
 

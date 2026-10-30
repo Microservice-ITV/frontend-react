@@ -60,6 +60,7 @@ export function normalizeBatchShopProfiles(data: unknown): Record<string, ShopSh
 
         out[shopId] = {
             shopId,
+            cityId: textOrNull(r.cityId ?? r.city_id),
             districtId: textOrNull(r.districtId ?? r.district_id),
             hint,
             defaultFee,

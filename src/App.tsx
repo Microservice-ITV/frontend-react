@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { matchPath, useLocation, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { bootstrapAuth, fetchMe } from '@/features/auth/store/authThunks'
@@ -14,8 +14,14 @@ import { extractRoleFromUser } from '@/app/rbac/normalizers'
 import { getDefaultLandingPathByRole } from '@/app/rbac/navigation'
 import SpinPage from '@/components/spin/SpinPage'
 import { HomeScreenReadyProvider } from '@/features/home/homeScreenReady'
-import { AIAssistantWidget } from '@/components/ai/AIAssistantWidget'
 import { useNotificationRealtime } from '@/features/notifications/socket/useNotificationRealtime'
+import { isInvoicePrintRoute } from '@/routes/invoicePrintRoutes'
+
+const AIAssistantWidget = lazy(() =>
+  import('@/components/ai/AIAssistantWidget').then((m) => ({
+    default: m.AIAssistantWidget,
+  })),
+)
 
 const CONTENT_READY_TIMEOUT_MS = 12000
 
@@ -26,6 +32,7 @@ function App() {
   const { pathname } = useLocation()
   const userId = useAppSelector((state) => state.auth.user?.id ?? null)
   const accessToken = useAppSelector((state) => state.auth.accessToken)
+  const isCheckoutPreparingUi = useAppSelector((state) => state.checkout.isPreparingUi)
   const [isHomeScreenReady, setIsHomeScreenReady] = useState(false)
   const [contentSettled, setContentSettled] = useState(false)
   const mainRef = useRef<HTMLElement>(null)
@@ -41,14 +48,16 @@ function App() {
     pathname === '/warehouse-manager' ||
     pathname.startsWith('/warehouse-manager/') ||
     pathname === '/delivery-agent' ||
-    pathname.startsWith('/delivery-agent/')
-  const isInvoicePrintRoute = Boolean(
-    matchPath(
-      { path: '/account/invoices/:invoiceNumber/print', end: true },
-      pathname,
-    ),
-  )
-  const hideGlobalChrome = isDashboardRoute || isInvoicePrintRoute
+    pathname.startsWith('/delivery-agent/') ||
+    pathname === '/warehouse' ||
+    pathname.startsWith('/warehouse/') ||
+    pathname === '/delivery' ||
+    pathname.startsWith('/delivery/') ||
+    pathname === '/employee' ||
+    pathname.startsWith('/employee/')
+  
+  const isInvoicePrintRoutePath = isInvoicePrintRoute(pathname)
+  const hideGlobalChrome = isDashboardRoute || isInvoicePrintRoutePath
 
   /**
    * Bootstrap authentication on app load
@@ -91,15 +100,15 @@ function App() {
   /**
    * Prevent UI flicker during authentication bootstrap
    *
-   * The invoice print route is exempt: it is rendered by the headless PDF
-   * renderer, which has no session, and its authorisation comes from the
-   * server-verified print token rather than the auth store. Waiting for the
-   * auth bootstrap there would stall the PDF render.
+   * Invoice and receipt print routes are exempt: they are rendered by the
+   * headless PDF renderer, which has no session, and authorisation comes from
+   * server-verified print tokens rather than the auth store. Waiting for the
+   * auth bootstrap there would stall PDF rendering.
    */
   const isHome = Boolean(matchPath({ path: '/', end: true }, pathname))
   const waitForHomeScreen = isHome && !contentSettled
   const showSplash =
-    !isInvoicePrintRoute &&
+    !isInvoicePrintRoutePath &&
     !isDashboardRoute &&
     (isAuthBootstrapping || waitForHomeScreen)
 
@@ -178,15 +187,15 @@ function App() {
 
         {/* Dashboard routes skip storefront chrome; main wrapper stays for home loading. */}
         <main
-          ref={isDashboardRoute || isInvoicePrintRoute ? undefined : mainRef}
-          className={isDashboardRoute || isInvoicePrintRoute ? 'min-h-screen' : 'flex-1'}
+          ref={isDashboardRoute || isInvoicePrintRoutePath ? undefined : mainRef}
+          className={isDashboardRoute || isInvoicePrintRoutePath ? 'min-h-screen' : 'flex-1'}
         >
           <div inert={showSplash || undefined}>
             <AppRoutes />
           </div>
         </main>
 
-        {!hideGlobalChrome && !showSplash && <Footer />}
+        {!hideGlobalChrome && !showSplash && !isCheckoutPreparingUi && <Footer />}
 
         {showSplash && (
           <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#f5f5f5]">
@@ -194,7 +203,11 @@ function App() {
           </div>
         )}
 
-        {!showSplash && !isDashboardRoute && <AIAssistantWidget />}
+        {!showSplash && !isDashboardRoute && !isCheckoutPreparingUi && (
+          <Suspense fallback={null}>
+            <AIAssistantWidget />
+          </Suspense>
+        )}
       </div>
     </HomeScreenReadyProvider>
   )

@@ -49,6 +49,12 @@ describe('resolvePageTitle', () => {
     expect(resolvePageTitle('/search')).toBe('Search')
   })
 
+  it('sets document titles for thermal invoice and receipt print routes', () => {
+    expect(resolvePageTitle('/account/invoices/INV-1/print', '?format=thermal&width=58mm')).toBe('Thermal invoice')
+    expect(resolvePageTitle('/account/invoices/INV-1/receipt/print', '?width=80mm')).toBe('Thermal receipt')
+    expect(resolvePageTitle('/account/invoices/INV-1/print')).toBe('Print invoice')
+  })
+
   it('falls back when the path is unknown', () => {
     expect(resolvePageTitle('/does-not-exist')).toBe('Page Not Found')
   })

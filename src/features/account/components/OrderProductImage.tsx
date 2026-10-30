@@ -24,6 +24,8 @@ const OrderProductImage = ({
     <img
       src={src}
       alt={alt}
+      loading="lazy"
+      decoding="async"
       onError={() => setSrc(placeholderImage)}
       className={`${className} shrink-0 rounded-sm border border-gray-100 bg-gray-100 object-cover`}
     />

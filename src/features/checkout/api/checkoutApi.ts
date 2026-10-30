@@ -320,6 +320,16 @@ export type CartTaxLine = {
   quantity: number
 }
 
+/** False when tax is off or every category rate is 0%, so the quote can be skipped. */
+export async function isTaxActive(): Promise<boolean> {
+  try {
+    const response = await orderClient.get<{ tax_active?: boolean }>('/saga/orders/tax-status')
+    return response.data.tax_active !== false
+  } catch {
+    return true
+  }
+}
+
 /** Quote tax from product categories. Shipping is not included. */
 export async function resolveCartTax(
   items: CartTaxLine[],
