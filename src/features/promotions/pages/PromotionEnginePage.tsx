@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppSelector } from '@/app/hooks'
 import { SearchableSelect } from '@/components/ui/SearchableSelect'
+import { PromotionClaimSettingsPanel } from '../components/PromotionClaimSettingsPanel'
+import { promotionClaimsApi, type PromotionClaimSettings } from '../api/promotionClaimsApi'
 import AdminFlashDealsPage from '@/features/flash-deals/pages/AdminFlashDealsPage'
 import { useFlashDealPaths } from '@/features/flash-deals/config/flashDealPaths'
 import { useAuthRole } from '@/app/rbac/hooks'
@@ -38,6 +40,7 @@ import {
 type PromotionStatus = 'ACTIVE' | 'DRAFT' | 'PAUSED' | 'EXPIRED'
 type RewardType = 'PERCENTAGE' | 'FIXED_AMOUNT' | 'FREE_SHIPPING'
 type ManagementTab = 'rewards' | 'conditions' | 'targets' | 'codes' | 'usageLimits'
+type BuildingBlockTab = ManagementTab | 'claimSettings'
 type OwnerType = 'PLATFORM' | 'SELLER'
 type PromotionScope = 'PRODUCT' | 'CATEGORY' | 'SHOP' | 'ORDER' | 'SHIPPING'
 type PromotionType = 'PERCENTAGE' | 'FIXED_AMOUNT' | 'BUY_X_GET_Y' | 'FREE_SHIPPING' | 'BUNDLE'
@@ -199,7 +202,8 @@ const parseJsonObject = (value: string): Record<string, unknown> | null => {
   }
 }
 
-const ASSET_LABELS: Record<ManagementTab, string> = {
+const ASSET_LABELS: Record<BuildingBlockTab, string> = {
+  claimSettings: 'Claim Settings',
   rewards: 'Rewards',
   conditions: 'Conditions',
   targets: 'Targets',
@@ -207,7 +211,8 @@ const ASSET_LABELS: Record<ManagementTab, string> = {
   usageLimits: 'Usage Limits',
 }
 
-const ASSET_SINGULAR_LABELS: Record<ManagementTab, string> = {
+const ASSET_SINGULAR_LABELS: Record<BuildingBlockTab, string> = {
+  claimSettings: 'claim settings',
   rewards: 'reward',
   conditions: 'condition',
   targets: 'target',
@@ -497,7 +502,8 @@ const PromotionEnginePage = () => {
   const [showCreateMenu, setShowCreateMenu] = useState(false)
   const createMenuRef = useRef<HTMLDivElement>(null)
   const [selectedId, setSelectedId] = useState('')
-  const [managementTab, setManagementTab] = useState<ManagementTab>('rewards')
+  const [buildingBlockTab, setBuildingBlockTab] = useState<BuildingBlockTab>('rewards')
+  const managementTab: ManagementTab = buildingBlockTab === 'claimSettings' ? 'rewards' : buildingBlockTab
   const [assets, setAssets] = useState<Record<ManagementTab, PromotionAsset[]>>({
     rewards: [],
     conditions: [],
@@ -1027,12 +1033,14 @@ const PromotionEnginePage = () => {
       {canManagePromotionAssets && (
         <PromotionAssetManager
           isPlatformAdmin={isPlatformAdmin}
-          activeTab={managementTab}
+          activeTab={buildingBlockTab}
+          promotions={promotions}
+          shopId={isPlatformAdmin ? undefined : activeShopId ?? undefined}
           assets={assets[managementTab]}
           canCreateTargets={promotions.some((promotion) =>
             promotionScopeSupportsTargets(promotion.record.scope),
           )}
-          onTabChange={setManagementTab}
+          onTabChange={setBuildingBlockTab}
           onAdd={openCreateAsset}
           onEdit={openEditAsset}
           onRemove={removeAsset}
@@ -1147,6 +1155,8 @@ const PromotionDetailGroup = ({
 const PromotionAssetManager = ({
   isPlatformAdmin,
   activeTab,
+  promotions,
+  shopId,
   assets,
   canCreateTargets,
   onTabChange,
@@ -1155,14 +1165,70 @@ const PromotionAssetManager = ({
   onRemove,
 }: {
   isPlatformAdmin: boolean
-  activeTab: ManagementTab
+  activeTab: BuildingBlockTab
+  promotions: PromotionListItem[]
+  shopId?: string
   assets: PromotionAsset[]
   canCreateTargets: boolean
-  onTabChange: (tab: ManagementTab) => void
+  onTabChange: (tab: BuildingBlockTab) => void
   onAdd: () => void
   onEdit: (asset: PromotionAsset) => void
   onRemove: (id: string) => void
 }) => {
+  const [claimPromotionId, setClaimPromotionId] = useState('')
+  const [claimSettings, setClaimSettings] = useState<PromotionClaimSettings[]>([])
+  const [claimSettingsLoading, setClaimSettingsLoading] = useState(false)
+  const [claimSettingsError, setClaimSettingsError] = useState('')
+  const [claimSettingsReload, setClaimSettingsReload] = useState(0)
+  const [claimModalOpen, setClaimModalOpen] = useState(false)
+  const [editingClaimId, setEditingClaimId] = useState<string | null>(null)
+  const [removingClaimId, setRemovingClaimId] = useState<string | null>(null)
+  const claimPromotion = promotions.find((promotion) => promotion.id === claimPromotionId)
+  const availableClaimPromotions = promotions.filter(
+    (promotion) =>
+      promotion.id === editingClaimId || !claimSettings.some((setting) => setting.promotion_id === promotion.id),
+  )
+
+  useEffect(() => {
+    if (activeTab !== 'claimSettings') return
+    let cancelled = false
+    setClaimSettingsLoading(true)
+    setClaimSettingsError('')
+    setClaimSettings([])
+    promotionClaimsApi
+      .listSettings(shopId)
+      .then((rows) => {
+        if (!cancelled) setClaimSettings(rows)
+      })
+      .catch(() => {
+        if (!cancelled) setClaimSettingsError('Could not load claim settings.')
+      })
+      .finally(() => {
+        if (!cancelled) setClaimSettingsLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [activeTab, shopId, claimSettingsReload])
+
+  const removeClaimSettings = async (promotionId: string) => {
+    setRemovingClaimId(promotionId)
+    setClaimSettingsError('')
+    try {
+      await promotionClaimsApi.removeSettings(promotionId)
+      setClaimSettings((rows) => rows.filter((row) => row.promotion_id !== promotionId))
+    } catch {
+      setClaimSettingsError('Could not delete claim settings. Please try again.')
+    } finally {
+      setRemovingClaimId(null)
+    }
+  }
+
+  const closeClaimModal = () => {
+    setClaimModalOpen(false)
+    setClaimPromotionId('')
+    setEditingClaimId(null)
+  }
   return (
     <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="flex flex-col justify-between gap-4 border-b border-slate-200 px-5 py-5 sm:flex-row sm:items-center">
@@ -1173,74 +1239,210 @@ const PromotionAssetManager = ({
           </div>
           <p className="mt-1 text-xs text-slate-500">
             {isPlatformAdmin
-              ? 'Control codes, limits, rewards, conditions, and targets for promotions.'
-              : 'Define codes, usage limits, rewards, conditions, and targets for your shop promotions.'}
+              ? 'Control codes, limits, rewards, conditions, targets, and claim settings for promotions.'
+              : 'Define codes, usage limits, rewards, conditions, targets, and claim settings for your shop promotions.'}
           </p>
         </div>
         <button
           type="button"
-          onClick={onAdd}
-          disabled={activeTab === 'targets' && !canCreateTargets}
-          title={activeTab === 'targets' && !canCreateTargets ? 'Order and Shipping promotions do not use targets.' : undefined}
+          onClick={() => {
+            if (activeTab !== 'claimSettings') return onAdd()
+            setEditingClaimId(null)
+            setClaimPromotionId('')
+            setClaimModalOpen(true)
+          }}
+          disabled={
+            (activeTab === 'targets' && !canCreateTargets) ||
+            (activeTab === 'claimSettings' &&
+              (claimSettingsLoading || Boolean(claimSettingsError) || availableClaimPromotions.length === 0))
+          }
+          title={
+            activeTab === 'targets' && !canCreateTargets
+              ? 'Order and Shipping promotions do not use targets.'
+              : undefined
+          }
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-emerald-300 hover:text-emerald-700"
         >
           <Plus size={15} /> Add {ASSET_SINGULAR_LABELS[activeTab]}
         </button>
       </div>
-      <div className="flex gap-1 border-b border-slate-100 px-5 pt-3">
-        {(['rewards', 'conditions', 'targets', 'codes', 'usageLimits'] as ManagementTab[]).map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            onClick={() => onTabChange(tab)}
-            className={`border-b-2 px-3 pb-3 text-xs font-semibold ${activeTab === tab ? 'border-violet-600 text-violet-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-          >
-            {ASSET_LABELS[tab]}
-          </button>
-        ))}
-      </div>
-      <div className="divide-y divide-slate-100">
-        {assets.map((asset) => (
-          <div key={asset.id} className="flex items-center gap-4 px-5 py-4">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-50 text-violet-700">
-              {activeTab === 'rewards' || activeTab === 'usageLimits'
-                ? <CircleDollarSign size={17} />
-                : activeTab === 'conditions'
-                  ? <Check size={17} />
-                  : activeTab === 'codes'
-                    ? <Sparkles size={17} />
-                    : <Target size={17} />}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-slate-900">{asset.promotion}</p>
-              <p className="mt-1 text-xs text-slate-500">{asset.detail}</p>
-            </div>
+      <div className="flex gap-1 overflow-x-auto border-b border-slate-100 px-5 pt-3">
+        {(['rewards', 'conditions', 'targets', 'codes', 'usageLimits', 'claimSettings'] as BuildingBlockTab[]).map(
+          (tab) => (
             <button
+              key={tab}
               type="button"
-              onClick={() => onEdit(asset)}
-              aria-label={`Edit ${ASSET_SINGULAR_LABELS[activeTab]} item`}
-              disabled={asset.used}
-              title={asset.used ? 'Redeemed promo codes are read-only' : undefined}
-              className="rounded-md px-2 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+              onClick={() => {
+                closeClaimModal()
+                onTabChange(tab)
+              }}
+              aria-pressed={activeTab === tab}
+              className={`whitespace-nowrap border-b-2 px-3 pb-3 text-xs font-semibold ${
+                activeTab === tab
+                  ? 'border-violet-600 text-violet-700'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
             >
-              Edit
+              {ASSET_LABELS[tab]}
             </button>
-            <button
-              type="button"
-              onClick={() => onRemove(asset.id)}
-              aria-label={`Delete ${ASSET_SINGULAR_LABELS[activeTab]} item`}
-              disabled={asset.used}
-              title={asset.used ? 'Redeemed promo codes are read-only' : undefined}
-              className="rounded-md p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <X size={15} />
-            </button>
-          </div>
-        ))}
-        {assets.length === 0 && (
-          <p className="px-5 py-8 text-center text-sm text-slate-500">No {ASSET_LABELS[activeTab].toLowerCase()} configured.</p>
+          ),
         )}
       </div>
+      {activeTab === 'claimSettings' ? (
+        <div className="divide-y divide-slate-100">
+          {claimSettingsError && (
+            <div role="alert" className="px-5 py-4 text-sm text-red-600">
+              {claimSettingsError}{' '}
+              <button
+                type="button"
+                onClick={() => setClaimSettingsReload((value) => value + 1)}
+                className="font-semibold underline"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+          {claimSettingsLoading ? (
+            <p role="status" className="px-5 py-8 text-center text-sm text-slate-500">
+              Loading claim settings…
+            </p>
+          ) : (
+            claimSettings.map((setting) => (
+              <div key={setting.promotion_id} className="flex items-center gap-4 px-5 py-4">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-700">
+                  <CircleDollarSign size={17} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-slate-900">
+                    {promotions.find((promotion) => promotion.id === setting.promotion_id)?.name ??
+                      setting.promotion_id}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {setting.enabled ? 'Enabled' : 'Disabled'} · Minimum received-order amount:{' '}
+                    {Number(setting.minimum_order_amount).toLocaleString()}
+                    {' · '}
+                    {setting.claim_deadline_days === null
+                      ? 'No additional claim deadline'
+                      : `Claim within ${setting.claim_deadline_days} ${
+                          setting.claim_deadline_days === 1 ? 'day' : 'days'
+                        }`}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Edit claim settings item"
+                  disabled={Boolean(removingClaimId)}
+                  onClick={() => {
+                    setEditingClaimId(setting.promotion_id)
+                    setClaimPromotionId(setting.promotion_id)
+                    setClaimModalOpen(true)
+                  }}
+                  className="rounded-md px-2 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-40"
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  aria-label="Delete claim settings item"
+                  disabled={Boolean(removingClaimId)}
+                  onClick={() => void removeClaimSettings(setting.promotion_id)}
+                  className="rounded-md p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-40"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+            ))
+          )}
+          {!claimSettingsLoading && !claimSettingsError && claimSettings.length === 0 && (
+            <p className="px-5 py-8 text-center text-sm text-slate-500">No claim settings configured.</p>
+          )}
+        </div>
+      ) : (
+        <div className="divide-y divide-slate-100">
+          {assets.map((asset) => (
+            <div key={asset.id} className="flex items-center gap-4 px-5 py-4">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-50 text-violet-700">
+                {activeTab === 'rewards' || activeTab === 'usageLimits' ? (
+                  <CircleDollarSign size={17} />
+                ) : activeTab === 'conditions' ? (
+                  <Check size={17} />
+                ) : activeTab === 'codes' ? (
+                  <Sparkles size={17} />
+                ) : (
+                  <Target size={17} />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-slate-900">{asset.promotion}</p>
+                <p className="mt-1 text-xs text-slate-500">{asset.detail}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onEdit(asset)}
+                aria-label={`Edit ${ASSET_SINGULAR_LABELS[activeTab]} item`}
+                disabled={asset.used}
+                title={asset.used ? 'Redeemed promo codes are read-only' : undefined}
+                className="rounded-md px-2 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => onRemove(asset.id)}
+                aria-label={`Delete ${ASSET_SINGULAR_LABELS[activeTab]} item`}
+                disabled={asset.used}
+                title={asset.used ? 'Redeemed promo codes are read-only' : undefined}
+                className="rounded-md p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <X size={15} />
+              </button>
+            </div>
+          ))}
+          {assets.length === 0 && (
+            <p className="px-5 py-8 text-center text-sm text-slate-500">
+              No {ASSET_LABELS[activeTab].toLowerCase()} configured.
+            </p>
+          )}
+        </div>
+      )}
+      {claimModalOpen && activeTab === 'claimSettings' && (
+        <ModalShell
+          title={editingClaimId ? 'Edit claim settings' : 'Add claim settings'}
+          eyebrow="Promotion building block"
+          onClose={closeClaimModal}
+        >
+          <FormField label="Promotion name">
+            <select
+              value={claimPromotion?.id ?? ''}
+              onChange={(event) => setClaimPromotionId(event.target.value)}
+              disabled={Boolean(editingClaimId)}
+              className={INPUT_CLASS}
+              required
+            >
+              <option value="">Select a promotion</option>
+              {availableClaimPromotions.map((promotion) => (
+                <option key={promotion.id} value={promotion.id}>
+                  {promotion.name}
+                </option>
+              ))}
+            </select>
+          </FormField>
+          {claimPromotion ? (
+            <PromotionClaimSettingsPanel
+              key={claimPromotion.id}
+              promotionId={claimPromotion.id}
+              promotionName={claimPromotion.name}
+              onCancel={closeClaimModal}
+              onSaved={(saved) => {
+                setClaimSettings((rows) => [saved, ...rows.filter((row) => row.promotion_id !== saved.promotion_id)])
+                closeClaimModal()
+              }}
+            />
+          ) : (
+            <p className="text-sm text-slate-500">Select a promotion to configure its claim settings.</p>
+          )}
+        </ModalShell>
+      )}
     </section>
   )
 }
@@ -1257,6 +1459,9 @@ type PromotionCreateModalProps = {
 const PromotionCreateModal = ({ open, isPlatformAdmin, activeShopId, activeShopName, onClose, onCreate }: PromotionCreateModalProps) => {
   const [ownerType, setOwnerType] = useState<OwnerType>(isPlatformAdmin ? 'PLATFORM' : 'SELLER')
   const [shopId, setShopId] = useState(activeShopId ?? '')
+  const [shops, setShops] = useState<Array<{ id: string; name: string }>>([])
+  const [shopsLoading, setShopsLoading] = useState(false)
+  const [shopsError, setShopsError] = useState('')
   const [scope, setScope] = useState<PromotionScope>('ORDER')
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -1270,7 +1475,25 @@ const PromotionCreateModal = ({ open, isPlatformAdmin, activeShopId, activeShopN
   const resolvedShopId = isPlatformAdmin
     ? toNullableString(shopId)
     : toNullableString(activeShopId)
-  const shopScopeMissingShop = scope === 'SHOP' && !resolvedShopId
+  const shopScopeMissingShop = (scope === 'SHOP' || resolvedOwnerType === 'SELLER') && !resolvedShopId
+
+  useEffect(() => {
+    if (!open || !isPlatformAdmin) return
+    let cancelled = false
+    setShopsLoading(true)
+    setShopsError('')
+    promotionApi.listShops()
+      .then((rows) => {
+        if (!cancelled) setShops(rows)
+      })
+      .catch(() => {
+        if (!cancelled) setShopsError('Could not load shops. Close and reopen this form to try again.')
+      })
+      .finally(() => {
+        if (!cancelled) setShopsLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [open, isPlatformAdmin])
 
   if (!open) return null
 
@@ -1306,16 +1529,23 @@ const PromotionCreateModal = ({ open, isPlatformAdmin, activeShopId, activeShopN
           </select>
         </FormField>
         {isPlatformAdmin ? (
-          <FormField label="Shop ID" hint={scope === 'SHOP' ? 'Required for SHOP scope' : 'Required for seller promotions'}>
-            <input
+          <FormField label="Shop name" hint={shopsError || (scope === 'SHOP' ? 'Required for SHOP scope' : 'Required for seller promotions')}>
+            <SearchableSelect
+              options={[
+                { value: '', label: 'No shop selected' },
+                ...shops.map((shop) => ({ value: shop.id, label: shop.name })),
+              ]}
               value={shopId}
-              onChange={(event) => setShopId(event.target.value)}
-              placeholder="UUID or leave blank"
-              className={INPUT_CLASS}
+              onChange={setShopId}
+              placeholder="Search shops by name"
+              emptyLabel="Select a shop by name"
+              searchAriaLabel="Search shops by name"
+              loading={shopsLoading}
+              disabled={shopsLoading || Boolean(shopsError)}
             />
           </FormField>
         ) : (
-          <FormField label="Shop">
+          <FormField label="Shop name">
             <input
               value={activeShopName || 'No active shop selected'}
               readOnly
@@ -1847,7 +2077,7 @@ const ModalShell = ({
   onClose: () => void
   children: React.ReactNode
 }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
+  <div role="dialog" aria-modal="true" aria-label={title} className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
     <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-6 shadow-2xl">
       <div className="flex items-start justify-between">
         <div>

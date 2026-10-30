@@ -88,6 +88,23 @@ const resourcePath: Record<PromotionAssetKind, string> = {
 }
 
 export const promotionApi = {
+  async listShops(): Promise<Array<{ id: string; name: string }>> {
+    const shops: Array<{ id: string; name: string }> = []
+    let page = 1
+    let totalPages = 1
+
+    do {
+      const response = await productClient.get<{
+        data: Array<{ id: string; name: string }>
+        pagination?: { totalPages?: number }
+      }>('/shops', { params: { page, limit: 100 } })
+      shops.push(...response.data.data)
+      totalPages = response.data.pagination?.totalPages ?? page
+      page += 1
+    } while (page <= totalPages)
+
+    return shops.sort((a, b) => a.name.localeCompare(b.name))
+  },
   async listPromotions(shopId?: string): Promise<PromotionRecord[]> {
     const response = await promotionClient.get<
       PromotionRecord[] | { data?: PromotionRecord[] } | null

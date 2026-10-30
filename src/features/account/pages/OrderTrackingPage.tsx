@@ -275,6 +275,8 @@ const OrderTrackingPage = () => {
   const [error, setError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
   const [confirmError, setConfirmError] = useState<string | null>(null)
+  const [receiptConfirmed, setReceiptConfirmed] = useState(false)
+  const [confirmedDeliveries, setConfirmedDeliveries] = useState<string[]>([])
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const [shopNames, setShopNames] = useState<Record<string, string>>({})
 
@@ -403,8 +405,27 @@ const OrderTrackingPage = () => {
     : false
 
   const deliveries = order?.fulfillment?.deliveries ?? []
+  const deliveryStatusKey = deliveries.map(delivery => `${delivery.deliveryId}:${delivery.status}`).join(',')
+  useEffect(() => {
+    if (!orderId) return
+    let cancelled = false
+    setConfirmedDeliveries([])
+    setReceiptConfirmed(false)
+    deliveryApi.receiptStatus(orderId).then(rows => {
+      if (cancelled) return
+      const confirmed = rows.filter(row => row.buyer_confirmed_at)
+      setConfirmedDeliveries(confirmed.flatMap(row => [row.id, row.tracking_number].filter((id): id is string => Boolean(id))))
+      setReceiptConfirmed(rows.length > 0 && confirmed.length === rows.length)
+    }).catch(() => {
+      // Receipt submission remains authenticated and idempotent if this status
+      // lookup fails; the customer can still retry confirmation safely.
+    })
+    return () => { cancelled = true }
+  }, [orderId, deliveryStatusKey])
   const activeDeliveries = deliveries.filter(
-    (d) => !['DELIVERED', 'CANCELLED'].includes(d.status?.toUpperCase()),
+    (d) => !['CANCELLED', 'FAILED'].includes(d.status?.toUpperCase())
+      && !confirmedDeliveries.includes(d.deliveryId)
+      && !(d.trackingNumber && confirmedDeliveries.includes(d.trackingNumber)),
   )
   const deliveredCount = deliveries.filter((d) => d.status?.toUpperCase() === 'DELIVERED').length
 
@@ -460,7 +481,6 @@ const OrderTrackingPage = () => {
   const canConfirmReceipt =
     order !== null &&
     !isCancelled &&
-    orderStatusUpper !== 'DELIVERED' &&
     allShopsShipped &&
     activeDeliveries.length > 0
   const waitingForMoreShops = !isCancelled && !allShopsShipped && deliveries.length > 0
@@ -545,7 +565,9 @@ const OrderTrackingPage = () => {
         if (!confirmed) {
           throw lastError ?? new Error('Delivery not found')
         }
+        setConfirmedDeliveries(current => [...current, delivery.deliveryId, ...(delivery.trackingNumber ? [delivery.trackingNumber] : [])])
       }
+      setReceiptConfirmed(true)
       // Refresh the order so the timeline/status reflects DELIVERED.
       const response = await ecommerceReadClient.post<{
         data?: { orderById?: PurchasedOrder }
@@ -955,6 +977,12 @@ const OrderTrackingPage = () => {
                     </p>
                   )}
 
+                  {receiptConfirmed && (
+                    <p role="status" className="mb-3 text-sm text-emerald-700">
+                      Receipt confirmed. Eligible coupons will appear in{' '}
+                      <Link to="/account/my-coins" className="font-semibold underline">My Coins</Link>.
+                    </p>
+                  )}
                   {canConfirmReceipt && (
                     <div className="mt-4 pt-4 border-t border-gray-100">
                       <button

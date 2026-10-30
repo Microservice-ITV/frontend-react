@@ -17,12 +17,20 @@ export const deliveryClient = axios.create({
 setupAuthInterceptors(deliveryClient)
 
 export const deliveryApi = {
+  async receiptStatus(orderId: string): Promise<Array<{
+    id: string
+    tracking_number: string | null
+    buyer_confirmed_at: string | null
+  }>> {
+    return (await deliveryClient.get(`/deliveries/receipt-status/${encodeURIComponent(orderId)}`)).data.data
+  },
   async confirmReceipt(deliveryId: string): Promise<{
     id: string
     order_id: string
     status: string
     delivered_at?: string | null
     confirmed_by: string
+    buyer_confirmed_at: string
   }> {
     const response = await deliveryClient.post(`/deliveries/${deliveryId}/confirm-receipt`)
     return response.data
