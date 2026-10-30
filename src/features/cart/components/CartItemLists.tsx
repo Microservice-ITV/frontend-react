@@ -87,6 +87,8 @@ const CartItemLists = ({ items, bundleMinimumQty }: CartItemListProps) => {
                   <img
                     src={item.image || placeholderImage}
                     alt=""
+                    loading="lazy"
+                    decoding="async"
                     onError={(e) => {
                       const img = e.currentTarget
                       img.onerror = null

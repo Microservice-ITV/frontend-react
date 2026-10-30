@@ -69,6 +69,7 @@ const FlashDealCard = ({ deal }: FlashDealCardProps) => {
             alt={productName}
             className="pointer-events-none absolute inset-0 h-full w-full object-cover p-2"
             loading="lazy"
+            decoding="async"
           />
 
           <div className="absolute left-2 top-2 flex gap-1.5">

@@ -236,6 +236,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
               imageLoaded && !imageFailed ? "opacity-100" : "opacity-0",
             ].join(" ")}
             loading="lazy"
+            decoding="async"
             onLoad={() => setImageLoaded(true)}
             onError={() => {
               setImageFailed(true);

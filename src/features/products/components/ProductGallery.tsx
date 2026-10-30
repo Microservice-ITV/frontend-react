@@ -71,6 +71,9 @@ const ProductGallery = ({ images }: Props) => {
         src={productServiceAssetUrl(activeSrc)}
         alt="Product"
         className="w-full h-auto max-h-[70vh] object-contain bg-white"
+        loading="eager"
+        decoding="async"
+        fetchPriority="high"
       />
 
       <div className="relative mt-2">
@@ -114,6 +117,8 @@ const ProductGallery = ({ images }: Props) => {
                 src={productServiceAssetUrl(img)}
                 alt=""
                 className="h-full w-full object-contain"
+                loading="lazy"
+                decoding="async"
               />
             </button>
           ))}

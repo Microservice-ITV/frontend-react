@@ -16,7 +16,7 @@ import { stripePromise } from '@/lib/stripe'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
 import { selectAuthUser } from '@/features/auth/store/authSelectors'
-import { clearCheckout, setCurrentCheckout, setSagaId, setCheckoutError } from '@/features/checkout/store/checkoutSlice'
+import { clearCheckout, setCurrentCheckout, setSagaId, setCheckoutError, setCheckoutPreparingUi } from '@/features/checkout/store/checkoutSlice'
 import {
     selectAccountAddresses,
     selectAccountAddressesLoading,
@@ -34,6 +34,7 @@ import { usePayDeliveryFeeNow } from '../hooks/usePayDeliveryFeeNow'
 import { useCheckoutDeliveryOptions } from '../hooks/useCheckoutDeliveryOptions'
 import { isShopStaffUser, readStaffCheckoutAddress } from '../utils/staffCheckoutCustomer'
 import { parseDeliveryFeeInput } from '../utils/checkoutShopShipping'
+import CheckoutPreparingAnimation from '../components/CheckoutPreparingAnimation'
 
 type StoredCheckoutSession = {
     checkoutId: string
@@ -598,83 +599,119 @@ const CheckoutPage = () => {
         return <Navigate to="/checkout/customer" replace />
     }
 
+    const isTerminalPayment =
+        paymentStatus != null && terminalCheckoutStatuses.has(paymentStatus)
+    // Cover the checkout body (not the site header) until Place Order can go live.
+    const isPreparingCheckout =
+        !isTerminalPayment &&
+        !isAwaitingFinalStatus &&
+        (loading ||
+            !checkoutSessionBootstrapped ||
+            !currentCheckout?.checkout_id ||
+            !clientSecret ||
+            !deliveryCompany.routesReady ||
+            paymentStatus === 'PENDING_STOCK' ||
+            paymentStatus === 'STOCK_CONFIRMED')
+
+    useEffect(() => {
+        dispatch(setCheckoutPreparingUi(isPreparingCheckout))
+        return () => {
+            dispatch(setCheckoutPreparingUi(false))
+        }
+    }, [dispatch, isPreparingCheckout])
+
     return (
         <Elements stripe={stripePromise}>
-            <div className="bg-[#f5f5f5] py-3 sm:py-4 lg:py-5">
-                <div className="mx-auto w-full max-w-7xl px-3 sm:px-4 lg:px-6">
-                    {/* <h1 className="mb-3 text-lg font-semibold text-gray-900 sm:mb-4 sm:text-xl">Checkout</h1> */}
-
-                    <div className="grid items-start gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-5">
-                        <div className="min-w-0 space-y-3">
-                            <CheckoutAddress
-                                address={selectedDeliveryAddress}
-                                loading={staffCheckout ? false : addressesLoading}
-                                onChangeAddress={openAddressSelectionModal}
-                            />
-                            <CartBundleBanner items={items} allowAdd />
-                            <CheckoutItems
-                                checkout={checkout}
-                                payDeliveryFeeNow={payDeliveryFeeNow}
-                                onPayDeliveryFeeNowChange={setPayDeliveryFeeNow}
-                                payDeliveryFeeNowLockedOff={payDeliveryFeeNowLockedOff}
-                                payDeliveryFeeNowLockReason={payDeliveryFeeNowLockReason}
-                                showDeliveryCheckoutOptions={showDeliveryCheckoutOptions}
-                                deliveryCompany={{
-                                    companiesByShopId: deliveryCompany.companiesByShopId,
-                                    selectedByShopId: deliveryCompany.selectedByShopId,
-                                    unavailableCompanyIdsByShop: deliveryCompany.unavailableCompanyIdsByShop,
-                                    loading: deliveryCompany.loading,
-                                    error: deliveryCompany.error,
-                                    onSelect: deliveryCompany.selectCompany,
-                                }}
-                            />
+            <div className="min-h-[60vh] bg-[#f5f5f5] py-3 sm:py-4 lg:py-5">
+                {isPreparingCheckout ? (
+                    <div
+                        role="status"
+                        aria-live="polite"
+                        aria-busy="true"
+                        className="flex min-h-[60vh] w-full flex-col items-center justify-center gap-4"
+                    >
+                        <CheckoutPreparingAnimation />
+                        <div className="text-center">
+                            <p className="text-sm font-medium text-slate-700">Getting Your Order Ready...</p>
+                            <p className="mt-1 text-xs text-slate-500">We're preparing your order with care.</p>
                         </div>
-
-                        <aside className="space-y-3 lg:sticky lg:top-4">
-                            <CheckoutPayment
-                                totalAmount={
-                                    amountDueNow(checkout, payDeliveryFeeNow)
-                                    + (staffCheckout ? parseDeliveryFeeInput(staffDeliveryFeeInput) : 0)
-                                }
-                            />
-                            <CheckoutSummary
-                                checkout={checkout}
-                                payDeliveryFeeNow={payDeliveryFeeNow}
-                                hasDeliveryAddress={hasDeliveryAddress}
-                                onRequireAddress={openAddressSelectionModal}
-                                deliveryAddress={selectedDeliveryAddress}
-                                cartItems={items}
-                                deliveryQuotePendingConfirmation={deliveryQuotePendingConfirmation}
-                                deliveryCompanyIdByShopId={deliveryCompany.companyByShopId}
-                                deliveryCompanySelectionReady={deliveryCompany.routesReady}
-                                cartShopIdsWithoutSelectableCompany={
-                                    showDeliveryCheckoutOptions ? cartShopIdsWithoutSelectableCompany : shopIds
-                                }
-                                editableDeliveryFee={staffCheckout}
-                                deliveryFeeInput={staffDeliveryFeeInput}
-                                onDeliveryFeeInputChange={setStaffDeliveryFeeInput}
-                            />
-                            {checkoutPreparationTimedOut && !isStockReady && (
-                                <div role="alert" className="rounded-sm border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                                    <p>Checkout preparation is taking longer than expected.</p>
-                                    <button
-                                        type="button"
-                                        onClick={retryCheckoutPreparation}
-                                        className="mt-3 rounded bg-emerald-600 px-4 py-2 font-medium text-white hover:bg-emerald-700"
-                                    >
-                                        Retry checkout
-                                    </button>
-                                </div>
-                            )}
-                        </aside>
                     </div>
+                ) : (
+                    <div className="mx-auto w-full max-w-7xl px-3 sm:px-4 lg:px-6">
+                        {/* <h1 className="mb-3 text-lg font-semibold text-gray-900 sm:mb-4 sm:text-xl">Checkout</h1> */}
 
-                    {sagaId && (
-                        <div className="mt-4">
-                            <SagaStatusDisplay sagaId={sagaId} />
+                        <div className="grid items-start gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-5">
+                            <div className="min-w-0 space-y-3">
+                                <CheckoutAddress
+                                    address={selectedDeliveryAddress}
+                                    loading={staffCheckout ? false : addressesLoading}
+                                    onChangeAddress={openAddressSelectionModal}
+                                />
+                                <CartBundleBanner items={items} allowAdd />
+                                <CheckoutItems
+                                    checkout={checkout}
+                                    payDeliveryFeeNow={payDeliveryFeeNow}
+                                    onPayDeliveryFeeNowChange={setPayDeliveryFeeNow}
+                                    payDeliveryFeeNowLockedOff={payDeliveryFeeNowLockedOff}
+                                    payDeliveryFeeNowLockReason={payDeliveryFeeNowLockReason}
+                                    showDeliveryCheckoutOptions={showDeliveryCheckoutOptions}
+                                    deliveryCompany={{
+                                        companiesByShopId: deliveryCompany.companiesByShopId,
+                                        selectedByShopId: deliveryCompany.selectedByShopId,
+                                        unavailableCompanyIdsByShop: deliveryCompany.unavailableCompanyIdsByShop,
+                                        loading: deliveryCompany.loading,
+                                        error: deliveryCompany.error,
+                                        onSelect: deliveryCompany.selectCompany,
+                                    }}
+                                />
+                            </div>
+
+                            <aside className="space-y-3 lg:sticky lg:top-4">
+                                <CheckoutPayment
+                                    totalAmount={
+                                        amountDueNow(checkout, payDeliveryFeeNow)
+                                        + (staffCheckout ? parseDeliveryFeeInput(staffDeliveryFeeInput) : 0)
+                                    }
+                                />
+                                <CheckoutSummary
+                                    checkout={checkout}
+                                    payDeliveryFeeNow={payDeliveryFeeNow}
+                                    hasDeliveryAddress={hasDeliveryAddress}
+                                    onRequireAddress={openAddressSelectionModal}
+                                    deliveryAddress={selectedDeliveryAddress}
+                                    cartItems={items}
+                                    deliveryQuotePendingConfirmation={deliveryQuotePendingConfirmation}
+                                    deliveryCompanyIdByShopId={deliveryCompany.companyByShopId}
+                                    deliveryCompanySelectionReady={deliveryCompany.routesReady}
+                                    cartShopIdsWithoutSelectableCompany={
+                                        showDeliveryCheckoutOptions ? cartShopIdsWithoutSelectableCompany : shopIds
+                                    }
+                                    editableDeliveryFee={staffCheckout}
+                                    deliveryFeeInput={staffDeliveryFeeInput}
+                                    onDeliveryFeeInputChange={setStaffDeliveryFeeInput}
+                                />
+                                {checkoutPreparationTimedOut && !isStockReady && (
+                                    <div role="alert" className="rounded-sm border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                                        <p>Checkout preparation is taking longer than expected.</p>
+                                        <button
+                                            type="button"
+                                            onClick={retryCheckoutPreparation}
+                                            className="mt-3 rounded bg-emerald-600 px-4 py-2 font-medium text-white hover:bg-emerald-700"
+                                        >
+                                            Retry checkout
+                                        </button>
+                                    </div>
+                                )}
+                            </aside>
                         </div>
-                    )}
-                </div>
+
+                        {sagaId && (
+                            <div className="mt-4">
+                                <SagaStatusDisplay sagaId={sagaId} />
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
         </Elements>
     )

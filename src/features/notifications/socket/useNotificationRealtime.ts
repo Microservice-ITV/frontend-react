@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { io, type Socket } from 'socket.io-client'
+import type { Socket } from 'socket.io-client'
 import { useAppDispatch } from '@/app/hooks'
 import {
   fetchUnreadCount,
@@ -49,61 +49,75 @@ export const useNotificationRealtime = ({
       return
     }
 
-    const socket: Socket = io(getNotificationSocketUrl(), {
-      path: getSocketPath(),
-      transports: ['websocket', 'polling'],
-      withCredentials: true,
-      auth: {
-        ...(accessToken ? { accessToken } : {}),
-        ...(socketToken ? { token: socketToken } : {}),
-      },
-    })
+    let cancelled = false
 
-    socketRef.current = socket
+    const connect = async () => {
+      const { io } = await import('socket.io-client')
+      if (cancelled || socketRef.current) return
 
-    const handleConnected = () => {
-      void dispatch(fetchUnreadCount())
-    }
+      const socket: Socket = io(getNotificationSocketUrl(), {
+        path: getSocketPath(),
+        transports: ['websocket', 'polling'],
+        withCredentials: true,
+        auth: {
+          ...(accessToken ? { accessToken } : {}),
+          ...(socketToken ? { token: socketToken } : {}),
+        },
+      })
 
-    const handleNotification = (
-      payload: NotificationRealtimeEvent,
-    ) => {
-      const normalized: NotificationRealtimeEvent = {
-        id: payload.id,
-        title: payload.title,
-        message: payload.message,
-        type: payload.type,
-        status: payload.status,
-        shopId: payload.shopId ?? null,
-        createdAt: payload.createdAt,
-        data: payload.data ?? {},
+      if (cancelled) {
+        socket.disconnect()
+        return
       }
 
-      dispatch(upsertRealtimeNotification(normalized))
+      socketRef.current = socket
+
+      const handleConnected = () => {
+        void dispatch(fetchUnreadCount())
+      }
+
+      const handleNotification = (
+        payload: NotificationRealtimeEvent,
+      ) => {
+        const normalized: NotificationRealtimeEvent = {
+          id: payload.id,
+          title: payload.title,
+          message: payload.message,
+          type: payload.type,
+          status: payload.status,
+          shopId: payload.shopId ?? null,
+          createdAt: payload.createdAt,
+          data: payload.data ?? {},
+        }
+
+        dispatch(upsertRealtimeNotification(normalized))
+      }
+
+      socket.on('connected', handleConnected)
+      socket.on('notification:new', handleNotification)
+
+      socket.on('connect_error', () => {
+        // Keep reconnect handling inside Socket.IO.
+        // Do not trigger notification API requests here.
+      })
+
+      socket.on('disconnect', () => {
+        // Do not fetch notifications on disconnect.
+      })
     }
 
-    socket.on('connected', handleConnected)
-    socket.on('notification:new', handleNotification)
-
-    socket.on('connect_error', () => {
-      // Keep reconnect handling inside Socket.IO.
-      // Do not trigger notification API requests here.
-    })
-
-    socket.on('disconnect', () => {
-      // Do not fetch notifications on disconnect.
-    })
+    void connect()
 
     return () => {
-      socket.off('connected', handleConnected)
-      socket.off('notification:new', handleNotification)
-      socket.off('connect_error')
-      socket.off('disconnect')
-
-      socket.disconnect()
-      socketRef.current = null
+      cancelled = true
+      const socket = socketRef.current
+      if (socket) {
+        socket.removeAllListeners()
+        socket.disconnect()
+        socketRef.current = null
+      }
     }
   }, [accessToken, dispatch, socketToken, userId])
 
   return null
-} 
+}

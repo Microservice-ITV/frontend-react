@@ -416,6 +416,8 @@ const CheckoutItems = ({
                       <img
                         src={item.image || placeholderImage}
                         alt={item.name}
+                        loading="lazy"
+                        decoding="async"
                         onError={e => {
                           const img = e.currentTarget
                           img.onerror = null
