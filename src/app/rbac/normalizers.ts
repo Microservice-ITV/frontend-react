@@ -35,6 +35,22 @@ const ROLE_ALIASES: Record<string, AppRole> = {
   CUSTOMER: 'USER',
 }
 
+const ROLE_PRECEDENCE: AppRole[] = [
+  'SUPER_ADMIN',
+  'HR_MANAGER',
+  'PAYROLL_OFFICER',
+  'PAYROLL_APPROVER',
+  'FINANCE',
+  'WAREHOUSE_MANAGER',
+  'DELIVERY_AGENT',
+  'SHOP_OWNER',
+  'SHOP_ADMIN',
+  'SHOP_SUPERVISOR',
+  'CASHIER',
+  'EMPLOYEE',
+  'USER',
+]
+
 const normalizeRoleString = (value: string): AppRole | null => {
   const normalized = value.trim().toUpperCase().replace(/[\s-]+/g, '_')
   return ROLE_ALIASES[normalized] ?? null
@@ -65,32 +81,19 @@ export const extractRolesFromUser = (user: User | null): AppRole[] => {
     if (roleEntry.name) candidates.push(roleEntry.name)
   }
 
-  // Keep a deterministic precedence so privileged roles win if multiple roles exist.
-  const precedence: AppRole[] = [
-    'SUPER_ADMIN',
-    'HR_MANAGER',
-    'PAYROLL_OFFICER',
-    'PAYROLL_APPROVER',
-    'FINANCE',
-    'WAREHOUSE_MANAGER',
-    'DELIVERY_AGENT',
-    'SHOP_OWNER',
-    'SHOP_ADMIN',
-    'SHOP_SUPERVISOR',
-    'CASHIER',
-    'EMPLOYEE',
-    'USER',
+  const resolved = [
+    ...new Set(
+      candidates
+        .map((candidate) => normalizeRoleString(candidate))
+        .filter((role): role is AppRole => role !== null),
+    ),
   ]
 
-  const resolved = candidates
-    .map((candidate) => normalizeRoleString(candidate))
-    .filter((role): role is AppRole => role !== null)
+  if (resolved.length === 0) return ['USER']
 
-  for (const role of precedence) {
-    if (resolved.includes(role)) {
-      return role
-    }
-  }
+  return ROLE_PRECEDENCE.filter((role) => resolved.includes(role))
+}
 
-  return 'USER'
+export const extractRoleFromUser = (user: User | null): AppRole => {
+  return extractRolesFromUser(user)[0] ?? 'USER'
 }

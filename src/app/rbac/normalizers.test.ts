@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { User } from '@/features/auth/types/authTypes'
-import { extractRolesFromUser, extractRolesFromUser } from './normalizers'
+import { extractRoleFromUser, extractRolesFromUser } from './normalizers'
 import { resolvePostLoginPath } from './navigation'
 import { getCapabilitiesForRoles } from './policies'
 
@@ -18,7 +18,7 @@ describe('multi-role access', () => {
 
     expect(roles).toContain('SHOP_ADMIN')
     expect(roles).toContain('WAREHOUSE_MANAGER')
-    expect(extractRolesFromUser(sellerWarehouseUser)).toBe('WAREHOUSE_MANAGER')
+    expect(extractRoleFromUser(sellerWarehouseUser)).toBe('WAREHOUSE_MANAGER')
     expect(getCapabilitiesForRoles(roles)).toContain('warehouse.dashboard.view')
     expect(getCapabilitiesForRoles(roles)).toContain('seller.dashboard.view')
   })

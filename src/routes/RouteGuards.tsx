@@ -4,7 +4,7 @@ import { selectAuthUser, selectIsAuthenticated, selectIsAuthBootstrapping } from
 import type { Capability } from '@/app/rbac/types'
 import type { AppRole } from '@/app/rbac/types'
 import { canAny } from '@/app/rbac/selectors'
-import { extractRolesFromUser } from '@/app/rbac/normalizers'
+import { extractRoleFromUser, extractRolesFromUser } from '@/app/rbac/normalizers'
 import { getDefaultLandingPathByRole, resolvePostLoginPath } from '@/app/rbac/navigation'
 import { useLeaveEligibilityState } from '@/features/leave/hooks/useLeaveEligibility'
 import type { ReactNode } from 'react'
@@ -39,7 +39,7 @@ export const GuestRoute = () => {
   const from = (location.state as { from?: Location })?.from?.pathname || '/'
 
   if (isAuthenticated && authUser) {
-    const role = extractRolesFromUser(authUser)
+    const role = extractRoleFromUser(authUser)
     const target = resolvePostLoginPath(role, from, extractRolesFromUser(authUser))
     return <Navigate to={target} replace />
   }
@@ -130,8 +130,8 @@ export const BuyerHomeRoute = ({ children }: BuyerHomeRouteProps) => {
     return <>{children}</>
   }
 
-  const role = extractRolesFromUser(authUser)
-  if (role !== 'USER') {
+  const role = extractRoleFromUser(authUser)
+  if (role !== 'USER' && role !== 'EMPLOYEE') {
     return <Navigate to={getDefaultLandingPathByRole(role)} replace />
   }
 
