@@ -1,11 +1,10 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import { matchPath, useLocation, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { bootstrapAuth, fetchMe } from '@/features/auth/store/authThunks'
 import Navbar from '@/components/layouts/navbar/Navbar'
 import Footer from '@/components/layouts/Footer'
 import AppRoutes from '@/routes/AppRoutes'
-import { selectIsAuthBootstrapping } from './features/auth/store/authSelectors'
 import ScrollToTop from './components/routing/ScrollToTop'
 import GoogleAnalytics from './components/analytics/GoogleAnalytics'
 import { setAccessToken, setHasSession } from './features/auth/store/authSlice'
@@ -23,19 +22,14 @@ const AIAssistantWidget = lazy(() =>
   })),
 )
 
-const CONTENT_READY_TIMEOUT_MS = 12000
-
 function App() {
   const dispatch = useAppDispatch() // Typed dispatch function to send actions
-  const isAuthBootstrapping = useAppSelector(selectIsAuthBootstrapping)
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const userId = useAppSelector((state) => state.auth.user?.id ?? null)
   const accessToken = useAppSelector((state) => state.auth.accessToken)
   const isCheckoutPreparingUi = useAppSelector((state) => state.checkout.isPreparingUi)
   const [isHomeScreenReady, setIsHomeScreenReady] = useState(false)
-  const [contentSettled, setContentSettled] = useState(false)
-  const mainRef = useRef<HTMLElement>(null)
   const handleHomeScreenReady = useCallback((ready: boolean) => {
     if (ready) setIsHomeScreenReady(true)
   }, [])
@@ -106,61 +100,13 @@ function App() {
    * auth bootstrap there would stall PDF rendering.
    */
   const isHome = Boolean(matchPath({ path: '/', end: true }, pathname))
-  const waitForHomeScreen = isHome && !contentSettled
+  // Only hold the splash until above-the-fold home data is ready — do not wait
+  // for every below-the-fold image (that made refresh feel long vs sites like unit.com.au).
   const showSplash =
     !isInvoicePrintRoutePath &&
     !isDashboardRoute &&
-    (isAuthBootstrapping || waitForHomeScreen)
-
-  useEffect(() => {
-    if (!isHome || !isHomeScreenReady || isAuthBootstrapping) return
-
-    const root = mainRef.current
-    if (!root) return
-
-    let cancelled = false
-    let timeoutId = 0
-    let frameId = 0
-
-    const finish = () => {
-      if (cancelled) return
-      frameId = window.requestAnimationFrame(() => {
-        if (!cancelled) setContentSettled(true)
-      })
-    }
-
-    const images = Array.from(root.querySelectorAll('img'))
-    images.forEach((img) => {
-      if (img.loading === 'lazy') img.loading = 'eager'
-    })
-
-    const pending = images.filter((img) => Boolean(img.currentSrc || img.src) && !img.complete)
-    let remaining = pending.length
-    const settleOne = () => {
-      remaining -= 1
-      if (remaining <= 0) finish()
-    }
-
-    if (pending.length === 0) {
-      finish()
-    } else {
-      pending.forEach((img) => {
-        img.addEventListener('load', settleOne, { once: true })
-        img.addEventListener('error', settleOne, { once: true })
-      })
-      timeoutId = window.setTimeout(finish, CONTENT_READY_TIMEOUT_MS)
-    }
-
-    return () => {
-      cancelled = true
-      window.cancelAnimationFrame(frameId)
-      window.clearTimeout(timeoutId)
-      pending.forEach((img) => {
-        img.removeEventListener('load', settleOne)
-        img.removeEventListener('error', settleOne)
-      })
-    }
-  }, [isAuthBootstrapping, isHome, isHomeScreenReady])
+    isHome &&
+    !isHomeScreenReady
 
   useEffect(() => {
     if (!showSplash) return
@@ -187,7 +133,6 @@ function App() {
 
         {/* Dashboard routes skip storefront chrome; main wrapper stays for home loading. */}
         <main
-          ref={isDashboardRoute || isInvoicePrintRoutePath ? undefined : mainRef}
           className={isDashboardRoute || isInvoicePrintRoutePath ? 'min-h-screen' : 'flex-1'}
         >
           <div inert={showSplash || undefined}>

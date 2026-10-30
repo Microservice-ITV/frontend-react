@@ -335,8 +335,12 @@ export const updateProfile = createAsyncThunk<
 export const bootstrapAuth = createAsyncThunk(
     'auth/bootstrap',
     async (_, { dispatch }) => {
-        dispatch(setHasSession(hasSessionCookie()))
-        await dispatch(refreshAccessToken())
+        const hasSession = hasSessionCookie()
+        dispatch(setHasSession(hasSession))
+        // Guests should not wait on /refresh — that blocked every first paint.
+        if (hasSession) {
+            await dispatch(refreshAccessToken())
+        }
         dispatch(markInitialized())
     }
 )

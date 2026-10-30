@@ -11,6 +11,11 @@ type ResponsiveAssetImageProps = {
   className?: string
   /** Default file when srcset is unavailable or as the img src fallback. */
   variant?: ProductImageVariant
+  /**
+   * When true, always load `variant` and skip srcset
+   * (e.g. home-feature icons that should use `-full.webp`).
+   */
+  lockVariant?: boolean
   /** CSS sizes hint so the browser picks thumb vs card vs full. */
   sizes?: string
   loading?: 'lazy' | 'eager'
@@ -30,6 +35,7 @@ export default function ResponsiveAssetImage({
   alt,
   className,
   variant = 'card',
+  lockVariant = false,
   sizes = '(max-width: 640px) 50vw, 300px',
   loading = 'lazy',
   fetchPriority,
@@ -39,7 +45,7 @@ export default function ResponsiveAssetImage({
   onError,
 }: ResponsiveAssetImageProps) {
   const resolved = productImageVariantUrl(src, variant)
-  const srcSet = productImageSrcSet(src)
+  const srcSet = lockVariant ? undefined : productImageSrcSet(src)
 
   if (!resolved) return null
 

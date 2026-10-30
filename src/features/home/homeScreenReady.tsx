@@ -17,6 +17,9 @@ export const HOME_SCREEN_SECTIONS = [
   'recentlyAdded',
 ] as const
 
+/** First viewport only — splash clears when these settle; lower sections load after paint. */
+const HOME_ABOVE_FOLD_SECTIONS = ['banner', 'quickActions'] as const
+
 export type HomeScreenSection = (typeof HOME_SCREEN_SECTIONS)[number]
 
 type RequestStatus = 'idle' | 'loading' | 'succeeded' | 'failed'
@@ -48,7 +51,7 @@ export function HomeScreenReadyProvider({
     })
   }, [])
 
-  const isReady = HOME_SCREEN_SECTIONS.every((section) => readyMap[section])
+  const isReady = HOME_ABOVE_FOLD_SECTIONS.every((section) => readyMap[section])
 
   useEffect(() => {
     onReadyChange(isReady)

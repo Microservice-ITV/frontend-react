@@ -124,9 +124,8 @@ export const BuyerHomeRoute = ({ children }: BuyerHomeRouteProps) => {
   const isAuthenticated = useAppSelector(selectIsAuthenticated)
   const authUser = useAppSelector(selectAuthUser)
 
-  if (isAuthBootstrapping) return <ContentLoading />
-
-  if (!isAuthenticated || !authUser) {
+  // Paint the storefront immediately. Staff/seller redirects run once /me is known.
+  if (isAuthBootstrapping || !isAuthenticated || !authUser) {
     return <>{children}</>
   }
 
