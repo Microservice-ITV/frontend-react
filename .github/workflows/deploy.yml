@@ -60,6 +60,7 @@ jobs:
             VITE_SHIPPING_SERVICE_URL=https://api.dailyneeditems.com/shipping
             VITE_DELIVERY_SERVICE_URL=https://api.dailyneeditems.com/deliveries
             VITE_PROMOTION_SERVICE_URL=https://api.dailyneeditems.com/promotions
+            VITE_EMPLOYEE_SERVICE_URL=https://api.dailyneeditems.com/employees
             VITE_INVOICE_SERVICE_URL=https://api.dailyneeditems.com/invoices
             VITE_TAX_SERVICE_URL=https://api.dailyneeditems.com/tax
             VITE_WAREHOUSE_SERVICE_URL=https://api.dailyneeditems.com/warehouses
