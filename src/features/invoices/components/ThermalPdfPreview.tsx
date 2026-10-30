@@ -5,7 +5,6 @@ import { Minus, Plus, RotateCcw } from 'lucide-react'
 
 type ThermalPdfPreviewProps = {
   pdf: Blob | null
-  loading?: boolean
   kind: 'invoice' | 'receipt'
   width: '58mm' | '80mm'
   errorMessage?: string | null
@@ -20,26 +19,31 @@ type PdfPage = {
 // Give the on-screen preview a little breathing room while leaving the source PDF untouched.
 const previewScaleForWidth = (width: ThermalPdfPreviewProps['width']) => width === '58mm' ? 0.96 : 0.95
 
-const ThermalPdfPreview = ({ pdf, loading = false, kind, width, errorMessage }: ThermalPdfPreviewProps) => {
+const ThermalPdfPreview = ({ pdf, kind, width, errorMessage }: ThermalPdfPreviewProps) => {
   const viewportRef = useRef<HTMLDivElement>(null)
   const canvasRefs = useRef(new Map<number, HTMLCanvasElement>())
   const renderTasks = useRef<RenderTask[]>([])
+  const displayedDocument = useRef<PDFDocumentProxy | null>(null)
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null)
   const [loadedPdf, setLoadedPdf] = useState<Blob | null>(null)
+  const [loadedWidth, setLoadedWidth] = useState(width)
   const [pages, setPages] = useState<PdfPage[]>([])
   const [hasRenderedPages, setHasRenderedPages] = useState(false)
   const [availableWidth, setAvailableWidth] = useState(0)
   const [availableHeight, setAvailableHeight] = useState(0)
   const [zoom, setZoom] = useState(1)
   const [error, setError] = useState<string | null>(null)
+  const [pageSnapshots, setPageSnapshots] = useState<Record<number, string>>({})
 
   useEffect(() => {
     const node = viewportRef.current
     if (!node) return
 
     const measure = () => {
-      setAvailableWidth(Math.max(0, node.clientWidth - 32))
-      setAvailableHeight(Math.max(0, node.clientHeight - 32))
+      const nextAvailableWidth = Math.max(0, node.clientWidth - 32)
+      const nextAvailableHeight = Math.max(0, node.clientHeight - 32)
+      setAvailableWidth(nextAvailableWidth)
+      setAvailableHeight(nextAvailableHeight)
     }
     measure()
     const observer = new ResizeObserver(measure)
@@ -49,20 +53,20 @@ const ThermalPdfPreview = ({ pdf, loading = false, kind, width, errorMessage }: 
 
   useEffect(() => {
     if (!pdf) {
+      displayedDocument.current?.cleanup()
+      displayedDocument.current = null
       setPdfDocument(null)
       setLoadedPdf(null)
+      setLoadedWidth(width)
       setPages([])
       setHasRenderedPages(false)
+      setPageSnapshots({})
       setError(null)
       return
     }
 
     let active = true
     let loadedDocument: PDFDocumentProxy | null = null
-    setPdfDocument(null)
-    setLoadedPdf(null)
-    setPages([])
-    setHasRenderedPages(false)
     setError(null)
 
     const load = async () => {
@@ -81,9 +85,19 @@ const ThermalPdfPreview = ({ pdf, loading = false, kind, width, errorMessage }: 
           pageSizes.push({ number, width: viewport.width, height: viewport.height })
         }
         if (!active) return
+        const snapshots: Record<number, string> = {}
+        for (const [number, canvas] of canvasRefs.current) {
+          try { snapshots[number] = canvas.toDataURL('image/png') } catch { /* Keep the current canvas as the fallback. */ }
+        }
+        const previousDocument = displayedDocument.current
+        displayedDocument.current = loadedDocument
+        setPageSnapshots(snapshots)
+        setHasRenderedPages(false)
         setPdfDocument(loadedDocument)
         setLoadedPdf(pdf)
+        setLoadedWidth(width)
         setPages(pageSizes)
+        if (previousDocument && previousDocument !== loadedDocument) previousDocument.cleanup()
       } catch (loadError) {
         if (active) setError(loadError instanceof Error ? loadError.message : 'Unable to preview this PDF.')
       }
@@ -92,9 +106,14 @@ const ThermalPdfPreview = ({ pdf, loading = false, kind, width, errorMessage }: 
     void load()
     return () => {
       active = false
-      loadedDocument?.cleanup()
+      if (loadedDocument && loadedDocument !== displayedDocument.current) loadedDocument.cleanup()
     }
   }, [pdf])
+
+  useEffect(() => () => {
+    displayedDocument.current?.cleanup()
+    displayedDocument.current = null
+  }, [])
 
   useEffect(() => {
     for (const task of renderTasks.current) task.cancel()
@@ -112,7 +131,7 @@ const ThermalPdfPreview = ({ pdf, loading = false, kind, width, errorMessage }: 
         const page = await pdfDocument.getPage(pageInfo.number)
         const documentHeight = pages.reduce((height, page) => height + page.height, 0) + (pages.length - 1) * 16
         const fitScale = Math.min(availableWidth / pageInfo.width, availableHeight / documentHeight)
-        const scale = fitScale * previewScaleForWidth(width) * zoom
+        const scale = fitScale * previewScaleForWidth(loadedWidth) * zoom
         const viewport = page.getViewport({ scale })
         const pixelLimitScale = Math.sqrt(maxCanvasPixels / (viewport.width * viewport.height))
         const dimensionLimitScale = maxCanvasDimension / Math.max(viewport.width, viewport.height)
@@ -138,6 +157,7 @@ const ThermalPdfPreview = ({ pdf, loading = false, kind, width, errorMessage }: 
           return
         }
       }
+      setPageSnapshots({})
       setHasRenderedPages(true)
     }
 
@@ -145,20 +165,22 @@ const ThermalPdfPreview = ({ pdf, loading = false, kind, width, errorMessage }: 
     return () => {
       for (const task of nextTasks) task.cancel()
     }
-  }, [availableHeight, availableWidth, pages, pdfDocument, width, zoom])
+  }, [availableHeight, availableWidth, loadedWidth, pages, pdfDocument, zoom])
 
+  const isDisplayingPdf = Boolean(pdfDocument && loadedPdf)
   const isCurrentPdf = Boolean(pdf && loadedPdf === pdf)
+  const displayWidth = isDisplayingPdf && !isCurrentPdf ? loadedWidth : width
 
   return (
     <section
-      aria-label={`${width} thermal ${kind} PDF preview`}
+      aria-label={`${displayWidth} thermal ${kind} PDF preview`}
       data-thermal-pdf-preview
-      data-paper-width={width}
+      data-paper-width={displayWidth}
       data-document-kind={kind}
       className="w-full overflow-hidden rounded-xl border border-slate-300 bg-slate-200 shadow-sm"
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-300 bg-white px-3 py-2" data-print-hide>
-        <span className="text-xs font-medium text-slate-600">Fit to page · {width}</span>
+        <span className="text-xs font-medium text-slate-600">Fit to page · {displayWidth}</span>
         <div className="flex items-center gap-1">
           <button type="button" onClick={() => setZoom((value) => Math.max(0.5, Number((value - 0.1).toFixed(1))))} aria-label="Zoom out" className="rounded p-1.5 text-slate-700 hover:bg-slate-100"><Minus size={15} /></button>
           <span aria-live="polite" className="min-w-12 text-center text-xs text-slate-600">{Math.round(zoom * 100)}%</span>
@@ -167,36 +189,22 @@ const ThermalPdfPreview = ({ pdf, loading = false, kind, width, errorMessage }: 
         </div>
       </div>
       <div ref={viewportRef} className="h-[min(68vh,620px)] min-h-[280px] overflow-auto p-4" data-testid="thermal-pdf-scroll-viewport">
-        {(loading || !error && (!isCurrentPdf || !hasRenderedPages)) && (
-          <div role="status" aria-label="Preparing PDF preview" className="mx-auto flex min-h-[360px] max-w-[420px] items-start justify-center py-5">
-            <div className="w-full animate-pulse rounded-md border border-slate-300 bg-white px-5 py-6 shadow-sm" aria-hidden="true">
-              <div className="mx-auto mb-6 h-2 w-2/5 rounded bg-slate-200" />
-              <div className="mb-5 space-y-2">
-                <div className="h-2 w-3/4 rounded bg-slate-200" />
-                <div className="h-2 w-1/2 rounded bg-slate-200" />
-              </div>
-              <div className="mb-5 space-y-3 border-y border-dashed border-slate-200 py-4">
-                <div className="h-2 w-full rounded bg-slate-100" />
-                <div className="h-2 w-11/12 rounded bg-slate-100" />
-                <div className="h-2 w-4/5 rounded bg-slate-100" />
-              </div>
-              <div className="ml-auto h-3 w-2/5 rounded bg-slate-200" />
-            </div>
-            <span className="sr-only">Preparing PDF preview…</span>
-          </div>
-        )}
         {(errorMessage || error) && <p role="alert" className="py-2 text-center text-sm text-rose-700">{errorMessage || error}</p>}
         {isCurrentPdf && pdfDocument && pages.map((page) => (
-          <canvas
-            key={page.number}
-            ref={(node) => {
-              if (node) canvasRefs.current.set(page.number, node)
-              else canvasRefs.current.delete(page.number)
-            }}
-            aria-label={`PDF page ${page.number}`}
-            className="mx-auto mb-4 block bg-white shadow-md last:mb-0"
-            style={{ maxWidth: 'none' }}
-          />
+          <div key={page.number} className={`${hasRenderedPages ? 'relative' : 'pointer-events-none absolute opacity-0'} mx-auto mb-4 w-fit last:mb-0`}>
+            <canvas
+              ref={(node) => {
+                if (node) canvasRefs.current.set(page.number, node)
+                else canvasRefs.current.delete(page.number)
+              }}
+              aria-label={`PDF page ${page.number}`}
+              className="mx-auto block bg-white shadow-md"
+              style={{ maxWidth: 'none' }}
+            />
+            {pageSnapshots[page.number] && (
+              <img src={pageSnapshots[page.number]} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full bg-white object-contain shadow-md" />
+            )}
+          </div>
         ))}
       </div>
     </section>

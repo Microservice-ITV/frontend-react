@@ -12,10 +12,7 @@ const pdfMocks = vi.hoisted(() => {
   return { render, getViewport, document, getDocument }
 })
 
-vi.mock('pdfjs-dist', () => ({
-  GlobalWorkerOptions: { workerSrc: '' },
-  getDocument: pdfMocks.getDocument,
-}))
+vi.mock('pdfjs-dist', () => ({ GlobalWorkerOptions: { workerSrc: '' }, getDocument: pdfMocks.getDocument }))
 
 class TestResizeObserver {
   constructor(private readonly callback: ResizeObserverCallback) {}
@@ -23,15 +20,21 @@ class TestResizeObserver {
   disconnect() {}
 }
 
+let measuredViewerWidth = 820
+let measuredViewerHeight = 620
+
 describe('ThermalPdfPreview', () => {
   beforeEach(() => {
+    measuredViewerWidth = 820
+    measuredViewerHeight = 620
     pdfMocks.render.mockClear()
     pdfMocks.getViewport.mockClear()
     pdfMocks.document.getPage.mockClear()
     pdfMocks.getDocument.mockClear()
     vi.stubGlobal('ResizeObserver', TestResizeObserver)
-    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(820)
-    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(620)
+    vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,c25hcHNob3Q=')
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(() => measuredViewerWidth)
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(() => measuredViewerHeight)
   })
 
   afterEach(() => {
@@ -45,22 +48,34 @@ describe('ThermalPdfPreview', () => {
   ] as const)('fits the actual %s %s PDF page to the available preview area', async (width, kind) => {
     const pdf = { arrayBuffer: async () => new ArrayBuffer(8) } as Blob
     render(<ThermalPdfPreview pdf={pdf} width={width} kind={kind} />)
-
     const preview = screen.getByRole('region', { name: `${width} thermal ${kind} PDF preview` })
     expect(preview).toHaveAttribute('data-paper-width', width)
     expect(preview).toHaveAttribute('data-document-kind', kind)
     expect(screen.getByRole('button', { name: 'Fit to page' })).toBeInTheDocument()
     const viewportElement = screen.getByTestId('thermal-pdf-scroll-viewport')
-    expect(viewportElement).toHaveClass('h-[min(68vh,620px)]', 'overflow-auto')
     await waitFor(() => expect(pdfMocks.render).toHaveBeenCalled())
-    const canvasWidth = Number.parseFloat(screen.getByLabelText('PDF page 1').getAttribute('style')?.match(/width: ([\d.]+)px/)?.[1] || '0')
+    const canvas = screen.getByLabelText('PDF page 1')
+    const canvasWidth = Number.parseFloat(canvas.getAttribute('style')?.match(/width: ([\d.]+)px/)?.[1] || '0')
     const expectedPreviewFactor = width === '58mm' ? 0.96 : 0.95
     const expectedFitScale = Math.min((viewportElement.clientWidth - 32) / 200, (viewportElement.clientHeight - 32) / 900)
     expect(canvasWidth).toBeCloseTo(200 * expectedFitScale * expectedPreviewFactor, 1)
     expect(canvasWidth).toBeGreaterThan(0)
     expect(canvasWidth).toBeLessThanOrEqual(viewportElement.clientWidth - 32)
-    const canvasHeight = Number.parseFloat(screen.getByLabelText('PDF page 1').getAttribute('style')?.match(/height: ([\d.]+)px/)?.[1] || '0')
-    expect(canvasHeight).toBeLessThanOrEqual(viewportElement.clientHeight - 32)
+  })
+
+  it('renders only the actual PDF page and never mounts an HTML thermal fallback', async () => {
+    let finishRender!: () => void
+    pdfMocks.render.mockImplementationOnce(() => ({ promise: new Promise<void>((resolve) => { finishRender = resolve }), cancel: vi.fn() }))
+    const pdf = { arrayBuffer: async () => new ArrayBuffer(8) } as Blob
+    render(<ThermalPdfPreview pdf={pdf} width="58mm" kind="invoice" />)
+    await waitFor(() => expect(pdfMocks.render).toHaveBeenCalledOnce())
+    const viewport = screen.getByTestId('thermal-pdf-scroll-viewport')
+    expect(viewport.querySelector('[data-testid="thermal-html-preview"]')).toBeNull()
+    expect(viewport.querySelector('[data-testid="thermal-html-preview-stage"]')).toBeNull()
+    expect(screen.queryByText('Official Sales Document')).not.toBeInTheDocument()
+
+    finishRender()
+    await waitFor(() => expect(screen.getByLabelText('PDF page 1')).toBeVisible())
   })
 
   it('supports zoom controls while retaining a scrollable viewport for long receipts', async () => {
@@ -68,49 +83,24 @@ describe('ThermalPdfPreview', () => {
     render(<ThermalPdfPreview pdf={pdf} width="80mm" kind="receipt" />)
     const canvas = await screen.findByLabelText('PDF page 1')
     await waitFor(() => expect(pdfMocks.render).toHaveBeenCalled())
-
     fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }))
     await waitFor(() => expect(pdfMocks.render).toHaveBeenCalledTimes(2))
     expect(screen.getByText('110%')).toBeInTheDocument()
-    expect(canvas.parentElement).toHaveClass('h-[min(68vh,620px)]', 'overflow-auto')
-    expect(screen.getByRole('button', { name: 'Fit to page' })).toBeEnabled()
+    expect(canvas.closest('[data-testid="thermal-pdf-scroll-viewport"]')).toHaveClass('h-[min(68vh,620px)]', 'overflow-auto')
   })
 
-  it('keeps the lightweight loading skeleton visible until PDF.js finishes painting the PDF', async () => {
-    let finishRender!: () => void
-    pdfMocks.render.mockImplementationOnce(() => ({
-      promise: new Promise<void>((resolve) => { finishRender = resolve }),
-      cancel: vi.fn(),
-    }))
-    const pdf = { arrayBuffer: async () => new ArrayBuffer(8) } as Blob
-    render(<ThermalPdfPreview pdf={pdf} width="58mm" kind="invoice" />)
-
-    await waitFor(() => expect(pdfMocks.render).toHaveBeenCalledOnce())
-    expect(screen.getByRole('status', { name: 'Preparing PDF preview' })).toBeInTheDocument()
-    expect(screen.getByLabelText('PDF page 1')).toBeInTheDocument()
-
-    finishRender()
-    await waitFor(() => expect(screen.queryByRole('status', { name: 'Preparing PDF preview' })).not.toBeInTheDocument())
-  })
-
-  it('never shows the previously selected PDF while a different thermal PDF is loading', async () => {
+  it('renders the selected prepared PDF after PDF.js loads it without an HTML replacement', async () => {
     const firstPdf = { arrayBuffer: async () => new ArrayBuffer(8) } as Blob
     const { rerender } = render(<ThermalPdfPreview pdf={firstPdf} width="58mm" kind="invoice" />)
-    await screen.findByLabelText('PDF page 1')
-    await waitFor(() => expect(screen.queryByRole('status', { name: 'Preparing PDF preview' })).not.toBeInTheDocument())
-
+    await waitFor(() => expect(screen.getByLabelText('PDF page 1')).toBeVisible())
     let resolveDocument!: (document: typeof pdfMocks.document) => void
-    pdfMocks.getDocument.mockImplementationOnce(() => ({
-      promise: new Promise((resolve) => { resolveDocument = resolve }),
-      destroy: vi.fn(async () => undefined),
-    }))
+    pdfMocks.getDocument.mockImplementationOnce(() => ({ promise: new Promise((resolve) => { resolveDocument = resolve }), destroy: vi.fn(async () => undefined) }))
     const secondPdf = { arrayBuffer: async () => new ArrayBuffer(16) } as Blob
     rerender(<ThermalPdfPreview pdf={secondPdf} width="80mm" kind="invoice" />)
-
     await waitFor(() => expect(pdfMocks.getDocument).toHaveBeenCalledTimes(2))
-    expect(screen.getByRole('status', { name: 'Preparing PDF preview' })).toBeInTheDocument()
-    expect(screen.queryByLabelText('PDF page 1')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('thermal-html-preview')).not.toBeInTheDocument()
     resolveDocument(pdfMocks.document)
-    await screen.findByLabelText('PDF page 1')
+    await waitFor(() => expect(pdfMocks.render).toHaveBeenCalled())
+    expect(screen.getByLabelText('PDF page 1')).toBeVisible()
   })
 })

@@ -1,6 +1,7 @@
 import { QrCode } from 'lucide-react'
 import type { InvoiceDocument } from '@/lib/api/invoiceClient'
 import { formatInvoiceNumber, formatCurrency, formatThermalDateTime } from '@/features/invoices/lib/invoiceFormat'
+import ThermalItemTable from './thermal/ThermalItemTable'
 
 interface ThermalInvoiceDocumentProps {
   invoice: InvoiceDocument
@@ -69,37 +70,7 @@ const ThermalInvoiceDocument = ({ invoice, width }: ThermalInvoiceDocumentProps)
       <div className="mb-4">
         <h3 className="receipt-section-title mb-2">ITEMS</h3>
         <div className="receipt-divider" />
-
-        {/* Table Header */}
-        <div className="flex justify-between mb-1 receipt-label">
-          <div className="flex-1">Description</div>
-          <div className="w-15 text-right">Qty</div>
-          <div className="w-20 text-right">Price</div>
-          <div className="w-25 text-right">Total</div>
-        </div>
-        <div className="receipt-divider" />
-
-        {/* Items */}
-        {invoice.items?.map((item, index) => (
-          <div key={index} className="receipt-item-row mb-2">
-            <div className="receipt-item-name receipt-value">
-              {item.name || 'Item'}
-              {item.variantName && (
-                <div className="receipt-faint text-xs">{item.variantName}</div>
-              )}
-            </div>
-            <div className="receipt-item-qty receipt-value">
-              ×{item.quantity}
-            </div>
-            <div className="receipt-item-price receipt-value">
-              {formatCurrency(item.unitPrice, invoice.currency)}
-            </div>
-            <div className="receipt-item-price receipt-value receipt-accent">
-              {formatCurrency(item.lineTotal, invoice.currency)}
-            </div>
-          </div>
-        ))}
-
+        <ThermalItemTable items={invoice.lineItems ?? []} currency={invoice.currency} width={width} />
         <div className="receipt-divider" />
       </div>
 

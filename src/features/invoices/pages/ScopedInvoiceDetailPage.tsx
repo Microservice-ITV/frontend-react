@@ -8,7 +8,7 @@ import ThermalPdfPreview from '@/features/invoices/components/ThermalPdfPreview'
 import InvoiceEmptyState from '@/features/invoices/components/InvoiceEmptyState'
 import InvoiceTableSkeleton from '@/features/invoices/components/InvoiceTableSkeleton'
 import { formatInvoiceNumber } from '@/features/invoices/lib/invoiceFormat'
-import { downloadInvoicePdf, downloadReceiptPdf, downloadThermalInvoicePdf, getInvoiceByNumber, getReceiptForInvoice, type InvoiceDocument, type ReceiptDocument } from '@/lib/api/invoiceClient'
+import { downloadInvoicePdf, downloadReceiptPdf, downloadThermalInvoicePdf, getInvoiceByNumber, getReceiptForInvoice, pollThermalPdf, type InvoiceDocument, type ReceiptDocument } from '@/lib/api/invoiceClient'
 import { usePageTitle } from '@/components/routing/PageTitle'
 
 type ScopedInvoiceDetailPageProps = {
@@ -39,8 +39,8 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
   const [receiptError, setReceiptError] = useState<string | null>(null)
   const [thermalPdf, setThermalPdf] = useState<Blob | null>(null)
   const [thermalPdfKey, setThermalPdfKey] = useState<string | null>(null)
-  const [isThermalPdfLoading, setIsThermalPdfLoading] = useState(false)
   const [thermalPdfError, setThermalPdfError] = useState<string | null>(null)
+  const [thermalRetryNonce, setThermalRetryNonce] = useState(0)
   const thermalPdfRequests = useRef(new Map<string, Promise<Blob | null>>())
   const receiptRequests = useRef(new Map<string, Promise<ReceiptDocument | null>>())
   const thermalPrintInProgress = useRef(false)
@@ -152,9 +152,9 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
     const pending = thermalPdfRequests.current.get(key)
     if (pending) return pending
 
-    const request = kind === 'invoice'
+    const request = pollThermalPdf(() => kind === 'invoice'
       ? downloadThermalInvoicePdf(invoice.id, width)
-      : downloadReceiptPdf(invoice.id, { width })
+      : downloadReceiptPdf(invoice.id, { width }))
     thermalPdfRequests.current.set(key, request)
     void request.catch(() => {
       if (thermalPdfRequests.current.get(key) === request) thermalPdfRequests.current.delete(key)
@@ -182,10 +182,7 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
 
     let active = true
     const key = `${isAuthenticated ? 'authenticated' : 'unauthenticated'}:${authUser?.id ?? ''}:${invoice.id}:${invoice.updatedAt ?? ''}:${documentView}:${thermalWidth}`
-    setThermalPdf(null)
-    setThermalPdfKey(null)
     setThermalPdfError(null)
-    setIsThermalPdfLoading(true)
     void getThermalPdf(documentView, thermalWidth)
       .then((blob) => {
         if (!active) return
@@ -196,12 +193,9 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
       .catch((previewError: unknown) => {
         if (active) setThermalPdfError(previewError instanceof Error ? previewError.message : 'Unable to load the PDF preview.')
       })
-      .finally(() => {
-        if (active) setIsThermalPdfLoading(false)
-      })
 
     return () => { active = false }
-  }, [authUser?.id, documentView, getThermalPdf, invoice, isAuthenticated, thermalWidth])
+  }, [authUser?.id, documentView, getThermalPdf, invoice, isAuthenticated, thermalRetryNonce, thermalWidth])
 
   const visibleThermalPdfKey = isAuthenticated && invoice && documentView !== 'a4'
     ? `authenticated:${authUser?.id ?? ''}:${invoice.id}:${invoice.updatedAt ?? ''}:${documentView}:${thermalWidth}`
@@ -227,44 +221,49 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
 
   const handleThermalView = async (width: "58mm" | "80mm", type: 'invoice' | 'receipt') => {
     if (!invoice) return
-
-    setDocumentView(type)
-    setThermalWidth(width)
-
-    // Start Chromium PDF rendering while the thermal preview is being shown.
-    // The download button then reuses this in-flight or completed request.
-    void getThermalPdf(type, width).catch(() => undefined)
-
     if (type === 'invoice') {
+      setDocumentView(type)
+      setThermalWidth(width)
       setError(null)
-    } else {
+      // Start PDF preparation in parallel with immediate React preview rendering.
+      void getThermalPdf(type, width).catch(() => undefined)
+      return
+    }
+
+    if (invoice.status !== 'PAID') return
+    if (receiptData?.invoiceId === invoice.id) {
       setReceiptError(null)
-      // Fetch receipt data for paid invoices
-      if (invoice.status === 'PAID') {
-        setIsReceiptLoading(true)
-        setReceiptData(null)
-        try {
-          const receiptRequest = getReceiptData(invoice.id)
-          const receipt = await receiptRequest
-          if (receiptRequests.current.get(invoice.id) === receiptRequest) receiptRequests.current.delete(invoice.id)
-          setReceiptData(receipt)
-          if (!receipt) {
-            setReceiptError('No receipt found for this invoice. Receipt may not have been generated yet.')
-          }
-        } catch (err) {
-          const errorMessage = err instanceof Error ? err.message : 'Failed to load receipt data'
-          setReceiptError(`Error loading receipt: ${errorMessage}`)
-          console.error('Error loading receipt:', err)
-        } finally {
-          setIsReceiptLoading(false)
-        }
-      }
+      setThermalWidth(width)
+      setDocumentView(type)
+      void getThermalPdf(type, width).catch(() => undefined)
+      return
+    }
+    setReceiptError(null)
+    setIsReceiptLoading(true)
+    const receiptRequest = getReceiptData(invoice.id)
+    // Start PDF preparation alongside the authorized receipt data request.
+    void getThermalPdf(type, width).catch(() => undefined)
+    try {
+      const receipt = await receiptRequest
+      if (receiptRequests.current.get(invoice.id) === receiptRequest) receiptRequests.current.delete(invoice.id)
+      if (!receipt) throw new Error('No receipt found for this invoice. Receipt may not have been generated yet.')
+      setReceiptData(receipt)
+      setThermalWidth(width)
+      setDocumentView(type)
+    } catch (err) {
+      setReceiptData(null)
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load receipt data'
+      setReceiptError(`Error loading receipt: ${errorMessage}`)
+      setDocumentView(type)
+      setThermalWidth(width)
+      console.error('Error loading receipt:', err)
+    } finally {
+      setIsReceiptLoading(false)
     }
   }
 
   const closeThermalView = () => {
     setDocumentView('a4')
-    setReceiptData(null)
     setReceiptError(null)
   }
 
@@ -590,6 +589,14 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
                 </div>
                 {downloadError && <p role="alert" className="mb-3 text-sm text-rose-600">{downloadError}</p>}
                 {thermalPrintError && <p role="alert" className="mb-3 text-sm text-rose-600">{thermalPrintError}</p>}
+                {thermalPdfError && (
+                  <div role="alert" className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                    <span>{thermalPdfError}</span>
+                    <button type="button" onClick={() => setThermalRetryNonce((value) => value + 1)} className="rounded-md border border-amber-400 bg-white px-3 py-1.5 font-medium hover:bg-amber-100">
+                      Retry preparation
+                    </button>
+                  </div>
+                )}
 
                 {documentView === 'receipt' && !receiptData && !isReceiptLoading ? (
                   <div role={receiptError ? 'alert' : 'status'} className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-center text-sm text-amber-800">
@@ -598,7 +605,6 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
                 ) : (
                   <ThermalPdfPreview
                     pdf={visibleThermalPdf}
-                    loading={isThermalPdfLoading}
                     kind={documentView}
                     width={thermalWidth}
                     errorMessage={thermalPdfError}

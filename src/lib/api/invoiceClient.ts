@@ -65,6 +65,7 @@ export type InvoiceDocument = {
     orderItemId?: string
     name: string
     sku?: string | null
+    variantName?: string | null
     imageUrl?: string | null
     quantity: number
     unitPrice: string
@@ -489,6 +490,7 @@ const normalizeInvoiceItems = (invoice: InvoiceDocument): InvoiceDocument => {
       : storedItems.map((item) => ({
         orderItemId: item.orderItemId,
         name: item.productName,
+        sku: item.productSku,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         total: item.totalPrice,
@@ -511,14 +513,78 @@ export const downloadInvoicePdf = async (
   return response.data
 }
 
+export type ThermalPdfResult =
+  | { state: 'ready'; pdf: Blob }
+  | { state: 'processing'; status: string; attempts: number; error: string | null; retryAt: string | null }
+  | { state: 'failed'; status: string; attempts: number; error: string | null; retryAt: string | null }
+
+const thermalPdfResultFromResponse = async (response: { status?: number; data: Blob | unknown }): Promise<ThermalPdfResult> => {
+  if (response.status !== 202) return { state: 'ready', pdf: response.data as Blob }
+  const raw = response.data
+  const payload = raw instanceof Blob
+    ? JSON.parse(await raw.text()) as Record<string, unknown>
+    : raw as Record<string, unknown>
+  const status = typeof payload.status === 'string' ? payload.status : 'PENDING'
+  return {
+    state: status === 'FAILED' ? 'failed' : 'processing',
+    status,
+    attempts: typeof payload.attempts === 'number' ? payload.attempts : 0,
+    error: typeof payload.error === 'string' ? payload.error : null,
+    retryAt: typeof payload.retryAt === 'string' ? payload.retryAt : null,
+  }
+}
+
 export const downloadThermalInvoicePdf = async (
   invoiceId: string,
   width: '58mm' | '80mm',
-): Promise<Blob> => {
+): Promise<ThermalPdfResult> => {
   const response = await invoiceClient.get<Blob>(`/invoices/${invoiceId}/thermal-pdf`, {
     params: { width }, responseType: 'blob',
   })
-  return response.data
+  return thermalPdfResultFromResponse(response)
+}
+
+export const downloadReceiptPdf = async (
+  invoiceId: string,
+  options: { asCustomer?: boolean; width?: '58mm' | '80mm' } = {},
+): Promise<ThermalPdfResult | null> => {
+  try {
+    const response = await invoiceClient.get<Blob>(`/invoices/${invoiceId}/receipt/pdf`, {
+      responseType: 'blob',
+      ...(options.width ? { params: { width: options.width } } : {}),
+      ...(options.asCustomer ? { headers: { 'x-user-role': 'customer' } } : {}),
+    })
+    return thermalPdfResultFromResponse(response)
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) return null
+    throw error
+  }
+}
+
+export const pollThermalPdf = async (
+  request: () => Promise<ThermalPdfResult | Blob | null>,
+  options: { delaysMs?: number[]; wait?: (delayMs: number) => Promise<void> } = {},
+): Promise<Blob | null> => {
+  const delays = options.delaysMs ?? [500, 1000, 2000, 4000]
+  const wait = options.wait ?? ((delayMs) => new Promise<void>((resolve) => window.setTimeout(resolve, delayMs)))
+  let result: ThermalPdfResult | null = null
+  for (let attempt = 0; attempt <= delays.length; attempt += 1) {
+    const received = await request()
+    // Tolerate callers which already provide a Blob, while this endpoint
+    // contract returns the explicit ready/processing result union.
+    if (received instanceof Blob) return received
+    result = received
+    if (!result) return null
+    if (result.state === 'ready') return result.pdf
+    if (attempt === delays.length) break
+    const retryDelay = result.retryAt ? Math.max(0, new Date(result.retryAt).getTime() - Date.now()) : delays[attempt]
+    await wait(Math.min(delays[attempt], retryDelay || delays[attempt]))
+  }
+  const reason = result && result.state !== 'ready' && result.error ? `: ${result.error}` : ''
+  const message = result?.state === 'failed'
+    ? `Thermal PDF generation failed${reason}. Retry to check again.`
+    : `Thermal PDF is still being prepared. Retry to check again${reason}.`
+  throw new Error(message)
 }
 
 /**
@@ -576,25 +642,3 @@ export const getReceiptForInvoice = async (
 /**
  * Download receipt PDF. Returns null if receipt doesn't exist or user is not authorized.
  */
-export const downloadReceiptPdf = async (
-  invoiceId: string,
-  options: { asCustomer?: boolean; width?: '58mm' | '80mm' } = {},
-): Promise<Blob | null> => {
-  try {
-    const response = await invoiceClient.get<Blob>(
-      `/invoices/${invoiceId}/receipt/pdf`,
-      {
-        responseType: 'blob',
-        ...(options.width ? { params: { width: options.width } } : {}),
-        ...(options.asCustomer ? { headers: { 'x-user-role': 'customer' } } : {}),
-      },
-    )
-    return response.data
-  } catch (error) {
-    // Handle 404 (no receipt) gracefully
-    if (axios.isAxiosError(error) && error.response?.status === 404) {
-      return null
-    }
-    throw error
-  }
-}

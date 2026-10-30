@@ -27,6 +27,7 @@ const InvoiceThermalSheet = ({
   const lineItems = invoice.lineItems || (invoice.items?.map((item) => ({
     orderItemId: item.orderItemId,
     name: item.productName,
+    sku: item.productSku,
     quantity: item.quantity,
     unitPrice: item.unitPrice,
     total: item.totalPrice,
