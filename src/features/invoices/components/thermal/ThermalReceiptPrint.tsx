@@ -1,4 +1,3 @@
-import { format } from 'date-fns'
 import type { ReceiptDocument, InvoiceDocument } from '@/lib/api/invoiceClient'
 import ThermalItemTable from './ThermalItemTable'
 import ThermalQRCode from './ThermalQRCode'
@@ -87,7 +86,6 @@ const ThermalReceiptPrint = ({ receipt, invoice, width }: ThermalReceiptPrintPro
               items={lineItems} 
               currency={currency}
               width={width}
-              maxItems={5}
             />
           </div>
         </>
@@ -154,7 +152,7 @@ const ThermalReceiptPrint = ({ receipt, invoice, width }: ThermalReceiptPrintPro
         <p className="mt-2">Thank you for your purchase!</p>
         <p className="mt-1">This receipt confirms payment has been received.</p>
         <p className="mt-1">For inquiries: support@dailyneeditems.com</p>
-        <p className="mt-1 text-xs">Printed: {format(new Date(), 'dd/MM/yyyy HH:mm')}</p>
+        <p className="mt-1 text-xs">Printed: {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })} {new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}</p>
       </footer>
     </div>
   )

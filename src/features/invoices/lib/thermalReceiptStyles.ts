@@ -125,6 +125,57 @@ export const THERMAL_RECEIPT_STYLES = `
 .thermal-receipt .receipt-address { overflow-wrap: anywhere; line-height: 1.25; }
 .thermal-receipt .receipt-address-section { break-inside: avoid; page-break-inside: avoid; }
 .thermal-receipt .receipt-item-block { padding: 1px 0; break-inside: avoid; page-break-inside: avoid; }
+.thermal-receipt .receipt-item-wide-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(18mm, max-content);
+  align-items: baseline;
+  column-gap: 1.5mm;
+  padding: 1px 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.thermal-receipt .receipt-item-wide-row .receipt-item-name {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+.thermal-receipt .receipt-item-narrow-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 2mm;
+  line-height: 1.2;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.thermal-receipt .thermal-item-table-narrow .receipt-item-name {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow-wrap: normal;
+  word-break: normal;
+  line-height: 1.2;
+}
+.thermal-receipt .receipt-item-unit { min-width: 0; white-space: nowrap; font-size: .95em; }
+.thermal-receipt .receipt-item-total { white-space: nowrap; text-align: right; }
+.thermal-receipt .receipt-item-secondary {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 2mm;
+  font-size: 0.85em;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
 
 .thermal-receipt .receipt-double-divider {
   border-top: 1px dotted var(--receipt-line);
