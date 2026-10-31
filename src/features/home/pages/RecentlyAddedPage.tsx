@@ -1,11 +1,16 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import ProductGrid, { ProductGridSkeleton } from '@/features/products/components/ProductGrid'
-import Pagination from '@/components/ui/Pagination'
 import { fetchRecentProducts } from '@/features/products/store/productThunks'
+import { fetchCategories } from '@/features/categories/store/categoryThunks'
+import {
+  selectCategoriesStatus,
+  selectCategoriesWithProducts,
+} from '@/features/categories/store/categorySelectors'
+import { Typing } from '@/components/loading-ui/typing'
 
-const PAGE_SIZE = 10
+const ALL_CATEGORIES = 'all'
 
 const RecentlyAddedPage = () => {
   const dispatch = useAppDispatch()
@@ -17,8 +22,11 @@ const RecentlyAddedPage = () => {
     recentProductsStatus,
     recentProductsError,
   } = useAppSelector((state) => state.products)
+  const categoriesWithProducts = useAppSelector(selectCategoriesWithProducts)
+  const categoriesStatus = useAppSelector(selectCategoriesStatus)
 
-  const [currentPage, setCurrentPage] = useState(1)
+  const [selectedCategoryId, setSelectedCategoryId] = useState(ALL_CATEGORIES)
+  const loadMoreRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (recentProductsStatus === 'idle') {
@@ -26,45 +34,82 @@ const RecentlyAddedPage = () => {
     }
   }, [dispatch, recentProductsStatus])
 
-  // Prefetch remaining recent pages so client pagination matches "You May Also Like"
   useEffect(() => {
-    if (
-      recentProductsStatus === 'succeeded' &&
-      recentProductsHasNextPage &&
-      recentProductsNextCursor &&
-      !recentProductsLoading
-    ) {
-      void dispatch(fetchRecentProducts({ cursor: recentProductsNextCursor }))
+    if (categoriesStatus === 'idle') {
+      void dispatch(fetchCategories())
     }
+  }, [categoriesStatus, dispatch])
+
+  const loadMore = useCallback(() => {
+    if (
+      !recentProductsHasNextPage ||
+      !recentProductsNextCursor ||
+      recentProductsLoading
+    ) {
+      return
+    }
+    void dispatch(fetchRecentProducts({ cursor: recentProductsNextCursor }))
   }, [
     dispatch,
-    recentProductsStatus,
     recentProductsHasNextPage,
     recentProductsNextCursor,
     recentProductsLoading,
   ])
 
-  const isPrefetching = recentProductsHasNextPage || recentProductsLoading
-  const isInitialLoading =
-    (recentProductsStatus === 'loading' || isPrefetching) && recentProducts.length === 0
-
-  const totalPages = Math.max(1, Math.ceil(recentProducts.length / PAGE_SIZE))
-  const safePage = Math.min(currentPage, totalPages)
-  const pagedProducts = useMemo(
-    () => recentProducts.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
-    [recentProducts, safePage],
+  const filterCategories = useMemo(
+    () =>
+      [...categoriesWithProducts].sort((a, b) => a.name.localeCompare(b.name)),
+    [categoriesWithProducts],
   )
-  const pageStart = recentProducts.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1
-  const pageEnd = Math.min(safePage * PAGE_SIZE, recentProducts.length)
+
+  const filteredProducts = useMemo(() => {
+    if (selectedCategoryId === ALL_CATEGORIES) return recentProducts
+    return recentProducts.filter((product) => product.categoryId === selectedCategoryId)
+  }, [recentProducts, selectedCategoryId])
+
+  // Keep fetching while a category filter is empty but more pages exist.
+  useEffect(() => {
+    if (selectedCategoryId === ALL_CATEGORIES) return
+    if (filteredProducts.length > 0) return
+    if (!recentProductsHasNextPage || recentProductsLoading) return
+    loadMore()
+  }, [
+    selectedCategoryId,
+    filteredProducts.length,
+    recentProductsHasNextPage,
+    recentProductsLoading,
+    loadMore,
+  ])
 
   useEffect(() => {
-    setCurrentPage((page) => Math.min(page, totalPages))
-  }, [totalPages])
+    const node = loadMoreRef.current
+    if (!node) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          loadMore()
+        }
+      },
+      { root: null, rootMargin: '400px 0px', threshold: 0 },
+    )
+
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [loadMore, filteredProducts.length])
+
+  const isInitialLoading =
+    (recentProductsStatus === 'loading' || recentProductsStatus === 'idle') &&
+    recentProducts.length === 0
+
+  const showCategoryFilters =
+    filterCategories.length > 0 &&
+    (recentProducts.length > 0 || recentProductsStatus === 'succeeded')
 
   return (
     <main className="min-h-screen bg-[#f5f5f5] py-8">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        <div className="mb-6 flex items-center justify-between gap-3">
+        <div className="mb-4 flex items-center justify-between gap-3 sm:mb-5">
           <h1 className="text-2xl font-semibold text-gray-900">Recently Added</h1>
           <Link
             to="/"
@@ -73,6 +118,44 @@ const RecentlyAddedPage = () => {
             Back to home
           </Link>
         </div>
+
+        {showCategoryFilters && (
+          <div
+            className="mb-5 -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 scrollbar-hide sm:mx-0 sm:px-0"
+            role="tablist"
+            aria-label="Filter by category"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={selectedCategoryId === ALL_CATEGORIES}
+              onClick={() => setSelectedCategoryId(ALL_CATEGORIES)}
+              className={`inline-flex shrink-0 items-center rounded-sm px-3 py-1.5 text-xs font-semibold transition ${
+                selectedCategoryId === ALL_CATEGORIES
+                  ? 'bg-emerald-700 text-white'
+                  : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              All
+            </button>
+            {filterCategories.map((category) => (
+              <button
+                key={category.id}
+                type="button"
+                role="tab"
+                aria-selected={selectedCategoryId === category.id}
+                onClick={() => setSelectedCategoryId(category.id)}
+                className={`inline-flex shrink-0 items-center rounded-sm px-3 py-1.5 text-xs font-semibold transition ${
+                  selectedCategoryId === category.id
+                    ? 'bg-emerald-700 text-white'
+                    : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                {category.name}
+              </button>
+            ))}
+          </div>
+        )}
 
         {isInitialLoading && <ProductGridSkeleton count={10} />}
 
@@ -85,36 +168,45 @@ const RecentlyAddedPage = () => {
         )}
 
         {recentProductsStatus === 'succeeded' &&
-          !isPrefetching &&
+          !recentProductsLoading &&
           recentProducts.length === 0 && (
             <p className="text-sm text-gray-500">No recently added products yet.</p>
           )}
 
-        {recentProducts.length > 0 && !isInitialLoading && (
+        {recentProducts.length > 0 &&
+          filteredProducts.length === 0 &&
+          !recentProductsLoading &&
+          !recentProductsHasNextPage && (
+            <p className="text-sm text-gray-500">No recently added products in this category.</p>
+          )}
+
+        {filteredProducts.length > 0 && (
           <>
-            {isPrefetching && (
-              <p className="mb-4 text-xs text-slate-500" role="status">
-                Loading more products…
-              </p>
+            <ProductGrid products={filteredProducts} showFindSimilar={false} />
+
+            <div ref={loadMoreRef} className="h-8 w-full" aria-hidden />
+
+            {recentProductsLoading && (
+              <div className="flex justify-center py-6" role="status" aria-live="polite">
+                <Typing className="w-8" />
+              </div>
             )}
 
-            <ProductGrid products={pagedProducts} showFindSimilar={false} />
-
-            {totalPages > 1 && (
-              <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
-                <p className="text-xs text-slate-600">
-                  Showing {pageStart}-{pageEnd} of {recentProducts.length} products
-                </p>
-                <Pagination
-                  page={safePage}
-                  totalPages={totalPages}
-                  onPageChange={setCurrentPage}
-                  className="justify-center sm:justify-end"
-                />
-              </div>
+            {!recentProductsHasNextPage && !recentProductsLoading && (
+              <p className="py-6 text-center text-xs text-slate-500">
+                Showing {filteredProducts.length} products
+              </p>
             )}
           </>
         )}
+
+        {filteredProducts.length === 0 &&
+          recentProductsLoading &&
+          (recentProducts.length > 0 || selectedCategoryId !== ALL_CATEGORIES) && (
+            <div className="flex justify-center py-10" role="status" aria-live="polite">
+              <Typing className="w-8" />
+            </div>
+          )}
       </div>
     </main>
   )
