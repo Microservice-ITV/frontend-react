@@ -275,11 +275,13 @@ const OrderTrackingPage = () => {
   const [error, setError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
   const [confirmError, setConfirmError] = useState<string | null>(null)
+  const [confirmSuccess, setConfirmSuccess] = useState(false)
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const [shopNames, setShopNames] = useState<Record<string, string>>({})
 
-  // Items pagination (fixed page size)
+  // Items pagination
   const [itemsPage, setItemsPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(ITEMS_PER_PAGE)
 
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([])
   const [invoiceQuantities, setInvoiceQuantities] = useState<Record<string, number>>({})
@@ -473,11 +475,11 @@ const OrderTrackingPage = () => {
     () => itemsByShop.flatMap(([, items]) => items),
     [itemsByShop],
   )
-  const itemsTotalPages = Math.max(1, Math.ceil(groupedItems.length / ITEMS_PER_PAGE))
+  const itemsTotalPages = Math.max(1, Math.ceil(groupedItems.length / itemsPerPage))
   const safeItemsPage = Math.min(itemsPage, itemsTotalPages)
   const paginatedItems = groupedItems.slice(
-    (safeItemsPage - 1) * ITEMS_PER_PAGE,
-    safeItemsPage * ITEMS_PER_PAGE,
+    (safeItemsPage - 1) * itemsPerPage,
+    safeItemsPage * itemsPerPage,
   )
 
   const copyTracking = async (key: string, value: string) => {
@@ -512,6 +514,8 @@ const OrderTrackingPage = () => {
   )
 
   const handleConfirmReceipt = async () => {
+    setConfirmSuccess(false)
+    setConfirmError(null)
     if (activeDeliveries.length === 0) return
     setConfirming(true)
     setConfirmError(null)
@@ -559,6 +563,7 @@ const OrderTrackingPage = () => {
         return
       }
       setOrder(response.data.data?.orderById ?? null)
+      setConfirmSuccess(true)
     } catch (err: any) {
       const message =
         err?.response?.data?.message ??
@@ -975,6 +980,11 @@ const OrderTrackingPage = () => {
                   {confirmError && (
                     <p className="mt-3 text-xs text-red-500">{confirmError}</p>
                   )}
+                  {confirmSuccess && (
+                    <p className="mt-3 text-sm text-emerald-700">
+                      Receipt confirmed. Any eligible order voucher will appear in <Link to="/account/my-coins" className="font-medium underline">My Coins</Link> shortly.
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -1033,14 +1043,15 @@ const OrderTrackingPage = () => {
                   })}
                 </div>
 
-                {groupedItems.length > ITEMS_PER_PAGE && (
+                {groupedItems.length > itemsPerPage && (
                   <DataTablePagination
                     page={safeItemsPage}
                     totalPages={itemsTotalPages}
-                    rowsPerPage={ITEMS_PER_PAGE}
+                    rowsPerPage={itemsPerPage}
                     totalItems={groupedItems.length}
                     itemLabel="items"
                     onPageChange={setItemsPage}
+                    onRowsPerPageChange={(value) => { setItemsPerPage(value); setItemsPage(1) }}
                   />
                 )}
 
