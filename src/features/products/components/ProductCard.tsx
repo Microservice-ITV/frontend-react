@@ -2,6 +2,7 @@ import { useMemo, useState, type MouseEvent } from "react";
 import { Link } from "react-router-dom";
 import { ImageIcon } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
+import ResponsiveAssetImage from "@/components/media/ResponsiveAssetImage";
 import { addToCart } from "@/features/cart/store/cartSlice";
 import { toggleWishlist } from "@/features/wishlist/store/wishlistSlice";
 import { selectIsWishlisted } from "@/features/wishlist/store/wishlistSelectors";
@@ -227,22 +228,28 @@ const ProductCard = ({ product }: ProductCardProps) => {
               <ImageIcon className="h-10 w-10 text-gray-300" aria-hidden />
             </div>
           ) : null}
-          <img
-            src={`${product.images?.[0] ?? "/placeholder.svg"}`}
-            alt={product.name}
-            className={[
-              "pointer-events-none absolute inset-0 h-full w-full object-fill p-2",
-              "transition-opacity duration-200",
-              imageLoaded && !imageFailed ? "opacity-100" : "opacity-0",
-            ].join(" ")}
-            loading="lazy"
-            decoding="async"
-            onLoad={() => setImageLoaded(true)}
-            onError={() => {
-              setImageFailed(true);
-              setImageLoaded(false);
-            }}
-          />
+          {product.images?.[0] ? (
+            <ResponsiveAssetImage
+              src={product.images[0]}
+              alt={product.name}
+              className={[
+                "pointer-events-none absolute inset-0 h-full w-full object-fill p-2",
+                "transition-opacity duration-200",
+                imageLoaded && !imageFailed ? "opacity-100" : "opacity-0",
+              ].join(" ")}
+              variant="thumb"
+              sizes="(max-width: 640px) 45vw, 210px"
+              width={210}
+              height={210}
+              loading="lazy"
+              decoding="async"
+              onLoad={() => setImageLoaded(true)}
+              onError={() => {
+                setImageFailed(true);
+                setImageLoaded(false);
+              }}
+            />
+          ) : null}
 
           {/* Status badge */}
           <span

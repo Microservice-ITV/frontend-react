@@ -23,6 +23,7 @@ type ResponsiveAssetImageProps = {
   decoding?: 'async' | 'auto' | 'sync'
   width?: number
   height?: number
+  onLoad?: (event: SyntheticEvent<HTMLImageElement>) => void
   onError?: (event: SyntheticEvent<HTMLImageElement>) => void
 }
 
@@ -42,6 +43,7 @@ export default function ResponsiveAssetImage({
   decoding = 'async',
   width,
   height,
+  onLoad,
   onError,
 }: ResponsiveAssetImageProps) {
   const resolved = productImageVariantUrl(src, variant)
@@ -61,6 +63,7 @@ export default function ResponsiveAssetImage({
       decoding={decoding}
       width={width}
       height={height}
+      onLoad={onLoad}
       onError={onError}
     />
   )

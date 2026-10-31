@@ -165,13 +165,29 @@ export function productServiceAssetUrl(
 
 export type ProductImageVariant = 'thumb' | 'card' | 'full'
 
-const VARIANT_WIDTH: Record<ProductImageVariant, number> = {
-    thumb: 200,
-    card: 600,
-    full: 1200,
+/** Must match product-service IMAGE_VARIANT_PRESETS widths per folder. */
+const VARIANT_WIDTH_BY_FOLDER: Record<
+    string,
+    Record<ProductImageVariant, number>
+> = {
+    products: { thumb: 200, card: 600, full: 1200 },
+    categories: { thumb: 128, card: 320, full: 800 },
+    'hero-banners': { thumb: 640, card: 1280, full: 1920 },
+    'promo-banners': { thumb: 200, card: 400, full: 800 },
+    'home-features': { thumb: 64, card: 128, full: 256 },
 }
 
+const DEFAULT_VARIANT_WIDTH = VARIANT_WIDTH_BY_FOLDER.products
+
 const VARIANT_PATH_RE = /-(thumb|card|full)\.webp(?=[?#]|$)/i
+
+function variantWidthsForUrl(url: string): Record<ProductImageVariant, number> {
+    const match = url.match(
+        /(?:^|\/)(products|categories|hero-banners|promo-banners|home-features)\//i,
+    )
+    if (!match) return DEFAULT_VARIANT_WIDTH
+    return VARIANT_WIDTH_BY_FOLDER[match[1].toLowerCase()] ?? DEFAULT_VARIANT_WIDTH
+}
 
 /** Swap `-full.webp` / `-card.webp` / `-thumb.webp` for the requested size. Legacy URLs unchanged. */
 export function productImageVariantUrl(
@@ -191,7 +207,8 @@ export function productImageSrcSet(
     const url = productServiceAssetUrl(path)
     if (!url || !VARIANT_PATH_RE.test(url)) return undefined
 
-    return (Object.keys(VARIANT_WIDTH) as ProductImageVariant[])
-        .map((variant) => `${productImageVariantUrl(path, variant)} ${VARIANT_WIDTH[variant]}w`)
+    const widths = variantWidthsForUrl(url)
+    return (Object.keys(widths) as ProductImageVariant[])
+        .map((variant) => `${productImageVariantUrl(path, variant)} ${widths[variant]}w`)
         .join(', ')
 }
