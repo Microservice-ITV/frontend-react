@@ -324,7 +324,7 @@ const SellerInvoicesPage = () => {
                               aria-label={`Thermal POS actions for ${invoice.id}`}
                               className="inline-flex h-8 items-center gap-1.5 rounded-sm border border-slate-200 px-2.5 text-xs font-medium text-slate-700 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800"
                             >
-                              <Printer size={13} aria-hidden="true" />
+                              <Printer size={14} className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                               Thermal POS
                             </Link>
                             {invoice.pdfUrl && (
