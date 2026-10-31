@@ -100,10 +100,10 @@ export const promotionApi = {
     )
     return response.data
   },
-  async setDeliveryAwardPromotion(promotionId: string | null): Promise<DeliveryAwardPromotionSetting> {
+  async setDeliveryAwardPromotion(promotionId: string | null, shopId?: string | null): Promise<DeliveryAwardPromotionSetting> {
     const response = await promotionClient.put<DeliveryAwardPromotionSetting>(
       '/promotion-settings/delivered-order-award',
-      { promotion_id: promotionId },
+      { promotion_id: promotionId, ...(shopId ? { shop_id: shopId } : {}) },
     )
     return response.data
   },
