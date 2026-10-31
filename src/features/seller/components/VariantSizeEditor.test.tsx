@@ -23,6 +23,7 @@ const sizes = [
 const baseValues = (): ProductFormValues => ({
   name: "Tee",
   description: "",
+  videoUrl: "",
   tags: "",
   slug: "tee",
   categoryId: "cat",

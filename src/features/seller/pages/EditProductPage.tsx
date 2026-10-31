@@ -82,6 +82,7 @@ const EditProductPage = () => {
   const [initialValues, setInitialValues] = useState<ProductFormValues>({
     name: "",
     description: undefined,
+    videoUrl: "",
     tags: "",
     slug: "",
     categoryId: "",
@@ -128,6 +129,7 @@ const EditProductPage = () => {
           setInitialValues({
             name: (item.name ?? item.title ?? "").trim(),
             description: (item.description ?? "").trim(),
+            videoUrl: (item.videoUrl ?? "").trim(),
             tags: (item.tags ?? []).join(", "),
             slug: (item.slug ?? "").trim(),
             categoryId: item.categoryId ?? "",
@@ -277,6 +279,7 @@ const EditProductPage = () => {
       await sellerProductApi.updateProduct(id, {
         name: values.name.trim(),
         description: values.description?.trim() || "",
+        videoUrl: values.videoUrl?.trim() || "",
         tags: parseTagsInput(values.tags),
         slug: values.slug.trim(),
         categoryId: values.categoryId,

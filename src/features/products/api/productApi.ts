@@ -26,7 +26,6 @@ interface ProductDetailApiResponse {
         name: string
         slug: string
         description?: string
-        /** Optional YouTube URL for the PDP video panel. */
         videoUrl?: string
         sku?: string
         stock?: number
@@ -139,6 +138,7 @@ type CatalogProductDetailGraph = {
     slug: string
     title: string
     description: string
+    videoUrl?: string | null
     sku: string
     price: number
     minPrice: number
@@ -227,6 +227,7 @@ const CATALOG_PRODUCT_BY_ID_QUERY = `
       slug
       title
       description
+      videoUrl
       sku
       price
       minPrice
@@ -670,6 +671,7 @@ export const productApi = {
         name: p.title,
         slug: p.slug,
         description: p.description,
+        videoUrl: p.videoUrl?.trim() || undefined,
         sku: p.sku,
         stock,
         price: displayPrice,
