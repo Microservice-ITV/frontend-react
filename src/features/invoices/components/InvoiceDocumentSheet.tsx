@@ -127,7 +127,7 @@ const InvoiceDocumentSheet = ({
 
       <header className="invoice-header print-color-adjust-exact px-5 py-4 sm:px-8 sm:py-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-center gap-4">
+          <div className="hidden min-w-0 items-center gap-4 sm:flex print:flex">
             <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border invoice-border bg-white p-1">
               <img src="/logo.svg" alt="Daily Need Items" className="invoice-logo h-full w-full object-contain" />
             </span>
@@ -142,7 +142,7 @@ const InvoiceDocumentSheet = ({
             <CalendarDays size={18} className="shrink-0 invoice-accent-text" aria-hidden="true" />
             <div className="min-w-0 flex-1">
               <p className="text-[10px] font-bold uppercase tracking-[0.16em] invoice-accent-text">Invoice</p>
-              <p className="whitespace-nowrap text-[14px] font-bold invoice-ink">{invoiceNumber || '—'}</p>
+              <p className="break-all text-[14px] font-bold invoice-ink sm:break-normal sm:whitespace-nowrap">{invoiceNumber || '—'}</p>
               <p className="invoice-header-muted mt-1 text-xs">Issue date: {formatInvoiceDate(invoice.createdAt)}</p>
               {orderReference && (
                 <p className="invoice-header-muted mt-1 text-xs">Order reference: {orderReference}</p>

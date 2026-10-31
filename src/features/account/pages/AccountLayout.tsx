@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
+import { Menu, X } from 'lucide-react'
 import AccountSidebar from '../components/AccountSidebar'
-import { menuIcon } from '@/assets/icons'
 
 const AccountLayout = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
@@ -15,13 +15,11 @@ const AccountLayout = () => {
           <button
             type="button"
             onClick={() => setIsMobileMenuOpen((open) => !open)}
-            className="p-2 rounded-sm border border-gray-300 bg-white active:bg-gray-100 cursor-pointer"
+            aria-label={isMobileMenuOpen ? 'Close account menu' : 'Open account menu'}
+            aria-expanded={isMobileMenuOpen}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-sm border border-gray-300 bg-white text-gray-900 active:bg-gray-100 cursor-pointer"
           >
-            <img
-              src={menuIcon}
-              alt="Open account menu"
-              className="w-5 h-5"
-            />
+            {isMobileMenuOpen ? <X size={18} strokeWidth={2} /> : <Menu size={18} strokeWidth={2} />}
           </button>
         </div>
 
