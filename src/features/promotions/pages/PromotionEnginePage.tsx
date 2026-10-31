@@ -24,7 +24,6 @@ import {
   CircleDollarSign,
   Clock3,
   Flame,
-  Gift,
   Layers3,
   MoreHorizontal,
   Percent,
@@ -224,7 +223,7 @@ const targetTypeForScope = (scope: PromotionScope | undefined): TargetType | und
 }
 
 const promotionScopeSupportsTargets = (scope: PromotionScope | undefined): boolean =>
-  targetTypeForScope(scope) !== undefined
+  scope === 'PRODUCT'
 
 const rewardLabel = (type: PromotionType) => {
   if (type === 'PERCENTAGE') return 'Percentage reward'
@@ -481,7 +480,9 @@ const PromotionEnginePage = () => {
   const authRole = useAuthRole()
   const isPlatformAdmin = authRole === 'SUPER_ADMIN'
   const isShopOwner = authRole === 'SHOP_OWNER'
-  const canManagePromotionAssets = isPlatformAdmin || isShopOwner
+  const isShopAdmin = isShopOwner || authRole === 'SHOP_ADMIN'
+  const canManageDeliveryAward = isPlatformAdmin || (isShopAdmin && Boolean(authUser?.active_shop_id))
+  const canManagePromotionAssets = isPlatformAdmin || isShopAdmin
   const activeShopId = authUser?.active_shop_id
   const activeShopName = authUser?.active_shop_name?.trim()
   const navigate = useNavigate()
@@ -499,6 +500,7 @@ const PromotionEnginePage = () => {
   const createMenuRef = useRef<HTMLDivElement>(null)
   const [selectedId, setSelectedId] = useState('')
   const [managementTab, setManagementTab] = useState<ManagementTab>('rewards')
+  const [isAwardPromotionTab, setIsAwardPromotionTab] = useState(false)
   const [assets, setAssets] = useState<Record<ManagementTab, PromotionAsset[]>>({
     rewards: [],
     conditions: [],
@@ -514,9 +516,10 @@ const PromotionEnginePage = () => {
   const [assetSaving, setAssetSaving] = useState(false)
   const [deliveryAwardPromotionId, setDeliveryAwardPromotionId] = useState('')
   const [deliveryAwardPromotionName, setDeliveryAwardPromotionName] = useState('')
+  const [deliveryAwardPromotionStatus, setDeliveryAwardPromotionStatus] = useState<PromotionRecord['status'] | null>(null)
+  const [deliveryAwardModalOpen, setDeliveryAwardModalOpen] = useState(false)
   const [deliveryAwardLoading, setDeliveryAwardLoading] = useState(false)
   const [deliveryAwardSaving, setDeliveryAwardSaving] = useState(false)
-  const [deliveryAwardMessage, setDeliveryAwardMessage] = useState<string | null>(null)
   const [deliveryAwardError, setDeliveryAwardError] = useState<string | null>(null)
 
   const promotionNameById = useMemo(
@@ -593,7 +596,7 @@ const PromotionEnginePage = () => {
   }, [activeShopId, isPlatformAdmin])
 
   useEffect(() => {
-    if (!isPlatformAdmin) return
+    if (!isPlatformAdmin && !isShopAdmin) return
     let cancelled = false
     setDeliveryAwardLoading(true)
     promotionApi.getDeliveryAwardPromotion()
@@ -601,14 +604,22 @@ const PromotionEnginePage = () => {
         if (cancelled) return
         setDeliveryAwardPromotionId(setting.promotion_id ?? '')
         setDeliveryAwardPromotionName(setting.promotion?.name ?? '')
+        setDeliveryAwardPromotionStatus(setting.promotion?.status ?? null)
         setDeliveryAwardError(null)
       })
-      .catch(() => {
-        if (!cancelled) setDeliveryAwardError('Could not load the delivered-order voucher setting.')
+      .catch((error: any) => {
+        if (cancelled) return
+        const apiMessage = error?.response?.data?.message
+        const message = Array.isArray(apiMessage) ? apiMessage.join(', ') : apiMessage
+        setDeliveryAwardError(
+          message || (error?.response?.status
+            ? `Could not load the delivered-order voucher setting (HTTP ${error.response.status}).`
+            : 'Could not reach the promotion service to load the delivered-order voucher setting.'),
+        )
       })
       .finally(() => { if (!cancelled) setDeliveryAwardLoading(false) })
     return () => { cancelled = true }
-  }, [isPlatformAdmin])
+  }, [isPlatformAdmin, isShopAdmin])
 
   useEffect(() => {
     if (!canManagePromotionAssets) return
@@ -725,19 +736,21 @@ const PromotionEnginePage = () => {
     }
   }
 
-  const saveDeliveryAwardPromotion = async () => {
+  const saveDeliveryAwardPromotion = async (): Promise<boolean> => {
     setDeliveryAwardSaving(true)
     setDeliveryAwardError(null)
-    setDeliveryAwardMessage(null)
     try {
-      const setting = await promotionApi.setDeliveryAwardPromotion(deliveryAwardPromotionId || null)
+      const setting = await promotionApi.setDeliveryAwardPromotion(
+        deliveryAwardPromotionId || null,
+        isPlatformAdmin ? undefined : activeShopId,
+      )
       setDeliveryAwardPromotionId(setting.promotion_id ?? '')
       setDeliveryAwardPromotionName(setting.promotion?.name ?? '')
-      setDeliveryAwardMessage(setting.promotion_id
-        ? 'Delivered-order voucher promotion saved.'
-        : 'Delivered-order voucher awards disabled.')
+      setDeliveryAwardPromotionStatus(setting.promotion?.status ?? null)
+      return true
     } catch (error: any) {
       setDeliveryAwardError(error?.response?.data?.message ?? 'Could not save the delivered-order voucher promotion.')
+      return false
     } finally {
       setDeliveryAwardSaving(false)
     }
@@ -746,11 +759,15 @@ const PromotionEnginePage = () => {
   const openCreateAsset = () => {
     setAssetMode('create')
     setEditingAssetId(null)
-    const targetPromotion = promotions.find(({ id }) => id === defaultAssetPromotionId)
+    const targetPromotion = managementTab === 'targets'
+      ? promotions.find(({ id, record }) =>
+          id === defaultAssetPromotionId && promotionScopeSupportsTargets(record.scope),
+        ) ?? promotions.find(({ record }) => promotionScopeSupportsTargets(record.scope))
+      : promotions.find(({ id }) => id === defaultAssetPromotionId)
     const targetType = targetTypeForScope(targetPromotion?.record.scope) ?? 'PRODUCT'
     setAssetForm({
       ...DEFAULT_ASSET_FORM,
-      promotionId: defaultAssetPromotionId,
+      promotionId: targetPromotion?.id ?? '',
       targetType,
       targetId: targetType === 'SHOP' ? targetPromotion?.record.shop_id ?? '' : '',
       conditionShopId: activeShopId ?? '',
@@ -903,54 +920,6 @@ const PromotionEnginePage = () => {
         <MetricCard icon={Target} label="Target coverage" value={String(targetCoverage)} detail="Configured promotion targets" tone="violet" />
       </div>
 
-      {isPlatformAdmin && (
-        <section className="rounded-xl border border-violet-200 bg-violet-50/70 p-5">
-          <div className="flex items-start gap-3">
-            <span className="rounded-lg bg-white p-2 text-violet-700 shadow-sm"><Gift size={18} /></span>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-sm font-bold text-slate-900">Delivered-order voucher</h2>
-              <p className="mt-1 text-xs text-slate-600">
-                Select the active promotion whose unused codes customers earn after every package in an order is confirmed delivered. Choose no promotion to disable awards.
-              </p>
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                <label className="sr-only" htmlFor="delivered-order-award-promotion">Voucher award promotion</label>
-                <select
-                  id="delivered-order-award-promotion"
-                  value={deliveryAwardPromotionId}
-                  onChange={(event) => {
-                    setDeliveryAwardPromotionId(event.target.value)
-                    setDeliveryAwardMessage(null)
-                    setDeliveryAwardError(null)
-                  }}
-                  disabled={deliveryAwardLoading || deliveryAwardSaving}
-                  className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 disabled:opacity-60"
-                >
-                  <option value="">Disabled</option>
-                  {deliveryAwardPromotionId && !availableDeliveryAwardPromotions.some(({ id }) => id === deliveryAwardPromotionId) && (
-                    <option value={deliveryAwardPromotionId}>
-                      {deliveryAwardPromotionName || 'Selected promotion'} (not currently active)
-                    </option>
-                  )}
-                  {availableDeliveryAwardPromotions.map(({ id, name }) => (
-                    <option key={id} value={id}>{name}</option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={() => void saveDeliveryAwardPromotion()}
-                  disabled={deliveryAwardLoading || deliveryAwardSaving}
-                  className="rounded-lg bg-violet-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {deliveryAwardLoading ? 'Loading…' : deliveryAwardSaving ? 'Saving…' : 'Save setting'}
-                </button>
-              </div>
-              {deliveryAwardError && <p role="alert" className="mt-2 text-xs font-medium text-rose-700">{deliveryAwardError}</p>}
-              {deliveryAwardMessage && <p role="status" className="mt-2 text-xs font-medium text-emerald-700">{deliveryAwardMessage}</p>}
-            </div>
-          </div>
-        </section>
-      )}
-
       {(promotionsError || assetError) && (
         <p className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-medium text-rose-700">
           {promotionsError ?? assetError}
@@ -1100,6 +1069,17 @@ const PromotionEnginePage = () => {
                     items={selectedPromotionAssets.usageLimits.map(summarizeUsageLimit)}
                     emptyText="No redemption cap configured."
                   />
+                  <PromotionDetailGroup
+                    title="Delivered-order award"
+                    items={selectedPromotion.id === deliveryAwardPromotionId
+                      ? ['Selected to supply voucher codes after delivery.']
+                      : []}
+                    emptyText={deliveryAwardLoading
+                      ? 'Checking award setting…'
+                      : deliveryAwardError
+                        ? 'Award setting could not be loaded.'
+                        : 'Not selected for delivered-order awards.'}
+                  />
                 </div>
               </div>
               <button
@@ -1125,12 +1105,25 @@ const PromotionEnginePage = () => {
         <PromotionAssetManager
           isPlatformAdmin={isPlatformAdmin}
           activeTab={managementTab}
+          isAwardPromotionTab={isAwardPromotionTab}
           assets={assets[managementTab]}
+          deliveryAwardPromotionId={deliveryAwardPromotionId}
+          deliveryAwardPromotionName={deliveryAwardPromotionName}
+          deliveryAwardPromotionStatus={deliveryAwardPromotionStatus}
+          deliveryAwardLoading={deliveryAwardLoading}
+          deliveryAwardError={deliveryAwardError}
           canCreateTargets={promotions.some((promotion) =>
             promotionScopeSupportsTargets(promotion.record.scope),
           )}
-          onTabChange={setManagementTab}
+          onTabChange={(tab) => {
+            setManagementTab(tab)
+            setIsAwardPromotionTab(false)
+          }}
+          onAwardPromotionTabChange={() => setIsAwardPromotionTab(true)}
           onAdd={openCreateAsset}
+          onAddAwardPromotion={() => {
+            setDeliveryAwardModalOpen(true)
+          }}
           onEdit={openEditAsset}
           onRemove={removeAsset}
         />
@@ -1161,6 +1154,27 @@ const PromotionEnginePage = () => {
         onChange={updateAssetForm}
         onSubmit={saveAsset}
       />
+
+      {deliveryAwardModalOpen && (
+        <DeliveryAwardPromotionModal
+          canManage={canManageDeliveryAward}
+          hasActiveShop={Boolean(activeShopId)}
+          promotionId={deliveryAwardPromotionId}
+          promotionName={deliveryAwardPromotionName}
+          promotions={availableDeliveryAwardPromotions}
+          loading={deliveryAwardLoading}
+          saving={deliveryAwardSaving}
+          error={deliveryAwardError}
+          onPromotionChange={(promotionId) => {
+            setDeliveryAwardPromotionId(promotionId)
+            setDeliveryAwardError(null)
+          }}
+          onClose={() => setDeliveryAwardModalOpen(false)}
+          onSave={async () => {
+            if (await saveDeliveryAwardPromotion()) setDeliveryAwardModalOpen(false)
+          }}
+        />
+      )}
     </section>
   )
 }
@@ -1244,19 +1258,35 @@ const PromotionDetailGroup = ({
 const PromotionAssetManager = ({
   isPlatformAdmin,
   activeTab,
+  isAwardPromotionTab,
   assets,
+  deliveryAwardPromotionId,
+  deliveryAwardPromotionName,
+  deliveryAwardPromotionStatus,
+  deliveryAwardLoading,
+  deliveryAwardError,
   canCreateTargets,
   onTabChange,
+  onAwardPromotionTabChange,
   onAdd,
+  onAddAwardPromotion,
   onEdit,
   onRemove,
 }: {
   isPlatformAdmin: boolean
   activeTab: ManagementTab
+  isAwardPromotionTab: boolean
   assets: PromotionAsset[]
+  deliveryAwardPromotionId: string
+  deliveryAwardPromotionName: string
+  deliveryAwardPromotionStatus: PromotionRecord['status'] | null
+  deliveryAwardLoading: boolean
+  deliveryAwardError: string | null
   canCreateTargets: boolean
   onTabChange: (tab: ManagementTab) => void
+  onAwardPromotionTabChange: () => void
   onAdd: () => void
+  onAddAwardPromotion: () => void
   onEdit: (asset: PromotionAsset) => void
   onRemove: (id: string) => void
 }) => {
@@ -1276,15 +1306,15 @@ const PromotionAssetManager = ({
         </div>
         <button
           type="button"
-          onClick={onAdd}
-          disabled={activeTab === 'targets' && !canCreateTargets}
-          title={activeTab === 'targets' && !canCreateTargets ? 'Order and Shipping promotions do not use targets.' : undefined}
+          onClick={isAwardPromotionTab ? onAddAwardPromotion : onAdd}
+          disabled={!isAwardPromotionTab && activeTab === 'targets' && !canCreateTargets}
+          title={!isAwardPromotionTab && activeTab === 'targets' && !canCreateTargets ? 'Targets are only available for Product-scope promotions.' : undefined}
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-emerald-300 hover:text-emerald-700"
         >
-          <Plus size={15} /> Add {ASSET_SINGULAR_LABELS[activeTab]}
+          <Plus size={15} /> {isAwardPromotionTab ? 'Add Award Promotion' : `Add ${ASSET_SINGULAR_LABELS[activeTab]}`}
         </button>
       </div>
-      <div className="flex gap-1 border-b border-slate-100 px-5 pt-3">
+      <div className="flex flex-wrap items-end gap-x-1 border-b border-slate-100 px-5 pt-3">
         {(['rewards', 'conditions', 'targets', 'codes', 'usageLimits'] as ManagementTab[]).map((tab) => (
           <button
             key={tab}
@@ -1295,9 +1325,42 @@ const PromotionAssetManager = ({
             {ASSET_LABELS[tab]}
           </button>
         ))}
+        <button
+          type="button"
+          onClick={onAwardPromotionTabChange}
+          className={`border-b-2 px-3 pb-3 text-xs font-semibold ${isAwardPromotionTab ? 'border-violet-600 text-violet-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+        >
+          Award Promotion
+        </button>
       </div>
+      {!isAwardPromotionTab && activeTab === 'targets' && !canCreateTargets && (
+        <p className="border-b border-slate-100 px-5 py-3 text-xs text-slate-500">
+          Targets are only available for Product-scope promotions.
+        </p>
+      )}
       <div className="divide-y divide-slate-100">
-        {assets.map((asset) => (
+        {isAwardPromotionTab ? (
+          <>
+            {deliveryAwardLoading && <p className="px-5 py-8 text-center text-sm text-slate-500">Loading award promotion…</p>}
+            {!deliveryAwardLoading && deliveryAwardError && (
+              <p role="alert" className="px-5 py-6 text-center text-sm text-rose-700">{deliveryAwardError}</p>
+            )}
+            {!deliveryAwardLoading && !deliveryAwardError && deliveryAwardPromotionId && (
+              <div className="flex items-center gap-4 px-5 py-4">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-slate-900">{deliveryAwardPromotionName || 'Selected promotion'}</p>
+                  <p className="mt-1 text-xs text-slate-500">Supplies voucher codes for delivered orders</p>
+                </div>
+                <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${deliveryAwardPromotionStatus === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                  {deliveryAwardPromotionStatus ?? 'CONFIGURED'}
+                </span>
+              </div>
+            )}
+            {!deliveryAwardLoading && !deliveryAwardError && !deliveryAwardPromotionId && (
+              <p className="px-5 py-8 text-center text-sm text-slate-500">No delivered-order award promotion configured.</p>
+            )}
+          </>
+        ) : assets.map((asset) => (
           <div key={asset.id} className="flex items-center gap-4 px-5 py-4">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-50 text-violet-700">
               {activeTab === 'rewards' || activeTab === 'usageLimits'
@@ -1334,7 +1397,7 @@ const PromotionAssetManager = ({
             </button>
           </div>
         ))}
-        {assets.length === 0 && (
+        {!isAwardPromotionTab && assets.length === 0 && (
           <p className="px-5 py-8 text-center text-sm text-slate-500">No {ASSET_LABELS[activeTab].toLowerCase()} configured.</p>
         )}
       </div>
@@ -1593,6 +1656,11 @@ const PromotionAssetFormModal = ({
   if (form.targetId && !searchableTargetOptions.some((option) => option.value === form.targetId)) {
     searchableTargetOptions.push({ value: form.targetId, label: form.targetId })
   }
+  const selectablePromotions = kind === 'targets'
+    ? promotions.filter(({ id, record }) =>
+        promotionScopeSupportsTargets(record.scope) || (mode === 'edit' && id === form.promotionId),
+      )
+    : promotions
 
   return (
     <ModalShell title={title} eyebrow="Promotion building block" onClose={onClose}>
@@ -1615,7 +1683,7 @@ const PromotionAssetFormModal = ({
           className={INPUT_CLASS}
         >
           <option value="">Select a promotion</option>
-          {promotions.map((promotion) => (
+          {selectablePromotions.map((promotion) => (
             <option key={promotion.id} value={promotion.id}>
               {promotion.name}
             </option>
@@ -1931,6 +1999,79 @@ const FormField = ({ label, hint, children }: { label: string; hint?: string; ch
     {hint && <span className="ml-1 font-normal text-slate-400">({hint})</span>}
     {children}
   </label>
+)
+
+const DeliveryAwardPromotionModal = ({
+  canManage,
+  hasActiveShop,
+  promotionId,
+  promotionName,
+  promotions,
+  loading,
+  saving,
+  error,
+  onPromotionChange,
+  onClose,
+  onSave,
+}: {
+  canManage: boolean
+  hasActiveShop: boolean
+  promotionId: string
+  promotionName: string
+  promotions: PromotionListItem[]
+  loading: boolean
+  saving: boolean
+  error: string | null
+  onPromotionChange: (promotionId: string) => void
+  onClose: () => void
+  onSave: () => Promise<void>
+}) => (
+  <ModalShell eyebrow="Promotion setting" title="Delivered-order award promotion" onClose={onClose}>
+    <p className="text-sm text-slate-600">
+      Select the active promotion that supplies a voucher code after an order is confirmed delivered. Choose Disabled to turn off awards.
+    </p>
+    {canManage ? (
+      <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+        This setting affects delivered-order awards across shops. Shop admins can select promotions from their active shop.
+      </p>
+    ) : (
+      <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+        {hasActiveShop
+          ? 'This is a platform-wide setting. Changes affect delivered-order awards across shops.'
+          : 'Select an active shop before changing this setting.'}
+      </p>
+    )}
+    <FormField label="Award promotion">
+      <select
+        value={promotionId}
+        onChange={(event) => onPromotionChange(event.target.value)}
+        disabled={!canManage || loading || saving}
+        className={INPUT_CLASS}
+      >
+        <option value="">Disabled</option>
+        {promotionId && !promotions.some(({ id }) => id === promotionId) && (
+          <option value={promotionId}>{promotionName || 'Selected promotion'} (not currently active)</option>
+        )}
+        {promotions.map(({ id, name }) => <option key={id} value={id}>{name}</option>)}
+      </select>
+      {loading && <span className="mt-1 block text-xs font-normal text-slate-500">Loading setting…</span>}
+    </FormField>
+    {error && <p role="alert" className="text-xs font-medium text-rose-700">{error}</p>}
+    {canManage ? (
+      <ModalActions
+        onClose={onClose}
+        onSubmit={onSave}
+        submitLabel={saving ? 'Saving…' : 'Save promotion'}
+        disabled={loading || saving}
+      />
+    ) : (
+      <div className="flex justify-end pt-2">
+        <button type="button" onClick={onClose} className="rounded-lg px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100">
+          Close
+        </button>
+      </div>
+    )}
+  </ModalShell>
 )
 
 const ModalShell = ({
