@@ -99,7 +99,7 @@ const SetPhoneModal: React.FC<SetPhoneModalProps> = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby="set-phone-title"
-        className="relative z-10 w-full max-w-[460px] rounded-2xl border border-slate-100 bg-white p-6 shadow-xl sm:p-7"
+        className="relative z-10 w-full max-w-[460px] rounded-sm border border-slate-200 bg-white p-6 shadow-lg sm:p-7"
       >
         <div className="flex items-center justify-between pb-4">
           <h2
@@ -130,7 +130,7 @@ const SetPhoneModal: React.FC<SetPhoneModalProps> = ({
               Mobile number
             </label>
             <div className="mt-2 flex items-center">
-              <div className="flex items-center rounded-l-lg border border-r-0 border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-600">
+              <div className="flex items-center rounded-l-sm border border-r-0 border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-600">
                 +95
               </div>
               <div className="relative flex-1">
@@ -149,7 +149,7 @@ const SetPhoneModal: React.FC<SetPhoneModalProps> = ({
                   disabled={isLoading}
                   autoFocus
                   maxLength={10}
-                  className="w-full rounded-r-lg border border-slate-200 py-2.5 pl-10 pr-3.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="w-full rounded-r-sm border border-slate-200 py-2.5 pl-10 pr-3.5 text-sm focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600"
                 />
               </div>
             </div>
@@ -168,14 +168,14 @@ const SetPhoneModal: React.FC<SetPhoneModalProps> = ({
               type="button"
               onClick={onClose}
               disabled={isLoading}
-              className="rounded-lg border border-slate-200 px-5 py-2.5 text-sm text-slate-600"
+              className="cursor-pointer rounded-sm border border-slate-200 px-5 py-2.5 text-sm text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isLoading || !phone.trim()}
-              className="flex items-center gap-2 rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-medium text-white disabled:opacity-40"
+              className="flex cursor-pointer items-center gap-2 rounded-sm bg-emerald-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
               Add Phone Number

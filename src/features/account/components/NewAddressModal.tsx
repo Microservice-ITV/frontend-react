@@ -7,7 +7,7 @@ import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { selectAuthUser } from '@/features/auth/store/authSelectors'
 import { useGlobalModal } from '@/components/ui/GlobalModalProvider'
 import { createUserAddress, updateUserAddress } from '../store/accountThunks'
-import { locationApi, type StateOption, type CityOption, type DistrictOption, type WardOption } from '../api/locationApi'
+import { locationApi, type StateOption, type CityOption, type WardOption } from '../api/locationApi'
 import type { UpsertAddressPayload, UserAddress } from '../types/addressTypes'
 import { MapLocationPicker } from '@/components/maps/MapLocationPicker'
 import { locateAddressPin } from '@/lib/geocoding/geocode'
@@ -30,7 +30,7 @@ type AddressFormErrors = Partial<{
   addressLine: string
 }>
 
-const LOCATION_REQUIRED_ERROR = 'Please select State, City, District, and Ward.'
+const LOCATION_REQUIRED_ERROR = 'Please select State and City. Choose a ward when this city has wards.'
 
 /** Backend / JSON may return lat/lng as strings; map + `toFixed` need real numbers. */
 const parseCoordinate = (value: unknown): number | null => {
@@ -135,12 +135,11 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
 
   const [states, setStates] = useState<StateOption[]>([])
   const [cities, setCities] = useState<CityOption[]>([])
-  const [districts, setDistricts] = useState<DistrictOption[]>([])
   const [wards, setWards] = useState<WardOption[]>([])
+  const [wardsStatus, setWardsStatus] = useState<'idle' | 'loading' | 'ready'>('idle')
 
   const [selectedState, setSelectedState] = useState<StateOption | null>(null)
   const [selectedCity, setSelectedCity] = useState<CityOption | null>(null)
-  const [selectedDistrict, setSelectedDistrict] = useState<DistrictOption | null>(null)
   const [selectedWard, setSelectedWard] = useState<WardOption | null>(null)
 
   const [latitude, setLatitude] = useState<number | null>(() => parseCoordinate(initialAddress?.latitude))
@@ -161,7 +160,9 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
   const labelAs = watch('labelAs')
   const isDefault = watch('isDefault')
 
-  const hasSelectedFullLocation = !!selectedState && !!selectedCity && !!selectedDistrict && !!selectedWard
+  const cityHasNoWards = wardsStatus === 'ready' && wards.length === 0
+  const hasSelectedFullLocation =
+    !!selectedState && !!selectedCity && (cityHasNoWards || !!selectedWard)
 
   const getFieldError = (field: keyof AddressFormErrors) => {
     const message = errors[field]?.message
@@ -213,24 +214,10 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
         setSelectedCity(initialCityOption)
         setValue('cityId', initialCityOption.id, { shouldDirty: false, shouldValidate: false })
 
-        const districtRes = await locationApi.getDistricts(initialCityOption.id)
-        const fetchedDistricts = districtRes.data.data.districts
-        setDistricts(fetchedDistricts)
-
-        const initialDistrictOption =
-          fetchedDistricts.find((district) => {
-            if (initialAddress.district_id) return district.id === initialAddress.district_id
-            return district.name === initialAddress.district
-          }) ?? null
-
-        if (!initialDistrictOption) return
-
-        setSelectedDistrict(initialDistrictOption)
-        setValue('districtId', initialDistrictOption.id, { shouldDirty: false, shouldValidate: false })
-
-        const wardRes = await locationApi.getWards(initialDistrictOption.id)
+        const wardRes = await locationApi.getWards(initialCityOption.id)
         const fetchedWards = wardRes.data.data.wards
         setWards(fetchedWards)
+        setWardsStatus('ready')
 
         const initialWardOption =
           fetchedWards.find((ward) => {
@@ -244,8 +231,8 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
         setValue('wardId', initialWardOption.id, { shouldDirty: false, shouldValidate: false })
       } catch {
         setCities([])
-        setDistricts([])
         setWards([])
+        setWardsStatus('idle')
       }
     }
 
@@ -272,23 +259,29 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
    * After the user picks a ward, we suggest a pin via OSM Nominatim (approximate area center).
    */
   useEffect(() => {
-    if (!selectedState || !selectedCity || !selectedDistrict || !selectedWard) {
+    if (!selectedState || !selectedCity || wardsStatus !== 'ready') {
+      setGeocodeStatus('idle')
+      return
+    }
+    if (!cityHasNoWards && !selectedWard) {
       setGeocodeStatus('idle')
       return
     }
 
-    if (geocodeWardRef.current === selectedWard.id) return
+    const placeKey = selectedWard?.id ?? -selectedCity.id
+    if (geocodeWardRef.current === placeKey) return
 
     const savedLat = mode === 'edit' ? parseCoordinate(initialAddress?.latitude) : null
     const savedLng = mode === 'edit' ? parseCoordinate(initialAddress?.longitude) : null
     const savedWardId = initialAddress?.ward_id != null ? Number(initialAddress.ward_id) : null
-    const wardStillOriginal =
-      savedWardId != null && Number.isFinite(savedWardId)
+    const wardStillOriginal = selectedWard
+      ? savedWardId != null && Number.isFinite(savedWardId)
         ? savedWardId === selectedWard.id
         : (initialAddress?.ward ?? '').trim().toLowerCase() === selectedWard.name.trim().toLowerCase()
-    // Keep the saved pin only while the ward is unchanged. A new ward must get a new pin.
+      : cityHasNoWards && (initialAddress?.ward_id == null || initialAddress.ward_id === 0)
+    // Keep the saved pin only while the place is unchanged. A new ward must get a new pin.
     if (savedLat != null && savedLng != null && wardStillOriginal) {
-      geocodeWardRef.current = selectedWard.id
+      geocodeWardRef.current = placeKey
       setLatitude(savedLat)
       setLongitude(savedLng)
       setGeocodeStatus('located')
@@ -298,10 +291,9 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
     const epoch = userMapInteractionRef.current
     geocodeSeqRef.current += 1
     const seq = geocodeSeqRef.current
-    const wardId = selectedWard.id
     const geocodeParts = {
-      ward: selectedWard.name,
-      district: selectedDistrict.name,
+      ward: selectedWard?.name ?? selectedCity.name,
+      district: selectedCity.name,
       city: selectedCity.name,
       state: selectedState.name,
     }
@@ -316,7 +308,7 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
           const point = match?.point ?? DEFAULT_MAP_CENTER
           setLatitude(point.lat)
           setLongitude(point.lng)
-          geocodeWardRef.current = wardId
+          geocodeWardRef.current = placeKey
           setGeocodeStatus(match && !match.approximate ? 'located' : 'approximate')
         })
     }, 450)
@@ -324,7 +316,7 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
       cancelled = true
       window.clearTimeout(t)
     }
-  }, [selectedState, selectedCity, selectedDistrict, selectedWard, mode, initialAddress?.address_id, initialAddress?.latitude, initialAddress?.longitude])
+  }, [selectedState, selectedCity, selectedWard, cityHasNoWards, wardsStatus, mode, initialAddress?.address_id, initialAddress?.latitude, initialAddress?.longitude, initialAddress?.ward, initialAddress?.ward_id])
 
   useEffect(() => {
     const locationValue = hasSelectedFullLocation ? 'selected' : ''
@@ -337,7 +329,6 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
   const selectState = async (state: StateOption) => {
     setSelectedState(state)
     setSelectedCity(null)
-    setSelectedDistrict(null)
     setSelectedWard(null)
     setLatitude(null)
     setLongitude(null)
@@ -347,21 +338,19 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
     setValue('cityId', null, { shouldDirty: true })
     setValue('districtId', null, { shouldDirty: true })
     setValue('wardId', null, { shouldDirty: true })
+    setWardsStatus('idle')
     try {
       const res = await locationApi.getCities(state.id)
       setCities(res.data.data.cities)
-      setDistricts([])
       setWards([])
     } catch {
       setCities([])
-      setDistricts([])
       setWards([])
     }
   }
 
   const selectCity = async (city: CityOption) => {
     setSelectedCity(city)
-    setSelectedDistrict(null)
     setSelectedWard(null)
     setLatitude(null)
     setLongitude(null)
@@ -370,30 +359,14 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
     setValue('cityId', city.id, { shouldDirty: true })
     setValue('districtId', null, { shouldDirty: true })
     setValue('wardId', null, { shouldDirty: true })
+    setWardsStatus('loading')
     try {
-      const res = await locationApi.getDistricts(city.id)
-      setDistricts(res.data.data.districts)
-      setWards([])
-    } catch {
-      setDistricts([])
-      setWards([])
-    }
-  }
-
-  const selectDistrict = async (district: DistrictOption) => {
-    setSelectedDistrict(district)
-    setSelectedWard(null)
-    setLatitude(null)
-    setLongitude(null)
-    geocodeWardRef.current = null
-    setGeocodeStatus('idle')
-    setValue('districtId', district.id, { shouldDirty: true })
-    setValue('wardId', null, { shouldDirty: true })
-    try {
-      const res = await locationApi.getWards(district.id)
-      setWards(res.data.data.wards)
+      const res = await locationApi.getWards(city.id)
+      setWards(res.data.data.wards ?? [])
+      setWardsStatus('ready')
     } catch {
       setWards([])
+      setWardsStatus('idle')
     }
   }
 
@@ -410,7 +383,8 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
   }
 
   const onSubmit = async (values: FormValues) => {
-    if (!authUser?.id || !selectedState || !selectedCity || !selectedDistrict || !selectedWard) return
+    if (!authUser?.id || !selectedState || !selectedCity) return
+    if (!cityHasNoWards && !selectedWard) return
 
     if (pinLat == null || pinLng == null) {
       setGeocodeStatus('failed')
@@ -426,12 +400,11 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
       country_code: 'MM',
       state: selectedState.name,
       city: selectedCity.name,
-      district: selectedDistrict.name,
-      ward: selectedWard.name,
+      ward: selectedWard?.name ?? '',
       state_id: selectedState.id,
       city_id: selectedCity.id,
-      district_id: selectedDistrict.id,
-      ward_id: selectedWard.id,
+      district_id: null,
+      ward_id: selectedWard?.id ?? null,
       address_line_1: values.addressLine,
       address_line_2: values.unitNo || null,
       postal_code: values.postalCode || null,
@@ -510,7 +483,7 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
         </div>
       </div>
 
-      {/* Row 2: State, City, District, Ward */}
+      {/* Row 2: State, City, Ward */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <SearchableSelect
           placeholder="Search state..."
@@ -534,39 +507,22 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
           disabled={!selectedState}
         />
         <SearchableSelect
-          placeholder="Search district..."
-          emptyLabel="Select District"
-          options={districts.map((d) => ({ value: String(d.id), label: d.name }))}
-          value={selectedDistrict ? String(selectedDistrict.id) : ''}
-          onChange={(val) => {
-            const district = districts.find((d) => String(d.id) === val)
-            if (district) void selectDistrict(district)
-          }}
-          disabled={!selectedCity}
-        />
-        <SearchableSelect
           placeholder="Search ward..."
-          emptyLabel="Select Ward"
+          emptyLabel={
+            wardsStatus === 'loading' ? 'Loading wards...' : cityHasNoWards ? 'No ward' : 'Select Ward'
+          }
           options={wards.map((w) => ({ value: String(w.id), label: w.name }))}
           value={selectedWard ? String(selectedWard.id) : ''}
           onChange={(val) => {
             const ward = wards.find((w) => String(w.id) === val)
             if (ward) selectWard(ward)
           }}
-          disabled={!selectedDistrict}
+          disabled={!selectedCity || wardsStatus === 'loading' || cityHasNoWards}
         />
-      </div>
-      {getFieldError('location') && isSubmitted && (
-        <p className="mt-1 text-[11px] text-red-500">{getFieldError('location')}</p>
-      )}
-      
-
-      {/* Row 3: Street name & Add Location (enabled only after basic info + location) */}
-      <div className="space-y-2">
         <div>
           <input
             type="text"
-            placeholder="Street Name, Building, House No..."
+            placeholder="Full Address"
             {...register('addressLine')}
             disabled={!canEditAddressDetails}
             className={`w-full border rounded-sm px-3 py-2 text-sm focus:outline-none focus:ring-1 ${
@@ -581,7 +537,12 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
             <p className="mt-1 text-[11px] text-red-500">{getFieldError('addressLine')}</p>
           )}
         </div>
+      </div>
+      {getFieldError('location') && isSubmitted && (
+        <p className="mt-1 text-[11px] text-red-500">{getFieldError('location')}</p>
+      )}
 
+      <div className="space-y-2">
         <button
           type="button"
           disabled={!canEditAddressDetails}
@@ -598,11 +559,12 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
         {canEditAddressDetails && (
           <div ref={mapSectionRef} className="mt-2 space-y-1">
             <p className="text-[10px] text-gray-500">
-              After you choose a ward, we locate the area on the map (not always the exact doorway). Drag the pin to
-              fine-tune your exact spot.
+              {cityHasNoWards
+                ? 'This city has no wards. Place the pin on the map at your exact spot, then submit.'
+                : 'After you choose a ward, we locate the area on the map (not always the exact doorway). Drag the pin to fine-tune your exact spot.'}
             </p>
             {geocodeStatus === 'locating' && (
-              <p className="text-[10px] text-gray-500">Locating this ward on the map…</p>
+              <p className="text-[10px] text-gray-500">Locating this area on the map…</p>
             )}
             {geocodeStatus === 'approximate' && (
               <p className="text-[10px] text-amber-700">
@@ -611,7 +573,7 @@ export const NewAddressModal = ({ onSaved, mode = 'create', initialAddress, desc
             )}
             {geocodeStatus === 'failed' && (
               <p className="text-[10px] text-amber-600">
-                Couldn&apos;t find this ward automatically. Tap the map at your exact spot to drop the pin.
+                Couldn&apos;t find this place automatically. Tap the map at your exact spot to drop the pin.
               </p>
             )}
             {isSubmitted && (pinLat == null || pinLng == null) && (

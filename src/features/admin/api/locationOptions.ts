@@ -14,9 +14,19 @@ export type DistrictOptionWithCity = {
   cityName: string;
 };
 
+export type WardOptionWithPlace = {
+  id: string;
+  name: string;
+  cityId: string;
+  cityName: string;
+  stateId: number;
+  stateName: string;
+};
+
 /** In-flight / resolved promises so concurrent callers share one network waterfall. */
 let citiesPromise: Promise<CityOptionWithState[]> | null = null;
 let districtsPromise: Promise<DistrictOptionWithCity[]> | null = null;
+let wardsPromise: Promise<WardOptionWithPlace[]> | null = null;
 
 async function fetchAllCities(): Promise<CityOptionWithState[]> {
   const statesRes = await locationApi.getStates();
@@ -51,6 +61,25 @@ async function fetchAllDistricts(): Promise<DistrictOptionWithCity[]> {
   }));
 }
 
+async function fetchAllWards(): Promise<WardOptionWithPlace[]> {
+  const response = await locationApi.getAllWards();
+  return (response.data?.data?.wards ?? []).map((ward) => ({
+    id: String(ward.id),
+    name: ward.name,
+    cityId: String(ward.city_id),
+    cityName: ward.city_name,
+    stateId: ward.state_id,
+    stateName: ward.state_name,
+  }));
+}
+
+/** Drops cached city, district, and ward lists after admin location edits. */
+export function resetLocationOptionCache(): void {
+  citiesPromise = null;
+  districtsPromise = null;
+  wardsPromise = null;
+}
+
 /**
  * Loads all cities across every state from the auth-service locations API.
  * City ids round-trip as strings (matching shipping `delivery_city_rates`.
@@ -78,4 +107,15 @@ export function loadAllDistricts(): Promise<DistrictOptionWithCity[]> {
     });
   }
   return districtsPromise;
+}
+
+/** One request for every ward, including its city and state. */
+export function loadAllWards(): Promise<WardOptionWithPlace[]> {
+  if (!wardsPromise) {
+    wardsPromise = fetchAllWards().catch((error) => {
+      wardsPromise = null;
+      throw error;
+    });
+  }
+  return wardsPromise;
 }

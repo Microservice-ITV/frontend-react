@@ -105,13 +105,13 @@ const AdminShopEditPage = () => {
       setSubmitError('Display name (user name) is required.')
       return
     }
-    if (!origin.stateId || !origin.cityId || !origin.districtId || !origin.wardId) {
-      setSubmitError('Select the shop state, city, district, and ward.')
+    if (!origin.stateId || !origin.cityId || !origin.wardId) {
+      setSubmitError('Select the shop state, city, and ward.')
       return
     }
     const originAddress = origin.originAddress.trim()
     if (!originAddress) {
-      setSubmitError('Select the shop state, city, district, and ward.')
+      setSubmitError('Select the shop state, city, and ward.')
       return
     }
     if (origin.originLat == null || origin.originLng == null) {
@@ -129,7 +129,7 @@ const AdminShopEditPage = () => {
         sellerContactEmail: sellerContactEmail.trim() || null,
         sellerContactPhone: sellerContactPhone.trim() || null,
         cityId: origin.cityId,
-        districtId: origin.districtId,
+        districtId: null,
         originAddress,
         originLat: origin.originLat,
         originLng: origin.originLng,
