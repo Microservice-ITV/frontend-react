@@ -20,6 +20,12 @@ export type PromotionRecord = {
   updated_at: string
 }
 
+export type DeliveryAwardPromotionSetting = {
+  promotion_id: string | null
+  promotion: { id: string; name: string; status: PromotionRecord['status'] } | null
+  updated_at: string | null
+}
+
 export type PromotionRewardRecord = {
   id: string
   promotion_id: string
@@ -88,6 +94,19 @@ const resourcePath: Record<PromotionAssetKind, string> = {
 }
 
 export const promotionApi = {
+  async getDeliveryAwardPromotion(): Promise<DeliveryAwardPromotionSetting> {
+    const response = await promotionClient.get<DeliveryAwardPromotionSetting>(
+      '/promotion-settings/delivered-order-award',
+    )
+    return response.data
+  },
+  async setDeliveryAwardPromotion(promotionId: string | null): Promise<DeliveryAwardPromotionSetting> {
+    const response = await promotionClient.put<DeliveryAwardPromotionSetting>(
+      '/promotion-settings/delivered-order-award',
+      { promotion_id: promotionId },
+    )
+    return response.data
+  },
   async listPromotions(shopId?: string): Promise<PromotionRecord[]> {
     const response = await promotionClient.get<
       PromotionRecord[] | { data?: PromotionRecord[] } | null
