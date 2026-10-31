@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import DataTablePagination from '@/components/ui/DataTablePagination'
-import { AlertCircle, Download, Eye, FileText, Printer, RefreshCw, Search, SendHorizontal, ShieldCheck } from 'lucide-react'
+import { AlertCircle, Download, FileText, Printer, RefreshCw, Search, SendHorizontal, ShieldCheck } from 'lucide-react'
 import axios from 'axios'
 import { downloadInvoicePdf, getShopInvoices, type InvoiceDocument } from '@/lib/api/invoiceClient'
 import { useAppSelector } from '@/app/hooks'
@@ -321,12 +321,11 @@ const SellerInvoicesPage = () => {
                           <div className="inline-flex items-center justify-end gap-1.5">
                             <Link
                               to={`/seller/invoices/${encodeURIComponent(invoice.document.invoiceNumber || invoice.document.id)}`}
-                              aria-label={`Invoice details and thermal POS actions for ${invoice.id}`}
-                              title="Open invoice details, thermal invoice printing and downloads for 58mm and 80mm, plus an eligible receipt"
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                              aria-label={`Thermal POS actions for ${invoice.id}`}
+                              className="inline-flex h-8 items-center gap-1.5 rounded-sm border border-slate-200 px-2.5 text-xs font-medium text-slate-700 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800"
                             >
-                              <Eye size={13} />
-                              <Printer size={13} /> Thermal POS
+                              <Printer size={13} aria-hidden="true" />
+                              Thermal POS
                             </Link>
                             {invoice.pdfUrl && (
                               <button
