@@ -174,6 +174,10 @@ const AdminWeightRatesPage = lazy(() => import("@/features/admin/pages/AdminWeig
 const AdminWeightRateFormPage = lazy(() => import("@/features/admin/pages/AdminWeightRateFormPage"));
 const AdminWeightRateDetailPage = lazy(() => import("@/features/admin/pages/AdminWeightRateDetailPage"));
 const AdminCityRatesPage = lazy(() => import("@/features/admin/pages/AdminCityRatesPage"));
+const AdminCitiesPage = lazy(() => import("@/features/admin/pages/AdminCitiesPage"));
+const AdminCityFormPage = lazy(() => import("@/features/admin/pages/AdminCityFormPage"));
+const AdminWardsPage = lazy(() => import("@/features/admin/pages/AdminWardsPage"));
+const AdminWardFormPage = lazy(() => import("@/features/admin/pages/AdminWardFormPage"));
 const AdminDeliveryCompaniesPage = lazy(() => import("@/features/admin/pages/AdminDeliveryCompaniesPage"));
 const AdminDeliveryCompanyFormPage = lazy(() => import("@/features/admin/pages/AdminDeliveryCompanyFormPage"));
 const AdminCityRateFormPage = lazy(() => import("@/features/admin/pages/AdminCityRateFormPage"));
@@ -1783,6 +1787,58 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.superAdminOverview}
                 >
                   <AnnouncementTypesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="locations"
+              element={<Navigate to="/super-admin/locations/cities" replace />}
+            />
+            <Route
+              path="locations/cities/new"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                  <AdminCityFormPage mode="create" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="locations/cities/:id/edit"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                  <AdminCityFormPage mode="edit" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="locations/cities"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                  <AdminCitiesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="locations/wards/new"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                  <AdminWardFormPage mode="create" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="locations/wards/:id/edit"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                  <AdminWardFormPage mode="edit" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="locations/wards"
+              element={
+                <ProtectedRoute requiredCapabilities={ROUTE_ACCESS.superAdminOverview}>
+                  <AdminWardsPage />
                 </ProtectedRoute>
               }
             />

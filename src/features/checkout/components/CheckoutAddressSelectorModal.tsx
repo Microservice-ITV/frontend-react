@@ -20,7 +20,15 @@ export const CheckoutAddressSelectorModal = ({
       <div className="max-h-[360px] overflow-y-auto px-2 pb-3">
         {addresses.map((address) => {
           const isSelected = selectedAddressId === address.address_id
-          const locationText = [address.state, address.city, address.district, address.ward]
+          const fullAddress = [
+            address.state,
+            address.city,
+            address.district,
+            address.ward,
+            address.address_line_1,
+            address.address_line_2,
+            address.postal_code,
+          ]
             .filter(Boolean)
             .join(', ')
 
@@ -34,23 +42,19 @@ export const CheckoutAddressSelectorModal = ({
               }`}
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-2">
-                  <span className={`mt-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full border ${
+                <div className="flex min-w-0 flex-1 items-start gap-2">
+                  <span className={`mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
                     isSelected ? 'border-emerald-600' : 'border-gray-300'
                   }`}>
                     {isSelected && <span className="h-2 w-2 rounded-full bg-emerald-600" />}
                   </span>
 
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-gray-900">{address.full_name}</span>
                       <span className="text-gray-600">{address.phone_no}</span>
                     </div>
-                    <p className="mt-1 text-sm text-gray-700">
-                      {[locationText, address.address_line_1, address.address_line_2, address.postal_code]
-                        .filter(Boolean)
-                        .join(', ')}
-                    </p>
+                    <p className="mt-1 break-words text-sm leading-5 text-gray-700">{fullAddress || '—'}</p>
                     {address.is_default && (
                       <span className="mt-2 inline-flex items-center px-2 py-[2px] text-[10px] font-medium text-emerald-700 border border-emerald-600 rounded-sm">
                         Default

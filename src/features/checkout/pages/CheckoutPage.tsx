@@ -601,17 +601,19 @@ const CheckoutPage = () => {
 
     const isTerminalPayment =
         paymentStatus != null && terminalCheckoutStatuses.has(paymentStatus)
-    // Cover the checkout body (not the site header) until Place Order can go live.
+    // Cover the checkout body until the payment session exists. Delivery-company
+    // lookup must not hide Place Order; that control stays disabled on its own
+    // until a company can be chosen. Quantity over 50 still uses Place Order to
+    // send the shop-approval request.
     const isPreparingCheckout =
+        !checkoutPreparationTimedOut &&
         !isTerminalPayment &&
         !isAwaitingFinalStatus &&
         (loading ||
             !checkoutSessionBootstrapped ||
             !currentCheckout?.checkout_id ||
             !clientSecret ||
-            !deliveryCompany.routesReady ||
-            paymentStatus === 'PENDING_STOCK' ||
-            paymentStatus === 'STOCK_CONFIRMED')
+            paymentStatus === 'PENDING_STOCK')
 
     useEffect(() => {
         dispatch(setCheckoutPreparingUi(isPreparingCheckout))

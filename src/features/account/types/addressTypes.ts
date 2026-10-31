@@ -38,11 +38,11 @@ export interface UpsertAddressPayload {
   country_code?: string // defaults to 'MM' on backend if omitted
   state: string
   city: string
-  district: string
+  district?: string
   ward: string
   state_id: number
   city_id: number
-  district_id: number
+  district_id?: number | null
   ward_id: number
   address_line_1: string
   address_line_2?: string | null

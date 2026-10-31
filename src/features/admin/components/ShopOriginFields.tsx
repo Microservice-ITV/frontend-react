@@ -4,7 +4,6 @@ import { MapLocationPicker } from '@/components/maps/MapLocationPicker'
 import {
   locationApi,
   type CityOption,
-  type DistrictOption,
   type StateOption,
   type WardOption,
 } from '@/features/account/api/locationApi'
@@ -46,7 +45,6 @@ export const emptyShopOrigin = (): ShopOriginValue => ({
 
 const ShopOriginFields = ({ value, onChange }: ShopOriginFieldsProps) => {
   const [states, setStates] = useState<StateOption[]>([])
-  const [cities, setCities] = useState<CityOption[]>([])
   const [districts, setDistricts] = useState<DistrictOption[]>([])
   const [wards, setWards] = useState<WardOption[]>([])
   const [geocodeStatus, setGeocodeStatus] = useState<'idle' | 'locating' | 'located' | 'failed'>('idle')
@@ -55,7 +53,6 @@ const ShopOriginFields = ({ value, onChange }: ShopOriginFieldsProps) => {
   valueRef.current = value
 
   const selectedState = states.find((state) => String(state.id) === value.stateId) ?? null
-  const selectedCity = cities.find((city) => String(city.id) === value.cityId) ?? null
   const selectedDistrict = districts.find((district) => String(district.id) === value.districtId) ?? null
   const selectedWard = wards.find((ward) => String(ward.id) === value.wardId) ?? null
 
@@ -94,32 +91,12 @@ const ShopOriginFields = ({ value, onChange }: ShopOriginFieldsProps) => {
   }, [value.stateId])
 
   useEffect(() => {
-    if (!value.cityId) {
-      setDistricts([])
-      return
-    }
-    let cancelled = false
-    void locationApi
-      .getDistricts(Number(value.cityId))
-      .then((res) => {
-        if (!cancelled) setDistricts(res.data?.data?.districts ?? [])
-      })
-      .catch(() => {
-        if (!cancelled) setDistricts([])
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [value.cityId])
-
-  useEffect(() => {
-    if (!value.districtId) {
       setWards([])
       return
     }
     let cancelled = false
     void locationApi
-      .getWards(Number(value.districtId))
+      .getWards(Number(value.cityId))
       .then((res) => {
         if (!cancelled) setWards(res.data?.data?.wards ?? [])
       })
@@ -129,9 +106,10 @@ const ShopOriginFields = ({ value, onChange }: ShopOriginFieldsProps) => {
     return () => {
       cancelled = true
     }
+  }, [value.cityId])
   }, [value.districtId])
 
-  useEffect(() => {
+    if (!selectedState || !selectedCity || !selectedWard) return
     if (!selectedState || !selectedCity || !selectedDistrict || !selectedWard) return
     if (value.originLat != null && value.originLng != null) return
 
@@ -139,7 +117,7 @@ const ShopOriginFields = ({ value, onChange }: ShopOriginFieldsProps) => {
     setGeocodeStatus('locating')
     const timer = window.setTimeout(() => {
       void forwardGeocodeAddress({
-        ward: selectedWard.name,
+        district: selectedCity.name,
         district: selectedDistrict.name,
         city: selectedCity.name,
         state: selectedState.name,
@@ -163,7 +141,6 @@ const ShopOriginFields = ({ value, onChange }: ShopOriginFieldsProps) => {
     }
   }, [
     onChange,
-    selectedCity,
     selectedDistrict,
     selectedState,
     selectedWard,
@@ -218,45 +195,21 @@ const ShopOriginFields = ({ value, onChange }: ShopOriginFieldsProps) => {
             })
           }}
         />
-        <SearchableSelect
-          id="shop-origin-district"
-          placeholder="Search district..."
-          emptyLabel="Select district"
-          options={districts.map((district) => ({ value: String(district.id), label: district.name }))}
-          value={value.districtId}
-          disabled={!value.cityId}
-          onChange={(districtId) => {
-            geocodeSeqRef.current += 1
-            setGeocodeStatus('idle')
-            onChange({
-              ...value,
-              districtId,
-              wardId: '',
-              originAddress: '',
-              originLat: null,
-              originLng: null,
-            })
-          }}
-        />
-        <SearchableSelect
           id="shop-origin-ward"
           placeholder="Search ward..."
           emptyLabel="Select ward"
           options={wards.map((ward) => ({ value: String(ward.id), label: ward.name }))}
           value={value.wardId}
-          disabled={!value.districtId}
+          disabled={!value.cityId}
           onChange={(wardId) => {
             geocodeSeqRef.current += 1
             setGeocodeStatus('idle')
             const ward = wards.find((item) => String(item.id) === wardId)
             onChange({
               ...value,
+              districtId: '',
               wardId,
-              originAddress: locationAddress(
-                ward?.name,
-                selectedDistrict?.name,
-                selectedCity?.name,
-                selectedState?.name,
+              originAddress: locationAddress(ward?.name, selectedCity?.name, selectedState?.name),
               ),
               originLat: null,
               originLng: null,
@@ -265,7 +218,7 @@ const ShopOriginFields = ({ value, onChange }: ShopOriginFieldsProps) => {
         />
       </div>
 
-      <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+        {value.originAddress || 'Select state, city, and ward.'}
         {value.originAddress || 'Select state, city, district, and ward.'}
       </p>
 

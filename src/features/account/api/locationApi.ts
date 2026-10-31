@@ -15,6 +15,13 @@ export interface DistrictWithCityOption extends DistrictOption {
 }
 export interface WardOption extends LocationOption {}
 
+export interface WardWithPlaceOption extends WardOption {
+  city_id: number
+  city_name: string
+  state_id: number
+  state_name: string
+}
+
 export const locationApi = {
   getStates() {
     return authClient.get<{ success: boolean; data: { country_code: string; states: StateOption[] } }>(
@@ -46,9 +53,16 @@ export const locationApi = {
     }>('/locations/districts')
   },
 
-  getWards(districtId: number) {
-    return authClient.get<{ success: boolean; data: { district_id: number; wards: WardOption[] } }>(
-      `/locations/districts/${districtId}/wards`,
+  getAllWards() {
+    return authClient.get<{
+      success: boolean
+      data: { wards: WardWithPlaceOption[] }
+    }>('/locations/wards')
+  },
+
+  getWards(cityId: number) {
+    return authClient.get<{ success: boolean; data: { city_id: number; wards: WardOption[] } }>(
+      `/locations/cities/${cityId}/wards`,
     )
   },
 }

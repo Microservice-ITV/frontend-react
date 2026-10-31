@@ -377,7 +377,6 @@ export const searchConfigs: Record<string, SearchConfig> = {
   'seller-chat': makeStaticSearch('/seller/chat'),
   'seller-files': makeStaticSearch('/seller/files'),
   'seller-notifications': makeStaticSearch('/seller/notifications'),
-  'seller-delivery-companies': makeStaticSearch('/seller/delivery-companies'),
   'seller-settings': makeStaticSearch('/seller/settings'),
   'seller-help-support': makeStaticSearch('/seller/help-support'),
   'admin-shops': {
@@ -424,6 +423,8 @@ export const searchConfigs: Record<string, SearchConfig> = {
   },
   'admin-overview': makeStaticSearch('/super-admin/overview'),
   'admin-analytics': makeStaticSearch('/super-admin/analytics'),
+  'admin-cities': makeStaticSearch('/super-admin/locations/cities'),
+  'admin-wards': makeStaticSearch('/super-admin/locations/wards'),
   'admin-home-features': makeStaticSearch('/super-admin/home-features'),
   'admin-hero-banners': makeStaticSearch('/super-admin/hero-banners'),
   'admin-promo-banners': makeStaticSearch('/super-admin/promo-banners'),
