@@ -14,6 +14,7 @@ import {
   formatAccountingReferences,
   toExpenseReferenceInput,
 } from "../utils/accountingReferenceFormatting";
+import { isExpenseInAccounting } from "../utils/expenseAccounting";
 
 const errorMessage = (error: unknown) => {
   if (error && typeof error === "object" && "response" in error) {
@@ -53,6 +54,9 @@ const SellerExpensesPage = () => {
   const [expenses, setExpenses] = useState<AccountingExpense[]>([]);
   const [shopNames, setShopNames] = useState<Record<string, string>>({});
   const [categoryNames, setCategoryNames] = useState<Record<string, string>>(
+    {},
+  );
+  const [categoryCodes, setCategoryCodes] = useState<Record<string, string>>(
     {},
   );
   const [status, setStatus] = useState<"loading" | "succeeded" | "failed">(
@@ -107,6 +111,14 @@ const SellerExpensesPage = () => {
           ]),
         ),
       );
+      setCategoryCodes(
+        Object.fromEntries(
+          loadedCategories.map((category: ExpenseCategory) => [
+            category.id,
+            category.code,
+          ]),
+        ),
+      );
       setStatus("succeeded");
     } catch (cause) {
       setStatus("failed");
@@ -123,7 +135,7 @@ const SellerExpensesPage = () => {
       toExpenseReferenceInput({
         expenseNo: expense.expenseNo,
         expenseDate: expense.expenseDate,
-        categoryCode: expense.expenseType?.code,
+        categoryCode: expense.expenseType?.code ?? categoryCodes[expense.expenseTypeId],
         description: expense.description,
       }),
     );
@@ -136,15 +148,21 @@ const SellerExpensesPage = () => {
             ...toExpenseReferenceInput({
               expenseNo: expense.expenseNo,
               expenseDate: expense.expenseDate,
-              categoryCode: expense.expenseType?.code,
+              categoryCode: expense.expenseType?.code ?? categoryCodes[expense.expenseTypeId],
               description: expense.description,
             }),
           }),
         ) ?? expense.expenseNo,
       ]),
     );
-  }, [expenses]);
+  }, [categoryCodes, expenses]);
 
+  const accountingExpenses = useMemo(
+    () => expenses.filter((expense) =>
+      isExpenseInAccounting(expense, categoryCodes[expense.expenseTypeId]),
+    ),
+    [categoryCodes, expenses],
+  );
   const filteredExpenses = useMemo(() => {
     const query = search.trim().toLowerCase();
     return expenses.filter((expense) => {
@@ -190,7 +208,7 @@ const SellerExpensesPage = () => {
     (page - 1) * rowsPerPage,
     page * rowsPerPage,
   );
-  const totalExpenses = filteredExpenses.reduce(
+  const totalExpenses = accountingExpenses.reduce(
     (sum, expense) => sum + Number(expense.amount),
     0,
   );
@@ -246,7 +264,7 @@ const SellerExpensesPage = () => {
       )}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="rounded-xl border border-orange-100 bg-orange-50 px-4 py-3">
-          <p className="text-xs text-orange-700">Total expenses</p>
+          <p className="text-xs text-orange-700">Approved and DELI expenses</p>
           <p className="mt-1 text-lg font-bold text-orange-900">
             MMK {totalExpenses.toLocaleString()}
           </p>
@@ -258,6 +276,9 @@ const SellerExpensesPage = () => {
           </p>
         </div>
       </div>
+      <p className="text-xs text-slate-500">
+        All expenses are shown together. The status identifies requests awaiting approval; accounting totals include approved expenses and DELI expenses.
+      </p>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative w-full sm:max-w-xs">
           <Search
@@ -385,8 +406,7 @@ const SellerExpensesPage = () => {
                       No expenses found
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
-                      The accounting service returned no expense records for
-                      your shops.
+                      Try adjusting your search, status, or date filters.
                     </p>
                   </td>
                 </tr>

@@ -19,6 +19,7 @@ import {
   getProfitSummaryCardColors,
   mergeProfitLossReports,
 } from "../utils/profitLossFormatting";
+import { isExpenseInAccounting } from "../utils/expenseAccounting";
 import DataTablePagination from "@/components/ui/DataTablePagination";
 import { accountingClient } from "@/lib/api/accountingClient";
 import { Download, RefreshCw, TrendingUp, Wallet, CircleDollarSign, ChartColumnIncreasing, CalendarDays } from "lucide-react";
@@ -149,7 +150,7 @@ const getExpenseSlices = (
   const amounts = new Map<string, number>();
   for (const expense of expenses) {
     if (
-      expense.status !== "APPROVED" ||
+      !isExpenseInAccounting(expense) ||
       expense.scope === "PLATFORM" ||
       expense.expenseDate.slice(0, 10) < from ||
       expense.expenseDate.slice(0, 10) > to
@@ -427,7 +428,7 @@ const SellerProfitLossPage = () => {
 
         <section className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5 xl:col-span-2">
           <h2 className="text-sm font-bold text-slate-900">Expense Breakdown</h2>
-          <p className="mt-1 text-xs text-slate-500">Approved operating expenses by category.</p>
+          <p className="mt-1 text-xs text-slate-500">Approved and DELI expenses by category.</p>
           <div className="mt-3 grid grid-cols-1 items-center gap-2 sm:grid-cols-[minmax(150px,0.9fr)_minmax(0,1.1fr)]">
             <div className="relative h-52 min-w-0">
               <ResponsiveContainer width="100%" height="100%">

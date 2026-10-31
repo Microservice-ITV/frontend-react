@@ -37,6 +37,22 @@ describe('multi-role access', () => {
     expect(getCapabilitiesForRoles(roles)).toContain('seller.dashboard.view')
   })
 
+  it('resolves finance managers to the finance dashboard with finance access', () => {
+    const user: User = {
+      id: 'user-finance-manager',
+      name: 'Finance Manager',
+      email: 'finance-manager@example.com',
+      role: 'finance_manager',
+    }
+    const roles = extractRolesFromUser(user)
+
+    expect(roles).toContain('FINANCE_MANAGER')
+    expect(extractRoleFromUser(user)).toBe('FINANCE_MANAGER')
+    expect(getCapabilitiesForRoles(roles)).toContain('finance.dashboard.view')
+    expect(getCapabilitiesForRoles(roles)).toContain('finance.accounting.view')
+    expect(resolvePostLoginPath(extractRoleFromUser(user))).toBe('/seller/finance')
+  })
+
   it('allows a multi-role user to return to the warehouse dashboard', () => {
     const roles = extractRolesFromUser(sellerWarehouseUser)
 
