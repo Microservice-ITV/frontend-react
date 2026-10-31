@@ -1349,7 +1349,7 @@ const PromotionAssetManager = ({
               <div className="flex items-center gap-4 px-5 py-4">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-slate-900">{deliveryAwardPromotionName || 'Selected promotion'}</p>
-                  <p className="mt-1 text-xs text-slate-500">Supplies voucher codes for delivered orders</p>
+                  <p className="mt-1 text-xs text-slate-500">Selected rules apply to a unique voucher issued after delivery</p>
                 </div>
                 <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${deliveryAwardPromotionStatus === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
                   {deliveryAwardPromotionStatus ?? 'CONFIGURED'}
@@ -2028,7 +2028,7 @@ const DeliveryAwardPromotionModal = ({
 }) => (
   <ModalShell eyebrow="Promotion setting" title="Delivered-order award promotion" onClose={onClose}>
     <p className="text-sm text-slate-600">
-      Select the active promotion that supplies a voucher code after an order is confirmed delivered. Choose Disabled to turn off awards.
+      Select the active promotion whose rules will apply to a unique voucher issued after an order is confirmed delivered. Choose Disabled to turn off awards.
     </p>
     {canManage ? (
       <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
