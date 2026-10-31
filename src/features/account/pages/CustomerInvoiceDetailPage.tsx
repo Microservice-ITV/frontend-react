@@ -89,51 +89,69 @@ const CustomerInvoiceDetailPage = () => {
 return (
     <section className="min-h-full bg-slate-50 p-4 md:p-6">
       <div className="mx-auto w-full max-w-5xl">
-      {/* ── Actions (hidden when printed) ────────────────────────────── */}
-      <div data-print-hide className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            to="/account/invoices"
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
-          >
-            <ArrowLeft size={15} />
-            Back to Invoices
-          </Link>
+      <div data-print-hide className="mb-4 flex items-center justify-between gap-2 sm:mb-5">
+        <Link
+          to="/account/invoices"
+          className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-slate-200 bg-white px-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 sm:gap-2 sm:px-3.5"
+        >
+          <ArrowLeft size={15} />
+          <span className="sm:hidden">Back</span>
+          <span className="hidden sm:inline">Back to Invoices</span>
+        </Link>
 
-          {invoice && (
-            <>
-              {invoice.orderId && (
-                <Link
-                  to={`/account/orders/${invoice.orderId}`}
-                  className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
-                >
-                  <ExternalLink size={15} />
-                  View order
-                </Link>
-              )}
+        {invoice && (
+          <div className="flex h-9 shrink-0 items-center gap-1.5">
+            {invoice.orderId && (
+              <Link
+                to={`/account/orders/${invoice.orderId}`}
+                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-sm border border-slate-200 bg-white px-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 sm:px-3.5"
+              >
+                <ExternalLink size={15} aria-hidden="true" />
+                <span className="sm:hidden">Order</span>
+                <span className="hidden sm:inline">View order</span>
+              </Link>
+            )}
 
+            <span className="group/tip relative inline-flex">
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+                aria-label="Print invoice"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-sm border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 sm:w-auto sm:gap-2 sm:px-3.5"
               >
                 <Printer size={15} />
-                Print Invoice
+                <span className="hidden sm:inline">Print</span>
               </button>
+              <span
+                role="tooltip"
+                className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-sm bg-slate-900 px-2 py-1 text-[10px] font-medium text-white opacity-0 shadow-sm transition-opacity duration-150 group-hover/tip:opacity-100 group-focus-within/tip:opacity-100 sm:hidden"
+              >
+                Print
+                <span className="absolute left-1/2 top-full -translate-x-1/2 border-x-4 border-t-4 border-x-transparent border-t-slate-900" aria-hidden />
+              </span>
+            </span>
 
+            <span className="group/tip relative inline-flex">
               <button
                 type="button"
                 onClick={() => void handleDownloadPdf(invoice)}
                 disabled={isDownloading}
-                title="Download invoice PDF"
-                className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                aria-label="Download invoice PDF"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-sm bg-emerald-700 text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto sm:gap-2 sm:px-3.5"
               >
                 <Download size={15} />
-                {isDownloading ? 'Preparing PDF…' : 'Download Invoice'}
+                <span className="hidden sm:inline">{isDownloading ? 'Preparing…' : 'Download'}</span>
               </button>
-            </>
-          )}
-        </div>
+              <span
+                role="tooltip"
+                className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-sm bg-slate-900 px-2 py-1 text-[10px] font-medium text-white opacity-0 shadow-sm transition-opacity duration-150 group-hover/tip:opacity-100 group-focus-within/tip:opacity-100 sm:hidden"
+              >
+                {isDownloading ? 'Preparing…' : 'Download'}
+                <span className="absolute left-1/2 top-full -translate-x-1/2 border-x-4 border-t-4 border-x-transparent border-t-slate-900" aria-hidden />
+              </span>
+            </span>
+          </div>
+        )}
       </div>
 
       {/* ── Content ──────────────────────────────────────────────────── */}

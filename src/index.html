@@ -10,6 +10,8 @@
     <!-- Must apply before the app bundle's CSS loads, otherwise the reCAPTCHA
          badge (fixed, offset past the right edge) widens the page on mobile. -->
     <style>
+      /* Early mobile overflow guard (before app CSS). iPhone Safari rubber-bands
+         sideways if any paint is even a few px wider than the viewport. */
       html,
       body {
         margin: 0;
@@ -17,10 +19,18 @@
         max-width: 100%;
         overflow-x: hidden;
         overflow-x: clip;
+        overscroll-behavior-x: none;
       }
       #root {
         max-width: 100%;
+        min-width: 0;
         overflow-x: clip;
+      }
+      img,
+      svg,
+      video,
+      canvas {
+        max-width: 100%;
       }
       .grecaptcha-badge {
         display: none !important;

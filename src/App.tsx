@@ -122,8 +122,8 @@ function App() {
       <div
         className={
           isDashboardRoute
-            ? 'min-h-screen bg-slate-50'
-            : 'flex min-h-screen flex-col bg-[#f5f5f5]'
+            ? 'min-h-screen min-w-0 overflow-x-clip bg-slate-50'
+            : 'flex min-h-screen min-w-0 flex-col overflow-x-clip bg-[#f5f5f5]'
         }
       >
         {!hideGlobalChrome && <Navbar />}

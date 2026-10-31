@@ -396,99 +396,78 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
 
   return (
     <section className="min-h-full w-full min-w-0 bg-slate-50">
-      <div className="mx-auto w-full min-w-0 max-w-[960px] px-3 sm:px-4">
-        {documentView === 'a4' && <div data-print-hide className="mb-5 flex flex-wrap items-center gap-2">
-          <Link
-            to={backTo}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
-          >
-            <ArrowLeft size={15} />
-            {backLabel}
-          </Link>
-          {invoice && documentView === 'a4' && (
-            <>
-              <button
-                type="button"
-                aria-pressed={documentView === 'a4'}
-                onClick={handleA4Print}
-                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
-              >
-                A4 Invoice
-              </button>
+      <div className="mx-auto w-full min-w-0 max-w-[960px] px-3 py-4 sm:px-4 sm:py-6">
+        {documentView === 'a4' && (
+          <div data-print-hide className="mb-4 flex items-center justify-between gap-2 sm:mb-5">
+            <Link
+              to={backTo}
+              className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-slate-200 bg-white px-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 sm:gap-2 sm:px-3.5"
+            >
+              <ArrowLeft size={15} />
+              <span className="sm:hidden">Back</span>
+              <span className="hidden sm:inline">{backLabel}</span>
+            </Link>
 
-              {/* Standard A4 Print Button */}
-              <button
-                type="button"
-                onClick={handleA4Print}
-                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
-              >
-                <Printer size={15} />
-                Print A4 Invoice
-              </button>
-
-              {/* Print Invoice (Thermal) Dropdown */}
-              <div className="relative inline-block" data-print-dropdown>
-                <button
-                  type="button"
-                  onClick={() => setIsPrintDropdownOpen(!isPrintDropdownOpen)}
-                  className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
-                >
-                  <Printer size={15} />
-                  Print Invoice
-                  <ChevronDown size={14} className="ml-1" />
-                </button>
-                {isPrintDropdownOpen && (
-                  <div className="absolute left-0 top-full z-50 mt-1 min-w-[160px] rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsPrintDropdownOpen(false)
-                        handleThermalView('58mm', 'invoice')
-                      }}
-                      onMouseEnter={() => void getThermalPdf('invoice', '58mm').catch(() => undefined)}
-                      onFocus={() => void getThermalPdf('invoice', '58mm').catch(() => undefined)}
-                      className="flex w-full items-center px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
-                    >
-                      Thermal 58mm
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsPrintDropdownOpen(false)
-                        handleThermalView('80mm', 'invoice')
-                      }}
-                      onMouseEnter={() => void getThermalPdf('invoice', '80mm').catch(() => undefined)}
-                      onFocus={() => void getThermalPdf('invoice', '80mm').catch(() => undefined)}
-                      className="flex w-full items-center px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
-                    >
-                      Thermal 80mm
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Print Receipt (Thermal) Dropdown - Only show for paid invoices */}
-              {invoice.status === 'PAID' && (
-                <div className="relative inline-block" data-receipt-dropdown>
+            {invoice && (
+              <div className="flex h-9 shrink-0 items-center gap-1.5">
+                <span className="group/tip relative inline-flex">
                   <button
                     type="button"
-                    onClick={() => setIsReceiptDropdownOpen(!isReceiptDropdownOpen)}
-                    className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+                    aria-pressed={documentView === 'a4'}
+                    aria-label="Print A4 Invoice"
+                    onClick={handleA4Print}
+                    className="inline-flex h-9 items-center justify-center gap-1 rounded-sm border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 sm:gap-1.5 sm:px-3 sm:text-sm sm:font-medium"
                   >
-                    <Receipt size={15} />
-                    Print Receipt
-                    <ChevronDown size={14} className="ml-1" />
+                    <Printer size={14} />
+                    <span className="sm:hidden">A4</span>
+                    <span className="hidden sm:inline">Print A4</span>
                   </button>
-                  {isReceiptDropdownOpen && (
-                    <div className="absolute left-0 top-full z-50 mt-1 min-w-[160px] rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+                  <span
+                    role="tooltip"
+                    className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-sm bg-slate-900 px-2 py-1 text-[10px] font-medium text-white opacity-0 shadow-sm transition-opacity duration-150 group-hover/tip:opacity-100 group-focus-within/tip:opacity-100 sm:hidden"
+                  >
+                    Print A4
+                    <span className="absolute left-1/2 top-full -translate-x-1/2 border-x-4 border-t-4 border-x-transparent border-t-slate-900" aria-hidden />
+                  </span>
+                </span>
+
+                <div className="relative inline-flex" data-print-dropdown>
+                  <span className="group/tip relative inline-flex">
+                    <button
+                      type="button"
+                      aria-label="Print Invoice"
+                      aria-expanded={isPrintDropdownOpen}
+                      onClick={() => {
+                        setIsReceiptDropdownOpen(false)
+                        setIsPrintDropdownOpen(!isPrintDropdownOpen)
+                      }}
+                      className="inline-flex h-9 items-center justify-center gap-1 rounded-sm border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 sm:gap-1.5 sm:px-3 sm:text-sm sm:font-medium"
+                    >
+                      <Printer size={14} />
+                      <span className="sm:hidden">POS</span>
+                      <span className="hidden sm:inline">Print POS</span>
+                      <ChevronDown size={12} />
+                    </button>
+                    {!isPrintDropdownOpen && (
+                      <span
+                        role="tooltip"
+                        className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-sm bg-slate-900 px-2 py-1 text-[10px] font-medium text-white opacity-0 shadow-sm transition-opacity duration-150 group-hover/tip:opacity-100 group-focus-within/tip:opacity-100 sm:hidden"
+                      >
+                        Thermal POS
+                        <span className="absolute left-1/2 top-full -translate-x-1/2 border-x-4 border-t-4 border-x-transparent border-t-slate-900" aria-hidden />
+                      </span>
+                    )}
+                  </span>
+                  {isPrintDropdownOpen && (
+                    <div className="absolute right-0 top-full z-50 mt-1 min-w-[160px] rounded-sm border border-slate-200 bg-white py-1 shadow-lg">
                       <button
                         type="button"
                         onClick={() => {
-                          setIsReceiptDropdownOpen(false)
-                          handleThermalView('58mm', 'receipt')
+                          setIsPrintDropdownOpen(false)
+                          handleThermalView('58mm', 'invoice')
                         }}
-                        onMouseEnter={() => void getThermalPdf('receipt', '58mm').catch(() => undefined)}
-                        onFocus={() => void getThermalPdf('receipt', '58mm').catch(() => undefined)}
+                        onMouseEnter={() => void getThermalPdf('invoice', '58mm').catch(() => undefined)}
+                        onFocus={() => void getThermalPdf('invoice', '58mm').catch(() => undefined)}
                         className="flex w-full items-center px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
                       >
                         Thermal 58mm
@@ -496,11 +475,11 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
                       <button
                         type="button"
                         onClick={() => {
-                          setIsReceiptDropdownOpen(false)
-                          handleThermalView('80mm', 'receipt')
+                          setIsPrintDropdownOpen(false)
+                          handleThermalView('80mm', 'invoice')
                         }}
-                        onMouseEnter={() => void getThermalPdf('receipt', '80mm').catch(() => undefined)}
-                        onFocus={() => void getThermalPdf('receipt', '80mm').catch(() => undefined)}
+                        onMouseEnter={() => void getThermalPdf('invoice', '80mm').catch(() => undefined)}
+                        onFocus={() => void getThermalPdf('invoice', '80mm').catch(() => undefined)}
                         className="flex w-full items-center px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
                       >
                         Thermal 80mm
@@ -508,20 +487,87 @@ const ScopedInvoiceDetailPage = ({ backTo, backLabel }: ScopedInvoiceDetailPageP
                     </div>
                   )}
                 </div>
-              )}
 
-              {documentView === 'a4' && <button
-                type="button"
-                onClick={() => void handleDownload('a4')}
-                disabled={isDownloading}
-                className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {isDownloading ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
-                {isDownloading ? 'Preparing PDF…' : 'Download PDF'}
-              </button>}
-            </>
-          )}
-        </div>}
+                {invoice.status === 'PAID' && (
+                  <div className="relative inline-flex" data-receipt-dropdown>
+                    <span className="group/tip relative inline-flex">
+                      <button
+                        type="button"
+                        aria-label="Print Receipt"
+                        aria-expanded={isReceiptDropdownOpen}
+                        onClick={() => {
+                          setIsPrintDropdownOpen(false)
+                          setIsReceiptDropdownOpen(!isReceiptDropdownOpen)
+                        }}
+                        className="inline-flex h-9 items-center justify-center gap-0.5 rounded-sm border border-slate-200 bg-white px-2 text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+                      >
+                        <Receipt size={15} />
+                        <ChevronDown size={12} />
+                      </button>
+                      {!isReceiptDropdownOpen && (
+                        <span
+                          role="tooltip"
+                          className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-sm bg-slate-900 px-2 py-1 text-[10px] font-medium text-white opacity-0 shadow-sm transition-opacity duration-150 group-hover/tip:opacity-100 group-focus-within/tip:opacity-100"
+                        >
+                          Print Receipt
+                          <span className="absolute left-1/2 top-full -translate-x-1/2 border-x-4 border-t-4 border-x-transparent border-t-slate-900" aria-hidden />
+                        </span>
+                      )}
+                    </span>
+                    {isReceiptDropdownOpen && (
+                      <div className="absolute right-0 top-full z-50 mt-1 min-w-[160px] rounded-sm border border-slate-200 bg-white py-1 shadow-lg">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsReceiptDropdownOpen(false)
+                            handleThermalView('58mm', 'receipt')
+                          }}
+                          onMouseEnter={() => void getThermalPdf('receipt', '58mm').catch(() => undefined)}
+                          onFocus={() => void getThermalPdf('receipt', '58mm').catch(() => undefined)}
+                          className="flex w-full items-center px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                        >
+                          Thermal 58mm
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsReceiptDropdownOpen(false)
+                            handleThermalView('80mm', 'receipt')
+                          }}
+                          onMouseEnter={() => void getThermalPdf('receipt', '80mm').catch(() => undefined)}
+                          onFocus={() => void getThermalPdf('receipt', '80mm').catch(() => undefined)}
+                          className="flex w-full items-center px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                        >
+                          Thermal 80mm
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <span className="group/tip relative inline-flex">
+                  <button
+                    type="button"
+                    aria-label="Download PDF"
+                    onClick={() => void handleDownload('a4')}
+                    disabled={isDownloading}
+                    className="inline-flex h-9 w-9 items-center justify-center gap-1.5 rounded-sm bg-emerald-700 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:px-3.5"
+                  >
+                    {isDownloading ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+                    <span className="hidden sm:inline">{isDownloading ? 'Preparing…' : 'Download'}</span>
+                  </button>
+                  <span
+                    role="tooltip"
+                    className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-sm bg-slate-900 px-2 py-1 text-[10px] font-medium text-white opacity-0 shadow-sm transition-opacity duration-150 group-hover/tip:opacity-100 group-focus-within/tip:opacity-100 sm:hidden"
+                  >
+                    {isDownloading ? 'Preparing…' : 'Download'}
+                    <span className="absolute left-1/2 top-full -translate-x-1/2 border-x-4 border-t-4 border-x-transparent border-t-slate-900" aria-hidden />
+                  </span>
+                </span>
+              </div>
+            )}
+          </div>
+        )}
 
         {documentView === 'a4' && downloadError && <p data-print-hide role="alert" className="mb-3 text-sm text-rose-600">{downloadError}</p>}
 
