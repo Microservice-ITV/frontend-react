@@ -6,6 +6,10 @@ import { ROUTE_ACCESS } from "./routeAccessMap";
 import { CATALOG_ENTITY_CONFIG } from "@/features/seller/config/catalogEntityConfig";
 import SpinPage from "@/components/spin/SpinPage";
 import HomePage from "@/features/home/HomePage";
+import ShopFinanceDashboardPage from "@/features/finance/pages/ShopFinanceDashboardPage";
+import SalaryApprovalsPage from "@/features/finance/pages/SalaryApprovalsPage";
+import SellerReceivablesPayablesPage from "@/features/accounting/pages/SellerReceivablesPayablesPage";
+import InventoryValuationPage from "@/features/finance/pages/InventoryValuationPage";
 
 const HomeFeaturesPage = lazy(() => import("@/features/homeFeatures/pages/HomeFeaturesPage"));
 const NewHomeFeaturePage = lazy(() => import("@/features/homeFeatures/pages/NewHomeFeaturePage"));
@@ -419,7 +423,7 @@ const AppRoutes = () => {
             element={
               <ProtectedRoute
                 requiredCapabilities={ROUTE_ACCESS.sellerDashboard}
-                allowedRoles={["SHOP_OWNER", "SHOP_ADMIN"]}
+                allowedRoles={["SHOP_OWNER", "SHOP_ADMIN", "FINANCE_MANAGER"]}
               />
             }
           >
@@ -937,7 +941,27 @@ const AppRoutes = () => {
                 <ProtectedRoute
                   requiredCapabilities={ROUTE_ACCESS.sellerFinanceOverview}
                 >
-                  <SellerFinanceOverviewPage />
+                  <ShopFinanceDashboardPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="finance/ar-ap"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerFinanceOverview}
+                >
+                  <Navigate to="/seller/accounting/receivables-payables" replace />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="salary-approvals"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerSalaryApprovals}
+                >
+                  <SalaryApprovalsPage />
                 </ProtectedRoute>
               }
             />
@@ -988,6 +1012,26 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.sellerAccounting}
                 >
                   <SellerProfitLossPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/receivables-payables"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerFinanceManagerReports}
+                >
+                  <SellerReceivablesPayablesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/inventory-valuation"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerInventoryValuation}
+                >
+                  <InventoryValuationPage />
                 </ProtectedRoute>
               }
             />
@@ -2432,7 +2476,7 @@ const AppRoutes = () => {
               }
             />
 
-            <Route
+          <Route
               path="finance"
               element={
                 <ProtectedRoute
@@ -2452,11 +2496,11 @@ const AppRoutes = () => {
                     title="Accounting"
                     description="Platform accounting, payments, and financial reporting will be managed here."
                   />
-                </ProtectedRoute>
-              }
-            />
+                  </ProtectedRoute>
+  }
+/>
 
-            <Route
+<Route
               path="finance/transactions"
               element={
                 <ProtectedRoute

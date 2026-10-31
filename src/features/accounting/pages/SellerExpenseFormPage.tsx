@@ -4,7 +4,7 @@ import { ArrowLeft, CheckCircle2, ReceiptText } from 'lucide-react'
 import { useAppSelector } from '@/app/hooks'
 import { Button } from '@/components/ui/Button'
 import SearchableSelect, { type SearchableSelectOption } from '@/components/ui/SearchableSelect'
-import { sellerRegistrationApi } from '@/features/seller/api/sellerRegistrationApi'
+import { authClient } from '@/lib/api/authClient'
 import { accountingExpensesAdapter } from '../adapters/accountingExpensesAdapter'
 import type { CreateExpenseResponse, ExpenseAccount, ExpenseCategory } from '../types/expenseTypes'
 import { compressReceiptFile } from '../utils/receiptImage'
@@ -20,6 +20,19 @@ const errorMessage = (error: unknown, fallback: string) => {
 }
 
 type ShopOption = { id: string; name: string }
+
+type AccessContextResponse = {
+  data?: {
+    access_context?: {
+      active_shop?: { shop_id?: string | null } | null
+      shops?: Array<{
+        shop_id?: string | null
+        shop_name?: string | null
+        membership_status?: string | null
+      }>
+    }
+  }
+}
 
 type FormValue = {
   shopId: string
@@ -67,16 +80,20 @@ const SellerExpenseFormPage = ({ scope = 'SHOP' }: ExpenseFormPageProps) => {
       }
 
         const [shopsResult, categoriesResult, accountsResult] = await Promise.allSettled([
-          isPlatformExpense ? Promise.resolve([]) : sellerRegistrationApi.listShopsForUser(authUser.id),
+          isPlatformExpense ? Promise.resolve(null) : authClient.get<AccessContextResponse>('/me/access-context'),
           accountingExpensesAdapter.listCategories(),
           accountingExpensesAdapter.listAccounts(),
         ])
       if (!active) return
 
       const shopOptions = shopsResult.status === 'fulfilled'
-        ? shopsResult.value
-          .filter((shop) => Boolean(shop.id))
-          .map((shop) => ({ id: shop.id, name: shop.name }))
+        ? (shopsResult.value?.data.data?.access_context?.shops ?? [])
+          .flatMap((shop) => {
+            const id = shop.shop_id?.trim()
+            const membershipStatus = shop.membership_status?.toLowerCase()
+            if (!id || (membershipStatus && membershipStatus !== 'active')) return []
+            return [{ id, name: shop.shop_name?.trim() || 'Shop' }]
+          })
         : []
       const loadedCategories = categoriesResult.status === 'fulfilled' ? categoriesResult.value : []
       const loadedAccounts = accountsResult.status === 'fulfilled' ? accountsResult.value : []
@@ -84,9 +101,20 @@ const SellerExpenseFormPage = ({ scope = 'SHOP' }: ExpenseFormPageProps) => {
       setShops(shopOptions)
       setCategories(loadedCategories.filter((category) => category.status === 'ACTIVE'))
       setAccounts(loadedAccounts)
+      const accessContext = shopsResult.status === 'fulfilled'
+        ? shopsResult.value?.data.data?.access_context
+        : undefined
+      const preferredShopId = authUser.active_shop_id?.trim()
+        || accessContext?.active_shop?.shop_id?.trim()
+        || ''
+      const selectedShopId = shopOptions.some((shop) => shop.id === preferredShopId)
+        ? preferredShopId
+        : shopOptions[0]?.id ?? ''
       setValue((previous) => ({
         ...previous,
-        shopId: previous.shopId || authUser.active_shop_id || shopOptions[0]?.id || '',
+        shopId: shopOptions.some((shop) => shop.id === previous.shopId)
+          ? previous.shopId
+          : selectedShopId,
       }))
       const optionErrors = [
         shopsResult.status === 'rejected' ? 'shops' : null,
@@ -95,6 +123,8 @@ const SellerExpenseFormPage = ({ scope = 'SHOP' }: ExpenseFormPageProps) => {
       ].filter((item): item is string => item !== null)
       if (optionErrors.length > 0) {
         setError(`Unable to load ${optionErrors.join(' and ')}. Other options are still available.`)
+      } else if (!isPlatformExpense && shopOptions.length === 0) {
+        setError('No active shop memberships are available for this account. Ask a shop owner to add you to the shop.')
       }
       setStatus('succeeded')
     }

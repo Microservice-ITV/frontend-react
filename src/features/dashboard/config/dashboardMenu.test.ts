@@ -149,6 +149,11 @@ describe('DASHBOARD_MENU warehouse purchasing items', () => {
 })
 
 describe('DASHBOARD_MENU_SELLER accounting items', () => {
+  it('keeps finance navigation consolidated under seller accounting', () => {
+    expect(DASHBOARD_MENU_SELLER.some((section) => section.title === 'FINANCE')).toBe(false)
+    expect(DASHBOARD_MENU_SELLER.some((section) => section.title === 'ACCOUNTING')).toBe(true)
+  })
+
   it('includes chart of accounts under seller accounting', () => {
     const chartOfAccounts = findSellerAccountingItems().find((item) => item.key === 'seller-accounting-chart-of-accounts')
 
@@ -163,6 +168,8 @@ describe('DASHBOARD_MENU_SELLER accounting items', () => {
   it('links sellers to the accounting overview and detailed profit and loss report', () => {
     const overview = findSellerAccountingItems().find((item) => item.key === 'seller-accounting-overview')
     const profitLoss = findSellerAccountingItems().find((item) => item.key === 'seller-accounting-profit-loss')
+    const receivablesPayables = findSellerAccountingItems().find((item) => item.key === 'seller-accounting-receivables-payables')
+    const inventoryValuation = findSellerAccountingItems().find((item) => item.key === 'seller-accounting-inventory-valuation')
 
     expect(overview).toMatchObject({
       key: 'seller-accounting-overview',
@@ -173,6 +180,30 @@ describe('DASHBOARD_MENU_SELLER accounting items', () => {
       key: 'seller-accounting-profit-loss',
       label: 'Profit & Loss',
       to: '/seller/accounting/profit-loss',
+    })
+    expect(receivablesPayables).toMatchObject({
+      key: 'seller-accounting-receivables-payables',
+      label: 'Receivables & Payables',
+      to: '/seller/accounting/receivables-payables',
+      requiredCapabilities: [CAPABILITIES.FINANCE_DASHBOARD_VIEW],
+    })
+    expect(inventoryValuation).toMatchObject({
+      key: 'seller-accounting-inventory-valuation',
+      label: 'Inventory Valuation',
+      to: '/seller/accounting/inventory-valuation',
+      requiredCapabilities: [CAPABILITIES.FINANCE_DASHBOARD_VIEW],
+    })
+  })
+
+  it('links finance users to the dashboard and reserved salary approvals page', () => {
+    const items = findSellerAccountingItems()
+    expect(items.find((item) => item.key === 'seller-accounting-finance-dashboard')).toMatchObject({
+      label: 'Finance Dashboard',
+      to: '/seller/finance',
+    })
+    expect(DASHBOARD_MENU_SELLER.flatMap((section) => section.items).find((item) => item.key === 'seller-salary-approvals')).toMatchObject({
+      label: 'Salary Approvals',
+      to: '/seller/salary-approvals',
     })
   })
 

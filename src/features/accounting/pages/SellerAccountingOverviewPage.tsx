@@ -21,13 +21,14 @@ import {
   formatAccountingReferences,
   toExpenseReferenceInput,
 } from "../utils/accountingReferenceFormatting";
+import { isExpenseInAccounting } from "../utils/expenseAccounting";
 import type { AccountingExpense } from "../types/expenseTypes";
 
 const money = (value: number, currency = "MMK") =>
   `${currency} ${value.toLocaleString()}`;
 export const getPostedExpenseTotal = (expenses: AccountingExpense[]) =>
   expenses.reduce(
-    (sum, expense) => expense.status === "APPROVED" ? sum + Number(expense.amount) : sum,
+    (sum, expense) => isExpenseInAccounting(expense) ? sum + Number(expense.amount) : sum,
     0,
   );
 export const getDeliveryFeeTotal = (

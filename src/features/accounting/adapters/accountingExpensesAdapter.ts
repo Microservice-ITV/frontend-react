@@ -11,13 +11,16 @@ import type {
   ExpenseActionResponse,
   ExpenseApprovalStatusResponse,
   ExpenseCategory,
+  ExpenseStatus,
   PendingApprovalsResponse,
   SubmitExpenseResponse,
 } from '../types/expenseTypes'
 
 export const accountingExpensesAdapter = {
-  async list(): Promise<AccountingExpense[]> {
-    const response = await accountingClient.get<AccountingExpense[]>('/expenses')
+  async list(statuses?: readonly ExpenseStatus[]): Promise<AccountingExpense[]> {
+    const response = await accountingClient.get<AccountingExpense[]>('/expenses', statuses
+      ? { params: { status: statuses.join(',') } }
+      : undefined)
     return response.data ?? []
   },
 

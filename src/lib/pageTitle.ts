@@ -48,6 +48,7 @@ function warehousePageTitles(base: '/seller' | '/super-admin' | '/warehouse-mana
 const PAGE_TITLE_RULES: PageTitleRule[] = [
   { path: '/', title: SITE_NAME },
   { path: '/ai-assistant', title: SITE_NAME },
+  { path: '/warehouse-manager', title: 'Dashboard' },
 
   { path: '/login', title: 'Login' },
   { path: '/register', title: 'Register' },
@@ -153,6 +154,8 @@ const PAGE_TITLE_RULES: PageTitleRule[] = [
   { path: '/seller/promotions', title: 'Promotions' },
   { path: '/seller/invoices', title: 'Invoices' },
   { path: '/seller/finance', title: 'Finance Overview' },
+  { path: '/seller/accounting/receivables-payables', title: 'Receivables & Payables' },
+  { path: '/seller/accounting/inventory-valuation', title: 'Inventory Valuation' },
   { path: '/seller/finance/transactions', title: 'Transactions' },
   { path: '/seller/accounting', title: 'Accounting Overview' },
   { path: '/seller/accounting/overview', title: 'Accounting Overview' },
@@ -297,7 +300,9 @@ export function formatDocumentTitle(pageTitle?: string | null): string {
 }
 
 export function resolvePageTitle(pathname: string, search = ''): string {
-  if (pathname === '/search') {
+  const normalizedPath = pathname.replace(/\/+$/, '') || '/'
+
+  if (normalizedPath === '/search') {
     const query = new URLSearchParams(search).get('q')?.trim()
     if (query) return `Search: ${query}`
     return 'Search'
@@ -313,7 +318,7 @@ export function resolvePageTitle(pathname: string, search = ''): string {
   let best: { title: string; score: number } | null = null
 
   for (const rule of PAGE_TITLE_RULES) {
-    if (!matchPath({ path: rule.path, end: true }, pathname)) continue
+    if (!matchPath({ path: rule.path, end: true }, normalizedPath)) continue
 
     const score = ruleScore(rule.path)
     if (!best || score > best.score) {

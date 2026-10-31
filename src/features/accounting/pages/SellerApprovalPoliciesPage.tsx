@@ -1,13 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CheckCircle2, Eye, Plus, RefreshCw, Settings2, Trash2, XCircle } from 'lucide-react'
-import { useAppSelector } from '@/app/hooks'
-import { authClient } from '@/lib/api/authClient'
 import AccountingStatusBadge from '../components/AccountingStatusBadge'
 import { accountingExpensesAdapter } from '../adapters/accountingExpensesAdapter'
+import { useApprovalPolicyShopContext } from '../hooks/useApprovalPolicyShopContext'
 import type { ApprovalPolicy } from '../types/expenseTypes'
-
-type AccessContextResponse = { data?: { access_context?: { active_shop?: { shop_id?: string | null }; shops?: Array<{ shop_id?: string | null }> } } }
 
 const errorMessage = (error: unknown) => {
   if (error && typeof error === 'object' && 'response' in error) {
@@ -18,38 +15,36 @@ const errorMessage = (error: unknown) => {
 }
 
 const SellerApprovalPoliciesPage = () => {
-  const authUser = useAppSelector((state) => state.auth.user)
-  const [shopId, setShopId] = useState(authUser?.active_shop_id ?? '')
+  const { shops, shopId, setShopId, selectedShop, status: shopStatus, error: shopError } = useApprovalPolicyShopContext()
   const [policies, setPolicies] = useState<ApprovalPolicy[]>([])
   const [status, setStatus] = useState<'loading' | 'succeeded' | 'failed'>('loading')
   const [error, setError] = useState<string | null>(null)
+  const loadRequest = useRef(0)
 
   const load = async () => {
-    if (!shopId) return
+    const requestId = ++loadRequest.current
+    if (!shopId) {
+      setPolicies([])
+      setStatus('succeeded')
+      return
+    }
     setStatus('loading')
     setError(null)
     try {
-      setPolicies(await accountingExpensesAdapter.listApprovalPolicies(shopId))
+      const result = await accountingExpensesAdapter.listApprovalPolicies(shopId)
+      if (requestId !== loadRequest.current) return
+      setPolicies(result)
       setStatus('succeeded')
     } catch (cause) {
+      if (requestId !== loadRequest.current) return
       setStatus('failed')
       setError(errorMessage(cause))
     }
   }
 
   useEffect(() => {
-    let active = true
-    void authClient.get<AccessContextResponse>('/me/access-context').then((response) => {
-      if (!active) return
-      const context = response.data.data?.access_context
-      setShopId((current) => current || context?.active_shop?.shop_id || context?.shops?.[0]?.shop_id || '')
-    }).catch((cause) => {
-      if (active) setError(errorMessage(cause))
-    })
-    return () => { active = false }
-  }, [authUser?.id])
-
-  useEffect(() => { void load() }, [shopId])
+    if (shopStatus === 'succeeded') void load()
+  }, [shopId, shopStatus])
 
   const toggle = async (policy: ApprovalPolicy) => {
     const action = policy.isActive ? 'deactivate' : 'activate'
@@ -84,16 +79,32 @@ const SellerApprovalPoliciesPage = () => {
         </div>
         <div className="flex gap-2">
           <button type="button" onClick={() => void load()} disabled={status === 'loading' || !shopId} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"><RefreshCw size={15} />Refresh</button>
-          <Link to="/seller/accounting/approval-policies/new" className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"><Plus size={16} />Create Policy</Link>
+          <Link aria-disabled={!shopId || shopStatus !== 'succeeded'} onClick={(event) => { if (!shopId || shopStatus !== 'succeeded') event.preventDefault() }} to="/seller/accounting/approval-policies/new" className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 aria-disabled:cursor-not-allowed aria-disabled:opacity-50"><Plus size={16} />Create Policy</Link>
         </div>
       </div>
 
-      {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {shopStatus === 'loading' && <p className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">Loading your shop context...</p>}
+      {(shopError || error) && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{shopError ?? error}</p>}
+      {shopStatus === 'succeeded' && shops.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3">
+          <label htmlFor="approval-policy-shop" className="text-sm font-medium text-slate-700">Current shop</label>
+          {shops.length > 1 ? (
+            <select id="approval-policy-shop" value={shopId} onChange={(event) => setShopId(event.target.value)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900">
+              <option value="">Select a shop</option>
+              {shops.map((shop) => <option key={shop.shop_id} value={shop.shop_id}>{shop.shop_name}</option>)}
+            </select>
+          ) : (
+            <span className="text-sm font-semibold text-slate-900">{selectedShop?.shop_name}</span>
+          )}
+        </div>
+      )}
+      {shopStatus === 'succeeded' && shops.length === 0 && <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">No active shop membership is available for approval policies.</p>}
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div className="overflow-x-auto"><table className="w-full min-w-250"><thead><tr className="border-b border-slate-200 bg-slate-50"><th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Policy</th><th className="px-4 py-3 text-right text-xs font-medium text-slate-600">Minimum</th><th className="px-4 py-3 text-right text-xs font-medium text-slate-600">Maximum</th><th className="px-4 py-3 text-center text-xs font-medium text-slate-600">Level</th><th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Status</th><th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Actions</th></tr></thead><tbody>
-          {status === 'loading' && <tr><td colSpan={6} className="px-4 py-12 text-center text-sm text-slate-500">Loading policies...</td></tr>}
-          {status === 'succeeded' && policies.length === 0 && <tr><td colSpan={6} className="px-4 py-12 text-center text-sm text-slate-500">No approval policies configured for this shop.</td></tr>}
+          {(shopStatus === 'loading' || (shopStatus === 'succeeded' && status === 'loading')) && <tr><td colSpan={6} className="px-4 py-12 text-center text-sm text-slate-500">Loading policies...</td></tr>}
+          {shopStatus === 'succeeded' && !shopId && <tr><td colSpan={6} className="px-4 py-12 text-center text-sm text-slate-500">Select a shop to view its approval policies.</td></tr>}
+          {status === 'succeeded' && shopId && policies.length === 0 && <tr><td colSpan={6} className="px-4 py-12 text-center text-sm text-slate-500">No approval policies configured for this shop.</td></tr>}
           {status === 'succeeded' && policies.map((policy) => <tr key={policy.id} className="border-b border-slate-100 last:border-0"><td className="px-4 py-3 text-sm font-semibold text-slate-900">{policy.name}</td><td className="px-4 py-3 text-right text-sm text-slate-600">{Number(policy.minAmount).toLocaleString()}</td><td className="px-4 py-3 text-right text-sm text-slate-600">{policy.maxAmount === null ? 'No maximum' : Number(policy.maxAmount).toLocaleString()}</td><td className="px-4 py-3 text-center text-sm text-slate-600">{policy.level}</td><td className="px-4 py-3"><AccountingStatusBadge status={policy.isActive ? 'ACTIVE' : 'INACTIVE'} /></td><td className="px-4 py-3"><div className="flex items-center gap-3 text-xs"><Link to={`/seller/accounting/approval-policies/${policy.id}`} className="inline-flex items-center gap-1 text-slate-600 hover:text-slate-900"><Eye size={13} />View</Link><Link to={`/seller/accounting/approval-policies/${policy.id}/edit`} className="text-emerald-700 hover:text-emerald-800">Edit</Link><button type="button" onClick={() => void toggle(policy)} className="inline-flex items-center gap-1 text-amber-700 hover:text-amber-800">{policy.isActive ? <XCircle size={13} /> : <CheckCircle2 size={13} />}{policy.isActive ? 'Deactivate' : 'Activate'}</button>{!policy.isActive && <button type="button" title="Delete policy" onClick={() => void remove(policy)} className="inline-flex items-center gap-1 text-red-700 hover:text-red-800"><Trash2 size={13} />Delete</button>}</div></td></tr>)}
         </tbody></table></div>
       </div>

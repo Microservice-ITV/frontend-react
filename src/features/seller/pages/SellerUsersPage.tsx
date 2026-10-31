@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAppSelector } from '@/app/hooks'
 import DataTablePagination from '@/components/ui/DataTablePagination'
@@ -30,6 +30,21 @@ type ShopRoleOption = {
 type ShopRolesResponse = {
   data?: {
     roles?: ShopRoleOption[]
+  }
+}
+
+type ShopMembership = {
+  shop_id?: string | null
+  shop_name?: string | null
+  membership_status?: string | null
+}
+
+type ShopAccessResponse = {
+  data?: {
+    access_context?: {
+      active_shop?: ShopMembership | null
+      shops?: ShopMembership[]
+    }
   }
 }
 
@@ -140,7 +155,9 @@ const EMPTY_DRAFT = {
 
 const SellerUsersPage = () => {
   const authUser = useAppSelector((state) => state.auth.user)
-  const activeShopId = authUser?.active_shop_id ?? null
+  const [shops, setShops] = useState<ShopMembership[]>([])
+  const [selectedShopId, setSelectedShopId] = useState('')
+  const [isLoadingShops, setIsLoadingShops] = useState(true)
 
   const [users, setUsers] = useState<SellerUserRow[]>([])
   const [shopRoles, setShopRoles] = useState<ShopRoleOption[]>([])
@@ -166,37 +183,79 @@ const SellerUsersPage = () => {
     status: true,
     lastActive: true,
   })
+  const usersRequestId = useRef(0)
 
-  const loadUsers = async () => {
-    if (!activeShopId) {
+  useEffect(() => {
+    let active = true
+    const loadShops = async () => {
+      setIsLoadingShops(true)
+      try {
+        const response = await authClient.get<ShopAccessResponse>('/me/access-context')
+        const context = response.data.data?.access_context
+        const availableShops = (context?.shops ?? []).filter((shop) => {
+          const status = shop.membership_status?.toLowerCase()
+          return Boolean(shop.shop_id?.trim()) && (!status || status === 'active')
+        })
+        if (!active) return
+
+        setShops(availableShops)
+        const preferredShopId =
+          authUser?.active_shop_id?.trim() || context?.active_shop?.shop_id?.trim() || ''
+        setSelectedShopId(
+          availableShops.some((shop) => shop.shop_id === preferredShopId)
+            ? preferredShopId
+            : availableShops[0]?.shop_id?.trim() ?? '',
+        )
+        setUsersError(null)
+      } catch (error: any) {
+        if (!active) return
+        setShops([])
+        setSelectedShopId('')
+        setUsersError(error?.response?.data?.message ?? 'Unable to load your shops.')
+      } finally {
+        if (active) setIsLoadingShops(false)
+      }
+    }
+    void loadShops()
+    return () => {
+      active = false
+    }
+  }, [authUser?.active_shop_id])
+
+  const loadUsers = useCallback(async (shopId: string | null = selectedShopId || null) => {
+    const requestId = ++usersRequestId.current
+    if (!shopId) {
       setUsers([])
       setUsersError(null)
+      setIsLoadingUsers(false)
       return
     }
 
     try {
       setIsLoadingUsers(true)
       setUsersError(null)
-      const response = await authClient.get(`/shops/${activeShopId}/users`)
+      const response = await authClient.get(`/shops/${shopId}/users`)
+      if (requestId !== usersRequestId.current) return
       const rows = ((response.data?.data?.users ?? response.data?.users ?? []) as any[]).map(mapShopUserToRow)
       setUsers(rows)
       setPage(1)
     } catch (error: any) {
+      if (requestId !== usersRequestId.current) return
       setUsers([])
       setUsersError(error?.response?.data?.message ?? 'Unable to load shop users.')
     } finally {
-      setIsLoadingUsers(false)
+      if (requestId === usersRequestId.current) setIsLoadingUsers(false)
     }
-  }
+  }, [selectedShopId])
 
   useEffect(() => {
-    void loadUsers()
-  }, [activeShopId])
+    void loadUsers(selectedShopId || null)
+  }, [loadUsers, selectedShopId])
 
   useEffect(() => {
     let active = true
 
-    if (!activeShopId) {
+    if (!selectedShopId) {
       setShopRoles([])
       setRolesError(null)
       setDraft((current) => ({ ...current, roleCode: '' }))
@@ -206,7 +265,7 @@ const SellerUsersPage = () => {
     setIsLoadingRoles(true)
     setRolesError(null)
     setUsersError(null)
-    authClient.get<ShopRolesResponse>(`/shops/${activeShopId}/roles`)
+    authClient.get<ShopRolesResponse>(`/shops/${selectedShopId}/roles`)
       .then((response) => {
         if (!active) return
         const roles = response.data?.data?.roles ?? []
@@ -228,14 +287,14 @@ const SellerUsersPage = () => {
       })
 
     return () => { active = false }
-  }, [activeShopId])
+  }, [selectedShopId])
 
-  const activeShopUsers = useMemo(
-    () => (activeShopId ? users.filter((user) => user.shopId === activeShopId) : []),
-    [activeShopId, users],
+  const selectedShopUsers = useMemo(
+    () => (selectedShopId ? users.filter((user) => user.shopId === selectedShopId) : []),
+    [selectedShopId, users],
   )
 
-  const filteredUsers = activeShopUsers.filter((user) => {
+  const filteredUsers = selectedShopUsers.filter((user) => {
     const matchesFilter = activeFilter === 'all' || user.status === activeFilter
     const q = search.toLowerCase()
     const matchesSearch =
@@ -248,8 +307,9 @@ const SellerUsersPage = () => {
 
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / rowsPerPage))
   const paginatedUsers = filteredUsers.slice((page - 1) * rowsPerPage, page * rowsPerPage)
+  const visibleColumnCount = 4 + Object.values(visibleColumns).filter(Boolean).length
 
-  const managerOptions = activeShopUsers.filter((user) => user.id !== editingUserId)
+  const managerOptions = selectedShopUsers.filter((user) => user.id !== editingUserId)
 
   const resetForm = () => {
     setDraft({ ...EMPTY_DRAFT })
@@ -304,7 +364,7 @@ const SellerUsersPage = () => {
   }
 
   useEffect(() => {
-    if (!formOpen || editingUserId || !activeShopId) {
+    if (!formOpen || editingUserId || !selectedShopId) {
       return
     }
 
@@ -324,7 +384,7 @@ const SellerUsersPage = () => {
     const timer = window.setTimeout(() => {
       setIsLookingUpUsers(true)
       authClient
-        .get(`/shops/${activeShopId}/users/lookup`, { params: { search: query } })
+        .get(`/shops/${selectedShopId}/users/lookup`, { params: { search: query } })
         .then((response) => {
           if (cancelled) return
           const matches = (response.data?.data?.users ?? response.data?.users ?? []) as RegisteredUserOption[]
@@ -344,7 +404,7 @@ const SellerUsersPage = () => {
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [formOpen, editingUserId, activeShopId, emailSearch, selectedRegisteredUserId, draft.email])
+  }, [formOpen, editingUserId, selectedShopId, emailSearch, selectedRegisteredUserId, draft.email])
 
   const handleSaveUser = async () => {
     const trimmedName = draft.name.trim()
@@ -386,7 +446,7 @@ const SellerUsersPage = () => {
       return
     }
 
-    if (!activeShopId) {
+    if (!selectedShopId) {
       setUsersError('No active shop selected.')
       return
     }
@@ -403,8 +463,8 @@ const SellerUsersPage = () => {
           reporting_to: draft.reportingTo ?? null,
         }
 
-        await authClient.patch(`/shops/${activeShopId}/users/${editingUserId}`, payload)
-        await loadUsers()
+        await authClient.patch(`/shops/${selectedShopId}/users/${editingUserId}`, payload)
+        await loadUsers(selectedShopId)
         setUsersError(null)
         resetForm()
       } catch (error: any) {
@@ -414,13 +474,13 @@ const SellerUsersPage = () => {
     }
 
     try {
-      await authClient.post(`/shops/${activeShopId}/users`, {
+      await authClient.post(`/shops/${selectedShopId}/users`, {
         user_id: selectedRegisteredUserId,
         email: trimmedEmail,
         role_code: draft.roleCode,
         reporting_to: draft.reportingTo ?? null,
       })
-      await loadUsers()
+      await loadUsers(selectedShopId)
       setUsersError(null)
       resetForm()
     } catch (error: any) {
@@ -483,14 +543,41 @@ const SellerUsersPage = () => {
           <h1 className="text-xl font-bold text-slate-900">Users</h1>
           <p className="mt-0.5 text-sm text-slate-600">Manage staff, roles, and same-shop reporting lines.</p>
         </div>
-        <button
-          type="button"
-          onClick={openCreateForm}
-          className="flex shrink-0 items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-        >
-          <Plus size={18} />
-          Add User
-        </button>
+        <div className="flex flex-wrap items-end gap-3">
+          {shops.length > 1 && (
+            <label className="grid gap-1 text-xs font-medium text-slate-600">
+              Shop
+              <select
+                aria-label="Select shop users"
+                value={selectedShopId}
+                disabled={isLoadingShops}
+                onChange={(event) => {
+                  setSelectedShopId(event.target.value)
+                  setActiveFilter('all')
+                  setSearch('')
+                  setPage(1)
+                  resetForm()
+                }}
+                className="h-10 min-w-48 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 disabled:opacity-60"
+              >
+                {shops.map((shop) => (
+                  <option key={shop.shop_id} value={shop.shop_id ?? ''}>
+                    {shop.shop_name || shop.shop_id}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <button
+            type="button"
+            onClick={openCreateForm}
+            disabled={!selectedShopId || isLoadingShops}
+            className="flex shrink-0 items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Plus size={18} />
+            Add User
+          </button>
+        </div>
       </div>
 
       {usersError && (
@@ -660,7 +747,7 @@ const SellerUsersPage = () => {
                       className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
                     >
                       <option value="">No manager</option>
-                      {activeShopUsers
+                      {selectedShopUsers
                         .filter((user) => user.id !== editingUserId)
                         .map((user) => (
                           <option key={user.id} value={user.id}>{user.name}</option>
@@ -873,6 +960,19 @@ const SellerUsersPage = () => {
                   </tr>
                 )
               })}
+              {paginatedUsers.length === 0 && (
+                <tr>
+                  <td colSpan={visibleColumnCount} className="px-4 py-8 text-center text-sm text-slate-500">
+                    {isLoadingShops || isLoadingUsers
+                      ? 'Loading shop users…'
+                      : !selectedShopId
+                        ? 'No active shop membership is available.'
+                        : filteredUsers.length === 0 && (search || activeFilter !== 'all')
+                          ? 'No users match the current filters.'
+                          : `No users are assigned to ${shops.find((shop) => shop.shop_id === selectedShopId)?.shop_name ?? 'this shop'}.`}
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

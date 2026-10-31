@@ -1,6 +1,7 @@
 export type ExpenseStatus =
   | 'DRAFT'
   | 'SUBMITTED'
+  | 'PENDING'
   | 'PENDING_APPROVAL'
   | 'WAITING'
   | 'RETURNED'
@@ -65,8 +66,10 @@ export type AccountingExpense = {
   createdAt: string
   updatedAt: string
   submittedAt: string | null
+  approvedAt?: string | null
   expenseType?: ExpenseCategory
   journalEntry?: AccountingJournalEntry | null
+  approvedAt?: string | null
 }
 
 export type CreateExpensePayload = {
