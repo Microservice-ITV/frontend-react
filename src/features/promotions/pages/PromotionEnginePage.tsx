@@ -24,6 +24,7 @@ import {
   CircleDollarSign,
   Clock3,
   Flame,
+  Gift,
   Layers3,
   MoreHorizontal,
   Percent,
@@ -511,6 +512,12 @@ const PromotionEnginePage = () => {
   const [editingAssetId, setEditingAssetId] = useState<string | null>(null)
   const [assetForm, setAssetForm] = useState<AssetFormState>(DEFAULT_ASSET_FORM)
   const [assetSaving, setAssetSaving] = useState(false)
+  const [deliveryAwardPromotionId, setDeliveryAwardPromotionId] = useState('')
+  const [deliveryAwardPromotionName, setDeliveryAwardPromotionName] = useState('')
+  const [deliveryAwardLoading, setDeliveryAwardLoading] = useState(false)
+  const [deliveryAwardSaving, setDeliveryAwardSaving] = useState(false)
+  const [deliveryAwardMessage, setDeliveryAwardMessage] = useState<string | null>(null)
+  const [deliveryAwardError, setDeliveryAwardError] = useState<string | null>(null)
 
   const promotionNameById = useMemo(
     () => new Map(promotions.map((promotion) => [promotion.id, promotion.name])),
@@ -584,6 +591,24 @@ const PromotionEnginePage = () => {
       cancelled = true
     }
   }, [activeShopId, isPlatformAdmin])
+
+  useEffect(() => {
+    if (!isPlatformAdmin) return
+    let cancelled = false
+    setDeliveryAwardLoading(true)
+    promotionApi.getDeliveryAwardPromotion()
+      .then((setting) => {
+        if (cancelled) return
+        setDeliveryAwardPromotionId(setting.promotion_id ?? '')
+        setDeliveryAwardPromotionName(setting.promotion?.name ?? '')
+        setDeliveryAwardError(null)
+      })
+      .catch(() => {
+        if (!cancelled) setDeliveryAwardError('Could not load the delivered-order voucher setting.')
+      })
+      .finally(() => { if (!cancelled) setDeliveryAwardLoading(false) })
+    return () => { cancelled = true }
+  }, [isPlatformAdmin])
 
   useEffect(() => {
     if (!canManagePromotionAssets) return
@@ -664,6 +689,12 @@ const PromotionEnginePage = () => {
   }
   const activeCount = promotions.filter((promotion) => promotion.status === 'ACTIVE').length
   const targetCoverage = assets.targets.length
+  const availableDeliveryAwardPromotions = promotions.filter(({ record }) => {
+    const now = Date.now()
+    const startsAt = new Date(record.start_at).getTime()
+    const endsAt = record.end_at ? new Date(record.end_at).getTime() : Number.POSITIVE_INFINITY
+    return record.status === 'ACTIVE' && startsAt <= now && endsAt > now
+  })
 
   const createPromotion = async (payload: PromotionCreatePayload) => {
     try {
@@ -691,6 +722,24 @@ const PromotionEnginePage = () => {
       setPromotionsError(`Could not ${nextStatus === 'ACTIVE' ? 'activate' : 'pause'} this promotion.`)
     } finally {
       setStatusUpdatingId(null)
+    }
+  }
+
+  const saveDeliveryAwardPromotion = async () => {
+    setDeliveryAwardSaving(true)
+    setDeliveryAwardError(null)
+    setDeliveryAwardMessage(null)
+    try {
+      const setting = await promotionApi.setDeliveryAwardPromotion(deliveryAwardPromotionId || null)
+      setDeliveryAwardPromotionId(setting.promotion_id ?? '')
+      setDeliveryAwardPromotionName(setting.promotion?.name ?? '')
+      setDeliveryAwardMessage(setting.promotion_id
+        ? 'Delivered-order voucher promotion saved.'
+        : 'Delivered-order voucher awards disabled.')
+    } catch (error: any) {
+      setDeliveryAwardError(error?.response?.data?.message ?? 'Could not save the delivered-order voucher promotion.')
+    } finally {
+      setDeliveryAwardSaving(false)
     }
   }
 
@@ -853,6 +902,54 @@ const PromotionEnginePage = () => {
         <MetricCard icon={CircleDollarSign} label="Total promotions" value={String(promotions.length)} detail="Loaded from promotion service" tone="sky" />
         <MetricCard icon={Target} label="Target coverage" value={String(targetCoverage)} detail="Configured promotion targets" tone="violet" />
       </div>
+
+      {isPlatformAdmin && (
+        <section className="rounded-xl border border-violet-200 bg-violet-50/70 p-5">
+          <div className="flex items-start gap-3">
+            <span className="rounded-lg bg-white p-2 text-violet-700 shadow-sm"><Gift size={18} /></span>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-sm font-bold text-slate-900">Delivered-order voucher</h2>
+              <p className="mt-1 text-xs text-slate-600">
+                Select the active promotion whose unused codes customers earn after every package in an order is confirmed delivered. Choose no promotion to disable awards.
+              </p>
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                <label className="sr-only" htmlFor="delivered-order-award-promotion">Voucher award promotion</label>
+                <select
+                  id="delivered-order-award-promotion"
+                  value={deliveryAwardPromotionId}
+                  onChange={(event) => {
+                    setDeliveryAwardPromotionId(event.target.value)
+                    setDeliveryAwardMessage(null)
+                    setDeliveryAwardError(null)
+                  }}
+                  disabled={deliveryAwardLoading || deliveryAwardSaving}
+                  className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 disabled:opacity-60"
+                >
+                  <option value="">Disabled</option>
+                  {deliveryAwardPromotionId && !availableDeliveryAwardPromotions.some(({ id }) => id === deliveryAwardPromotionId) && (
+                    <option value={deliveryAwardPromotionId}>
+                      {deliveryAwardPromotionName || 'Selected promotion'} (not currently active)
+                    </option>
+                  )}
+                  {availableDeliveryAwardPromotions.map(({ id, name }) => (
+                    <option key={id} value={id}>{name}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => void saveDeliveryAwardPromotion()}
+                  disabled={deliveryAwardLoading || deliveryAwardSaving}
+                  className="rounded-lg bg-violet-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {deliveryAwardLoading ? 'Loading…' : deliveryAwardSaving ? 'Saving…' : 'Save setting'}
+                </button>
+              </div>
+              {deliveryAwardError && <p role="alert" className="mt-2 text-xs font-medium text-rose-700">{deliveryAwardError}</p>}
+              {deliveryAwardMessage && <p role="status" className="mt-2 text-xs font-medium text-emerald-700">{deliveryAwardMessage}</p>}
+            </div>
+          </div>
+        </section>
+      )}
 
       {(promotionsError || assetError) && (
         <p className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-medium text-rose-700">
