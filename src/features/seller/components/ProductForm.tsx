@@ -7,6 +7,8 @@ import { ChevronDown, X } from "lucide-react";
 import VariantSizeEditor from "@/features/seller/components/VariantSizeEditor";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { productServiceAssetUrl } from "@/lib/api/apiConfig";
+import YouTubeMark from "@/features/products/components/YouTubeMark";
+import { isYouTubeUrl } from "@/features/products/utils/videoEmbed";
 
 /** Split a comma-separated tags string into a deduped, trimmed array (max 20). */
 export const parseTagsInput = (raw: string): string[] =>
@@ -130,6 +132,10 @@ export const productFormSchema = z
   .object({
     name: z.string().trim().min(1, "Name is required"),
     description: z.string().trim().optional(),
+    videoUrl: z
+      .string()
+      .trim()
+      .refine(isYouTubeUrl, "Enter a valid YouTube URL"),
     tags: z.string().trim(),
     slug: z
       .string()
@@ -647,9 +653,9 @@ const ProductForm = ({
             </div>
           </div>
 
-          {/* Right Column: Organization */}
-          <div className="h-full">
-            <div className="flex h-full flex-col rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
+          {/* Right Column: Organization + Video */}
+          <div className="flex h-full flex-col gap-6">
+            <div className="flex flex-1 flex-col rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
               <h2 className="text-base font-bold text-slate-900">
                 Organization
               </h2>
@@ -657,25 +663,20 @@ const ProductForm = ({
                 <p className="font-medium text-slate-800">
                   How pricing works (each variant)
                 </p>
-                <ul className="mt-2 list-disc space-y-1.5 pl-4 text-slate-600 marker:text-slate-400">
+                <ul className="mt-1.5 list-disc space-y-1 pl-4 leading-relaxed text-slate-600">
                   <li>
-                    <span className="font-medium text-slate-700">
-                      Unit price
-                    </span>{" "}
-                    — landed PO cost (subtotal + delivery + other costs) ÷ order
-                    stock, synced after goods receipt.
+                    <span className="font-medium text-slate-700">Unit price</span>{" "}
+                    — landed PO cost ÷ order stock, synced after goods receipt.
                   </li>
                   <li>
                     <span className="font-medium text-slate-700">
                       Selling price
                     </span>{" "}
                     — set later in Inventory edit (not on create). Markup % is
-                    calculated from unit price → selling.
+                    from unit → selling.
                   </li>
                   <li>
-                    <span className="font-medium text-slate-700">
-                      Discount %
-                    </span>{" "}
+                    <span className="font-medium text-slate-700">Discount %</span>{" "}
                     — discount on selling price.
                   </li>
                   <li>
@@ -685,10 +686,10 @@ const ProductForm = ({
                     — selling price minus discount (auto-calculated).
                   </li>
                 </ul>
-                <p className="mt-2 border-t border-slate-200/80 pt-2 text-slate-500">
-                  Create the product without a selling price. After a PO is
-                  received, unit price syncs from inventory; set selling price
-                  from Inventory edit.
+                <p className="mt-2 leading-relaxed text-slate-600">
+                  Create without a selling price. After a PO is received, unit
+                  price syncs from inventory; set selling price from Inventory
+                  edit.
                 </p>
               </div>
 
@@ -798,6 +799,35 @@ const ProductForm = ({
               </div>
             </div>
 
+            <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
+              <h2 className="flex items-center gap-2 text-base font-bold text-slate-900">
+                <YouTubeMark size={20} className="shrink-0" />
+                Product video
+              </h2>
+              <p className="mt-0.5 text-xs text-slate-600">
+                Optional YouTube link for the storefront preview panel.
+              </p>
+              <div className="mt-4">
+                <label
+                  htmlFor="videoUrl"
+                  className="mb-1.5 block text-xs font-medium text-slate-700"
+                >
+                  YouTube URL
+                </label>
+                <input
+                  id="videoUrl"
+                  type="url"
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  {...register("videoUrl")}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none placeholder:text-slate-400 focus:border-emerald-500"
+                />
+                {errors.videoUrl && (
+                  <p className="mt-1 text-xs text-red-600">
+                    {errors.videoUrl.message}
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 

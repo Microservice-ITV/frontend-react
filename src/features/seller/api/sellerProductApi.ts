@@ -90,6 +90,7 @@ export type SellerProductVariantPayload = {
 type CreateSellerProductPayload = {
   name: string;
   description?: string;
+  videoUrl?: string | null;
   tags?: string[];
   slug: string;
   categoryId: string;
@@ -103,6 +104,7 @@ type CreateSellerProductPayload = {
 type UpdateSellerProductPayload = Partial<{
   name: string;
   description: string;
+  videoUrl: string | null;
   tags: string[];
   slug: string;
   categoryId: string;
@@ -122,6 +124,7 @@ export type ProductDetailReadItem = {
   slug?: string;
   sku?: string;
   description?: string;
+  videoUrl?: string | null;
   categoryId?: string;
   category?: {
     id?: string;
@@ -308,6 +311,9 @@ export const sellerProductApi = {
     if (payload.description) {
       formData.append("description", payload.description);
     }
+    if (payload.videoUrl) {
+      formData.append("videoUrl", payload.videoUrl);
+    }
     if (payload.tags && payload.tags.length > 0) {
       formData.append("tags", JSON.stringify(payload.tags));
     }
@@ -354,6 +360,8 @@ export const sellerProductApi = {
     if (payload.name !== undefined) formData.append("name", payload.name);
     if (payload.description !== undefined)
       formData.append("description", payload.description);
+    if (payload.videoUrl !== undefined)
+      formData.append("videoUrl", payload.videoUrl ?? "");
     if (payload.tags !== undefined)
       formData.append("tags", JSON.stringify(payload.tags));
     if (payload.slug !== undefined) formData.append("slug", payload.slug);

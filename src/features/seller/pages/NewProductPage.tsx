@@ -176,6 +176,7 @@ const NewProductPage = () => {
       await sellerProductApi.createProduct({
         name: values.name.trim(),
         description: values.description?.trim() || undefined,
+        videoUrl: values.videoUrl?.trim() || undefined,
         tags: parseTagsInput(values.tags),
         slug: values.slug.trim(),
         categoryId: values.categoryId,
@@ -227,6 +228,7 @@ const NewProductPage = () => {
         initialValues={{
           name: "",
           description: undefined,
+          videoUrl: "",
           tags: "",
           slug: "",
           categoryId: "",

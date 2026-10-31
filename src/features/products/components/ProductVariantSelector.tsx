@@ -23,7 +23,7 @@ function sizeButtonClass(onProduct: boolean, outOfStock: boolean, active: boolea
     const hover = onProduct && !active ? 'hover:border-gray-300' : ''
     const cursor = onProduct ? 'cursor-pointer' : 'cursor-not-allowed'
     const strike = onProduct && outOfStock && !active ? 'line-through decoration-gray-300' : ''
-    return `flex h-12 w-16 shrink-0 items-center justify-center border bg-white text-sm ${cursor} ${tone} ${border} ${hover} ${strike}`
+    return `flex h-11 w-[22%] min-w-[3.25rem] max-w-[4.5rem] shrink-0 items-center justify-center border bg-white text-sm sm:h-12 sm:w-16 sm:max-w-none ${cursor} ${tone} ${border} ${hover} ${strike}`
 }
 
 function uniqBySize(variants: ProductVariant[]): ProductVariant[] {
@@ -293,7 +293,7 @@ const ProductVariantSelector = ({
             {showSize && (
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
                     <span className="w-20 shrink-0 text-sm font-medium text-gray-900 sm:w-24">Size:</span>
-                    <div className="inline-flex max-w-full flex-nowrap overflow-x-auto">
+                    <div className="flex w-full flex-wrap sm:inline-flex sm:w-auto sm:max-w-full sm:flex-nowrap">
                         {sizeOptions.map((size) => {
                             const onProduct = variants.some((x) => x.sizeId === size.id)
                             const outOfStock =
@@ -306,7 +306,7 @@ const ProductVariantSelector = ({
                                 <HoverTip
                                     key={size.id}
                                     label={tip}
-                                    className="-ml-px first:ml-0"
+                                    className="-ml-px -mt-px first:ml-0 sm:mt-0"
                                 >
                                     <button
                                         type="button"
@@ -327,7 +327,14 @@ const ProductVariantSelector = ({
 
             {showColor && (
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-                    <span className="w-20 shrink-0 text-sm font-medium text-gray-900 sm:w-24">Color:</span>
+                    <span className="flex min-w-20 shrink-0 items-baseline gap-1.5 text-sm font-medium text-gray-900 sm:w-24">
+                        Color:
+                        {selected?.colorName || selected?.colorCode ? (
+                            <span className="font-normal text-gray-500 sm:hidden">
+                                {selected.colorName || selected.colorCode}
+                            </span>
+                        ) : null}
+                    </span>
                     <div className="flex flex-wrap items-center gap-3">
                         {colorOptions.map((v) => {
                             const inStock = variants.some(
