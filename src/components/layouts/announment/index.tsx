@@ -236,10 +236,6 @@ export const Announcements = () => {
   const [hiddenAnnouncementIds, setHiddenAnnouncementIds] = useState<string[]>(
     [],
   );
-  // Reserve banner height while loading so the API response does not shove the
-  // hero down (PageSpeed CLS). Collapse only after we know there are none.
-  const [loadState, setLoadState] = useState<"loading" | "ready">("loading");
-
   useEffect(() => {
     let ignore = false;
 
@@ -252,10 +248,6 @@ export const Announcements = () => {
       } catch {
         if (!ignore) {
           setApiAnnouncements([]);
-        }
-      } finally {
-        if (!ignore) {
-          setLoadState("ready");
         }
       }
     };
@@ -302,16 +294,6 @@ export const Announcements = () => {
   }, [visibleAnnouncements.length]);
 
   const activeAnnouncement = visibleAnnouncements[activeIndex];
-
-  if (loadState === "loading") {
-    return (
-      <div
-        aria-hidden
-        style={{ height: ANNOUNCEMENT_BANNER_HEIGHT, minHeight: ANNOUNCEMENT_BANNER_HEIGHT }}
-        className="w-full bg-[var(--dni-primary,#16a34a)]"
-      />
-    );
-  }
 
   if (!activeAnnouncement) {
     return null;
