@@ -62,8 +62,11 @@ const HomeQuickActions = () => {
               src={feature.iconUrl}
               alt={feature.name}
               className="max-w-[80%] max-h-[80%] object-contain transition-transform group-hover:scale-105"
-              variant="full"
+              variant="thumb"
               lockVariant
+              sizes="68px"
+              width={68}
+              height={68}
               loading="lazy"
             />
           ) : (

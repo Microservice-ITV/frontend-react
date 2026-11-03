@@ -1,6 +1,7 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Grid2X2 } from "lucide-react";
+import ResponsiveAssetImage from "@/components/media/ResponsiveAssetImage";
 import type { Category } from "../types/categoryTypes";
 
 interface Props {
@@ -32,7 +33,7 @@ const CategoryImage = ({ src, alt }: { src?: string; alt: string }) => {
       ) : null}
 
       {!showFallback ? (
-        <img
+        <ResponsiveAssetImage
           src={src}
           alt={alt}
           className={[
@@ -40,6 +41,10 @@ const CategoryImage = ({ src, alt }: { src?: string; alt: string }) => {
             "transition-opacity duration-200",
             loaded ? "opacity-100" : "opacity-0",
           ].join(" ")}
+          variant="thumb"
+          lockVariant
+          width={90}
+          height={90}
           loading="lazy"
           decoding="async"
           onLoad={() => setLoaded(true)}

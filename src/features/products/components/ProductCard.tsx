@@ -233,12 +233,15 @@ const ProductCard = ({ product }: ProductCardProps) => {
               src={product.images[0]}
               alt={product.name}
               className={[
-                "pointer-events-none absolute inset-0 h-full w-full object-fill p-2",
+                "pointer-events-none absolute inset-0 h-full w-full object-cover p-2",
                 "transition-opacity duration-200",
                 imageLoaded && !imageFailed ? "opacity-100" : "opacity-0",
               ].join(" ")}
-              variant="thumb"
-              sizes="(max-width: 640px) 45vw, 210px"
+              // Sharp tile (card). After images:backfill-variants regenerates
+              // 480px thumbs, prefer srcset thumb+card (drop lockVariant).
+              variant="card"
+              maxSrcSetVariant="card"
+              lockVariant
               width={210}
               height={210}
               loading="lazy"
