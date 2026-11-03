@@ -27,7 +27,7 @@ import {
   setItemTaxes,
   setTaxQuoting,
 } from '../store/checkoutSlice'
-import { removeSelectedItems } from '@/features/cart/store/cartSlice'
+import { clearSelectedVouchers, removeSelectedItems } from '@/features/cart/store/cartSlice'
 import {
   holdCheckoutForQuantityApproval,
   releaseQuantityApprovalHold,
@@ -49,6 +49,7 @@ import {
 } from '../utils/checkoutShopShipping'
 
 let activeCartTaxRequest = 0
+const NO_SELECTED_VOUCHERS: string[] = []
 
 const QUANTITY_APPROVAL_PENDING_MESSAGE =
   'You have a quantity approval waiting. You can place a new order after it is approved or rejected.'
@@ -224,6 +225,10 @@ const CheckoutSummary = ({
   )
 
   const user = useAppSelector(state => state.auth.user)
+  const cartVoucherState = useAppSelector(state => state.cart)
+  const selectedVoucherCodes = cartVoucherState.voucherSelectionUserId === user?.id
+    ? cartVoucherState.selectedVoucherCodes
+    : NO_SELECTED_VOUCHERS
   const feesByShopId = useAppSelector(state => state.shipping.feesByShopId)
   const totalShippingFee = useAppSelector(state => state.shipping.totalShippingFee)
   const shippingCalculateStatus = useAppSelector(state => state.shipping.calculateStatus)
@@ -243,6 +248,10 @@ const CheckoutSummary = ({
   const [promoCodeStatus, setPromoCodeStatus] = useState<PromoCodeStatus | null>(null)
   const [promoCodeMessage, setPromoCodeMessage] = useState<string | null>(null)
   const [promoCodeApplying, setPromoCodeApplying] = useState(false)
+  const appliedPromoCodes = useMemo(
+    () => [...new Set([...(appliedPromoCode ? [appliedPromoCode] : []), ...selectedVoucherCodes])],
+    [selectedVoucherCodes, appliedPromoCode],
+  )
   const [phoneModalOpen, setPhoneModalOpen] = useState(false)
   const [shopApprovalModalOpen, setShopApprovalModalOpen] = useState(false)
   const [shopApprovalRejected, setShopApprovalRejected] = useState(false)
@@ -396,7 +405,7 @@ const CheckoutSummary = ({
     quantity: item.quantity,
   }))
 
-  const requestPromotionQuote = async (promoCode?: string | null) => {
+  const requestPromotionQuote = async (promoCodes: string[] = appliedPromoCodes) => {
     const checkoutId = currentCheckout?.checkout_id
     const userId = user?.id
     if (!checkoutId || !userId || promotionItems.length === 0) return null
@@ -407,7 +416,8 @@ const CheckoutSummary = ({
       items: promotionItems,
       subtotal: checkout.merchandiseSubtotal,
       shipping_total: checkout.shippingSubtotal,
-      promo_code: promoCode ?? undefined,
+      promo_codes: promoCodes,
+      promo_code: promoCodes[0] ?? undefined,
     })
   }
 
@@ -517,18 +527,20 @@ const CheckoutSummary = ({
   useEffect(() => {
     const checkoutId = currentCheckout?.checkout_id
     const userId = user?.id
-    if (!checkoutId || !userId || promotionItems.length === 0) return
+    if (!checkoutId || !userId || promotionItems.length === 0 || paymentStatus === 'PAID' || paymentStatus === 'COMPLETED') return
 
     let cancelled = false
     setPromotionQuoteError(false)
 
-    void requestPromotionQuote(appliedPromoCode).then((quote) => {
+    void requestPromotionQuote(appliedPromoCodes).then((quote) => {
       if (cancelled || !quote) return
       applyQuotedTotals(quote)
       if (cancelled) return
-      if (appliedPromoCode) {
-        setPromoCodeStatus(quote.promo_code_status ?? null)
-        setPromoCodeMessage(quote.promo_code_message ?? null)
+      if (appliedPromoCodes.length) {
+        const results = quote.promo_code_results ?? []
+        const first = results.find(result => result.status !== 'VALID') ?? results.find(result => result.code === appliedPromoCodes[0])
+        setPromoCodeStatus(first?.status ?? quote.promo_code_status ?? null)
+        setPromoCodeMessage(first?.message ?? quote.promo_code_message ?? null)
       }
     }).catch(() => {
       if (!cancelled) setPromotionQuoteError(true)
@@ -537,7 +549,11 @@ const CheckoutSummary = ({
     return () => {
       cancelled = true
     }
-  }, [checkout.merchandiseSubtotal, checkout.shippingSubtotal, checkout.totalPayment, currentCheckout?.checkout_id, user?.id, cartItems, appliedPromoCode])
+  }, [checkout.merchandiseSubtotal, checkout.shippingSubtotal, checkout.totalPayment, currentCheckout?.checkout_id, user?.id, cartItems, appliedPromoCodes, paymentStatus])
+
+  useEffect(() => {
+    if (paymentStatus === 'PAID' || paymentStatus === 'COMPLETED') dispatch(clearSelectedVouchers())
+  }, [dispatch, paymentStatus])
 
   const handleApplyPromoCode = async () => {
     const code = promoCodeInput.trim().toUpperCase()
@@ -551,14 +567,17 @@ const CheckoutSummary = ({
     setPromoCodeApplying(true)
     setPromotionQuoteError(false)
     try {
-      const quote = await requestPromotionQuote(code)
+      const quote = await requestPromotionQuote([...new Set([code, ...selectedVoucherCodes])])
       if (!quote) return
 
       applyQuotedTotals(quote)
-      setPromoCodeStatus(quote.promo_code_status ?? 'INVALID')
-      setPromoCodeMessage(quote.promo_code_message ?? null)
+      const result = quote.promo_code_results?.find(row => row.code === code)
+      const invalidSelection = quote.promo_code_results?.find(row => row.status !== 'VALID')
+      const status = invalidSelection?.status ?? result?.status ?? quote.promo_code_status ?? 'INVALID'
+      setPromoCodeStatus(status)
+      setPromoCodeMessage(invalidSelection?.message ?? result?.message ?? quote.promo_code_message ?? null)
 
-      if (quote.promo_code_status === 'VALID') {
+      if (result?.status === 'VALID') {
         setAppliedPromoCode(code)
         setPromoCodeInput(code)
       } else {
@@ -632,7 +651,8 @@ const CheckoutSummary = ({
       delivery_note: address.delivery_note ?? null,
       shipping_total,
       shop_shippings,
-      promo_code: appliedPromoCode,
+      promo_code: appliedPromoCodes[0] ?? null,
+      promo_codes: appliedPromoCodes,
       payment_method: overridePaymentMethod ?? sessionPaymentMethod ?? paymentMethod,
       ...(cashAmounts
         ? {
@@ -799,9 +819,10 @@ const CheckoutSummary = ({
       dispatch(setCheckoutTaxAmount(nextTax))
       setTaxPreviewError(false)
       setAuthoritativeTotal(addressResponse.data?.grand_total ?? null)
-      if (addressResponse.data?.promo_code_status) {
-        setPromoCodeStatus(addressResponse.data.promo_code_status)
-        setPromoCodeMessage(addressResponse.data.promo_code_message ?? null)
+      const rejectedAddressVoucher = addressResponse.data?.promo_code_results?.find(result => result.status !== 'VALID')
+      if (rejectedAddressVoucher || addressResponse.data?.promo_code_status) {
+        setPromoCodeStatus(rejectedAddressVoucher?.status ?? addressResponse.data?.promo_code_status ?? null)
+        setPromoCodeMessage(rejectedAddressVoucher?.message ?? addressResponse.data?.promo_code_message ?? null)
       }
       console.info('[PlaceOrder] Address updated...')
 
@@ -933,10 +954,15 @@ const CheckoutSummary = ({
       }
 
       if (isPromoCodeStatus(responseData?.promo_code_status)) {
-        setPromoCodeStatus(responseData.promo_code_status)
+        const rejectedVoucher = Array.isArray(responseData.promo_code_results)
+          ? responseData.promo_code_results.find((result: { status?: string }): boolean => result?.status !== 'VALID')
+          : undefined
+        setPromoCodeStatus(isPromoCodeStatus(rejectedVoucher?.status) ? rejectedVoucher.status : responseData.promo_code_status)
         setPromoCodeMessage(
-          typeof responseData.promo_code_message === 'string'
-            ? responseData.promo_code_message
+          typeof rejectedVoucher?.message === 'string'
+            ? rejectedVoucher.message
+            : typeof responseData.promo_code_message === 'string'
+              ? responseData.promo_code_message
             : null,
         )
         setAppliedPromoCode(null)
@@ -1667,6 +1693,7 @@ const CheckoutSummary = ({
             <label htmlFor="checkout-promo-code" className="text-xs font-bold uppercase tracking-[0.12em] text-emerald-800">
               Promotion code
             </label>
+            {selectedVoucherCodes.length > 0 && <p className="mt-2 text-xs text-emerald-800">Selected vouchers: {selectedVoucherCodes.join(', ')}</p>}
             <div className="mt-2 flex flex-wrap gap-2">
               <input
                 id="checkout-promo-code"
@@ -1700,6 +1727,16 @@ const CheckoutSummary = ({
                   className="rounded-lg border border-emerald-200 px-3 py-2 text-xs font-medium text-emerald-800 hover:bg-white disabled:opacity-60"
                 >
                   Clear
+                </button>
+              )}
+              {selectedVoucherCodes.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => dispatch(clearSelectedVouchers())}
+                  disabled={promoCodeApplying || isPlacingOrder}
+                  className="rounded-lg border border-emerald-200 px-3 py-2 text-xs font-medium text-emerald-800 hover:bg-white disabled:opacity-60"
+                >
+                  Remove vouchers
                 </button>
               )}
             </div>
