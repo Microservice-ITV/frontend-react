@@ -30,11 +30,11 @@ const BannerImage = ({
           src={src}
           alt={alt}
           className="absolute inset-0 h-full w-full object-cover"
-          // Prefer card (1280) over full (1920) — hero slot is ~816px wide.
-          variant="card"
+          // Desktop hero ~816px → card (960). Mobile → thumb (640) via srcset.
+          variant={priority ? "card" : "thumb"}
           sizes={
             priority
-              ? "(max-width: 768px) 100vw, 816px"
+              ? "(max-width: 768px) 100vw, 900px"
               : "(max-width: 768px) 100vw, 280px"
           }
           loading={priority ? "eager" : "lazy"}

@@ -50,7 +50,9 @@ const sanitizeDecimalInput = (value: string, maxDecimals: number = 2) => {
   return clean;
 };
 
-/** Matches product-service `priceField` / `optionalPercent`: parseFloat, positive price, percent ranges. */
+/**
+ * Matches product-service `priceField`: 0 allowed before PO sets base/selling price.
+ */
 const moneyField = (label: string, required: boolean) =>
   z
     .string()
@@ -62,8 +64,8 @@ const moneyField = (label: string, required: boolean) =>
       "Use numbers only, up to 2 decimal places",
     )
     .refine(
-      (s) => s === "" || parseFloat(s) > 0,
-      `${label} must be greater than 0`,
+      (s) => s === "" || parseFloat(s) >= 0,
+      `${label} cannot be negative`,
     )
     .refine(
       (s) => s === "" || parseFloat(s) <= 9999999,
