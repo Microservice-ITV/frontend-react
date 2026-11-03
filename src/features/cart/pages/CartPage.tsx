@@ -13,9 +13,6 @@ import CartSummary, { GuestCheckoutModal } from '../components/CartSummary'
 import CartEmptyState from '../components/CartEmptyState'
 import RecommendationSection from '@/features/products/components/RecommendationSection'
 import { useSyncCartAvailableStock } from '../hooks/useSyncCartAvailableStock'
-import { selectAuthUser } from '@/features/auth/store/authSelectors'
-import { vouchersApi, type CustomerVoucher } from '@/features/account/api/vouchersApi'
-import { clearSelectedVouchers, setSelectedVouchers } from '../store/cartSlice'
 
 const CartPage = () => {
     const dispatch = useAppDispatch()
@@ -25,55 +22,6 @@ const CartPage = () => {
     const items = useAppSelector(selectCartItems)
     const total = useAppSelector(selectCartTotal)
     const cartProductKey = useAppSelector(selectCartProductKey)
-    const user = useAppSelector(selectAuthUser)
-    const voucherState = useAppSelector(state => state.cart)
-    const [vouchers, setVouchers] = useState<CustomerVoucher[]>([])
-    const [voucherLoadError, setVoucherLoadError] = useState(false)
-    const [vouchersLoaded, setVouchersLoaded] = useState(false)
-    const [voucherLoading, setVoucherLoading] = useState(false)
-    const selectedVoucherCodes = voucherState.voucherSelectionUserId === user?.id
-        ? voucherState.selectedVoucherCodes
-        : []
-
-    useEffect(() => {
-        let cancelled = false
-        if (!user?.id) {
-            setVouchers([])
-            setVouchersLoaded(true)
-            setVoucherLoading(false)
-            dispatch(clearSelectedVouchers())
-            return
-        }
-        setVouchersLoaded(false)
-        setVoucherLoading(true)
-        setVoucherLoadError(false)
-        void vouchersApi.mine().then(rows => {
-            if (!cancelled) {
-                const active = rows.filter(voucher => voucher.status === 'ACTIVE' && (!voucher.expires_at || new Date(voucher.expires_at).getTime() > Date.now()))
-                setVouchers(active)
-                setVoucherLoadError(false)
-                setVouchersLoaded(true)
-                setVoucherLoading(false)
-            }
-        }).catch(() => {
-            if (!cancelled) {
-                setVoucherLoadError(true)
-                setVouchersLoaded(true)
-                setVoucherLoading(false)
-            }
-        })
-        return () => { cancelled = true }
-    }, [dispatch, user?.id])
-
-    useEffect(() => {
-        if (!user?.id || !vouchersLoaded || voucherLoadError) return
-        const codes = voucherState.voucherSelectionUserId === user.id
-            ? voucherState.selectedVoucherCodes.filter(code => vouchers.some(voucher => voucher.code === code))
-            : []
-        if (voucherState.voucherSelectionUserId !== user.id || codes.length !== voucherState.selectedVoucherCodes.length) {
-            dispatch(setSelectedVouchers({ userId: user.id, codes }))
-        }
-    }, [dispatch, user?.id, vouchersLoaded, voucherLoadError, vouchers, voucherState.voucherSelectionUserId, voucherState.selectedVoucherCodes])
     const cartShopIdsKey = useMemo(
         () => [...new Set(items.map((i) => i.shopId).filter(Boolean))].sort().join(','),
         [items],
@@ -172,11 +120,6 @@ const CartPage = () => {
                         <CartItemLists
                             items={items}
                             bundleMinimumQty={bundleMinimumQty}
-                            vouchers={vouchers}
-                            selectedVoucherCodes={selectedVoucherCodes}
-                            voucherLoadError={voucherLoadError}
-                            voucherLoading={voucherLoading}
-                            onVoucherSelectionChange={codes => user?.id && dispatch(setSelectedVouchers({ userId: user.id, codes }))}
                         />
                     </div>
                     <aside className="max-lg:sticky max-lg:bottom-0 max-lg:z-20 lg:sticky lg:top-4">
