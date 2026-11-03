@@ -164,7 +164,8 @@ const FlashDealsSection = () => {
     });
   };
 
-  if (!loading && deals.length === 0) return null;
+  // Avoid skeleton → empty collapse (CLS). Stay hidden until we know there are deals.
+  if (loading || deals.length === 0) return null;
 
   return (
     <section className="relative w-full border border-[var(--dni-cart-border)] bg-white">

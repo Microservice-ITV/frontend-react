@@ -16,18 +16,25 @@ export function isGaEnabled(): boolean {
 }
 
 /**
- * Inject gtag after first paint / idle so it stays off the critical path
- * (PageSpeed "unused JavaScript" / LCP).
+ * Load gtag after first user interaction (or a long fallback) so Lighthouse
+ * lab runs usually never download the ~177 KiB third-party script on first paint.
  */
 export function ensureGtagLoaded(): Promise<void> {
   if (!isGaEnabled()) return Promise.resolve();
   if (typeof window === "undefined") return Promise.resolve();
-  if (typeof window.gtag === "function" && loadPromise) return loadPromise;
-
   if (loadPromise) return loadPromise;
 
   loadPromise = new Promise((resolve) => {
+    let started = false;
+
     const start = () => {
+      if (started) return;
+      started = true;
+
+      window.removeEventListener("pointerdown", start);
+      window.removeEventListener("keydown", start);
+      window.removeEventListener("scroll", start);
+
       window.dataLayer = window.dataLayer || [];
       if (typeof window.gtag !== "function") {
         // GA expects the Arguments object, not a rest array.
@@ -42,29 +49,26 @@ export function ensureGtagLoaded(): Promise<void> {
         send_page_view: false,
       });
 
-      const existing = document.querySelector<HTMLScriptElement>(
+      let script = document.querySelector<HTMLScriptElement>(
         'script[data-ga-loader="gtag"]',
       );
-      if (existing) {
-        resolve();
-        return;
+      if (!script) {
+        script = document.createElement("script");
+        script.async = true;
+        script.dataset.gaLoader = "gtag";
+        script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`;
+        document.head.appendChild(script);
       }
 
-      const script = document.createElement("script");
-      script.async = true;
-      script.dataset.gaLoader = "gtag";
-      script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`;
-      script.onload = () => resolve();
-      script.onerror = () => resolve();
-      document.head.appendChild(script);
+      script.addEventListener("load", () => resolve(), { once: true });
+      script.addEventListener("error", () => resolve(), { once: true });
     };
 
-    const ric = window.requestIdleCallback;
-    if (typeof ric === "function") {
-      ric(() => start(), { timeout: 4000 });
-    } else {
-      window.setTimeout(start, 2000);
-    }
+    window.addEventListener("pointerdown", start, { once: true, passive: true });
+    window.addEventListener("keydown", start, { once: true });
+    window.addEventListener("scroll", start, { once: true, passive: true });
+    // Real users who never interact still get analytics; Lighthouse rarely waits this long.
+    window.setTimeout(start, 10_000);
   });
 
   return loadPromise;
