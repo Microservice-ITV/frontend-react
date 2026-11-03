@@ -27,6 +27,7 @@ import {
   setItemTaxes,
   setTaxQuoting,
 } from '../store/checkoutSlice'
+import { CHECKOUT_PREPAID_ENABLED } from '../constants/paymentAvailability'
 import { clearSelectedVouchers, removeSelectedItems } from '@/features/cart/store/cartSlice'
 import {
   holdCheckoutForQuantityApproval,
@@ -686,8 +687,11 @@ const CheckoutSummary = ({
     }
 
     const effectivePaymentMethod = sessionPaymentMethod ?? paymentMethod
-    const isPrepaid = effectivePaymentMethod === 'prepaid'
-    const isStaffCash = prepaidProvider === 'cash'
+    // Prepaid temporarily off — keep prepaid branches but never take them.
+    const isPrepaid =
+      CHECKOUT_PREPAID_ENABLED && effectivePaymentMethod === 'prepaid'
+    const isStaffCash =
+      CHECKOUT_PREPAID_ENABLED && prepaidProvider === 'cash'
     let card: StripeCardElement | null = null
 
     if (isStaffCash) {
@@ -923,7 +927,8 @@ const CheckoutSummary = ({
     paymentStatus === 'EXPIRED'
 
   const effectivePaymentMethod = sessionPaymentMethod ?? paymentMethod
-  const isPrepaid = effectivePaymentMethod === 'prepaid'
+  const isPrepaid =
+    CHECKOUT_PREPAID_ENABLED && effectivePaymentMethod === 'prepaid'
 
   const deliveryFees = Object.values(feesByShopId)
   const anyNotDeliverable = deliveryFees.some((fee) => fee.deliveryStatus === 'NOT_DELIVERABLE')
