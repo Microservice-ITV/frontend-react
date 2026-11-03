@@ -54,28 +54,7 @@
     </noscript>
 
     <title>Daily Need Items</title>
-
-    <!-- Google tag (gtag.js) -->
-    <script
-      async
-      src="https://www.googletagmanager.com/gtag/js?id=G-W4XPSNY7B1"
-    ></script>
-
-    <script>
-      window.dataLayer = window.dataLayer || [];
-
-      function gtag() {
-        window.dataLayer.push(arguments);
-      }
-
-      window.gtag = gtag;
-
-      gtag("js", new Date());
-
-      gtag("config", "G-W4XPSNY7B1", {
-        send_page_view: false,
-      });
-    </script>
+    <!-- gtag is injected after idle from src/lib/analytics/gtag.ts (keeps it off LCP). -->
   </head>
   <body>
     <div id="root"></div>

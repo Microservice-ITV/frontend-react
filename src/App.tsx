@@ -3,10 +3,7 @@ import { matchPath, useLocation, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { bootstrapAuth, fetchMe } from '@/features/auth/store/authThunks'
 import Navbar from '@/components/layouts/navbar/Navbar'
-import Footer from '@/components/layouts/Footer'
-import AppRoutes from '@/routes/AppRoutes'
 import ScrollToTop from './components/routing/ScrollToTop'
-import GoogleAnalytics from './components/analytics/GoogleAnalytics'
 import { setAccessToken, setHasSession } from './features/auth/store/authSlice'
 import { setSessionCookie } from '@/utils/session'
 import { extractRoleFromUser } from '@/app/rbac/normalizers'
@@ -16,6 +13,11 @@ import { HomeScreenReadyProvider } from '@/features/home/homeScreenReady'
 import { useNotificationRealtime } from '@/features/notifications/socket/useNotificationRealtime'
 import { isInvoicePrintRoute } from '@/routes/invoicePrintRoutes'
 
+const AppRoutes = lazy(() => import('@/routes/AppRoutes'))
+const Footer = lazy(() => import('@/components/layouts/Footer'))
+const GoogleAnalytics = lazy(
+  () => import('./components/analytics/GoogleAnalytics'),
+)
 const AIAssistantWidget = lazy(() =>
   import('@/components/ai/AIAssistantWidget').then((m) => ({
     default: m.AIAssistantWidget,
@@ -129,18 +131,26 @@ function App() {
         {!hideGlobalChrome && <Navbar />}
 
         <ScrollToTop />
-        <GoogleAnalytics />
+        <Suspense fallback={null}>
+          <GoogleAnalytics />
+        </Suspense>
 
         {/* Dashboard routes skip storefront chrome; main wrapper stays for home loading. */}
         <main
           className={isDashboardRoute || isInvoicePrintRoutePath ? 'min-h-screen' : 'flex-1'}
         >
           <div inert={showSplash || undefined}>
-            <AppRoutes />
+            <Suspense fallback={null}>
+              <AppRoutes />
+            </Suspense>
           </div>
         </main>
 
-        {!hideGlobalChrome && !showSplash && !isCheckoutPreparingUi && <Footer />}
+        {!hideGlobalChrome && !showSplash && !isCheckoutPreparingUi && (
+          <Suspense fallback={null}>
+            <Footer />
+          </Suspense>
+        )}
 
         {showSplash && (
           <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#f5f5f5]">
