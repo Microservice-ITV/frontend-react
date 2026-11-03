@@ -202,6 +202,13 @@ export const promotionApi = {
     const response = await promotionClient.post<T>(resourcePath[kind], payload)
     return response.data
   },
+  async createUsageLimit<T>(promotionId: string, payload: unknown): Promise<T> {
+    const response = await promotionClient.post<T>(
+      `/promotions/${encodeURIComponent(promotionId)}/usage-limits`,
+      payload,
+    )
+    return response.data
+  },
   async update<T>(kind: PromotionAssetKind, id: string, payload: unknown): Promise<T> {
     const response = await promotionClient.patch<T>(`${resourcePath[kind]}/${id}`, payload)
     return response.data
