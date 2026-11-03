@@ -236,6 +236,9 @@ export const Announcements = () => {
   const [hiddenAnnouncementIds, setHiddenAnnouncementIds] = useState<string[]>(
     [],
   );
+  // Reserve banner height while loading so the API response does not shove the
+  // hero down (PageSpeed CLS). Collapse only after we know there are none.
+  const [loadState, setLoadState] = useState<"loading" | "ready">("loading");
 
   useEffect(() => {
     let ignore = false;
@@ -249,6 +252,10 @@ export const Announcements = () => {
       } catch {
         if (!ignore) {
           setApiAnnouncements([]);
+        }
+      } finally {
+        if (!ignore) {
+          setLoadState("ready");
         }
       }
     };
@@ -296,6 +303,16 @@ export const Announcements = () => {
 
   const activeAnnouncement = visibleAnnouncements[activeIndex];
 
+  if (loadState === "loading") {
+    return (
+      <div
+        aria-hidden
+        style={{ height: ANNOUNCEMENT_BANNER_HEIGHT, minHeight: ANNOUNCEMENT_BANNER_HEIGHT }}
+        className="w-full bg-[var(--dni-primary,#16a34a)]"
+      />
+    );
+  }
+
   if (!activeAnnouncement) {
     return null;
   }
@@ -313,18 +330,16 @@ export const Announcements = () => {
         @keyframes announcementFade {
           from {
             opacity: 0;
-            transform: translateY(-4px);
           }
           to {
             opacity: 1;
-            transform: translateY(0);
           }
         }
       `}</style>
 
       <div
         key={activeAnnouncement.id}
-        style={{ animation: "announcementFade 900ms ease-in-out" }}
+        style={{ animation: "announcementFade 400ms ease-in-out" }}
       >
         <AnnouncementComponent {...componentProps} onDismiss={handleDismiss} />
       </div>
