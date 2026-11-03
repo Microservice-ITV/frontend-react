@@ -79,28 +79,30 @@ interface CheckoutSummaryProps {
   onDeliveryFeeInputChange?: (value: string) => void
 }
 
-const promoStatusLabel = (status: PromoCodeStatus | null | undefined, message?: string | null): string => {
-  if (message?.trim()) return message
+type VoucherQuoteResult = NonNullable<PromotionQuoteResponse['promo_code_results']>[number]
+
+const voucherStatusLabel = (status: PromoCodeStatus): string => {
   switch (status) {
-    case 'VALID':
-      return 'Voucher applied'
-    case 'EXPIRED':
-      return 'Voucher has expired'
-    case 'USED':
-      return 'Voucher has already been used'
-    case 'DISABLED':
-      return 'Voucher is disabled'
-    case 'RESERVED':
-      return 'Voucher is reserved for another customer'
-    case 'LIMIT_REACHED':
-      return 'Voucher has reached its usage limit'
-    case 'NOT_APPLICABLE':
-      return 'This promo code does not apply to the current cart'
-    case 'INVALID':
-      return 'Voucher is invalid'
-    default:
-      return ''
+    case 'VALID': return 'Applied'
+    case 'LIMIT_REACHED': return 'Usage limit reached'
+    case 'NOT_APPLICABLE': return 'Not eligible for this order'
+    case 'EXPIRED': return 'Expired'
+    case 'USED': return 'Already used'
+    case 'DISABLED': return 'Unavailable'
+    case 'RESERVED': return 'Assigned to another customer'
+    case 'INVALID': return 'Invalid voucher'
   }
+}
+
+const aggregateDiscountsByPromotion = (allocations: Array<Record<string, unknown>> = []): Record<string, number> => {
+  const discounts: Record<string, number> = {}
+  for (const allocation of allocations) {
+    const promotionId = typeof allocation.promotion_id === 'string' ? allocation.promotion_id : ''
+    const amount = Number(allocation.amount ?? 0)
+    if (!promotionId || !Number.isFinite(amount)) continue
+    discounts[promotionId] = Math.round(((discounts[promotionId] ?? 0) + amount) * 100) / 100
+  }
+  return discounts
 }
 
 const buildShopShippings = (
@@ -186,20 +188,6 @@ const apiMessage = (error: unknown, fallback: string): string => {
 const responseIsObject = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value)
 
-const isPromoCodeStatus = (value: unknown): value is PromoCodeStatus => {
-  const statuses: PromoCodeStatus[] = [
-    'VALID',
-    'INVALID',
-    'EXPIRED',
-    'USED',
-    'DISABLED',
-    'RESERVED',
-    'LIMIT_REACHED',
-    'NOT_APPLICABLE',
-  ]
-  return statuses.some((status) => status === value)
-}
-
 const CheckoutSummary = ({
   checkout,
   payDeliveryFeeNow,
@@ -243,10 +231,17 @@ const CheckoutSummary = ({
   const [promotionFinal, setPromotionFinal] = useState<number | null>(null)
   const promotionAllocationsRef = useRef<Array<Record<string, unknown>>>([])
   const [promotionQuoteError, setPromotionQuoteError] = useState(false)
-  const [promoCodeStatus, setPromoCodeStatus] = useState<PromoCodeStatus | null>(null)
-  const [promoCodeMessage, setPromoCodeMessage] = useState<string | null>(null)
+  const [voucherQuoteResults, setVoucherQuoteResults] = useState<VoucherQuoteResult[]>([])
+  const [voucherDiscountByPromotionId, setVoucherDiscountByPromotionId] = useState<Record<string, number>>({})
   const [promotionQuoteLoading, setPromotionQuoteLoading] = useState(false)
   const appliedPromoCodes = selectedVoucherCodes
+  const updateVoucherQuoteDetails = useCallback((
+    results?: PromotionQuoteResponse['promo_code_results'],
+    allocations?: PromotionQuoteResponse['allocations'],
+  ) => {
+    if (results) setVoucherQuoteResults(results)
+    if (allocations) setVoucherDiscountByPromotionId(aggregateDiscountsByPromotion(allocations))
+  }, [])
   const [phoneModalOpen, setPhoneModalOpen] = useState(false)
   const [shopApprovalModalOpen, setShopApprovalModalOpen] = useState(false)
   const [shopApprovalRejected, setShopApprovalRejected] = useState(false)
@@ -527,20 +522,13 @@ const CheckoutSummary = ({
     let cancelled = false
     setPromotionQuoteError(false)
     setPromotionQuoteLoading(true)
+    updateVoucherQuoteDetails([], [])
 
     void requestPromotionQuote(appliedPromoCodes).then((quote) => {
       if (cancelled || !quote) return
       applyQuotedTotals(quote)
       if (cancelled) return
-      if (appliedPromoCodes.length) {
-        const results = quote.promo_code_results ?? []
-        const first = results.find(result => result.status !== 'VALID') ?? results.find(result => result.code === appliedPromoCodes[0])
-        setPromoCodeStatus(first?.status ?? quote.promo_code_status ?? null)
-        setPromoCodeMessage(first?.message ?? quote.promo_code_message ?? null)
-      } else {
-        setPromoCodeStatus(null)
-        setPromoCodeMessage(null)
-      }
+      updateVoucherQuoteDetails(quote.promo_code_results ?? [], quote.allocations ?? [])
     }).catch(() => {
       if (!cancelled) setPromotionQuoteError(true)
     }).finally(() => {
@@ -550,7 +538,7 @@ const CheckoutSummary = ({
     return () => {
       cancelled = true
     }
-  }, [checkout.merchandiseSubtotal, checkout.shippingSubtotal, checkout.totalPayment, currentCheckout?.checkout_id, user?.id, cartItems, appliedPromoCodes, paymentStatus])
+  }, [checkout.merchandiseSubtotal, checkout.shippingSubtotal, checkout.totalPayment, currentCheckout?.checkout_id, user?.id, cartItems, appliedPromoCodes, paymentStatus, updateVoucherQuoteDetails])
 
   useEffect(() => {
     if (paymentStatus === 'PAID' || paymentStatus === 'COMPLETED') dispatch(clearSelectedVouchers())
@@ -770,11 +758,7 @@ const CheckoutSummary = ({
       dispatch(setCheckoutTaxAmount(nextTax))
       setTaxPreviewError(false)
       setAuthoritativeTotal(addressResponse.data?.grand_total ?? null)
-      const rejectedAddressVoucher = addressResponse.data?.promo_code_results?.find(result => result.status !== 'VALID')
-      if (rejectedAddressVoucher || addressResponse.data?.promo_code_status) {
-        setPromoCodeStatus(rejectedAddressVoucher?.status ?? addressResponse.data?.promo_code_status ?? null)
-        setPromoCodeMessage(rejectedAddressVoucher?.message ?? addressResponse.data?.promo_code_message ?? null)
-      }
+      updateVoucherQuoteDetails(addressResponse.data?.promo_code_results, addressResponse.data?.allocations)
       console.info('[PlaceOrder] Address updated...')
 
       if (isStaffCash) {
@@ -904,17 +888,10 @@ const CheckoutSummary = ({
         return
       }
 
-      if (isPromoCodeStatus(responseData?.promo_code_status)) {
-        const rejectedVoucher = Array.isArray(responseData.promo_code_results)
-          ? responseData.promo_code_results.find((result: { status?: string }): boolean => result?.status !== 'VALID')
-          : undefined
-        setPromoCodeStatus(isPromoCodeStatus(rejectedVoucher?.status) ? rejectedVoucher.status : responseData.promo_code_status)
-        setPromoCodeMessage(
-          typeof rejectedVoucher?.message === 'string'
-            ? rejectedVoucher.message
-            : typeof responseData.promo_code_message === 'string'
-              ? responseData.promo_code_message
-            : null,
+      if (Array.isArray(responseData?.promo_code_results)) {
+        updateVoucherQuoteDetails(
+          responseData.promo_code_results as VoucherQuoteResult[],
+          Array.isArray(responseData.allocations) ? responseData.allocations as Array<Record<string, unknown>> : undefined,
         )
       }
 
@@ -1064,9 +1041,6 @@ const CheckoutSummary = ({
   const displayedTotal = !payDeliveryFeeNow
     ? Math.max(0, merchandiseSubtotal - promotionDiscount) + shownTax + manualDeliveryFee
     : (authoritativeTotal ?? (promotionFinal ?? totalPayment) + shownTax)
-  const promoFeedback = promoStatusLabel(promoCodeStatus, promoCodeMessage)
-  const promoIsValid = promoCodeStatus === 'VALID'
-
   return (
     <div className="rounded-sm border border-[var(--dni-cart-border)] bg-white px-3 py-3 sm:px-4 sm:py-4 lg:px-5 lg:py-5">
       {phoneModalOpen && createPortal(
@@ -1642,10 +1616,48 @@ const CheckoutSummary = ({
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.12em] text-emerald-800">Selected vouchers</p>
             {selectedVoucherCodes.length > 0 ? (
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                {selectedVoucherCodes.map(code => (
-                  <span key={code} className="rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-xs font-medium tracking-wide text-emerald-900">{code}</span>
-                ))}
+              <div className="mt-2 space-y-2">
+                {selectedVoucherCodes.map(code => {
+                  const result = voucherQuoteResults.find(row => row.code === code)
+                  const applied = result?.status === 'VALID'
+                  const statusLabel = promotionQuoteLoading
+                    ? 'Checking…'
+                    : result
+                      ? voucherStatusLabel(result.status)
+                      : promotionQuoteError
+                        ? 'Could not verify'
+                        : 'Waiting for quote'
+                  const discount = result?.promotion_id
+                    ? voucherDiscountByPromotionId[result.promotion_id] ?? 0
+                    : 0
+
+                  return (
+                    <div key={code} className={`rounded-lg border bg-white p-3 ${applied ? 'border-emerald-200' : result ? 'border-amber-200' : 'border-gray-200'}`}>
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="break-all text-sm font-semibold tracking-wide text-gray-900">{code}</p>
+                          {result?.promotion_name && <p className="mt-0.5 text-xs text-gray-600">{result.promotion_name}</p>}
+                        </div>
+                        <div className="text-right">
+                          <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${promotionQuoteLoading ? 'bg-gray-100 text-gray-600' : applied ? 'bg-emerald-100 text-emerald-800' : result ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-600'}`}>
+                            {statusLabel}
+                          </span>
+                          <p className={`mt-1 whitespace-nowrap text-sm font-semibold tabular-nums ${applied ? 'text-emerald-700' : 'text-gray-500'}`}>
+                            {promotionQuoteLoading ? 'Calculating…' : applied ? `-${formatKsPrice(discount)}` : 'No discount'}
+                          </p>
+                        </div>
+                      </div>
+                      {!promotionQuoteLoading && result && result.status !== 'VALID' && (
+                        <p className="mt-2 text-xs leading-5 text-amber-800">
+                          {result.message || 'This voucher cannot be used for this order.'}
+                        </p>
+                      )}
+                      {!promotionQuoteLoading && !result && promotionQuoteError && (
+                        <p className="mt-2 text-xs leading-5 text-amber-800">We could not check this voucher. Please try again.</p>
+                      )}
+                    </div>
+                  )
+                })}
                 <button
                   type="button"
                   onClick={() => dispatch(clearSelectedVouchers())}
@@ -1656,12 +1668,7 @@ const CheckoutSummary = ({
                 </button>
               </div>
             ) : (
-              <p className="mt-1 text-sm text-gray-600">No vouchers selected. Choose vouchers from your cart.</p>
-            )}
-            {promoFeedback && (
-              <p className={`mt-2 text-xs ${promoIsValid ? 'text-emerald-700' : 'text-amber-700'}`}>
-                {promoFeedback}
-              </p>
+              <p className="mt-1 text-sm text-gray-600">No vouchers selected. Choose one from the shop items above.</p>
             )}
           </div>
 

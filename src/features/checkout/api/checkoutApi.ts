@@ -61,7 +61,7 @@ export type PromotionQuoteResponse = {
   promo_code_status?: PromoCodeStatus | null
   promo_code_message?: string | null
   promo_codes?: string[]
-  promo_code_results?: Array<{ code: string; promotion_id?: string | null; status: PromoCodeStatus; message?: string | null }>
+  promo_code_results?: Array<{ code: string; promotion_id?: string | null; promotion_name?: string | null; status: PromoCodeStatus; message?: string | null }>
   bundle_savings?: Array<{
     bundle_id: string
     title: string
@@ -249,6 +249,7 @@ export const checkoutApi = {
     promo_code_message?: string | null
     promo_codes?: string[]
     promo_code_results?: PromotionQuoteResponse['promo_code_results']
+    allocations?: Array<Record<string, unknown>>
     payment?: { client_secret?: string }
     already_succeeded?: boolean
   }>> {
