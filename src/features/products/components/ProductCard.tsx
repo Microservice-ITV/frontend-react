@@ -237,11 +237,11 @@ const ProductCard = ({ product }: ProductCardProps) => {
                 "transition-opacity duration-200",
                 imageLoaded && !imageFailed ? "opacity-100" : "opacity-0",
               ].join(" ")}
-              // Sharp tile (card). After images:backfill-variants regenerates
-              // 480px thumbs, prefer srcset thumb+card (drop lockVariant).
-              variant="card"
+              // Reuploaded assets have 480 thumb / 720 card — let srcset pick.
+              // (lockVariant card forced 720 into a 209px slot → PageSpeed flag.)
+              variant="thumb"
               maxSrcSetVariant="card"
-              lockVariant
+              sizes="(max-width: 640px) 45vw, 210px"
               width={210}
               height={210}
               loading="lazy"
