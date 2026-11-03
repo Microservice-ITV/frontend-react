@@ -22,6 +22,7 @@ import {
   parseCashAmount,
 } from "../utils/cashTender";
 import { canUseStaffCheckoutCash } from "../utils/staffCheckoutCash";
+import { CHECKOUT_PREPAID_ENABLED } from "../constants/paymentAvailability";
 import { visaIcon } from "@/assets/icons";
 import { formatKsPrice } from "@/features/products/utils/formatProductPrice";
 import { Banknote, CreditCard } from "lucide-react";
@@ -47,8 +48,18 @@ const CheckoutPayment = ({ totalAmount }: CheckoutPaymentProps) => {
   const orderTotal = Math.max(0, Number(totalAmount) || 0) + Math.max(0, Number(taxAmount) || 0);
   const [incomeInput, setIncomeInput] = useState("");
 
+  // Temporarily force COD while prepaid is disabled (keep prepaid code intact).
+  useEffect(() => {
+    if (CHECKOUT_PREPAID_ENABLED) return;
+    if (selectedPaymentMethod === "cod") return;
+    dispatch(setPaymentMethod("cod"));
+    if (!checkoutId) return;
+    void checkoutApi.updatePaymentMethod(checkoutId, "cod");
+  }, [dispatch, checkoutId, selectedPaymentMethod]);
+
   const handlePaymentMethodChange = useCallback(
     (method: PaymentMethod) => {
+      if (!CHECKOUT_PREPAID_ENABLED && method === "prepaid") return;
       dispatch(setPaymentMethod(method));
       if (!checkoutId) return;
       void checkoutApi.updatePaymentMethod(checkoutId, method);
@@ -56,7 +67,8 @@ const CheckoutPayment = ({ totalAmount }: CheckoutPaymentProps) => {
     [dispatch, checkoutId],
   );
 
-  const isPrepaid = selectedPaymentMethod === "prepaid";
+  const isPrepaid =
+    CHECKOUT_PREPAID_ENABLED && selectedPaymentMethod === "prepaid";
 
   const cartShopIds = useMemo(
     () => cartItems.map((item) => item.shopId).filter(Boolean),
@@ -120,6 +132,7 @@ const CheckoutPayment = ({ totalAmount }: CheckoutPaymentProps) => {
 
   const handleSelectProvider = useCallback(
     (providerId: PrepaidProvider) => {
+      if (!CHECKOUT_PREPAID_ENABLED) return;
       dispatch(setPrepaidProvider(providerId));
       if (providerId === "cash") {
         setIncomeInput("");
@@ -173,10 +186,25 @@ const CheckoutPayment = ({ totalAmount }: CheckoutPaymentProps) => {
       <div className="border-b border-gray-100 px-3 py-3 sm:px-4">
         <div className="mb-2 text-sm font-medium text-gray-900">Payment Method</div>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div
+          className={`grid gap-2 ${CHECKOUT_PREPAID_ENABLED ? "grid-cols-2" : "grid-cols-1"}`}
+        >
           {[
-            { label: "Prepaid", value: "prepaid" as PaymentMethod, Icon: CreditCard },
-            { label: "Cash on Delivery", value: "cod" as PaymentMethod, Icon: Banknote },
+            // Hidden for now — flip CHECKOUT_PREPAID_ENABLED to restore.
+            ...(CHECKOUT_PREPAID_ENABLED
+              ? [
+                  {
+                    label: "Prepaid",
+                    value: "prepaid" as PaymentMethod,
+                    Icon: CreditCard,
+                  },
+                ]
+              : []),
+            {
+              label: "Cash on Delivery",
+              value: "cod" as PaymentMethod,
+              Icon: Banknote,
+            },
           ].map(({ label, value, Icon }) => {
             const selected = value === selectedPaymentMethod;
             return (

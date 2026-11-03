@@ -8,6 +8,7 @@ import type {
 import type { SagaStatusResponse } from '../types/sagaTypes'
 
 import type { CheckoutLineTax } from '../api/checkoutApi'
+import { CHECKOUT_PREPAID_ENABLED } from '../constants/paymentAvailability'
 
 export type PaymentMethod = 'prepaid' | 'cod'
 export type PrepaidProvider = 'card' | 'kpay' | 'wavepay' | 'ayapay' | 'cash' | 'cbpay'
@@ -218,7 +219,11 @@ const checkoutSlice = createSlice({
                 }
                 if (typeof action.payload.payment_method === 'string') {
                     const pm = action.payload.payment_method as PaymentMethod
-                    if ((pm === 'prepaid' || pm === 'cod') && state.sessionPaymentMethod == null) {
+                    // Prepaid temporarily disabled — never hydrate session as prepaid.
+                    if (!CHECKOUT_PREPAID_ENABLED && pm === 'prepaid') {
+                        state.sessionPaymentMethod = 'cod'
+                        state.paymentMethod = 'cod'
+                    } else if ((pm === 'prepaid' || pm === 'cod') && state.sessionPaymentMethod == null) {
                         state.sessionPaymentMethod = pm
                         state.paymentMethod = pm
                     }
