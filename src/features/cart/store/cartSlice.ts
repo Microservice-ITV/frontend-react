@@ -28,6 +28,8 @@ function normalizeIncomingItem(payload: CartItem): CartItem {
 
 const initialState: CartState = {
     items: [],
+    selectedVoucherCodes: [],
+    voucherSelectionUserId: null,
 }
 
 const cartSlice = createSlice({
@@ -124,6 +126,20 @@ const cartSlice = createSlice({
         // DELETE ALL ITEMS (danger action / logout / reset)
         clearCart(state) {
             state.items = []
+            state.selectedVoucherCodes = []
+            state.voucherSelectionUserId = null
+        },
+
+        setSelectedVouchers(state, action: PayloadAction<{ userId: string; codes: string[] }>) {
+            const userId = action.payload.userId.trim()
+            if (!userId) return
+            if (state.voucherSelectionUserId !== userId) state.selectedVoucherCodes = []
+            state.voucherSelectionUserId = userId
+            state.selectedVoucherCodes = [...new Set(action.payload.codes.map(code => code.trim().toUpperCase()).filter(Boolean))]
+        },
+        clearSelectedVouchers(state) {
+            state.selectedVoucherCodes = []
+            state.voucherSelectionUserId = null
         },
 
         syncCart(state, action: PayloadAction<CartItem[]>) {
@@ -199,6 +215,8 @@ export const {
     toggleShopSelection,
     toggleAllSelection,
     setItemShop,
+    setSelectedVouchers,
+    clearSelectedVouchers,
 } = cartSlice.actions
 
 export default cartSlice.reducer
