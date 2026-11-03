@@ -4,7 +4,7 @@ import {
   Download,
   Heart,
   ImageOff,
-  Mail,
+  // Mail, // restore with email line in Bill to
   MapPin,
   PackageCheck,
   Printer,
@@ -109,7 +109,8 @@ const InvoiceDocumentSheet = ({
     invoice.shopContactEmail,
   ].filter((line): line is string => Boolean(line?.trim()))
 
-  const buyerLines = [invoice.customerName, invoice.customerEmail, invoice.customerPhone]
+  // Email hidden for now — restore `invoice.customerEmail` between name and phone when needed.
+  const buyerLines = [invoice.customerName, /* invoice.customerEmail, */ invoice.customerPhone]
     .filter((line): line is string => Boolean(line?.trim()))
 
   const notes = [
@@ -174,9 +175,11 @@ const InvoiceDocumentSheet = ({
                   key={`buyer-${index}`}
                   className={index === 0 ? 'break-words font-semibold invoice-ink' : 'break-words'}
                 >
+                  {/* Email line + Mail icon hidden for now
                   {index === 1 && invoice.customerEmail && line === invoice.customerEmail && (
                     <Mail size={13} className="mr-1.5 inline-block invoice-accent-text" aria-hidden="true" />
                   )}
+                  */}
                   {line}
                 </p>
               ))
