@@ -14,7 +14,7 @@ import CheckoutItems from '../components/CheckoutItems'
 import CheckoutAddress from '../components/CheckoutAddress'
 import GuestCheckoutAnnouncementBanner from '../components/GuestCheckoutAnnouncementBanner'
 import CheckoutPayment from '../components/CheckoutPayment'
-import CheckoutPreparingAnimation from '../components/CheckoutPreparingAnimation'
+import { CheckoutPreparingScreen } from '../components/CheckoutPreparingAnimation'
 import CheckoutSummary from '../components/CheckoutSummary'
 import { SagaStatusDisplay } from '../components/SagaStatusDisplay'
 import { fetchCheckoutStatus, fetchSagaStatus } from '../store/checkoutThunks'
@@ -27,6 +27,10 @@ import { useCheckoutDeliveryOptions } from '../hooks/useCheckoutDeliveryOptions'
 import { shopIdsWithoutSelectableDeliveryCompany } from '../utils/deliveryReadiness'
 import { isQuantityApprovalHold } from '../utils/quantityApprovalHold'
 import { hasConfirmedStock } from '../utils/checkoutStatus'
+import {
+  clearGuestCheckoutSession,
+  setGuestCheckoutEditingProfile,
+} from '../utils/guestCheckoutProfile'
 
 const AuthCheckout = () => {
   const items = useAppSelector(selectSelectedItems)
@@ -185,12 +189,11 @@ const GuestCheckoutPayment = () => {
   const goToGuestForm = () => {
     try {
       sessionStorage.setItem('dni.guest_checkout.entry_ok', '1')
-      sessionStorage.removeItem('dni.guest_checkout.delivery_address')
-      sessionStorage.removeItem('dni.guest_checkout.checkout_id')
-      sessionStorage.removeItem('dni.guest_checkout.cart_key')
     } catch {
       // ignore
     }
+    clearGuestCheckoutSession()
+    setGuestCheckoutEditingProfile(true)
     dispatch(clearCheckout())
     dispatch(clearShippingCalculate())
     navigate('/checkout/guest', { replace: true })
@@ -314,13 +317,7 @@ const GuestCheckoutPayment = () => {
   }
 
   if (!ready) {
-    try {
-      sessionStorage.removeItem('dni.guest_checkout.delivery_address')
-      sessionStorage.removeItem('dni.guest_checkout.checkout_id')
-      sessionStorage.removeItem('dni.guest_checkout.cart_key')
-    } catch {
-      // ignore
-    }
+    clearGuestCheckoutSession()
     return <Navigate to="/checkout/guest" replace />
   }
 
@@ -328,18 +325,7 @@ const GuestCheckoutPayment = () => {
     <Elements stripe={stripePromise}>
       <div className="min-h-[60vh] bg-[#f5f5f5] py-3 sm:py-4 lg:py-5">
         {isPreparingCheckout ? (
-          <div
-            role="status"
-            aria-live="polite"
-            aria-busy="true"
-            className="flex min-h-[60vh] w-full flex-col items-center justify-center gap-4"
-          >
-            <CheckoutPreparingAnimation />
-            <div className="text-center">
-              <p className="text-sm font-medium text-slate-700">Getting Your Order Ready...</p>
-              <p className="mt-1 text-xs text-slate-500">We're preparing your order with care.</p>
-            </div>
-          </div>
+          <CheckoutPreparingScreen />
         ) : (
           <div className="mx-auto w-full max-w-7xl px-3 sm:px-4 lg:px-6">
             <GuestCheckoutAnnouncementBanner />

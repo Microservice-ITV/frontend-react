@@ -1,15 +1,14 @@
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
-import type { UserAddress } from '@/features/account/types/addressTypes'
 import { selectSelectedItems } from '@/features/cart/store/cartSelectors'
 import { useSyncCartAvailableStock } from '@/features/cart/hooks/useSyncCartAvailableStock'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { SearchableSelect } from '@/components/ui/SearchableSelect'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { guestCheckoutCart } from '../store/checkoutThunks'
 import { clearCheckout, setCheckoutError, setCheckoutPreparingUi } from '../store/checkoutSlice'
-import CheckoutPreparingAnimation from '../components/CheckoutPreparingAnimation'
+import { CheckoutPreparingScreen } from '../components/CheckoutPreparingAnimation'
 import { loadAllCities, type CityOptionWithState } from '@/features/admin/api/locationOptions'
 import {
   formatDisabledTaxAmount,
@@ -18,29 +17,23 @@ import {
   resolveCartTax,
 } from '../api/checkoutApi'
 import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
+import {
+  buildGuestDeliveryAddress,
+  getOrCreateGuestId,
+  guestPhoneToE164,
+  isGuestCheckoutEditingProfile,
+  isGuestCheckoutProfileComplete,
+  loadGuestCheckoutProfile,
+  persistGuestCheckoutSession,
+  saveGuestCheckoutProfile,
+  setGuestCheckoutEditingProfile,
+  toGuestCheckoutApiAddress,
+} from '../utils/guestCheckoutProfile'
 import { AlertCircle, Lightbulb, UserRound } from 'lucide-react'
-function getOrCreateGuestId(): string {
-  try {
-    const key = 'dni.guest_id'
-    const existing = sessionStorage.getItem(key)
-    if (existing) return existing
-    const id =
-      typeof crypto !== 'undefined' && 'randomUUID' in crypto
-        ? crypto.randomUUID()
-        : `guest-${Date.now()}-${Math.random().toString(16).slice(2)}`
-    sessionStorage.setItem(key, id)
-    return id
-  } catch {
-    return `guest-${Date.now()}-${Math.random().toString(16).slice(2)}`
-  }
-}
 
 const fieldLabelClass = 'mb-1 block text-sm font-semibold text-gray-900'
 const fieldClass =
   'w-full rounded-sm border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-600'
-const exampleBadgeClass =
-  'flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-[11px] font-semibold text-white'
-const exampleValueClass = 'mt-2 text-sm font-medium leading-5 text-gray-900'
 
 function ExampleStep({
   step,
@@ -56,10 +49,12 @@ function ExampleStep({
   return (
     <div>
       <div className="flex items-center gap-1.5">
-        <span className={exampleBadgeClass}>{step}</span>
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-[11px] font-semibold text-white">
+          {step}
+        </span>
         <span className="text-sm font-semibold text-gray-900">{label}</span>
       </div>
-      <p className={exampleValueClass}>{example}</p>
+      <p className="mt-2 text-sm font-medium leading-5 text-gray-900">{example}</p>
       <p className="mt-1.5 text-[11px] leading-4 text-gray-500">{hint}</p>
     </div>
   )
@@ -69,9 +64,8 @@ const GuestCheckoutPage = () => {
   const dispatch = useAppDispatch()
   useSyncCartAvailableStock()
   const navigate = useNavigate()
-
   const items = useAppSelector(selectSelectedItems)
-  const { loading } = useAppSelector((state) => state.checkout)
+  const { loading } = useAppSelector((s) => s.checkout)
 
   const entryOk = useMemo(() => {
     try {
@@ -81,29 +75,58 @@ const GuestCheckoutPage = () => {
     }
   }, [])
 
-  const [guestId] = useState<string>(() => getOrCreateGuestId())
-  const [fullName, setFullName] = useState('')
-  // Store digits only (no +95 prefix)
-  const [phone, setPhone] = useState('')
-  const [phoneTouched, setPhoneTouched] = useState(false)
-  const [address, setAddress] = useState('')
-  const [cities, setCities] = useState<CityOptionWithState[]>([])
-  const [selectedCityId, setSelectedCityId] = useState<string>('')
-  const selectedCity = useMemo(
-    () => cities.find((city) => city.id === selectedCityId) ?? null,
-    [cities, selectedCityId],
-  )
+  const [guestId] = useState(getOrCreateGuestId)
+  const [savedProfile] = useState(loadGuestCheckoutProfile)
+  const [editingProfile] = useState(isGuestCheckoutEditingProfile)
+  const [autoSkipBlocked, setAutoSkipBlocked] = useState(false)
+  const autoStartedRef = useRef(false)
+  const shouldSkipForm =
+    !editingProfile && !autoSkipBlocked && isGuestCheckoutProfileComplete(savedProfile)
 
+  const [fullName, setFullName] = useState(savedProfile.fullName)
+  const [phone, setPhone] = useState(savedProfile.phone)
+  const [phoneTouched, setPhoneTouched] = useState(false)
+  const [address, setAddress] = useState(savedProfile.address)
+  const [cities, setCities] = useState<CityOptionWithState[]>([])
+  const [citiesLoaded, setCitiesLoaded] = useState(false)
+  const [selectedCityId, setSelectedCityId] = useState(savedProfile.cityId)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [taxAmount, setTaxAmount] = useState(0)
   const [taxEnabled, setTaxEnabled] = useState(true)
   const [taxLoading, setTaxLoading] = useState(false)
 
+  const selectedCity = useMemo(
+    () => cities.find((c) => c.id === selectedCityId) ?? null,
+    [cities, selectedCityId],
+  )
+  const phoneE164 = useMemo(() => guestPhoneToE164(phone), [phone])
+  const phoneError =
+    phoneTouched && phone.length > 0 && !phoneE164
+      ? 'Enter a valid Myanmar phone number (9xxxxxxxxx or 09xxxxxxxxx).'
+      : null
+
+  const deliveryAddress = useMemo(() => {
+    if (!fullName.trim() || !phoneE164 || !selectedCity || !address.trim()) return null
+    return buildGuestDeliveryAddress({
+      guestId,
+      fullName,
+      phone,
+      address,
+      city: selectedCity,
+    })
+  }, [fullName, phoneE164, selectedCity, address, guestId, phone])
+
   const merchandiseSubtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const taxLinesKey = items
     .map((item) => `${item.productId}:${item.quantity}:${item.price}:${item.categoryId ?? ''}`)
     .join('|')
+  const canContinue = !!deliveryAddress && items.length > 0 && !loading && !submitting
+
+  useEffect(() => {
+    if (shouldSkipForm) return
+    saveGuestCheckoutProfile({ fullName, phone, address, cityId: selectedCityId })
+  }, [fullName, phone, address, selectedCityId, shouldSkipForm])
 
   useEffect(() => {
     if (items.length === 0) return
@@ -147,10 +170,16 @@ const GuestCheckoutPage = () => {
     let cancelled = false
     void loadAllCities()
       .then((list) => {
-        if (!cancelled) setCities(list)
+        if (!cancelled) {
+          setCities(list)
+          setCitiesLoaded(true)
+        }
       })
       .catch(() => {
-        if (!cancelled) setCities([])
+        if (!cancelled) {
+          setCities([])
+          setCitiesLoaded(true)
+        }
       })
     return () => {
       cancelled = true
@@ -158,71 +187,14 @@ const GuestCheckoutPage = () => {
   }, [])
 
   useEffect(() => {
-    dispatch(setCheckoutPreparingUi(submitting))
+    dispatch(setCheckoutPreparingUi(submitting || shouldSkipForm))
     return () => {
       dispatch(setCheckoutPreparingUi(false))
     }
-  }, [dispatch, submitting])
+  }, [dispatch, submitting, shouldSkipForm])
 
-  const phoneE164 = useMemo(() => {
-    const digits = String(phone ?? '').replace(/\D/g, '')
-    // Accept Myanmar local formats:
-    // - 09xxxxxxxxx (11 digits, starts with 0)
-    // - 9xxxxxxxxx  (10 digits, starts with 9) because +95 prefix is shown in UI
-    if (digits.length === 11 && digits.startsWith('0')) {
-      return `+95${digits.slice(1)}`
-    }
-    if (digits.length === 10 && digits.startsWith('9')) {
-      return `+95${digits}`
-    }
-    return ''
-  }, [phone])
-  const phoneError =
-    phoneTouched && phone.length > 0 && !phoneE164
-      ? 'Enter a valid Myanmar phone number (9xxxxxxxxx or 09xxxxxxxxx).'
-      : null
-
-  const deliveryAddress: UserAddress | null = useMemo(() => {
-    if (!fullName.trim() || !phoneE164 || !selectedCity || !address.trim()) return null
-
-    return {
-      address_id: `guest-${guestId}`,
-      country_code: 'MM',
-      country: 'Myanmar',
-      state_id: selectedCity.stateId,
-      city_id: Number(selectedCity.id),
-      district_id: null,
-      ward_id: null,
-      state: selectedCity.stateName,
-      city: selectedCity.name,
-      district: null,
-      ward: null,
-      address_line_1: address.trim(),
-      address_line_2: null,
-      postal_code: null,
-      latitude: null,
-      longitude: null,
-      type: null,
-      label: 'Guest Address',
-      full_name: fullName.trim(),
-      phone_no: phoneE164,
-      email: null,
-      delivery_note: null,
-      is_default: false,
-      is_shipping: true,
-      is_billing: false,
-    }
-  }, [fullName, phoneE164, selectedCity, address, guestId])
-
-  const canContinue =
-    !!deliveryAddress &&
-    items.length > 0 &&
-    !loading &&
-    !submitting
-
-  const continueToPayment = async () => {
+  const continueToPayment = useCallback(async () => {
     if (!deliveryAddress) return
-
     const cartKey = items
       .map((item) => `${item.productId}:${item.variantId ?? ''}:${item.quantity}`)
       .sort()
@@ -237,76 +209,66 @@ const GuestCheckoutPage = () => {
       const result = await dispatch(
         guestCheckoutCart({
           guest_id: guestId,
-          delivery_address: {
-            full_name: deliveryAddress.full_name,
-            phone_no: deliveryAddress.phone_no,
-            email: deliveryAddress.email ?? null,
-            country_code: deliveryAddress.country_code || 'MM',
-            country: deliveryAddress.country ?? '',
-            state: deliveryAddress.state ?? '',
-            city: deliveryAddress.city ?? '',
-            city_id: deliveryAddress.city_id ?? null,
-            district: deliveryAddress.district ?? '',
-            district_id: deliveryAddress.district_id ?? null,
-            ward: deliveryAddress.ward ?? '',
-            address_line_1: deliveryAddress.address_line_1,
-            address_line_2: deliveryAddress.address_line_2 ?? null,
-            postal_code: deliveryAddress.postal_code ?? null,
-            latitude: deliveryAddress.latitude ?? null,
-            longitude: deliveryAddress.longitude ?? null,
-            delivery_note: deliveryAddress.delivery_note ?? null,
-          },
+          delivery_address: toGuestCheckoutApiAddress(deliveryAddress),
         }),
       ).unwrap()
 
-      try {
-        sessionStorage.setItem('dni.guest_checkout.delivery_address', JSON.stringify(deliveryAddress))
-        sessionStorage.setItem('dni.guest_checkout.cart_key', cartKey)
-        const checkoutId =
-          (result as any)?.checkout_id ??
-          (result as any)?.checkout?.checkout_id ??
-          (result as any)?.checkout?.id ??
-          null
-        if (checkoutId) {
-          sessionStorage.setItem('dni.guest_checkout.checkout_id', String(checkoutId))
-        }
-      } catch {
-        // ignore
-      }
+      const checkoutId =
+        (result as { checkout_id?: string; checkout?: { checkout_id?: string; id?: string } })
+          ?.checkout_id ??
+        (result as { checkout?: { checkout_id?: string; id?: string } })?.checkout?.checkout_id ??
+        (result as { checkout?: { id?: string } })?.checkout?.id ??
+        null
 
+      persistGuestCheckoutSession({
+        address: deliveryAddress,
+        cartKey,
+        checkoutId,
+        profile: {
+          fullName: deliveryAddress.full_name,
+          phone,
+          address: deliveryAddress.address_line_1,
+          cityId: selectedCityId,
+        },
+      })
       navigate('/checkout', { replace: true })
-      // Keep submitting=true so the preparing screen stays until this page unmounts.
     } catch (e: unknown) {
-      const guestError = e as { message?: string }
       const message =
         typeof e === 'string'
           ? e
-          : guestError?.message ??
-            'Unable to start checkout. Please try again.'
+          : (e as { message?: string })?.message ?? 'Unable to start checkout. Please try again.'
       setSubmitError(String(message))
       setSubmitting(false)
+      setAutoSkipBlocked(true)
+      setGuestCheckoutEditingProfile(true)
     }
-  }
+  }, [deliveryAddress, dispatch, guestId, items, navigate, phone, selectedCityId])
 
-  if (!entryOk || items.length === 0) {
-    return <Navigate to="/cart" replace />
-  }
+  useEffect(() => {
+    if (!shouldSkipForm || !entryOk || items.length === 0 || !citiesLoaded) return
+    if (!deliveryAddress) {
+      setAutoSkipBlocked(true)
+      return
+    }
+    if (loading || submitting || autoStartedRef.current) return
+    autoStartedRef.current = true
+    void continueToPayment()
+  }, [
+    shouldSkipForm,
+    entryOk,
+    items.length,
+    citiesLoaded,
+    deliveryAddress,
+    loading,
+    submitting,
+    continueToPayment,
+  ])
 
-  if (submitting) {
+  if (!entryOk || items.length === 0) return <Navigate to="/cart" replace />
+  if (submitting || shouldSkipForm) {
     return (
       <div className="min-h-[60vh] bg-[#f5f5f5] py-3 sm:py-4 lg:py-5">
-        <div
-          role="status"
-          aria-live="polite"
-          aria-busy="true"
-          className="flex min-h-[60vh] w-full flex-col items-center justify-center gap-4"
-        >
-          <CheckoutPreparingAnimation />
-          <div className="text-center">
-            <p className="text-sm font-medium text-slate-700">Getting Your Order Ready...</p>
-            <p className="mt-1 text-xs text-slate-500">We're preparing your order with care.</p>
-          </div>
-        </div>
+        <CheckoutPreparingScreen />
       </div>
     )
   }
@@ -314,7 +276,6 @@ const GuestCheckoutPage = () => {
   return (
     <div className="bg-gray-50 px-4 pt-8 pb-12">
       <div className="mx-auto w-full max-w-3xl space-y-4">
-        <div>
         <Card className="p-6">
           <h1 className="flex items-center gap-2 text-lg font-semibold text-gray-900">
             <UserRound className="h-5 w-5 text-emerald-600" aria-hidden="true" />
@@ -337,7 +298,7 @@ const GuestCheckoutPage = () => {
             </div>
           )}
 
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <label htmlFor="guest-full-name" className={fieldLabelClass}>
                 Full Name <span className="text-red-500">*</span>
@@ -366,15 +327,12 @@ const GuestCheckoutPage = () => {
                   autoComplete="tel-national"
                   placeholder="9xxxxxxxxx"
                   value={phone}
-                  onChange={(e) => {
-                    const next = e.target.value.replace(/\D/g, '').slice(0, 11)
-                    setPhone(next)
-                  }}
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 11))}
                   onBlur={() => setPhoneTouched(true)}
                   maxLength={11}
                   aria-invalid={!!phoneError}
                   aria-describedby={phoneError ? 'guest-phone-error' : undefined}
-                  className={`w-full border border-l-0 rounded-r-sm px-3 py-2 text-sm focus:outline-none focus:ring-1 ${
+                  className={`w-full rounded-r-sm border border-l-0 px-3 py-2 text-sm focus:outline-none focus:ring-1 ${
                     phoneError
                       ? 'border-red-500 focus:ring-red-500'
                       : 'border-gray-300 focus:ring-emerald-600'
@@ -451,7 +409,6 @@ const GuestCheckoutPage = () => {
             </Button>
           </div>
         </Card>
-        </div>
 
         <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-4">
           <p className="flex items-center gap-2 text-sm font-semibold text-emerald-800">
@@ -481,4 +438,3 @@ const GuestCheckoutPage = () => {
 }
 
 export default GuestCheckoutPage
-
