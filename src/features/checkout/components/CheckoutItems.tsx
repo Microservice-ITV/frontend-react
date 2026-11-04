@@ -673,7 +673,7 @@ function CheckoutVoucherPicker({ shopId, shopName, vouchers, selectedCodes, load
       role="presentation"
       onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}
     >
-      <section role="dialog" aria-modal="true" aria-labelledby="checkout-voucher-picker-title" className="w-full max-w-lg overflow-hidden rounded-xl bg-white shadow-xl">
+      <section role="dialog" aria-modal="true" aria-labelledby="checkout-voucher-picker-title" className="w-full max-w-lg overflow-hidden rounded-sm bg-white shadow-xl">
         <header className="border-b border-gray-100 px-5 py-4">
           <h2 id="checkout-voucher-picker-title" className="font-semibold text-gray-900">Select vouchers</h2>
           <p className="mt-1 text-sm text-gray-500">Available for {shopName}</p>
@@ -684,13 +684,13 @@ function CheckoutVoucherPicker({ shopId, shopName, vouchers, selectedCodes, load
         </div>
         <div className="max-h-[55vh] overflow-y-auto p-4">
           {loading ? <p className="py-8 text-center text-sm text-gray-500">Loading your vouchers…</p>
-            : loadingError ? <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Could not load your vouchers. Please try again.</p>
+            : loadingError ? <p className="rounded-sm bg-amber-50 p-3 text-sm text-amber-800">Could not load your vouchers. Please try again.</p>
               : available.length === 0 ? <p className="py-8 text-center text-sm text-gray-500">No available vouchers for this shop.</p>
                 : <ul className="space-y-2">{available.map(voucher => {
                   const checked = selectedCodes.includes(voucher.code)
                   return (
                     <li key={voucher.id}>
-                      <label className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 ${checked ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200'}`}>
+                      <label className={`flex cursor-pointer items-start gap-3 rounded-sm border p-3 ${checked ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200'}`}>
                         <input type="checkbox" checked={checked} onChange={() => toggle(voucher)} className="mt-1 h-4 w-4 accent-emerald-600" />
                         <span className="min-w-0 flex-1">
                           <span className="block font-semibold tracking-wide text-gray-900">{voucher.code}</span>
@@ -704,8 +704,8 @@ function CheckoutVoucherPicker({ shopId, shopName, vouchers, selectedCodes, load
           <p className="mt-3 text-xs text-gray-500">Only one voucher from each promotion can be used in one order.</p>
         </div>
         <footer className="flex justify-end gap-2 border-t border-gray-100 px-5 py-4">
-          <button type="button" onClick={onClose} className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-700">Cancel</button>
-          <button type="button" onClick={onSave} disabled={loading} className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-60">Use selected</button>
+          <button type="button" onClick={onClose} className="rounded-sm border border-gray-200 px-4 py-2 text-sm text-gray-700">Cancel</button>
+          <button type="button" onClick={onSave} disabled={loading} className="rounded-sm bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-60">Use selected</button>
         </footer>
       </section>
     </div>
