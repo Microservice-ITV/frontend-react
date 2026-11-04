@@ -130,8 +130,7 @@ const CommonNotificationsPage = ({ area, viewAllPath }: CommonNotificationsPageP
 
   useEffect(() => {
     void dispatch(fetchNotifications())
-    // Server-side unread total (the store count is otherwise only refreshed by the Socket.IO
-    // `connected` handler, and the list response is capped at 50 rows).
+    // Server-side unread total (list response is capped at 50 rows).
     void dispatch(fetchUnreadCount())
   }, [dispatch])
 
