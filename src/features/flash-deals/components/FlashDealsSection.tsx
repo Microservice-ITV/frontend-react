@@ -1,16 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Zap } from "lucide-react";
 import FlashDealCard from "./FlashDealCard";
 import FlashDealCountdown from "./FlashDealCountdown";
-import {
-  getFlashDealsByTimeSlot,
-  type FlashDealApiItem,
-} from "@/lib/api/flashDealClient";
-import {
-  FLASH_DEAL_STOREFRONT_REFRESH_MS,
-  selectLiveFlashDeals,
-} from "../lib/flashDealStorefront";
+import { useHomeFlashDealsQuery } from "@/features/home/queries/homeQueries";
 import { useReportHomeSection } from "@/features/home/homeScreenReady";
 
 const CARD_WIDTH_PX = 220;
@@ -29,90 +22,54 @@ const FlashDealsSection = () => {
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
-  const [deals, setDeals] = useState<FlashDealApiItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [countdownLabel, setCountdownLabel] = useState("Ends Soon");
-  const [endTime, setEndTime] = useState<number>(() =>
-    getNextSessionEnd().getTime(),
-  );
+  const { data: deals = [], isPending, isFetched, isFetching } =
+    useHomeFlashDealsQuery();
+  // Splash / section ready: first fetch finished (later polls stay silent).
+  useReportHomeSection("flashDeals", isFetched);
+
+  const { countdownLabel, endTime } = useMemo(() => {
+    const now = Date.now();
+    const windows = deals
+      .map((item) => ({
+        start: item.startAt ? new Date(item.startAt).getTime() : 0,
+        end: item.endAt ? new Date(item.endAt).getTime() : 0,
+      }))
+      .filter(
+        (window) =>
+          Number.isFinite(window.start) &&
+          Number.isFinite(window.end) &&
+          window.end > now,
+      );
+
+    const activeEnds = windows
+      .filter((window) => window.start <= now)
+      .map((window) => window.end);
+    if (activeEnds.length > 0) {
+      return {
+        countdownLabel: "Ends Soon",
+        endTime: Math.min(...activeEnds),
+      };
+    }
+
+    const upcomingStarts = windows
+      .map((window) => window.start)
+      .filter((start) => start > now);
+    if (upcomingStarts.length > 0) {
+      return {
+        countdownLabel: "Starts In",
+        endTime: Math.min(...upcomingStarts),
+      };
+    }
+
+    return {
+      countdownLabel: "Ends Soon",
+      endTime: getNextSessionEnd().getTime(),
+    };
+  }, [deals]);
 
   const [timeLeft, setTimeLeft] = useState(() =>
     Math.max(0, Math.floor((endTime - Date.now()) / 1000)),
   );
-
-  const [refreshTick, setRefreshTick] = useState(0);
-  const hasLoadedRef = useRef(false);
-  useReportHomeSection("flashDeals", !loading);
-
-  useEffect(() => {
-    const bump = () => setRefreshTick((tick) => tick + 1);
-    const timer = window.setInterval(bump, FLASH_DEAL_STOREFRONT_REFRESH_MS);
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") bump();
-    };
-    document.addEventListener("visibilitychange", handleVisibility);
-    return () => {
-      window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", handleVisibility);
-    };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    // Only the initial fetch shows skeletons; later refreshes stay silent.
-    // This must not be a "first run" flag: StrictMode runs the effect twice and
-    // discards the first run, which would leave the skeletons up forever.
-    if (!hasLoadedRef.current) setLoading(true);
-
-    getFlashDealsByTimeSlot({ limit: 12, status: "all" })
-      .then((res) => {
-        if (cancelled) return;
-        const items = selectLiveFlashDeals(res.data.items);
-        const slots = res.data.timeSlots ?? [];
-        setDeals(items);
-
-        const now = Date.now();
-        const windows = items
-          .map((item) => ({
-            start: item.startAt ? new Date(item.startAt).getTime() : 0,
-            end: item.endAt ? new Date(item.endAt).getTime() : 0,
-          }))
-          .filter(
-            (window) =>
-              Number.isFinite(window.start) &&
-              Number.isFinite(window.end) &&
-              window.end > now,
-          );
-
-        const activeEnds = windows
-          .filter((window) => window.start <= now)
-          .map((window) => window.end);
-        if (activeEnds.length > 0) {
-          setCountdownLabel("Ends Soon");
-          setEndTime(Math.min(...activeEnds));
-          return;
-        }
-
-        const upcomingStarts = windows
-          .map((window) => window.start)
-          .filter((start) => start > now);
-        if (upcomingStarts.length > 0) {
-          setCountdownLabel("Starts In");
-          setEndTime(Math.min(...upcomingStarts));
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setDeals([]);
-      })
-      .finally(() => {
-        if (cancelled) return;
-        hasLoadedRef.current = true;
-        setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [refreshTick]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -152,7 +109,7 @@ const FlashDealsSection = () => {
       ro.disconnect();
       window.clearTimeout(t);
     };
-  }, [updateScrollAffordance, deals.length, loading]);
+  }, [updateScrollAffordance, deals.length, isPending, isFetching]);
 
   const scrollByStep = (direction: "left" | "right") => {
     const el = scrollerRef.current;
@@ -165,7 +122,7 @@ const FlashDealsSection = () => {
   };
 
   // Avoid skeleton → empty collapse (CLS). Stay hidden until we know there are deals.
-  if (loading || deals.length === 0) return null;
+  if (isPending || deals.length === 0) return null;
 
   return (
     <section className="relative w-full border border-[var(--dni-cart-border)] bg-white">
@@ -220,32 +177,15 @@ const FlashDealsSection = () => {
             className="flex min-w-max gap-4"
             style={{ width: "max-content" }}
           >
-            {loading
-              ? Array.from({ length: 6 }).map((_, idx) => (
-                  <div
-                    key={`skeleton-${idx}`}
-                    className="min-w-0 shrink-0"
-                    style={{ width: CARD_WIDTH_PX, maxWidth: CARD_WIDTH_PX }}
-                  >
-                    <div className="flex flex-col overflow-hidden border border-[var(--dni-cart-border)] bg-white">
-                      <div className="aspect-square animate-pulse bg-[#f0f0f0]" />
-                      <div className="space-y-2 p-4">
-                        <div className="h-4 w-1/2 animate-pulse bg-[#f0f0f0]" />
-                        <div className="h-3 w-3/4 animate-pulse bg-[#f0f0f0]" />
-                        <div className="h-5 w-full animate-pulse bg-[#f0f0f0]" />
-                      </div>
-                    </div>
-                  </div>
-                ))
-              : deals.map((deal) => (
-                  <div
-                    key={deal.id}
-                    className="min-w-0 shrink-0"
-                    style={{ width: CARD_WIDTH_PX, maxWidth: CARD_WIDTH_PX }}
-                  >
-                    <FlashDealCard deal={deal} />
-                  </div>
-                ))}
+            {deals.map((deal) => (
+              <div
+                key={deal.id}
+                className="min-w-0 shrink-0"
+                style={{ width: CARD_WIDTH_PX, maxWidth: CARD_WIDTH_PX }}
+              >
+                <FlashDealCard deal={deal} />
+              </div>
+            ))}
           </div>
         </div>
         {canScrollRight && (

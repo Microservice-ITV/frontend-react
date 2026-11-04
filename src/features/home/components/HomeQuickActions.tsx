@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { useAppDispatch, useAppSelector } from '@/app/hooks'
-import { fetchHomeQuickActions } from '../store/homeThunks'
-import { isRequestSettled, useReportHomeSection } from '../homeScreenReady'
+import { useReportHomeSection } from '../homeScreenReady'
+import { useHomeQuickActionsQuery } from '../queries/homeQueries'
 import { Typing } from '@/components/loading-ui/typing'
 import ResponsiveAssetImage from '@/components/media/ResponsiveAssetImage'
 import { StorefrontUnavailableNotice } from '@/components/feedback/StorefrontUnavailableNotice'
@@ -20,16 +19,9 @@ const isWithinSchedule = (feature: HomeFeature, now: number): boolean => {
 }
 
 const HomeQuickActions = () => {
-  const dispatch = useAppDispatch()
-  const { items, status } = useAppSelector((s) => s.homeQuickActions)
+  const { data: items = [], isPending, isError, isFetched } = useHomeQuickActionsQuery()
   const [page, setPage] = useState(0)
-  useReportHomeSection('quickActions', isRequestSettled(status))
-
-  useEffect(() => {
-    if (status === 'idle') {
-      void dispatch(fetchHomeQuickActions())
-    }
-  }, [dispatch, status])
+  useReportHomeSection('quickActions', isFetched)
 
   const visibleFeatures = useMemo(() => {
     const now = Date.now()
@@ -85,17 +77,17 @@ const HomeQuickActions = () => {
     <section style={{ ['--quick-action-page-size' as string]: DESKTOP_PAGE_SIZE }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="py-4">
-          {status === 'loading' && visibleFeatures.length === 0 ? (
+          {isPending && visibleFeatures.length === 0 ? (
             <div className="flex min-h-24 items-center justify-center">
               <Typing className="w-8" />
             </div>
           ) : null}
 
-          {status === 'failed' && visibleFeatures.length === 0 ? (
+          {isError && visibleFeatures.length === 0 ? (
             <StorefrontUnavailableNotice className="py-2" />
           ) : null}
 
-          {visibleFeatures.length === 0 && status !== 'loading' && status !== 'failed' ? (
+          {visibleFeatures.length === 0 && !isPending && !isError ? (
             <div className="py-2 text-sm text-gray-400">No quick actions available.</div>
           ) : null}
 
