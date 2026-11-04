@@ -37,7 +37,8 @@ const FILTER_TABS: { key: 'all' | ProductStatus; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'active', label: 'Active' },
   { key: 'draft', label: 'Draft' },
-  { key: 'archived', label: 'Archived' },
+  // Backend maps isActive:false → archived; label matches the edit form "Inactive".
+  { key: 'archived', label: 'Inactive' },
 ]
 
 const SellerProductsPage = () => {
@@ -428,7 +429,7 @@ const SellerProductsPage = () => {
                       <span
                         className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${STATUS_STYLES[product.status]}`}
                       >
-                        {product.status}
+                        {product.status === 'archived' ? 'Inactive' : product.status}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-center">
