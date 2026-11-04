@@ -16,7 +16,7 @@ import AnnouncementBuyTwo, {
   BUY_TWO_ANNOUNCEMENT_HEIGHT,
 } from "./announmentBuyTwo";
 import type { Announcement } from "@/features/announcements/types/announcementTypes";
-import { useActiveAnnouncementsQuery } from "@/features/home/queries/homeQueries";
+import { useActiveAnnouncementsQuery } from "@/features/home/queries/useActiveAnnouncementsQuery";
 
 export {
   AnnouncementBanner,

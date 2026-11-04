@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Zap } from "lucide-react";
 import FlashDealCard from "./FlashDealCard";
 import FlashDealCountdown from "./FlashDealCountdown";
-import { useHomeFlashDealsQuery } from "@/features/home/queries/homeQueries";
+import { useHomeFlashDealsQuery } from "@/features/home/queries/useHomeFlashDealsQuery";
 import { useReportHomeSection } from "@/features/home/homeScreenReady";
 
 const CARD_WIDTH_PX = 220;

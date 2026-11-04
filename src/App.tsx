@@ -3,7 +3,6 @@ import { matchPath, useLocation, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { bootstrapAuth, fetchMe } from '@/features/auth/store/authThunks'
 import Navbar from '@/components/layouts/navbar/Navbar'
-import AppRoutes from '@/routes/AppRoutes'
 import ScrollToTop from './components/routing/ScrollToTop'
 import { setAccessToken, setHasSession } from './features/auth/store/authSlice'
 import { setSessionCookie } from '@/utils/session'
@@ -14,7 +13,8 @@ import { HomeScreenReadyProvider } from '@/features/home/homeScreenReady'
 import { useNotificationRealtime } from '@/features/notifications/socket/useNotificationRealtime'
 import { isInvoicePrintRoute } from '@/routes/invoicePrintRoutes'
 
-// Keep home routes eager for LCP; defer chrome that is below the fold.
+// Route table + page graph stay out of the entry chunk (unused-JS).
+const AppRoutes = lazy(() => import('@/routes/AppRoutes'))
 const Footer = lazy(() => import('@/components/layouts/Footer'))
 const GoogleAnalytics = lazy(
   () => import('./components/analytics/GoogleAnalytics'),
@@ -141,7 +141,9 @@ function App() {
           className={isDashboardRoute || isInvoicePrintRoutePath ? 'min-h-screen' : 'flex-1'}
         >
           <div inert={showSplash || undefined}>
-            <AppRoutes />
+            <Suspense fallback={null}>
+              <AppRoutes />
+            </Suspense>
           </div>
         </main>
 
