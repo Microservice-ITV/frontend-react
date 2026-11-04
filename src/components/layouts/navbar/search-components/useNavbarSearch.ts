@@ -1,12 +1,8 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAppSelector, useAppDispatch } from "@/app/hooks";
 import { searchProducts } from "@/features/products/store/productThunks";
-import { fetchCategories } from "@/features/categories/store/categoryThunks";
-import {
-  selectCategoriesWithProducts,
-  selectCategoriesStatus,
-} from "@/features/categories/store/categorySelectors";
+import { useHomeCategoriesQuery } from "@/features/home/queries/useHomeCategoriesQuery";
 import { searchShops } from "@/features/shops/store/shopThunks";
 import { clearSearch as clearProductSearch } from "@/features/products/store/productSlice";
 import { clearShopSearch } from "@/features/shops/store/shopSlice";
@@ -38,8 +34,6 @@ export function useNavbarSearch() {
   const searchStatus = useAppSelector((s) => s.products.searchStatus || "idle");
   const shopResults = useAppSelector((s) => s.shops.searchResults || []);
   const shopStatus = useAppSelector((s) => s.shops.searchStatus || "idle");
-  const categories = useAppSelector(selectCategoriesWithProducts);
-  const categoriesStatus = useAppSelector(selectCategoriesStatus);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState(ALL_CATEGORIES);
@@ -56,15 +50,22 @@ export function useNavbarSearch() {
   queryRef.current = searchQuery;
   categoryRef.current = selectedCategoryId;
 
-  useEffect(() => {
-    if (categoriesStatus === "idle") {
-      dispatch(fetchCategories());
-    }
-  }, [categoriesStatus, dispatch]);
+  const onSearchPage = location.pathname.startsWith("/search");
+  // Do not eager-fetch categories from the navbar on Home — CategoriesSection
+  // already loads them. Fetch only when search UI actually needs the list.
+  const needsCategories =
+    isCategoryOpen || isMobileSearchOpen || onSearchPage;
+
+  const { data: categoryItems = [] } = useHomeCategoriesQuery({
+    enabled: needsCategories,
+  });
+  const categories = useMemo(
+    () => categoryItems.filter((c) => (c._count?.products ?? 0) > 0),
+    [categoryItems],
+  );
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const onSearchPage = location.pathname.startsWith("/search");
     const nextQuery = onSearchPage ? (params.get("q") ?? "") : "";
     const categorySlug = onSearchPage ? params.get("category") : null;
 
@@ -78,7 +79,7 @@ export function useNavbarSearch() {
     }
 
     if (timerRef.current) clearTimeout(timerRef.current);
-  }, [location.pathname, location.search, categories]);
+  }, [location.pathname, location.search, categories, onSearchPage]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

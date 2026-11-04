@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
 import { productServiceAssetUrl } from '@/lib/api/apiConfig'
 import { categoryApi } from '@/features/categories/api/categoryApi'
 import type { Category } from '@/features/categories/types/categoryTypes'
@@ -17,10 +17,16 @@ export async function fetchHomeCategories(): Promise<Category[]> {
   }))
 }
 
-export function useHomeCategoriesQuery() {
+type HomeCategoriesQueryOptions = Pick<
+  UseQueryOptions<Category[], Error>,
+  'enabled'
+>
+
+export function useHomeCategoriesQuery(options?: HomeCategoriesQueryOptions) {
   return useQuery({
     queryKey: homeQueryKeys.categories(),
     queryFn: fetchHomeCategories,
     staleTime: CATEGORIES_STALE_MS,
+    enabled: options?.enabled ?? true,
   })
 }
