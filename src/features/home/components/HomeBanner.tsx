@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useReportHomeSection } from "@/features/home/homeScreenReady";
-import { useHomeBannerQuery } from "@/features/home/queries/homeQueries";
+import { useHomeBannerQuery } from "@/features/home/queries/useHomeBannerQuery";
 import ResponsiveAssetImage from "@/components/media/ResponsiveAssetImage";
 import { ChevronLeft, ChevronRight, ImageIcon } from "lucide-react";
 

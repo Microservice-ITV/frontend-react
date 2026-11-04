@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import CategoryGrid, { type CategoryGridHandle } from "./CategoryGrid";
 import { useReportHomeSection } from "@/features/home/homeScreenReady";
-import { useHomeCategoriesQuery } from "@/features/home/queries/homeQueries";
+import { useHomeCategoriesQuery } from "@/features/home/queries/useHomeCategoriesQuery";
 import { Typing } from "@/components/loading-ui/typing";
 import { StorefrontUnavailableNotice } from "@/components/feedback/StorefrontUnavailableNotice";
 

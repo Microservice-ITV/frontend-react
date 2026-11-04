@@ -49,10 +49,29 @@ function serveBrandLogo() {
   }
 }
 
+/**
+ * Make Vite's built CSS non-render-blocking (PageSpeed "Render-blocking requests").
+ * Critical above-fold shell stays inline in index.html.
+ */
+function asyncCss() {
+  return {
+    name: 'async-css',
+    enforce: 'post',
+    transformIndexHtml(html) {
+      return html.replace(
+        /<link([^>]*\s)rel="stylesheet"([^>]*href="[^"]+\.css"[^>]*)\/?>/gi,
+        (_match, before, after) =>
+          `<link${before}rel="stylesheet"${after} media="print" onload="this.media='all'">` +
+          `<noscript><link${before}rel="stylesheet"${after}></noscript>`,
+      )
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   envDir: '..',
-  plugins: [react(), tailwindcss(), serveBrandLogo()],
+  plugins: [react(), tailwindcss(), serveBrandLogo(), asyncCss()],
   test: {
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.ts'],
@@ -106,6 +125,10 @@ export default defineConfig({
           if (!id.includes('node_modules')) return
           if (id.includes('xlsx')) return 'vendor-xlsx'
           if (id.includes('pdfjs-dist')) return 'vendor-pdf'
+          // Keep react-query out of the giant entry graph for coverage / unused-JS.
+          if (id.includes('@tanstack/react-query') || id.includes('@tanstack/query-core')) {
+            return 'vendor-query'
+          }
         },
       },
     },

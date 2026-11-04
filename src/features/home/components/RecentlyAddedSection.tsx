@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import ProductGrid from "@/features/products/components/ProductGrid";
 import { ChevronRight } from "lucide-react";
 import { useReportHomeSection } from "@/features/home/homeScreenReady";
-import { useHomeRecentProductsQuery } from "@/features/home/queries/homeQueries";
+import { useHomeRecentProductsQuery } from "@/features/home/queries/useHomeRecentProductsQuery";
 import { Typing } from "@/components/loading-ui/typing";
 import { StorefrontUnavailableNotice } from "@/components/feedback/StorefrontUnavailableNotice";
 

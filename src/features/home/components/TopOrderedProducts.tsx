@@ -1,6 +1,6 @@
 import TopOrderedProductCard from './TopOrderedProductCard'
 import { StorefrontUnavailableNotice } from '@/components/feedback/StorefrontUnavailableNotice'
-import { useHomeTopOrderedQuery } from '../queries/homeQueries'
+import { useHomeTopOrderedQuery } from '../queries/useHomeTopOrderedQuery'
 import { useReportHomeSection } from '../homeScreenReady'
 
 const TopOrderedProductSkeleton = () => (
