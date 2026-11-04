@@ -5,12 +5,12 @@ import RootEmployeeGuard from "./RootEmployeeGuard";
 import { ROUTE_ACCESS } from "./routeAccessMap";
 import SpinPage from "@/components/spin/SpinPage";
 import HomePage from "@/features/home/HomePage";
-import ShopFinanceDashboardPage from "@/features/finance/pages/ShopFinanceDashboardPage";
-import SalaryApprovalsPage from "@/features/finance/pages/SalaryApprovalsPage";
-import SellerReceivablesPayablesPage from "@/features/accounting/pages/SellerReceivablesPayablesPage";
-import InventoryValuationPage from "@/features/finance/pages/InventoryValuationPage";
 
 const HomeFeaturesPage = lazy(() => import("@/features/homeFeatures/pages/HomeFeaturesPage"));
+const ShopFinanceDashboardPage = lazy(() => import("@/features/finance/pages/ShopFinanceDashboardPage"));
+const SalaryApprovalsPage = lazy(() => import("@/features/finance/pages/SalaryApprovalsPage"));
+const SellerReceivablesPayablesPage = lazy(() => import("@/features/accounting/pages/SellerReceivablesPayablesPage"));
+const InventoryValuationPage = lazy(() => import("@/features/finance/pages/InventoryValuationPage"));
 const NewHomeFeaturePage = lazy(() => import("@/features/homeFeatures/pages/NewHomeFeaturePage"));
 const EditHomeFeaturePage = lazy(() => import("@/features/homeFeatures/pages/EditHomeFeaturePage"));
 const HeroBannersPage = lazy(() => import("@/features/heroBanners/pages/HeroBannersPage"));
