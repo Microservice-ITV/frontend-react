@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { ChevronRight, RefreshCw } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import TopOrderedProductCard from './TopOrderedProductCard'
+import { StorefrontUnavailableNotice } from '@/components/feedback/StorefrontUnavailableNotice'
 import { homeApi } from '../api/homeApi'
 import type { TopOrderedProduct, TopOrderedProductsStatus } from '../types/topOrderedProductTypes'
 import { useReportHomeSection } from '../homeScreenReady'
@@ -75,17 +76,7 @@ const TopOrderedProducts = () => {
                 )}
 
                 {status === 'error' && (
-                    <div className="flex flex-col items-center gap-3 py-10 text-center text-sm text-gray-500">
-                        <p>Failed to load top ordered products. Please try again later.</p>
-                        <button
-                            type="button"
-                            onClick={retry}
-                            className="inline-flex items-center gap-2 rounded border border-(--dni-primary) px-3 py-1.5 text-(--dni-primary) transition-colors hover:bg-(--dni-primary-soft) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--dni-primary)"
-                        >
-                            <RefreshCw aria-hidden="true" className="h-4 w-4" />
-                            Retry
-                        </button>
-                    </div>
+                    <StorefrontUnavailableNotice withRetry onRetry={retry} />
                 )}
 
                 {status === 'success' && (
