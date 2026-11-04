@@ -1,35 +1,24 @@
-import { useEffect } from "react";
 import { Link } from "react-router-dom";
-import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import ProductGrid from "@/features/products/components/ProductGrid";
-import { fetchRecentProducts } from "@/features/products/store/productThunks";
 import { ChevronRight } from "lucide-react";
-import { isRequestSettled, useReportHomeSection } from "@/features/home/homeScreenReady";
+import { useReportHomeSection } from "@/features/home/homeScreenReady";
+import { useHomeRecentProductsQuery } from "@/features/home/queries/homeQueries";
 import { Typing } from "@/components/loading-ui/typing";
 import { StorefrontUnavailableNotice } from "@/components/feedback/StorefrontUnavailableNotice";
 
 const HOME_PREVIEW_COUNT = 10;
 
 const RecentlyAddedSection = () => {
-  const dispatch = useAppDispatch();
-  const {
-    recentProducts,
-    recentProductsHasNextPage,
-    recentProductsStatus,
-    recentProductsError,
-  } = useAppSelector((state) => state.products);
-  useReportHomeSection("recentlyAdded", isRequestSettled(recentProductsStatus));
+  const { data, isPending, isError, isFetched, isSuccess } =
+    useHomeRecentProductsQuery(HOME_PREVIEW_COUNT);
+  useReportHomeSection("recentlyAdded", isFetched);
 
-  useEffect(() => {
-    if (recentProductsStatus === "idle") {
-      void dispatch(fetchRecentProducts({}));
-    }
-  }, [dispatch, recentProductsStatus]);
-
+  const recentProducts = data?.items ?? [];
+  const recentProductsHasNextPage = data?.hasNextPage ?? false;
   const previewProducts = recentProducts.slice(0, HOME_PREVIEW_COUNT);
-  const showViewAll = recentProducts.length > 0 && (
-    recentProductsHasNextPage || recentProducts.length > HOME_PREVIEW_COUNT
-  );
+  const showViewAll =
+    recentProducts.length > 0 &&
+    (recentProductsHasNextPage || recentProducts.length > HOME_PREVIEW_COUNT);
 
   return (
     <section
@@ -54,17 +43,15 @@ const RecentlyAddedSection = () => {
         )}
       </div>
 
-      {recentProductsStatus === "loading" && recentProducts.length === 0 && (
+      {isPending && recentProducts.length === 0 && (
         <div className="flex min-h-40 items-center justify-center" role="status">
           <Typing className="w-8" />
         </div>
       )}
 
-      {recentProductsError && (
-        <StorefrontUnavailableNotice className="py-4" />
-      )}
+      {isError && <StorefrontUnavailableNotice className="py-4" />}
 
-      {recentProductsStatus === "succeeded" && recentProducts.length === 0 && (
+      {isSuccess && recentProducts.length === 0 && (
         <div className="text-sm text-gray-500">
           No recently added products yet.
         </div>

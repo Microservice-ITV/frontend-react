@@ -15,8 +15,8 @@ import AnnouncementBuyTwo, {
   BUY_TWO_ANNOUNCEMENT_DISMISS_EVENT,
   BUY_TWO_ANNOUNCEMENT_HEIGHT,
 } from "./announmentBuyTwo";
-import { announcementApi } from "@/features/announcements/api/announcementApi";
 import type { Announcement } from "@/features/announcements/types/announcementTypes";
+import { useActiveAnnouncementsQuery } from "@/features/home/queries/homeQueries";
 
 export {
   AnnouncementBanner,
@@ -232,32 +232,10 @@ export const useAnnouncementVisibility = () => {
 };
 
 export const Announcements = () => {
-  const [apiAnnouncements, setApiAnnouncements] = useState<Announcement[]>([]);
+  const { data: apiAnnouncements = [] } = useActiveAnnouncementsQuery();
   const [hiddenAnnouncementIds, setHiddenAnnouncementIds] = useState<string[]>(
     [],
   );
-  useEffect(() => {
-    let ignore = false;
-
-    const loadAnnouncements = async () => {
-      try {
-        const response = await announcementApi.getActive();
-        if (!ignore) {
-          setApiAnnouncements(response.data ?? []);
-        }
-      } catch {
-        if (!ignore) {
-          setApiAnnouncements([]);
-        }
-      }
-    };
-
-    loadAnnouncements();
-
-    return () => {
-      ignore = true;
-    };
-  }, []);
 
   const visibleAnnouncements = useMemo(
     () =>

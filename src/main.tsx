@@ -1,12 +1,14 @@
 // 1. Third-party library imports
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { Provider } from 'react-redux'
 import { BrowserRouter } from 'react-router-dom'
 
 // 2. Absolute imports
 import { store } from '@/app/store'
 import { initCartSync, initWishlistSync, initWishlistServerSync } from '@/app/bootstrap'
+import { queryClient } from '@/lib/query/queryClient'
 import { GlobalModalProvider } from '@/components/ui/GlobalModalProvider'
 import { PageTitleProvider } from '@/components/routing/PageTitle'
 import App from './App'
@@ -25,13 +27,15 @@ createRoot(document.getElementById('root')!).render(
     {/* 1. Entire application state is stored in one object called the store */}
     {/* 2. Without Provider, React components cannot interact with Redux. */}
     <Provider store={store}>
-      <BrowserRouter>
-        <PageTitleProvider>
-          <GlobalModalProvider>
-            <App />
-          </GlobalModalProvider>
-        </PageTitleProvider>
-      </BrowserRouter>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <PageTitleProvider>
+            <GlobalModalProvider>
+              <App />
+            </GlobalModalProvider>
+          </PageTitleProvider>
+        </BrowserRouter>
+      </QueryClientProvider>
     </Provider>
   </StrictMode>
 )
