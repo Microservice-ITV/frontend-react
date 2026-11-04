@@ -6,6 +6,7 @@ import { fetchHomeQuickActions } from '../store/homeThunks'
 import { isRequestSettled, useReportHomeSection } from '../homeScreenReady'
 import { Typing } from '@/components/loading-ui/typing'
 import ResponsiveAssetImage from '@/components/media/ResponsiveAssetImage'
+import { StorefrontUnavailableNotice } from '@/components/feedback/StorefrontUnavailableNotice'
 import type { HomeFeature } from '../store/homeTypes'
 
 const DESKTOP_PAGE_SIZE = 7
@@ -20,7 +21,7 @@ const isWithinSchedule = (feature: HomeFeature, now: number): boolean => {
 
 const HomeQuickActions = () => {
   const dispatch = useAppDispatch()
-  const { items, status, error } = useAppSelector((s) => s.homeQuickActions)
+  const { items, status } = useAppSelector((s) => s.homeQuickActions)
   const [page, setPage] = useState(0)
   useReportHomeSection('quickActions', isRequestSettled(status))
 
@@ -91,9 +92,7 @@ const HomeQuickActions = () => {
           ) : null}
 
           {status === 'failed' && visibleFeatures.length === 0 ? (
-            <div className="py-2 text-sm text-red-500">
-              {error || 'Failed to load quick actions.'}
-            </div>
+            <StorefrontUnavailableNotice className="py-2" />
           ) : null}
 
           {visibleFeatures.length === 0 && status !== 'loading' && status !== 'failed' ? (

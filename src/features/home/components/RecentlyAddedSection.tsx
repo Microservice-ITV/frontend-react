@@ -6,6 +6,7 @@ import { fetchRecentProducts } from "@/features/products/store/productThunks";
 import { ChevronRight } from "lucide-react";
 import { isRequestSettled, useReportHomeSection } from "@/features/home/homeScreenReady";
 import { Typing } from "@/components/loading-ui/typing";
+import { StorefrontUnavailableNotice } from "@/components/feedback/StorefrontUnavailableNotice";
 
 const HOME_PREVIEW_COUNT = 10;
 
@@ -60,9 +61,7 @@ const RecentlyAddedSection = () => {
       )}
 
       {recentProductsError && (
-        <div className="text-sm text-red-500" role="alert">
-          Failed to load recently added products. Please try again later.
-        </div>
+        <StorefrontUnavailableNotice className="py-4" />
       )}
 
       {recentProductsStatus === "succeeded" && recentProducts.length === 0 && (

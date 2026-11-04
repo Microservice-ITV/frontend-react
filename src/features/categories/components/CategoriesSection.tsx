@@ -9,6 +9,7 @@ import {
 import CategoryGrid, { type CategoryGridHandle } from "./CategoryGrid";
 import { isRequestSettled, useReportHomeSection } from "@/features/home/homeScreenReady";
 import { Typing } from "@/components/loading-ui/typing";
+import { StorefrontUnavailableNotice } from "@/components/feedback/StorefrontUnavailableNotice";
 
 const CategoriesSection = () => {
   const dispatch = useAppDispatch();
@@ -81,9 +82,7 @@ const CategoriesSection = () => {
       )}
 
       {status === "failed" && (
-        <div className="min-h-[180px] text-sm text-red-500">
-          Failed to load categories. Please try again later.
-        </div>
+        <StorefrontUnavailableNotice className="min-h-[180px]" />
       )}
 
       {status === "succeeded" && (

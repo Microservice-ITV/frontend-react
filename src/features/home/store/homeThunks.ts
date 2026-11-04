@@ -15,9 +15,8 @@ export const fetchHomeQuickActions = createAsyncThunk<
       ...feature,
       iconUrl: productServiceAssetUrl(feature.iconUrl),
     }))
-  } catch (error: any) {
-    const message =
-      error?.response?.data?.message || error.message || 'Failed to load home features'
-    return rejectWithValue(message)
+  } catch {
+    // UI shows a soft storefront notice — never pass raw API/429 text through.
+    return rejectWithValue('unavailable')
   }
 })
