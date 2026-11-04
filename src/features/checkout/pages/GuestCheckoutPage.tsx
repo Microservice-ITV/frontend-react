@@ -8,7 +8,8 @@ import { SearchableSelect } from '@/components/ui/SearchableSelect'
 import { useEffect, useMemo, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { guestCheckoutCart } from '../store/checkoutThunks'
-import { clearCheckout, setCheckoutError } from '../store/checkoutSlice'
+import { clearCheckout, setCheckoutError, setCheckoutPreparingUi } from '../store/checkoutSlice'
+import CheckoutPreparingAnimation from '../components/CheckoutPreparingAnimation'
 import { loadAllCities, type CityOptionWithState } from '@/features/admin/api/locationOptions'
 import {
   formatDisabledTaxAmount,
@@ -156,6 +157,13 @@ const GuestCheckoutPage = () => {
     }
   }, [])
 
+  useEffect(() => {
+    dispatch(setCheckoutPreparingUi(submitting))
+    return () => {
+      dispatch(setCheckoutPreparingUi(false))
+    }
+  }, [dispatch, submitting])
+
   const phoneE164 = useMemo(() => {
     const digits = String(phone ?? '').replace(/\D/g, '')
     // Accept Myanmar local formats:
@@ -267,6 +275,7 @@ const GuestCheckoutPage = () => {
       }
 
       navigate('/checkout', { replace: true })
+      // Keep submitting=true so the preparing screen stays until this page unmounts.
     } catch (e: unknown) {
       const guestError = e as { message?: string }
       const message =
@@ -275,13 +284,31 @@ const GuestCheckoutPage = () => {
           : guestError?.message ??
             'Unable to start checkout. Please try again.'
       setSubmitError(String(message))
-    } finally {
       setSubmitting(false)
     }
   }
 
   if (!entryOk || items.length === 0) {
     return <Navigate to="/cart" replace />
+  }
+
+  if (submitting) {
+    return (
+      <div className="min-h-[60vh] bg-[#f5f5f5] py-3 sm:py-4 lg:py-5">
+        <div
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+          className="flex min-h-[60vh] w-full flex-col items-center justify-center gap-4"
+        >
+          <CheckoutPreparingAnimation />
+          <div className="text-center">
+            <p className="text-sm font-medium text-slate-700">Getting Your Order Ready...</p>
+            <p className="mt-1 text-xs text-slate-500">We're preparing your order with care.</p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
