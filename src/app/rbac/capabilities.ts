@@ -7,6 +7,9 @@ export const CAPABILITIES = {
   CHECKOUT_VIEW: 'checkout.view',
   CHECKOUT_PLACE_ORDER: 'checkout.place_order',
   SELLER_DASHBOARD_VIEW: 'seller.dashboard.view',
+  FINANCE_DASHBOARD_VIEW: 'finance.dashboard.view',
+  FINANCE_ACCOUNTING_VIEW: 'finance.accounting.view',
+  FINANCE_APPROVALS_VIEW: 'finance.approvals.view',
   PLATFORM_ADMIN_VIEW: 'platform.admin.view',
   WAREHOUSE_DASHBOARD_VIEW: 'warehouse.dashboard.view',
   /** Delivery agent shell + overview */

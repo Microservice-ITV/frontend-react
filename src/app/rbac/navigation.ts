@@ -8,6 +8,7 @@ export const getDefaultLandingPathByRole = (role: AppRole): string => {
   if (role === 'PAYROLL_OFFICER' || role === 'PAYROLL_APPROVER' || role === 'FINANCE') {
     return '/payroll'
   }
+  if (role === 'FINANCE_MANAGER') return '/seller/finance'
   return '/'
 }
 
@@ -26,6 +27,7 @@ const DISALLOWED_PREFIXES_BY_ROLE: Record<AppRole, string[]> = {
   SHOP_SUPERVISOR: ['/super-admin', '/warehouse-manager', '/delivery-agent'],
   CASHIER: ['/super-admin', '/warehouse-manager', '/delivery-agent', '/seller'],
   EMPLOYEE: ['/seller', '/super-admin', '/warehouse-manager', '/delivery-agent'],
+  FINANCE_MANAGER: ['/super-admin', '/warehouse-manager', '/delivery-agent'],
   USER: ['/seller', '/super-admin', '/warehouse-manager', '/delivery-agent'],
 }
 
@@ -68,9 +70,27 @@ export const resolvePostLoginPath = (
     return fallbackPath
   }
 
+  if (role === 'FINANCE_MANAGER') {
+    const financePaths = [
+      '/seller/finance',
+      '/seller/finance/transactions',
+      '/seller/finance/ar-ap',
+      '/seller/accounting/receivables-payables',
+      '/seller/accounting/inventory-valuation',
+    ]
+    return financePaths.some((path) => startsWithPrefix(rawPath, path))
+      ? rawPath
+      : fallbackPath
+  }
+
   const candidateRoles = roles && roles.length > 0 ? roles : [role]
   if (candidateRoles.some((candidate) => isPathAllowedForRole(candidate, rawPath))) {
     return rawPath
+  }
+
+  const blockedPrefixes = DISALLOWED_PREFIXES_BY_ROLE[role]
+  if (blockedPrefixes.some((prefix) => startsWithPrefix(rawPath, prefix))) {
+    return fallbackPath
   }
 
   return fallbackPath

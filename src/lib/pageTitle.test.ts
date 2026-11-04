@@ -18,12 +18,14 @@ describe('resolvePageTitle', () => {
     expect(resolvePageTitle('/cart')).toBe('Cart')
     expect(resolvePageTitle('/all_categories')).toBe('Categories')
     expect(resolvePageTitle('/wishlist')).toBe('Wishlist')
+    expect(resolvePageTitle('/warehouse-manager/')).toBe('Dashboard')
   })
 
   it('prefers a static path over a param path', () => {
     expect(resolvePageTitle('/seller/products/new')).toBe('New Product')
     expect(resolvePageTitle('/seller/products/abc')).toBe('Product')
     expect(resolvePageTitle('/seller/accounting/profit-loss')).toBe('Profit & Loss')
+    expect(resolvePageTitle('/seller/accounting/inventory-valuation')).toBe('Inventory Valuation')
     expect(resolvePageTitle('/super-admin/shipping/pricing-rules/new')).toBe('New Pricing Rule')
     expect(resolvePageTitle('/seller/promotion-engine/bundles')).toBe('Bundles')
     expect(resolvePageTitle('/seller/promotion-engine/bundles/new')).toBe('New Bundle')
