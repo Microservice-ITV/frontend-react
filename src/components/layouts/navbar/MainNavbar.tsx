@@ -57,7 +57,7 @@ const MainNavbar = () => {
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-emerald-50">
+    <header id="site-header" className="sticky top-0 z-50 bg-emerald-50">
       <Announcements />
       <NavbarTopUtilityBar />
 
