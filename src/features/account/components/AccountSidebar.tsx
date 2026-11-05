@@ -35,7 +35,7 @@ const AccountSidebar = ({ onNavigate }: AccountSidebarProps) => {
 
   return (
     <aside className="w-full md:w-64 flex-shrink-0 select-none">
-      <div className="bg-white rounded-lg border border-slate-100 shadow-sm p-4 sm:p-5">
+      <div className="rounded-sm border border-slate-100 bg-white p-4 shadow-sm sm:p-5">
         {/* User Profile Header */}
         <div className="flex items-center gap-3.5 pb-5 border-b border-slate-100">
           <div className="w-12 h-12 rounded-full bg-slate-200/90 border border-slate-200 flex items-center justify-center overflow-hidden text-slate-700 font-bold text-base shadow-2xs shrink-0">

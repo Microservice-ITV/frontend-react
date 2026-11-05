@@ -24,7 +24,10 @@ const NavbarNoSearch = () => {
     matchPath({ path: "/checkout/guest", end: true }, pathname);
 
   return (
-    <header className={`${scrollsAway ? "relative" : "sticky top-0"} z-50 bg-emerald-50`}>
+    <header
+      id="site-header"
+      className={`${scrollsAway ? "relative" : "sticky top-0"} z-50 bg-emerald-50`}
+    >
       <Announcements />
       <NavbarTopUtilityBar />
 

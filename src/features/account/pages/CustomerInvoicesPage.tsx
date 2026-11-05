@@ -209,49 +209,80 @@ const CustomerInvoicesPage = () => {
   return (
     <section className="bg-slate-50/80 p-3 sm:p-4 md:p-6">
       {/* ── Page header ───────────────────────────────────────────────── */}
-      <div className="mb-6 flex items-start gap-3 sm:mb-7">
-        <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
-          <Receipt size={19} aria-hidden="true" />
+      <div className="mb-4 flex items-start gap-2.5 sm:mb-7 sm:gap-3">
+        <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100 sm:h-10 sm:w-10">
+          <Receipt size={18} aria-hidden="true" />
         </span>
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-900 md:text-2xl">My Invoices</h1>
-          <p className="mt-1 text-sm leading-relaxed text-slate-500">View and manage your order invoices and payment documents.</p>
+        <div className="min-w-0">
+          <h1 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl md:text-2xl">My Invoices</h1>
+          <p className="mt-1 hidden text-sm leading-relaxed text-slate-500 sm:block">View and manage your order invoices and payment documents.</p>
         </div>
       </div>
 
-      <div className="space-y-5 sm:space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {!isLoading && isAuthenticated && !error && (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <InvoiceStatCard
-              label="Total billed"
-              value={formatMoney(totalBilled, currency)}
-              valueClassName="whitespace-nowrap text-[clamp(0.75rem,1.2vw,1.25rem)]"
-              hint={`Across ${invoices.length} invoice${invoices.length === 1 ? '' : 's'}`}
-              icon={<FileText size={14} />}
-              tone="emerald"
-            />
-            <InvoiceStatCard
-              label="Paid"
-              value={String(paidInvoices.length)}
-              hint="Payment completed"
-              icon={<CheckCircle2 size={14} />}
-              tone="emerald"
-            />
-            <InvoiceStatCard
-              label="Needs attention"
-              value={String(pendingInvoices.length)}
-              hint="Unpaid or under review"
-              icon={<Clock3 size={14} />}
-              tone="amber"
-            />
-            <InvoiceStatCard
-              label="Invoice count"
-              value={String(invoices.length)}
-              hint="All billing documents"
-              icon={<Receipt size={14} />}
-              tone="slate"
-            />
-          </div>
+          <>
+            {/* Mobile: compact metrics strip — billed full-width so amount never clips */}
+            <div className="rounded-sm border border-slate-200 bg-white sm:hidden" role="group" aria-label="Invoice overview">
+              <dl>
+                <div className="flex items-baseline justify-between gap-3 border-b border-slate-100 px-3 py-2.5">
+                  <dt className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Billed</dt>
+                  <dd className="text-right text-sm font-semibold tabular-nums text-slate-900">
+                    {formatMoney(totalBilled, currency)}
+                  </dd>
+                </div>
+                <div className="grid grid-cols-3 divide-x divide-slate-100">
+                  <div className="min-w-0 px-2 py-2.5 text-center">
+                    <dt className="truncate text-[10px] font-semibold uppercase tracking-wider text-slate-400">Paid</dt>
+                    <dd className="mt-1 truncate text-xs font-semibold tabular-nums text-slate-900">{paidInvoices.length}</dd>
+                  </div>
+                  <div className="min-w-0 px-2 py-2.5 text-center">
+                    <dt className="truncate text-[10px] font-semibold uppercase tracking-wider text-slate-400">Attention</dt>
+                    <dd className={`mt-1 truncate text-xs font-semibold tabular-nums ${pendingInvoices.length > 0 ? 'text-amber-600' : 'text-slate-900'}`}>
+                      {pendingInvoices.length}
+                    </dd>
+                  </div>
+                  <div className="min-w-0 px-2 py-2.5 text-center">
+                    <dt className="truncate text-[10px] font-semibold uppercase tracking-wider text-slate-400">Count</dt>
+                    <dd className="mt-1 truncate text-xs font-semibold tabular-nums text-slate-900">{invoices.length}</dd>
+                  </div>
+                </div>
+              </dl>
+            </div>
+
+            {/* sm+: existing card grid */}
+            <div className="hidden gap-3 sm:grid sm:grid-cols-2 xl:grid-cols-4">
+              <InvoiceStatCard
+                label="Total billed"
+                value={formatMoney(totalBilled, currency)}
+                valueClassName="whitespace-nowrap text-[clamp(0.75rem,1.2vw,1.25rem)]"
+                hint={`Across ${invoices.length} invoice${invoices.length === 1 ? '' : 's'}`}
+                icon={<FileText size={14} />}
+                tone="emerald"
+              />
+              <InvoiceStatCard
+                label="Paid"
+                value={String(paidInvoices.length)}
+                hint="Payment completed"
+                icon={<CheckCircle2 size={14} />}
+                tone="emerald"
+              />
+              <InvoiceStatCard
+                label="Needs attention"
+                value={String(pendingInvoices.length)}
+                hint="Unpaid or under review"
+                icon={<Clock3 size={14} />}
+                tone="amber"
+              />
+              <InvoiceStatCard
+                label="Invoice count"
+                value={String(invoices.length)}
+                hint="All billing documents"
+                icon={<Receipt size={14} />}
+                tone="slate"
+              />
+            </div>
+          </>
         )}
 
       {selectedInvoice && (
@@ -371,35 +402,37 @@ const CustomerInvoicesPage = () => {
       )}
 
       {!isLoading && !error && isAuthenticated && (
-        <div className="overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm">
-          <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-            <div className="flex items-start gap-3">
-              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-500 ring-1 ring-slate-100">
-                <FileText size={16} aria-hidden="true" />
+        <div className="overflow-hidden rounded-sm border border-slate-200 bg-white">
+          <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-3 py-3 sm:px-5 sm:py-4">
+            <div className="flex min-w-0 items-center gap-2.5 sm:items-start sm:gap-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-slate-50 text-slate-500 ring-1 ring-slate-100 sm:mt-0.5 sm:h-9 sm:w-9">
+                <FileText size={15} aria-hidden="true" />
               </span>
-              <div>
-                <h2 className="text-sm font-semibold text-slate-900">Invoice history</h2>
-                <p className="mt-1 text-xs leading-relaxed text-slate-500">Your latest billing documents and payment status.</p>
+              <div className="min-w-0">
+                <h2 className="truncate text-sm font-semibold text-slate-900">Invoice history</h2>
+                <p className="mt-0.5 hidden text-xs leading-relaxed text-slate-500 sm:mt-1 sm:block">Your latest billing documents and payment status.</p>
               </div>
             </div>
-            <span className="inline-flex w-fit items-center rounded-full bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-200">
+            <span className="inline-flex shrink-0 items-center rounded-sm bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-200">
               {invoices.length} {invoices.length === 1 ? 'invoice' : 'invoices'}
             </span>
           </div>
-          <div className="space-y-3 bg-slate-50/50 p-3 sm:p-4 2xl:hidden">
+          <div className="divide-y divide-slate-100 2xl:hidden">
             {invoices.length === 0 ? (
-              <InvoiceEmptyState
-                icon={<Receipt size={20} />}
-                title="No invoices yet"
-                description="Your invoices will appear here after an order is placed."
-                compact
-              />
+              <div className="px-3 py-4 sm:px-4">
+                <InvoiceEmptyState
+                  icon={<Receipt size={20} />}
+                  title="No invoices yet"
+                  description="Your invoices will appear here after an order is placed."
+                  compact
+                />
+              </div>
             ) : (
               pageInvoices.map((invoice) => (
-                <article key={invoice.id} className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition hover:border-emerald-200 hover:shadow-sm sm:p-5">
-                  <div className="flex min-w-0 items-start gap-3">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
-                      <FileText size={17} aria-hidden="true" />
+                <article key={invoice.id} className="min-w-0 px-3 py-3.5 sm:px-5 sm:py-4">
+                  <div className="flex min-w-0 items-start gap-2.5">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-emerald-50 text-emerald-700">
+                      <FileText size={15} aria-hidden="true" />
                     </span>
                     <div className="min-w-0 flex-1">
                       <Link
@@ -419,57 +452,59 @@ const CustomerInvoicesPage = () => {
                     </div>
                   </div>
 
-                  <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-4 border-t border-slate-100 pt-4 text-xs sm:grid-cols-4">
+                  <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2.5 text-xs sm:mt-4 sm:grid-cols-4 sm:gap-x-4 sm:gap-y-4">
                     <div className="min-w-0">
                       <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Shop</dt>
-                      <dd className="mt-1.5 break-words font-medium text-slate-700">{invoice.shopName || 'N/A'}</dd>
+                      <dd className="mt-1 break-words font-medium text-slate-700">{invoice.shopName || 'N/A'}</dd>
                     </div>
                     <div>
                       <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Date</dt>
-                      <dd className="mt-1.5 text-slate-600">{formatDate(invoice.createdAt)}</dd>
+                      <dd className="mt-1 text-slate-600">{formatDate(invoice.createdAt)}</dd>
                     </div>
                     <div>
                       <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Amount</dt>
-                      <dd className="mt-1.5 font-semibold tabular-nums text-slate-900">
+                      <dd className="mt-1 font-semibold tabular-nums text-slate-900">
                         {formatAmount(invoice.grandTotal)}
                       </dd>
                     </div>
                     {invoice.paymentMethod && (
                       <div className="min-w-0">
                         <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Payment</dt>
-                        <dd className="mt-1.5 break-words font-medium text-slate-700">
+                        <dd className="mt-1 break-words font-medium text-slate-700">
                           {formatPaymentMethodLabel(invoice.paymentMethod)}
                         </dd>
                       </div>
                     )}
                   </dl>
 
-                  <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+                  <div className="mt-3 flex flex-nowrap items-center gap-1.5 sm:mt-4 sm:gap-2">
                     <Link
                       to={`/account/invoices/${encodeURIComponent(invoice.invoiceNumber || invoice.id)}`}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
+                      className="inline-flex min-w-0 flex-1 items-center justify-center gap-1 rounded-sm bg-emerald-700 px-2 py-1.5 text-[11px] font-semibold text-white transition hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-1 sm:flex-none sm:gap-1.5 sm:px-3.5 sm:py-2 sm:text-xs"
                     >
-                      <Eye size={14} aria-hidden="true" /> View invoice
+                      <Eye size={13} aria-hidden="true" />
+                      <span className="truncate">View</span>
                     </Link>
                     <button
                       type="button"
                       onClick={() => handleDownloadPdf(invoice)}
                       disabled={downloadingInvoiceId !== null}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-300"
+                      className="inline-flex min-w-0 flex-1 items-center justify-center gap-1 rounded-sm border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-300 sm:flex-none sm:gap-1.5 sm:px-3 sm:py-2 sm:text-xs"
                     >
                       {downloadingInvoiceId === invoice.id
-                        ? <Loader2 size={14} className="animate-spin" />
-                        : <Download size={14} />}
-                      Download
+                        ? <Loader2 size={13} className="animate-spin" />
+                        : <Download size={13} />}
+                      <span className="truncate">Download</span>
                     </button>
                     {isStaffInvoiceView && (
                       <Link
                         to={`/account/invoices/${encodeURIComponent(invoice.invoiceNumber || invoice.id)}`}
                         aria-label={`Thermal POS actions for ${invoice.invoiceNumber}`}
                         title="Thermal invoice and paid receipt options at 58mm and 80mm"
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800"
+                        className="inline-flex min-w-0 flex-1 items-center justify-center gap-1 rounded-sm border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-medium text-slate-700 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800 sm:flex-none sm:gap-1.5 sm:px-3 sm:py-2 sm:text-xs"
                       >
-                        <Printer size={13} /> Thermal POS
+                        <Printer size={12} />
+                        <span className="truncate">Thermal</span>
                       </Link>
                     )}
                     {!isStaffInvoiceView && canSubmitPaymentSlip(invoice) && (
@@ -480,9 +515,10 @@ const CustomerInvoicesPage = () => {
                           setSelectedFile(null)
                           setPreviewUrl(null)
                         }}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 transition hover:border-emerald-200 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
+                        className="inline-flex min-w-0 flex-1 items-center justify-center gap-1 rounded-sm border border-emerald-100 bg-emerald-50 px-2 py-1.5 text-[11px] font-semibold text-emerald-800 transition hover:border-emerald-200 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-1 sm:flex-none sm:gap-1.5 sm:px-3 sm:py-2 sm:text-xs"
                       >
-                        <UploadCloud size={13} /> Submit slip
+                        <UploadCloud size={12} />
+                        <span className="truncate">Slip</span>
                       </button>
                     )}
                   </div>
