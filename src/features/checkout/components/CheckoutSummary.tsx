@@ -37,6 +37,7 @@ import type { CartItem } from '@/features/cart/types/cartTypes'
 import type { CheckoutShopShippingPayload } from '../api/checkoutApi'
 import type { CheckoutStatusResponse } from '../types/checkoutTypes'
 import { authFeatureApi } from '@/features/auth/api/authApi'
+import { checkoutPlaceOrderCountApi } from '@/features/admin/api/checkoutPlaceOrderCountApi'
 import { isShopStaffUser } from '../utils/staffCheckoutCustomer'
 import { formatKsPrice } from '@/features/products/utils/formatProductPrice'
 import { formatCashIncomeDisplay, normalizeCashDigits } from '../utils/cashTender'
@@ -277,10 +278,26 @@ const CheckoutSummary = ({
   const checkoutAttemptCount = Number(
     (currentCheckout as { checkout_attempt_count?: number } | null)?.checkout_attempt_count ?? 0,
   )
+  const [placeOrderLimit, setPlaceOrderLimit] = useState<number | null>(null)
+  useEffect(() => {
+    if (!user || staffCheckout) return
+    let cancelled = false
+    void checkoutPlaceOrderCountApi.get()
+      .then((result) => {
+        if (!cancelled) setPlaceOrderLimit(result.place_order_count)
+      })
+      .catch(() => {
+        if (!cancelled) setPlaceOrderLimit(3)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [staffCheckout, user])
   const emailVerificationRequired =
     Boolean(user) &&
     !staffCheckout &&
-    checkoutAttemptCount >= 3 &&
+    placeOrderLimit !== null &&
+    checkoutAttemptCount >= placeOrderLimit &&
     !emailChallengePassed
 
   useEffect(() => {
