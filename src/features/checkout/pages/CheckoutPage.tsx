@@ -34,6 +34,8 @@ import { usePayDeliveryFeeNow } from '../hooks/usePayDeliveryFeeNow'
 import { useCheckoutDeliveryOptions } from '../hooks/useCheckoutDeliveryOptions'
 import { isShopStaffUser, readStaffCheckoutAddress } from '../utils/staffCheckoutCustomer'
 import { parseDeliveryFeeInput } from '../utils/checkoutShopShipping'
+import CheckoutPreparingAnimation from '../components/CheckoutPreparingAnimation'
+import { isQuantityApprovalHold } from '../utils/quantityApprovalHold'
 import { CheckoutPreparingScreen } from '../components/CheckoutPreparingAnimation'
 
 type StoredCheckoutSession = {
@@ -516,6 +518,11 @@ const CheckoutPage = () => {
         // guards below are sufficient: while a session is being restored/created,
         // either `currentCheckout` is set or `loading` is true, so we skip.
         // Also skip while a previous hard failure is latched (thunk condition).
+        // A quantity-approval hold already removed the cart and session. Starting
+        // another checkout here is rejected and used to trap the page on the loader.
+        if (isQuantityApprovalHold()) {
+            return
+        }
         if (!currentCheckout && !loading && !checkoutError) {
             dispatch(checkoutCart())
         }
@@ -605,7 +612,15 @@ const CheckoutPage = () => {
     // lookup must not hide Place Order; that control stays disabled on its own
     // until a company can be chosen. Quantity over 50 still uses Place Order to
     // send the shop-approval request.
+    // A failed checkout start (for example a pending quantity approval) must
+    // stay on the checkout body so the error dialog can open. Covering it with
+    // the preparing loader unmounts that dialog and never finishes. Status-poll
+    // errors keep the loader up while a session still exists.
+    const quantityApprovalHold = isQuantityApprovalHold()
+    const checkoutStartFailed = Boolean(checkoutError) && !loading && !currentCheckout?.checkout_id
     const isPreparingCheckout =
+        !quantityApprovalHold &&
+        !checkoutStartFailed &&
         !checkoutPreparationTimedOut &&
         !isTerminalPayment &&
         !isAwaitingFinalStatus &&
