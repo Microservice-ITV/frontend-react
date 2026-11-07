@@ -67,6 +67,7 @@ export interface RecentProductApiItem {
     totalAvailableStock?: number | null
     stock?: number | null
     availabilityStatus?: string | null
+    isActive?: boolean | null
 }
 
 export interface RecentProductsApiResponse {

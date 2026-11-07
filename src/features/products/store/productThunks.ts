@@ -75,8 +75,13 @@ export const fetchRecentProducts = createAsyncThunk<
     try {
         const response = await productApi.getRecentProducts(RECENT_PRODUCTS_LIMIT, cursor)
 
+        const activeItems = response.items.filter((product) => {
+            if (product.isActive === false) return false
+            return String(product.availabilityStatus ?? '').toUpperCase() !== 'INACTIVE'
+        })
+
         return {
-            items: response.items.map((product) => {
+            items: activeItems.map((product) => {
                 const stock =
                     String(product.availabilityStatus ?? '').toUpperCase() === 'OUT_OF_STOCK'
                         ? 0

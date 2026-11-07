@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
-import { useAppSelector } from '@/app/hooks'
+import { useAppDispatch, useAppSelector } from '@/app/hooks'
+import { selectAuthUser } from '@/features/auth/store/authSelectors'
+import { vouchersApi, type CustomerVoucher } from '@/features/account/api/vouchersApi'
+import { clearSelectedVouchers, setSelectedVouchers } from '@/features/cart/store/cartSlice'
 import { loadAllCities } from '@/features/admin/api/locationOptions'
 import type { CheckoutDeliveryCompany } from '@/features/shipping/hooks/useCheckoutDeliveryCompany'
 import type { ShopCalculatedShipping } from '@/features/shipping/types/shippingTypes'
@@ -275,12 +278,65 @@ const CheckoutItems = ({
   showDeliveryCheckoutOptions = true,
   deliveryCompany,
 }: CheckoutItemsProps) => {
+  const dispatch = useAppDispatch()
   const { groupedByShop } = checkout
+  const user = useAppSelector(selectAuthUser)
+  const voucherState = useAppSelector(state => state.cart)
+  const selectedVoucherCodes = voucherState.voucherSelectionUserId === user?.id
+    ? voucherState.selectedVoucherCodes
+    : []
+  const [vouchers, setVouchers] = useState<CustomerVoucher[]>([])
+  const [voucherLoading, setVoucherLoading] = useState(false)
+  const [voucherLoadError, setVoucherLoadError] = useState(false)
+  const [vouchersLoaded, setVouchersLoaded] = useState(false)
+  const [voucherShop, setVoucherShop] = useState<{ id: string; name: string } | null>(null)
+  const [draftVoucherCodes, setDraftVoucherCodes] = useState<string[]>([])
   const feesByShopId = useAppSelector(state => state.shipping.feesByShopId)
   const calculateStatus = useAppSelector(state => state.shipping.calculateStatus)
   const [cityNames, setCityNames] = useState<Record<string, string>>({})
   const itemTaxes = useAppSelector((state) => state.checkout.itemTaxes)
   const taxQuoting = useAppSelector((state) => state.checkout.taxQuoting)
+
+  useEffect(() => {
+    let cancelled = false
+    if (!user?.id) {
+      setVouchers([])
+      setVoucherLoading(false)
+      setVoucherLoadError(false)
+      setVouchersLoaded(true)
+      dispatch(clearSelectedVouchers())
+      return
+    }
+
+    setVoucherLoading(true)
+    setVoucherLoadError(false)
+    setVouchersLoaded(false)
+    void vouchersApi.mine().then(rows => {
+      if (cancelled) return
+      setVouchers(rows.filter(voucher =>
+        voucher.status === 'ACTIVE' && (!voucher.expires_at || new Date(voucher.expires_at).getTime() > Date.now()),
+      ))
+      setVoucherLoading(false)
+      setVouchersLoaded(true)
+    }).catch(() => {
+      if (cancelled) return
+      setVoucherLoadError(true)
+      setVoucherLoading(false)
+      setVouchersLoaded(true)
+    })
+
+    return () => { cancelled = true }
+  }, [dispatch, user?.id])
+
+  useEffect(() => {
+    if (!user?.id || !vouchersLoaded || voucherLoadError) return
+    const codes = voucherState.voucherSelectionUserId === user.id
+      ? voucherState.selectedVoucherCodes.filter(code => vouchers.some(voucher => voucher.code === code))
+      : []
+    if (voucherState.voucherSelectionUserId !== user.id || codes.length !== voucherState.selectedVoucherCodes.length) {
+      dispatch(setSelectedVouchers({ userId: user.id, codes }))
+    }
+  }, [dispatch, user?.id, vouchersLoaded, voucherLoadError, vouchers, voucherState.voucherSelectionUserId, voucherState.selectedVoucherCodes])
   const needsCityNames = Object.values(feesByShopId).some(
     (fee) => fee.calculationMethod === 'CITY_ROUTE' && (fee.fromDistrictId || fee.toDistrictId),
   )
@@ -361,6 +417,12 @@ const CheckoutItems = ({
           feeRow?.amount != null &&
           feeRow.amount >= 0
         const shopTotal = shopSubtotal + (hasFee ? (feeRow.amount as number) : 0)
+        const shopVouchers = vouchers.filter(voucher =>
+          voucher.promotion?.owner_type !== 'SELLER' || voucher.promotion.shop_id === shopId,
+        )
+        const selectedShopVoucherCount = selectedVoucherCodes.filter(code =>
+          shopVouchers.some(voucher => voucher.code === code),
+        ).length
 
         return (
           <section
@@ -468,8 +530,15 @@ const CheckoutItems = ({
                 <img src={voucherIcon} alt="" className="h-5 w-5" />
                 <span className="text-gray-700">Shop Voucher</span>
               </div>
-              <button type="button" className="shrink-0 text-[#0055aa] hover:underline">
-                Select Voucher
+              <button
+                type="button"
+                onClick={() => {
+                  setVoucherShop({ id: shopId, name: shopItems[0].shopName })
+                  setDraftVoucherCodes(selectedVoucherCodes)
+                }}
+                className="shrink-0 text-[#0055aa] hover:underline"
+              >
+                {selectedShopVoucherCount ? `Selected (${selectedShopVoucherCount}) · Change` : 'Select Voucher'}
               </button>
             </div>
 
@@ -544,6 +613,101 @@ const CheckoutItems = ({
           </section>
         )
       })}
+      {voucherShop && (
+        <CheckoutVoucherPicker
+          shopId={voucherShop.id}
+          shopName={voucherShop.name}
+          vouchers={vouchers}
+          selectedCodes={draftVoucherCodes}
+          loading={voucherLoading}
+          loadingError={voucherLoadError}
+          onChange={setDraftVoucherCodes}
+          onClose={() => setVoucherShop(null)}
+          onSave={() => {
+            if (user?.id) dispatch(setSelectedVouchers({ userId: user.id, codes: draftVoucherCodes }))
+            setVoucherShop(null)
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+function CheckoutVoucherPicker({ shopId, shopName, vouchers, selectedCodes, loading, loadingError, onChange, onClose, onSave }: {
+  shopId: string
+  shopName: string
+  vouchers: CustomerVoucher[]
+  selectedCodes: string[]
+  loading: boolean
+  loadingError: boolean
+  onChange: (codes: string[]) => void
+  onClose: () => void
+  onSave: () => void
+}) {
+  const available = vouchers.filter(voucher =>
+    voucher.promotion?.owner_type !== 'SELLER' || voucher.promotion.shop_id === shopId,
+  )
+  const selectedForShop = selectedCodes.filter(code => available.some(voucher => voucher.code === code))
+
+  const toggle = (voucher: CustomerVoucher) => {
+    if (selectedCodes.includes(voucher.code)) {
+      onChange(selectedCodes.filter(code => code !== voucher.code))
+      return
+    }
+    const samePromotion = new Set(available.filter(row => row.promotion_id === voucher.promotion_id).map(row => row.code))
+    onChange([...selectedCodes.filter(code => !samePromotion.has(code)), voucher.code])
+  }
+
+  const selectAll = () => {
+    const onePerPromotion = new Map<string, CustomerVoucher>()
+    for (const voucher of available) {
+      if (!onePerPromotion.has(voucher.promotion_id)) onePerPromotion.set(voucher.promotion_id, voucher)
+    }
+    const codes = [...onePerPromotion.values()].map(voucher => voucher.code)
+    onChange([...new Set([...selectedCodes.filter(code => !available.some(voucher => voucher.code === code)), ...codes])])
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4"
+      role="presentation"
+      onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}
+    >
+      <section role="dialog" aria-modal="true" aria-labelledby="checkout-voucher-picker-title" className="w-full max-w-lg overflow-hidden rounded-sm bg-white shadow-xl">
+        <header className="border-b border-gray-100 px-5 py-4">
+          <h2 id="checkout-voucher-picker-title" className="font-semibold text-gray-900">Select vouchers</h2>
+          <p className="mt-1 text-sm text-gray-500">Available for {shopName}</p>
+        </header>
+        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3 text-sm">
+          <span className="text-gray-600">{selectedForShop.length} selected</span>
+          <button type="button" onClick={selectAll} disabled={loading || !available.length} className="font-medium text-emerald-700 disabled:text-gray-400">Select all</button>
+        </div>
+        <div className="max-h-[55vh] overflow-y-auto p-4">
+          {loading ? <p className="py-8 text-center text-sm text-gray-500">Loading your vouchers…</p>
+            : loadingError ? <p className="rounded-sm bg-amber-50 p-3 text-sm text-amber-800">Could not load your vouchers. Please try again.</p>
+              : available.length === 0 ? <p className="py-8 text-center text-sm text-gray-500">No available vouchers for this shop.</p>
+                : <ul className="space-y-2">{available.map(voucher => {
+                  const checked = selectedCodes.includes(voucher.code)
+                  return (
+                    <li key={voucher.id}>
+                      <label className={`flex cursor-pointer items-start gap-3 rounded-sm border p-3 ${checked ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200'}`}>
+                        <input type="checkbox" checked={checked} onChange={() => toggle(voucher)} className="mt-1 h-4 w-4 accent-emerald-600" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block font-semibold tracking-wide text-gray-900">{voucher.code}</span>
+                          <span className="mt-0.5 block text-sm text-gray-600">{voucher.promotion?.name ?? 'Promotion voucher'}</span>
+                          {voucher.expires_at && <span className="mt-1 block text-xs text-gray-500">Expires {new Date(voucher.expires_at).toLocaleDateString()}</span>}
+                        </span>
+                      </label>
+                    </li>
+                  )
+                })}</ul>}
+          <p className="mt-3 text-xs text-gray-500">Only one voucher from each promotion can be used in one order.</p>
+        </div>
+        <footer className="flex justify-end gap-2 border-t border-gray-100 px-5 py-4">
+          <button type="button" onClick={onClose} className="rounded-sm border border-gray-200 px-4 py-2 text-sm text-gray-700">Cancel</button>
+          <button type="button" onClick={onSave} disabled={loading} className="rounded-sm bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-60">Use selected</button>
+        </footer>
+      </section>
     </div>
   )
 }

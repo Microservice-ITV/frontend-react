@@ -27,7 +27,8 @@ import {
   setItemTaxes,
   setTaxQuoting,
 } from '../store/checkoutSlice'
-import { removeSelectedItems } from '@/features/cart/store/cartSlice'
+import { CHECKOUT_PREPAID_ENABLED } from '../constants/paymentAvailability'
+import { clearSelectedVouchers, removeSelectedItems } from '@/features/cart/store/cartSlice'
 import {
   holdCheckoutForQuantityApproval,
   releaseQuantityApprovalHold,
@@ -50,6 +51,7 @@ import {
 } from '../utils/checkoutShopShipping'
 
 let activeCartTaxRequest = 0
+const NO_SELECTED_VOUCHERS: string[] = []
 
 const QUANTITY_APPROVAL_PENDING_MESSAGE =
   'You have a quantity approval waiting. You can place a new order after it is approved or rejected.'
@@ -79,28 +81,30 @@ interface CheckoutSummaryProps {
   onDeliveryFeeInputChange?: (value: string) => void
 }
 
-const promoStatusLabel = (status: PromoCodeStatus | null | undefined, message?: string | null): string => {
-  if (message?.trim()) return message
+type VoucherQuoteResult = NonNullable<PromotionQuoteResponse['promo_code_results']>[number]
+
+const voucherStatusLabel = (status: PromoCodeStatus): string => {
   switch (status) {
-    case 'VALID':
-      return 'Promo code applied'
-    case 'EXPIRED':
-      return 'Promo code has expired'
-    case 'USED':
-      return 'Promo code has already been used'
-    case 'DISABLED':
-      return 'Promo code is disabled'
-    case 'RESERVED':
-      return 'Promo code is reserved for another customer'
-    case 'LIMIT_REACHED':
-      return 'Promo code has reached its usage limit'
-    case 'NOT_APPLICABLE':
-      return 'This promo code does not apply to the current cart'
-    case 'INVALID':
-      return 'Promo code is invalid'
-    default:
-      return ''
+    case 'VALID': return 'Applied'
+    case 'LIMIT_REACHED': return 'Usage limit reached'
+    case 'NOT_APPLICABLE': return 'Not eligible for this order'
+    case 'EXPIRED': return 'Expired'
+    case 'USED': return 'Already used'
+    case 'DISABLED': return 'Unavailable'
+    case 'RESERVED': return 'Assigned to another customer'
+    case 'INVALID': return 'Invalid voucher'
   }
+}
+
+const aggregateDiscountsByPromotion = (allocations: Array<Record<string, unknown>> = []): Record<string, number> => {
+  const discounts: Record<string, number> = {}
+  for (const allocation of allocations) {
+    const promotionId = typeof allocation.promotion_id === 'string' ? allocation.promotion_id : ''
+    const amount = Number(allocation.amount ?? 0)
+    if (!promotionId || !Number.isFinite(amount)) continue
+    discounts[promotionId] = Math.round(((discounts[promotionId] ?? 0) + amount) * 100) / 100
+  }
+  return discounts
 }
 
 const buildShopShippings = (
@@ -186,20 +190,6 @@ const apiMessage = (error: unknown, fallback: string): string => {
 const responseIsObject = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value)
 
-const isPromoCodeStatus = (value: unknown): value is PromoCodeStatus => {
-  const statuses: PromoCodeStatus[] = [
-    'VALID',
-    'INVALID',
-    'EXPIRED',
-    'USED',
-    'DISABLED',
-    'RESERVED',
-    'LIMIT_REACHED',
-    'NOT_APPLICABLE',
-  ]
-  return statuses.some((status) => status === value)
-}
-
 const CheckoutSummary = ({
   checkout,
   payDeliveryFeeNow,
@@ -225,6 +215,10 @@ const CheckoutSummary = ({
   )
 
   const user = useAppSelector(state => state.auth.user)
+  const cartVoucherState = useAppSelector(state => state.cart)
+  const selectedVoucherCodes = cartVoucherState.voucherSelectionUserId === user?.id
+    ? cartVoucherState.selectedVoucherCodes
+    : NO_SELECTED_VOUCHERS
   const feesByShopId = useAppSelector(state => state.shipping.feesByShopId)
   const totalShippingFee = useAppSelector(state => state.shipping.totalShippingFee)
   const shippingCalculateStatus = useAppSelector(state => state.shipping.calculateStatus)
@@ -239,11 +233,17 @@ const CheckoutSummary = ({
   const [promotionFinal, setPromotionFinal] = useState<number | null>(null)
   const promotionAllocationsRef = useRef<Array<Record<string, unknown>>>([])
   const [promotionQuoteError, setPromotionQuoteError] = useState(false)
-  const [promoCodeInput, setPromoCodeInput] = useState('')
-  const [appliedPromoCode, setAppliedPromoCode] = useState<string | null>(null)
-  const [promoCodeStatus, setPromoCodeStatus] = useState<PromoCodeStatus | null>(null)
-  const [promoCodeMessage, setPromoCodeMessage] = useState<string | null>(null)
-  const [promoCodeApplying, setPromoCodeApplying] = useState(false)
+  const [voucherQuoteResults, setVoucherQuoteResults] = useState<VoucherQuoteResult[]>([])
+  const [voucherDiscountByPromotionId, setVoucherDiscountByPromotionId] = useState<Record<string, number>>({})
+  const [promotionQuoteLoading, setPromotionQuoteLoading] = useState(false)
+  const appliedPromoCodes = selectedVoucherCodes
+  const updateVoucherQuoteDetails = useCallback((
+    results?: PromotionQuoteResponse['promo_code_results'],
+    allocations?: PromotionQuoteResponse['allocations'],
+  ) => {
+    if (results) setVoucherQuoteResults(results)
+    if (allocations) setVoucherDiscountByPromotionId(aggregateDiscountsByPromotion(allocations))
+  }, [])
   const [phoneModalOpen, setPhoneModalOpen] = useState(false)
   const [shopApprovalModalOpen, setShopApprovalModalOpen] = useState(false)
   const [shopApprovalRejected, setShopApprovalRejected] = useState(false)
@@ -413,7 +413,7 @@ const CheckoutSummary = ({
     quantity: item.quantity,
   }))
 
-  const requestPromotionQuote = async (promoCode?: string | null) => {
+  const requestPromotionQuote = async (promoCodes: string[] = appliedPromoCodes) => {
     const checkoutId = currentCheckout?.checkout_id
     const userId = user?.id
     if (!checkoutId || !userId || promotionItems.length === 0) return null
@@ -424,7 +424,8 @@ const CheckoutSummary = ({
       items: promotionItems,
       subtotal: checkout.merchandiseSubtotal,
       shipping_total: checkout.shippingSubtotal,
-      promo_code: promoCode ?? undefined,
+      promo_codes: promoCodes,
+      promo_code: promoCodes[0] ?? undefined,
     })
   }
 
@@ -534,69 +535,32 @@ const CheckoutSummary = ({
   useEffect(() => {
     const checkoutId = currentCheckout?.checkout_id
     const userId = user?.id
-    if (!checkoutId || !userId || promotionItems.length === 0) return
+    if (!checkoutId || !userId || promotionItems.length === 0 || paymentStatus === 'PAID' || paymentStatus === 'COMPLETED') return
 
     let cancelled = false
     setPromotionQuoteError(false)
+    setPromotionQuoteLoading(true)
+    updateVoucherQuoteDetails([], [])
 
-    void requestPromotionQuote(appliedPromoCode).then((quote) => {
+    void requestPromotionQuote(appliedPromoCodes).then((quote) => {
       if (cancelled || !quote) return
       applyQuotedTotals(quote)
       if (cancelled) return
-      if (appliedPromoCode) {
-        setPromoCodeStatus(quote.promo_code_status ?? null)
-        setPromoCodeMessage(quote.promo_code_message ?? null)
-      }
+      updateVoucherQuoteDetails(quote.promo_code_results ?? [], quote.allocations ?? [])
     }).catch(() => {
       if (!cancelled) setPromotionQuoteError(true)
+    }).finally(() => {
+      if (!cancelled) setPromotionQuoteLoading(false)
     })
 
     return () => {
       cancelled = true
     }
-  }, [checkout.merchandiseSubtotal, checkout.shippingSubtotal, checkout.totalPayment, currentCheckout?.checkout_id, user?.id, cartItems, appliedPromoCode])
+  }, [checkout.merchandiseSubtotal, checkout.shippingSubtotal, checkout.totalPayment, currentCheckout?.checkout_id, user?.id, cartItems, appliedPromoCodes, paymentStatus, updateVoucherQuoteDetails])
 
-  const handleApplyPromoCode = async () => {
-    const code = promoCodeInput.trim().toUpperCase()
-    if (!code) {
-      setAppliedPromoCode(null)
-      setPromoCodeStatus(null)
-      setPromoCodeMessage(null)
-      return
-    }
-
-    setPromoCodeApplying(true)
-    setPromotionQuoteError(false)
-    try {
-      const quote = await requestPromotionQuote(code)
-      if (!quote) return
-
-      applyQuotedTotals(quote)
-      setPromoCodeStatus(quote.promo_code_status ?? 'INVALID')
-      setPromoCodeMessage(quote.promo_code_message ?? null)
-
-      if (quote.promo_code_status === 'VALID') {
-        setAppliedPromoCode(code)
-        setPromoCodeInput(code)
-      } else {
-        setAppliedPromoCode(null)
-      }
-    } catch {
-      setPromotionQuoteError(true)
-      setPromoCodeStatus('INVALID')
-      setPromoCodeMessage('Unable to validate promo code. Please try again.')
-      setAppliedPromoCode(null)
-    } finally {
-      setPromoCodeApplying(false)
-    }
-  }
-
-  const handleClearPromoCode = () => {
-    setPromoCodeInput('')
-    setAppliedPromoCode(null)
-    setPromoCodeStatus(null)
-    setPromoCodeMessage(null)
-  }
+  useEffect(() => {
+    if (paymentStatus === 'PAID' || paymentStatus === 'COMPLETED') dispatch(clearSelectedVouchers())
+  }, [dispatch, paymentStatus])
 
   const buildCheckoutAddressPayload = (
     address: UserAddress,
@@ -649,7 +613,8 @@ const CheckoutSummary = ({
       delivery_note: address.delivery_note ?? null,
       shipping_total,
       shop_shippings,
-      promo_code: appliedPromoCode,
+      promo_code: appliedPromoCodes[0] ?? null,
+      promo_codes: appliedPromoCodes,
       payment_method: overridePaymentMethod ?? sessionPaymentMethod ?? paymentMethod,
       ...(cashAmounts
         ? {
@@ -738,14 +703,12 @@ const CheckoutSummary = ({
       return
     }
 
-    if (promoCodeInput.trim() && !appliedPromoCode) {
-      dispatch(setCheckoutError('Apply a valid promo code before placing your order, or clear the field.'))
-      return
-    }
-
     const effectivePaymentMethod = sessionPaymentMethod ?? paymentMethod
-    const isPrepaid = effectivePaymentMethod === 'prepaid'
-    const isStaffCash = prepaidProvider === 'cash'
+    // Prepaid temporarily off — keep prepaid branches but never take them.
+    const isPrepaid =
+      CHECKOUT_PREPAID_ENABLED && effectivePaymentMethod === 'prepaid'
+    const isStaffCash =
+      CHECKOUT_PREPAID_ENABLED && prepaidProvider === 'cash'
     let card: StripeCardElement | null = null
 
     if (isStaffCash) {
@@ -816,10 +779,7 @@ const CheckoutSummary = ({
       dispatch(setCheckoutTaxAmount(nextTax))
       setTaxPreviewError(false)
       setAuthoritativeTotal(addressResponse.data?.grand_total ?? null)
-      if (addressResponse.data?.promo_code_status) {
-        setPromoCodeStatus(addressResponse.data.promo_code_status)
-        setPromoCodeMessage(addressResponse.data.promo_code_message ?? null)
-      }
+      updateVoucherQuoteDetails(addressResponse.data?.promo_code_results, addressResponse.data?.allocations)
       console.info('[PlaceOrder] Address updated...')
 
       if (isStaffCash) {
@@ -949,14 +909,11 @@ const CheckoutSummary = ({
         return
       }
 
-      if (isPromoCodeStatus(responseData?.promo_code_status)) {
-        setPromoCodeStatus(responseData.promo_code_status)
-        setPromoCodeMessage(
-          typeof responseData.promo_code_message === 'string'
-            ? responseData.promo_code_message
-            : null,
+      if (Array.isArray(responseData?.promo_code_results)) {
+        updateVoucherQuoteDetails(
+          responseData.promo_code_results as VoucherQuoteResult[],
+          Array.isArray(responseData.allocations) ? responseData.allocations as Array<Record<string, unknown>> : undefined,
         )
-        setAppliedPromoCode(null)
       }
 
       const validationMessage = firstValidationMessage(responseData?.errors)
@@ -987,7 +944,8 @@ const CheckoutSummary = ({
     paymentStatus === 'EXPIRED'
 
   const effectivePaymentMethod = sessionPaymentMethod ?? paymentMethod
-  const isPrepaid = effectivePaymentMethod === 'prepaid'
+  const isPrepaid =
+    CHECKOUT_PREPAID_ENABLED && effectivePaymentMethod === 'prepaid'
 
   const deliveryFees = Object.values(feesByShopId)
   const anyNotDeliverable = deliveryFees.some((fee) => fee.deliveryStatus === 'NOT_DELIVERABLE')
@@ -1105,9 +1063,6 @@ const CheckoutSummary = ({
   const displayedTotal = !payDeliveryFeeNow
     ? Math.max(0, merchandiseSubtotal - promotionDiscount) + shownTax + manualDeliveryFee
     : (authoritativeTotal ?? (promotionFinal ?? totalPayment) + shownTax)
-  const promoFeedback = promoStatusLabel(promoCodeStatus, promoCodeMessage)
-  const promoIsValid = promoCodeStatus === 'VALID'
-
   return (
     <div className="rounded-sm border border-[var(--dni-cart-border)] bg-white px-3 py-3 sm:px-4 sm:py-4 lg:px-5 lg:py-5">
       {phoneModalOpen && createPortal(
@@ -1681,70 +1636,75 @@ const CheckoutSummary = ({
 
         <div className="mb-4 space-y-3 rounded-xl border border-emerald-100 bg-emerald-50/70 p-3">
           <div>
-            <label htmlFor="checkout-promo-code" className="text-xs font-bold uppercase tracking-[0.12em] text-emerald-800">
-              Promotion code
-            </label>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <input
-                id="checkout-promo-code"
-                type="text"
-                value={promoCodeInput}
-                onChange={(event) => setPromoCodeInput(event.target.value.toUpperCase())}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault()
-                    void handleApplyPromoCode()
-                  }
-                }}
-                placeholder="e.g. WELCOME10"
-                maxLength={64}
-                className="min-w-0 flex-1 rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-emerald-500"
-                disabled={promoCodeApplying || isPlacingOrder}
-              />
-              <button
-                type="button"
-                onClick={() => void handleApplyPromoCode()}
-                disabled={promoCodeApplying || isPlacingOrder || !promoCodeInput.trim()}
-                className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {promoCodeApplying ? 'Checking…' : 'Apply'}
-              </button>
-              {appliedPromoCode && (
+            <p className="text-xs font-bold uppercase tracking-[0.12em] text-emerald-800">Selected vouchers</p>
+            {selectedVoucherCodes.length > 0 ? (
+              <div className="mt-2 space-y-2">
+                {selectedVoucherCodes.map(code => {
+                  const result = voucherQuoteResults.find(row => row.code === code)
+                  const applied = result?.status === 'VALID'
+                  const statusLabel = promotionQuoteLoading
+                    ? 'Checking…'
+                    : result
+                      ? voucherStatusLabel(result.status)
+                      : promotionQuoteError
+                        ? 'Could not verify'
+                        : 'Waiting for quote'
+                  const discount = result?.promotion_id
+                    ? voucherDiscountByPromotionId[result.promotion_id] ?? 0
+                    : 0
+
+                  return (
+                    <div key={code} className={`rounded-lg border bg-white p-3 ${applied ? 'border-emerald-200' : result ? 'border-amber-200' : 'border-gray-200'}`}>
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="break-all text-sm font-semibold tracking-wide text-gray-900">{code}</p>
+                          {result?.promotion_name && <p className="mt-0.5 text-xs text-gray-600">{result.promotion_name}</p>}
+                        </div>
+                        <div className="text-right">
+                          <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${promotionQuoteLoading ? 'bg-gray-100 text-gray-600' : applied ? 'bg-emerald-100 text-emerald-800' : result ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-600'}`}>
+                            {statusLabel}
+                          </span>
+                          <p className={`mt-1 whitespace-nowrap text-sm font-semibold tabular-nums ${applied ? 'text-emerald-700' : 'text-gray-500'}`}>
+                            {promotionQuoteLoading ? 'Calculating…' : applied ? `-${formatKsPrice(discount)}` : 'No discount'}
+                          </p>
+                        </div>
+                      </div>
+                      {!promotionQuoteLoading && result && result.status !== 'VALID' && (
+                        <p className="mt-2 text-xs leading-5 text-amber-800">
+                          {result.message || 'This voucher cannot be used for this order.'}
+                        </p>
+                      )}
+                      {!promotionQuoteLoading && !result && promotionQuoteError && (
+                        <p className="mt-2 text-xs leading-5 text-amber-800">We could not check this voucher. Please try again.</p>
+                      )}
+                    </div>
+                  )
+                })}
                 <button
                   type="button"
-                  onClick={handleClearPromoCode}
-                  disabled={promoCodeApplying || isPlacingOrder}
-                  className="rounded-lg border border-emerald-200 px-3 py-2 text-xs font-medium text-emerald-800 hover:bg-white disabled:opacity-60"
+                  onClick={() => dispatch(clearSelectedVouchers())}
+                  disabled={isPlacingOrder}
+                  className="ml-auto text-xs font-medium text-emerald-800 underline hover:text-emerald-950 disabled:opacity-60"
                 >
-                  Clear
+                  Remove all
                 </button>
-              )}
-            </div>
-            {promoFeedback && (
-              <p className={`mt-2 text-xs ${promoIsValid ? 'text-emerald-700' : 'text-amber-700'}`}>
-                {promoFeedback}
-              </p>
+              </div>
+            ) : (
+              <p className="mt-1 text-sm text-gray-600">No vouchers selected. Choose one from the shop items above.</p>
             )}
           </div>
 
-          {(promoCodeInput.trim() || appliedPromoCode) && (
+          {selectedVoucherCodes.length > 0 && (
             <>
-              <div className="flex items-center justify-between gap-3 border-t border-emerald-100 pt-3">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-emerald-800">Your savings</p>
-                  <p className="mt-0.5 text-xs text-emerald-700">Promotions are checked for this checkout</p>
-                </div>
-                <span className="whitespace-nowrap text-lg font-bold tabular-nums text-emerald-700">
-                  -{formatKsPrice(promotionDiscount)}
+              <div className="flex items-center justify-between gap-3 border-t border-emerald-100 pt-3 text-sm">
+                <span className="text-gray-700">Promotion discount</span>
+                <span className="whitespace-nowrap font-semibold tabular-nums text-emerald-700">
+                  {promotionQuoteLoading ? 'Calculating…' : `-${formatKsPrice(promotionDiscount)}`}
                 </span>
               </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-gray-600">Shipping discount</span>
-                <span className="font-medium text-emerald-700">-{formatKsPrice(shippingDiscount)}</span>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-600">Promotion discount</span>
-                <span className="font-semibold text-emerald-700">-{formatKsPrice(promotionDiscount)}</span>
+                <span className="font-medium text-emerald-700">{promotionQuoteLoading ? 'Calculating…' : `-${formatKsPrice(shippingDiscount)}`}</span>
               </div>
             </>
           )}

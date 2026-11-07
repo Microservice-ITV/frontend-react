@@ -14,17 +14,23 @@ import CheckoutItems from '../components/CheckoutItems'
 import CheckoutAddress from '../components/CheckoutAddress'
 import GuestCheckoutAnnouncementBanner from '../components/GuestCheckoutAnnouncementBanner'
 import CheckoutPayment from '../components/CheckoutPayment'
+import { CheckoutPreparingScreen } from '../components/CheckoutPreparingAnimation'
 import CheckoutSummary from '../components/CheckoutSummary'
 import { SagaStatusDisplay } from '../components/SagaStatusDisplay'
 import { fetchCheckoutStatus, fetchSagaStatus } from '../store/checkoutThunks'
 import { fetchCheckoutShippingCalculation, fetchShopProfilesForCurrentCart } from '@/features/shipping/store/shippingThunks'
 import { useCheckoutDeliveryCompany } from '@/features/shipping/hooks/useCheckoutDeliveryCompany'
 import { clearShippingCalculate } from '@/features/shipping/store/shippingSlice'
-import { clearCheckout, setCurrentCheckout } from '../store/checkoutSlice'
+import { clearCheckout, setCheckoutPreparingUi, setCurrentCheckout } from '../store/checkoutSlice'
 import { usePayDeliveryFeeNow } from '../hooks/usePayDeliveryFeeNow'
 import { useCheckoutDeliveryOptions } from '../hooks/useCheckoutDeliveryOptions'
 import { shopIdsWithoutSelectableDeliveryCompany } from '../utils/deliveryReadiness'
 import { isQuantityApprovalHold } from '../utils/quantityApprovalHold'
+import { hasConfirmedStock } from '../utils/checkoutStatus'
+import {
+  clearGuestCheckoutSession,
+  setGuestCheckoutEditingProfile,
+} from '../utils/guestCheckoutProfile'
 
 const AuthCheckout = () => {
   const items = useAppSelector(selectSelectedItems)
@@ -41,8 +47,18 @@ const GuestCheckoutPayment = () => {
   const navigate = useNavigate()
 
   const items = useAppSelector(selectSelectedItems)
-  const { currentCheckout, loading, paymentStatus, sagaId, sagaStatus } = useAppSelector((state) => state.checkout)
+  const {
+    currentCheckout,
+    loading,
+    paymentStatus,
+    clientSecret,
+    isAwaitingFinalStatus,
+    sagaId,
+    sagaStatus,
+    error: checkoutError,
+  } = useAppSelector((state) => state.checkout)
   const approvalHold = isQuantityApprovalHold()
+  const [checkoutPreparationTimedOut, setCheckoutPreparationTimedOut] = useState(false)
 
   const paymentDeliveryAddress = useMemo<UserAddress | null>(() => {
     try {
@@ -173,12 +189,11 @@ const GuestCheckoutPayment = () => {
   const goToGuestForm = () => {
     try {
       sessionStorage.setItem('dni.guest_checkout.entry_ok', '1')
-      sessionStorage.removeItem('dni.guest_checkout.delivery_address')
-      sessionStorage.removeItem('dni.guest_checkout.checkout_id')
-      sessionStorage.removeItem('dni.guest_checkout.cart_key')
     } catch {
       // ignore
     }
+    clearGuestCheckoutSession()
+    setGuestCheckoutEditingProfile(true)
     dispatch(clearCheckout())
     dispatch(clearShippingCalculate())
     navigate('/checkout/guest', { replace: true })
@@ -258,77 +273,131 @@ const GuestCheckoutPayment = () => {
     }
   }, [paymentStatus, navigate, currentCheckout?.checkout_id, paymentDeliveryAddress?.phone_no])
 
+  const isStockReady = hasConfirmedStock(paymentStatus)
+  useEffect(() => {
+    setCheckoutPreparationTimedOut(false)
+
+    if (
+      !currentCheckout?.checkout_id ||
+      isStockReady ||
+      checkoutError ||
+      (paymentStatus != null && paymentStatus !== 'PENDING_STOCK')
+    ) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setCheckoutPreparationTimedOut(true)
+    }, 20_000)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [currentCheckout?.checkout_id, checkoutError, isStockReady, paymentStatus])
+
+  const isTerminalPayment =
+    paymentStatus != null && terminalCheckoutStatuses.has(paymentStatus)
+  // Same gate as logged-in checkout: wait for payment session before showing the form.
+  const isPreparingCheckout =
+    !checkoutPreparationTimedOut &&
+    !isTerminalPayment &&
+    !isAwaitingFinalStatus &&
+    (loading ||
+      !currentCheckout?.checkout_id ||
+      !clientSecret ||
+      paymentStatus === 'PENDING_STOCK')
+
+  useEffect(() => {
+    dispatch(setCheckoutPreparingUi(isPreparingCheckout))
+    return () => {
+      dispatch(setCheckoutPreparingUi(false))
+    }
+  }, [dispatch, isPreparingCheckout])
+
   if (items.length === 0 && !approvalHold) {
     return <Navigate to="/cart" replace />
   }
 
   if (!ready) {
-    try {
-      sessionStorage.removeItem('dni.guest_checkout.delivery_address')
-      sessionStorage.removeItem('dni.guest_checkout.checkout_id')
-      sessionStorage.removeItem('dni.guest_checkout.cart_key')
-    } catch {
-      // ignore
-    }
+    clearGuestCheckoutSession()
     return <Navigate to="/checkout/guest" replace />
   }
 
   return (
     <Elements stripe={stripePromise}>
-      <div className="bg-[#f5f5f5] py-3 sm:py-4 lg:py-5">
-        <div className="mx-auto w-full max-w-7xl px-3 sm:px-4 lg:px-6">
-          <GuestCheckoutAnnouncementBanner />
+      <div className="min-h-[60vh] bg-[#f5f5f5] py-3 sm:py-4 lg:py-5">
+        {isPreparingCheckout ? (
+          <CheckoutPreparingScreen />
+        ) : (
+          <div className="mx-auto w-full max-w-7xl px-3 sm:px-4 lg:px-6">
+            <GuestCheckoutAnnouncementBanner />
 
-          <div className="mt-3 grid items-start gap-3 sm:mt-4 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-5">
-            <div className="min-w-0 space-y-3">
-              <CheckoutAddress
-                address={paymentDeliveryAddress}
-                loading={false}
-                onChangeAddress={goToGuestForm}
-              />
-              <CheckoutItems
-                checkout={checkoutTotals}
-                payDeliveryFeeNow={payDeliveryFeeNow}
-                onPayDeliveryFeeNowChange={setPayDeliveryFeeNow}
-                payDeliveryFeeNowLockedOff={payDeliveryFeeNowLockedOff}
-                showDeliveryCheckoutOptions={showDeliveryCheckoutOptions}
-                deliveryCompany={{
-                  companiesByShopId: deliveryCompany.companiesByShopId,
-                  selectedByShopId: deliveryCompany.selectedByShopId,
-                  unavailableCompanyIdsByShop: deliveryCompany.unavailableCompanyIdsByShop,
-                  loading: deliveryCompany.loading,
-                  error: deliveryCompany.error,
-                  onSelect: deliveryCompany.selectCompany,
-                }}
-              />
+            <div className="mt-3 grid items-start gap-3 sm:mt-4 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-5">
+              <div className="min-w-0 space-y-3">
+                <CheckoutAddress
+                  address={paymentDeliveryAddress}
+                  loading={false}
+                  onChangeAddress={goToGuestForm}
+                />
+                <CheckoutItems
+                  checkout={checkoutTotals}
+                  payDeliveryFeeNow={payDeliveryFeeNow}
+                  onPayDeliveryFeeNowChange={setPayDeliveryFeeNow}
+                  payDeliveryFeeNowLockedOff={payDeliveryFeeNowLockedOff}
+                  showDeliveryCheckoutOptions={showDeliveryCheckoutOptions}
+                  deliveryCompany={{
+                    companiesByShopId: deliveryCompany.companiesByShopId,
+                    selectedByShopId: deliveryCompany.selectedByShopId,
+                    unavailableCompanyIdsByShop: deliveryCompany.unavailableCompanyIdsByShop,
+                    loading: deliveryCompany.loading,
+                    error: deliveryCompany.error,
+                    onSelect: deliveryCompany.selectCompany,
+                  }}
+                />
+              </div>
+
+              <aside className="space-y-3 lg:sticky lg:top-4">
+                <CheckoutPayment totalAmount={amountDueNow(checkoutTotals, payDeliveryFeeNow)} />
+
+                <CheckoutSummary
+                  checkout={checkoutTotals}
+                  payDeliveryFeeNow={payDeliveryFeeNow}
+                  hasDeliveryAddress={true}
+                  onRequireAddress={goToGuestForm}
+                  deliveryAddress={paymentDeliveryAddress}
+                  cartItems={items}
+                  deliveryQuotePendingConfirmation={deliveryQuotePendingConfirmation}
+                  deliveryCompanyIdByShopId={deliveryCompany.companyByShopId}
+                  deliveryCompanySelectionReady={deliveryCompany.routesReady}
+                  cartShopIdsWithoutSelectableCompany={
+                    showDeliveryCheckoutOptions ? cartShopIdsWithoutSelectableCompany : shopIds
+                  }
+                />
+                {checkoutPreparationTimedOut && !isStockReady && (
+                  <div role="alert" className="rounded-sm border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    <p>Checkout preparation is taking longer than expected.</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCheckoutPreparationTimedOut(false)
+                        if (currentCheckout?.checkout_id) {
+                          void dispatch(fetchCheckoutStatus(currentCheckout.checkout_id))
+                        }
+                      }}
+                      className="mt-3 rounded bg-emerald-600 px-4 py-2 font-medium text-white hover:bg-emerald-700"
+                    >
+                      Retry checkout
+                    </button>
+                  </div>
+                )}
+              </aside>
             </div>
 
-            <aside className="space-y-3 lg:sticky lg:top-4">
-            <CheckoutPayment totalAmount={amountDueNow(checkoutTotals, payDeliveryFeeNow)} />
-
-              <CheckoutSummary
-                checkout={checkoutTotals}
-                payDeliveryFeeNow={payDeliveryFeeNow}
-                hasDeliveryAddress={true}
-                onRequireAddress={goToGuestForm}
-                deliveryAddress={paymentDeliveryAddress}
-                cartItems={items}
-                deliveryQuotePendingConfirmation={deliveryQuotePendingConfirmation}
-                deliveryCompanyIdByShopId={deliveryCompany.companyByShopId}
-                deliveryCompanySelectionReady={deliveryCompany.routesReady}
-                cartShopIdsWithoutSelectableCompany={
-                  showDeliveryCheckoutOptions ? cartShopIdsWithoutSelectableCompany : shopIds
-                }
-              />
-            </aside>
+            {sagaId && (
+              <div className="mt-4">
+                <SagaStatusDisplay sagaId={sagaId} />
+              </div>
+            )}
           </div>
-
-          {sagaId && (
-            <div className="mt-4">
-              <SagaStatusDisplay sagaId={sagaId} />
-            </div>
-          )}
-        </div>
+        )}
       </div>
     </Elements>
   )

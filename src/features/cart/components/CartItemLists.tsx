@@ -1,5 +1,4 @@
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
-import { voucherIcon } from '@/assets/icons'
 import { Trash2 } from 'lucide-react'
 import type { CartItem } from '../types/cartTypes'
 import { selectShopSelectionMap } from '../store/cartSelectors'
@@ -140,15 +139,6 @@ const CartItemLists = ({ items, bundleMinimumQty }: CartItemListProps) => {
             ))}
           </ul>
 
-          <div className="flex items-center justify-between gap-3 border-t border-[var(--dni-cart-border)] px-3 py-2.5 text-sm sm:px-4">
-            <div className="flex min-w-0 items-center gap-2">
-              <img src={voucherIcon} alt="" className="h-5 w-5" />
-              <span className="text-gray-700">Shop Voucher</span>
-            </div>
-            <button type="button" className="shrink-0 text-[#0055aa] hover:underline">
-              Select Voucher
-            </button>
-          </div>
         </section>
       ))}
     </div>

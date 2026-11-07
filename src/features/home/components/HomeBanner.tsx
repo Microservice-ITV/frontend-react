@@ -1,11 +1,8 @@
 import { useEffect, useState } from "react";
 import { useReportHomeSection } from "@/features/home/homeScreenReady";
-import { heroBannerApi } from "@/features/heroBanners/api/heroBannerApi";
-import { promoCardApi } from "@/features/promoCards/api/promoCardApi";
+import { useHomeBannerQuery } from "@/features/home/queries/useHomeBannerQuery";
 import ResponsiveAssetImage from "@/components/media/ResponsiveAssetImage";
 import { ChevronLeft, ChevronRight, ImageIcon } from "lucide-react";
-import type { HeroBanner } from "@/features/heroBanners/types/heroBannerTypes";
-import type { PromoCard } from "@/features/promoCards/types/promoCardTypes";
 
 const BannerImage = ({
   src,
@@ -30,11 +27,11 @@ const BannerImage = ({
           src={src}
           alt={alt}
           className="absolute inset-0 h-full w-full object-cover"
-          // Prefer card (1280) over full (1920) — hero slot is ~816px wide.
-          variant="card"
+          // Desktop hero ~816px → card (960). Mobile → thumb (640) via srcset.
+          variant={priority ? "card" : "thumb"}
           sizes={
             priority
-              ? "(max-width: 768px) 100vw, 816px"
+              ? "(max-width: 768px) 100vw, 900px"
               : "(max-width: 768px) 100vw, 280px"
           }
           loading={priority ? "eager" : "lazy"}
@@ -48,41 +45,10 @@ const BannerImage = ({
 
 const HomeBanner = () => {
   const [current, setCurrent] = useState(0);
-  const [heroBanners, setHeroBanners] = useState<HeroBanner[]>([]);
-  const [sideBanners, setSideBanners] = useState<PromoCard[]>([]);
-  const [loading, setLoading] = useState(true);
-  useReportHomeSection("banner", !loading);
-
-  useEffect(() => {
-    const fetchBanners = async () => {
-      try {
-        const [heroRes, promoRes] = await Promise.all([
-          heroBannerApi.getAll({ isActive: true }),
-          promoCardApi.getAll(),
-        ]);
-
-        const activeHeroes = heroRes.data
-          .filter((b) => b.isActive)
-          .sort((a, b) => a.sortOrder - b.sortOrder);
-
-        const activePromos = promoRes.data
-          .filter((p) => p.isActive)
-          .sort((a, b) => {
-            if (a.position === b.position) return 0;
-            return a.position === "TOP" ? -1 : 1;
-          });
-
-        setHeroBanners(activeHeroes);
-        setSideBanners(activePromos);
-      } catch (error) {
-        console.error("Failed to load banners:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchBanners();
-  }, []);
+  const { data, isPending, isFetched } = useHomeBannerQuery();
+  const heroBanners = data?.heroBanners ?? [];
+  const sideBanners = data?.sideBanners ?? [];
+  useReportHomeSection("banner", isFetched);
 
   // Auto slide
   useEffect(() => {
@@ -100,7 +66,7 @@ const HomeBanner = () => {
     if (heroBanners.length === 0 && current !== 0) setCurrent(0);
   }, [current, heroBanners.length]);
 
-  if (loading) {
+  if (isPending && !data) {
     return (
       <section className="w-full overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">

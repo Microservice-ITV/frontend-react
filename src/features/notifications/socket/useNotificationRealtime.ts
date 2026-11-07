@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react'
 import type { Socket } from 'socket.io-client'
 import { useAppDispatch } from '@/app/hooks'
 import {
-  fetchUnreadCount,
   upsertRealtimeNotification,
   type NotificationRealtimeEvent,
 } from '@/features/notifications/store/notificationSlice'
@@ -72,10 +71,8 @@ export const useNotificationRealtime = ({
 
       socketRef.current = socket
 
-      const handleConnected = () => {
-        void dispatch(fetchUnreadCount())
-      }
-
+      // Do not fetch unread count on connect — storefront Home/nav does not
+      // display it. Notifications pages load the count when opened.
       const handleNotification = (
         payload: NotificationRealtimeEvent,
       ) => {
@@ -93,7 +90,6 @@ export const useNotificationRealtime = ({
         dispatch(upsertRealtimeNotification(normalized))
       }
 
-      socket.on('connected', handleConnected)
       socket.on('notification:new', handleNotification)
 
       socket.on('connect_error', () => {

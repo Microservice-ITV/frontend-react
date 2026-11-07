@@ -117,7 +117,10 @@ const CartPage = () => {
                 <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-5">
                     <div className="space-y-3">
                         <CartBundleBanner items={items} onMatch={setBundleMatch} />
-                        <CartItemLists items={items} bundleMinimumQty={bundleMinimumQty} />
+                        <CartItemLists
+                            items={items}
+                            bundleMinimumQty={bundleMinimumQty}
+                        />
                     </div>
                     <aside className="max-lg:sticky max-lg:bottom-0 max-lg:z-20 lg:sticky lg:top-4">
                         <CartSummary

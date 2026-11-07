@@ -10,6 +10,9 @@ import { productServiceAssetUrl } from "@/lib/api/apiConfig";
 import YouTubeMark from "@/features/products/components/YouTubeMark";
 import { isYouTubeUrl } from "@/features/products/utils/videoEmbed";
 
+/** Max gallery images per product (create + edit, existing + new combined). */
+export const MAX_PRODUCT_IMAGES = 6;
+
 /** Split a comma-separated tags string into a deduped, trimmed array (max 20). */
 export const parseTagsInput = (raw: string): string[] =>
   [
@@ -47,7 +50,9 @@ const sanitizeDecimalInput = (value: string, maxDecimals: number = 2) => {
   return clean;
 };
 
-/** Matches product-service `priceField` / `optionalPercent`: parseFloat, positive price, percent ranges. */
+/**
+ * Matches product-service `priceField`: 0 allowed before PO sets base/selling price.
+ */
 const moneyField = (label: string, required: boolean) =>
   z
     .string()
@@ -59,8 +64,8 @@ const moneyField = (label: string, required: boolean) =>
       "Use numbers only, up to 2 decimal places",
     )
     .refine(
-      (s) => s === "" || parseFloat(s) > 0,
-      `${label} must be greater than 0`,
+      (s) => s === "" || parseFloat(s) >= 0,
+      `${label} cannot be negative`,
     )
     .refine(
       (s) => s === "" || parseFloat(s) <= 9999999,
@@ -516,7 +521,7 @@ const ProductForm = ({
                     htmlFor="images"
                     className="mb-1.5 block text-xs font-medium text-slate-700"
                   >
-                    Images (max 3)
+                    Images (max {MAX_PRODUCT_IMAGES})
                   </label>
                   <input
                     id="images"
@@ -525,6 +530,10 @@ const ProductForm = ({
                     accept="image/*"
                     onChange={(e) => {
                       setImageSubmitErrorDismissed(true);
+                      const remainingSlots = Math.max(
+                        0,
+                        MAX_PRODUCT_IMAGES - editableExistingImages.length,
+                      );
                       const incomingFiles = Array.from(e.target.files ?? []);
                       const merged = [...imageFiles, ...incomingFiles];
                       const uniqueByKey = merged.filter(
@@ -536,12 +545,14 @@ const ProductForm = ({
                               item.lastModified === file.lastModified,
                           ) === index,
                       );
-                      if (uniqueByKey.length > 3) {
-                        setImageError("You can upload up to 3 images only.");
+                      if (uniqueByKey.length > remainingSlots) {
+                        setImageError(
+                          `You can upload up to ${MAX_PRODUCT_IMAGES} images only.`,
+                        );
                       } else {
                         setImageError("");
                       }
-                      setImageFiles(uniqueByKey.slice(0, 3));
+                      setImageFiles(uniqueByKey.slice(0, remainingSlots));
                       e.currentTarget.value = "";
                     }}
                     className="w-full cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500"

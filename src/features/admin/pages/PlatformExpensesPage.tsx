@@ -11,6 +11,7 @@ import {
 import { useAppSelector } from "@/app/hooks";
 import { accountingExpensesAdapter } from "@/features/accounting/adapters/accountingExpensesAdapter";
 import AccountingStatusBadge from "@/features/accounting/components/AccountingStatusBadge";
+import { isExpenseInAccounting } from "@/features/accounting/utils/expenseAccounting";
 import type {
   AccountingExpense,
   ExpenseAccount,
@@ -110,7 +111,10 @@ const PlatformExpensesPage = () => {
       ),
     [accounts],
   );
-  const total = expenses.reduce(
+  const accountingExpenses = expenses.filter((expense) =>
+    isExpenseInAccounting(expense),
+  );
+  const total = accountingExpenses.reduce(
     (sum, expense) => sum + Number(expense.amount),
     0,
   );
@@ -463,6 +467,9 @@ const PlatformExpensesPage = () => {
         </div>
       )}
 
+      <p className="text-xs text-slate-500">
+        All platform expenses are shown together. Status identifies requests awaiting approval; the platform total includes approved expenses and DELI expenses.
+      </p>
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div className="overflow-x-auto">
           <table className="w-full min-w-205">

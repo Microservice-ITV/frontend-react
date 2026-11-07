@@ -283,7 +283,8 @@ export const sellerProductApi = {
     const page = params.page ?? 1;
     const limit = Math.min(params.limit ?? 100, 100);
     return productClient.get<ProductServicePaginatedResponse>("/products", {
-      params: { shopId: params.shopId, page, limit },
+      // owned=true includes Inactive products for the seller dashboard.
+      params: { shopId: params.shopId, page, limit, owned: true },
     });
   },
 

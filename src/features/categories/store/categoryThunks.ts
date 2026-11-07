@@ -15,9 +15,9 @@ export const fetchCategories = createAsyncThunk<Category[], void, {rejectValue: 
                 image: c.image ? productServiceAssetUrl(c.image) : c.image,
                 _count: c._count,
             }))
-        } catch (error: any) {
-            const message = error?.response?.data?.message || error.message || 'Failed to load categories'
-            return rejectWithValue(message)
+        } catch {
+            // UI shows a soft storefront notice — never pass raw API/429 text through.
+            return rejectWithValue('unavailable')
         }
     }
 )

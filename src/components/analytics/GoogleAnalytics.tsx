@@ -1,10 +1,19 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { isGaEnabled, trackPageView } from "@/lib/analytics/gtag";
+import {
+  ensureGtagLoaded,
+  isGaEnabled,
+  trackPageView,
+} from "@/lib/analytics/gtag";
 import { formatDocumentTitle, resolvePageTitle } from "@/lib/pageTitle";
 
 const GoogleAnalytics = () => {
   const location = useLocation();
+
+  useEffect(() => {
+    if (!isGaEnabled()) return;
+    void ensureGtagLoaded();
+  }, []);
 
   useEffect(() => {
     if (!isGaEnabled()) return;

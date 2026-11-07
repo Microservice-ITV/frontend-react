@@ -1,9 +1,6 @@
-import { useEffect, useState } from 'react'
-import { ChevronRight, RefreshCw } from 'lucide-react'
-import { Link } from 'react-router-dom'
 import TopOrderedProductCard from './TopOrderedProductCard'
-import { homeApi } from '../api/homeApi'
-import type { TopOrderedProduct, TopOrderedProductsStatus } from '../types/topOrderedProductTypes'
+import { StorefrontUnavailableNotice } from '@/components/feedback/StorefrontUnavailableNotice'
+import { useHomeTopOrderedQuery } from '../queries/useHomeTopOrderedQuery'
 import { useReportHomeSection } from '../homeScreenReady'
 
 const TopOrderedProductSkeleton = () => (
@@ -17,39 +14,11 @@ const TopOrderedProductSkeleton = () => (
 )
 
 const TopOrderedProducts = () => {
-    const [status, setStatus] = useState<TopOrderedProductsStatus>('loading')
-    const [products, setProducts] = useState<TopOrderedProduct[]>([])
-    useReportHomeSection('topOrdered', status !== 'loading')
+    const { data: products = [], isPending, isError, isFetched, isSuccess, refetch } =
+        useHomeTopOrderedQuery(10)
+    useReportHomeSection('topOrdered', isFetched)
 
-    useEffect(() => {
-        let isActive = true
-
-        homeApi.getTopOrderedProducts()
-            .then((items) => {
-                if (!isActive) return
-                setProducts(items)
-                setStatus(items.length ? 'success' : 'empty')
-            })
-            .catch(() => {
-                if (isActive) setStatus('error')
-            })
-
-        return () => {
-            isActive = false
-        }
-    }, [])
-
-    const retry = () => {
-        setStatus('loading')
-        homeApi.getTopOrderedProducts()
-            .then((items) => {
-                setProducts(items)
-                setStatus(items.length ? 'success' : 'empty')
-            })
-            .catch(() => setStatus('error'))
-    }
-
-    if (status === 'empty') {
+    if (isSuccess && products.length === 0) {
         return null
     }
 
@@ -68,27 +37,17 @@ const TopOrderedProducts = () => {
             </div>
 
             <div className="overflow-x-auto overflow-y-hidden scrollbar-hide">
-                {status === 'loading' && (
+                {isPending && (
                     <div className="grid w-full min-w-max grid-flow-col auto-cols-[200px] gap-3">
                         {Array.from({ length: 6 }, (_, index) => <TopOrderedProductSkeleton key={index} />)}
                     </div>
                 )}
 
-                {status === 'error' && (
-                    <div className="flex flex-col items-center gap-3 py-10 text-center text-sm text-gray-500">
-                        <p>Failed to load top ordered products. Please try again later.</p>
-                        <button
-                            type="button"
-                            onClick={retry}
-                            className="inline-flex items-center gap-2 rounded border border-(--dni-primary) px-3 py-1.5 text-(--dni-primary) transition-colors hover:bg-(--dni-primary-soft) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--dni-primary)"
-                        >
-                            <RefreshCw aria-hidden="true" className="h-4 w-4" />
-                            Retry
-                        </button>
-                    </div>
+                {isError && (
+                    <StorefrontUnavailableNotice withRetry onRetry={() => { void refetch() }} />
                 )}
 
-                {status === 'success' && (
+                {isSuccess && products.length > 0 && (
                     <div className="grid w-full min-w-max grid-flow-col auto-cols-[200px] gap-3">
                         {products.map((product) => (
                             <TopOrderedProductCard key={product.id} product={product} />

@@ -34,6 +34,7 @@ export type CheckoutAddressPayload = {
   shop_shippings: CheckoutShopShippingPayload[]
   /** Optional one-time voucher / promo code */
   promo_code?: string | null
+  promo_codes?: string[]
   payment_method?: 'prepaid' | 'cod'
   /** Staff prepaid cash: amount customer tendered at counter */
   cash_paid_amount?: number | null
@@ -59,6 +60,8 @@ export type PromotionQuoteResponse = {
   promo_code?: string | null
   promo_code_status?: PromoCodeStatus | null
   promo_code_message?: string | null
+  promo_codes?: string[]
+  promo_code_results?: Array<{ code: string; promotion_id?: string | null; promotion_name?: string | null; status: PromoCodeStatus; message?: string | null }>
   bundle_savings?: Array<{
     bundle_id: string
     title: string
@@ -157,11 +160,15 @@ export const checkoutApi = {
     subtotal: number
     shipping_total: number
     promo_code?: string | null
+    promo_codes?: string[]
   }): Promise<PromotionQuoteResponse> {
     const body = {
       ...payload,
       promo_code: payload.promo_code?.trim()
         ? payload.promo_code.trim().toUpperCase()
+        : undefined,
+      promo_codes: payload.promo_codes?.length
+        ? [...new Set(payload.promo_codes.map(code => code.trim().toUpperCase()).filter(Boolean))]
         : undefined,
     }
     const response = await promotionClient.post('/promotions/quote', body)
@@ -240,6 +247,9 @@ export const checkoutApi = {
     promo_code?: string | null
     promo_code_status?: PromoCodeStatus | null
     promo_code_message?: string | null
+    promo_codes?: string[]
+    promo_code_results?: PromotionQuoteResponse['promo_code_results']
+    allocations?: Array<Record<string, unknown>>
     payment?: { client_secret?: string }
     already_succeeded?: boolean
   }>> {

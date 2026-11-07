@@ -1,11 +1,9 @@
-
 import HomeBanner from '@/features/home/components/HomeBanner'
 import HomeQuickActions from '@/features/home/components/HomeQuickActions'
 import CategoriesSection from '@/features/categories/components/CategoriesSection'
 import TopOrderedProducts from './components/TopOrderedProducts'
 import RecentlyAddedSection from './components/RecentlyAddedSection'
-import FlashDealsSection from "@/features/flash-deals/components/FlashDealsSection";
-
+import FlashDealsSection from '@/features/flash-deals/components/FlashDealsSection'
 
 const HomePage = () => {
   return (
@@ -47,7 +45,7 @@ const HomePage = () => {
         </div>
       </section>
     </>
-  );
+  )
 }
 
-export default HomePage;
+export default HomePage

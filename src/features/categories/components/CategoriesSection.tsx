@@ -1,31 +1,24 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useAppDispatch, useAppSelector } from "@/app/hooks";
-import { fetchCategories } from "@/features/categories/store/categoryThunks";
-import {
-  selectCategoriesStatus,
-  selectCategoriesWithProducts,
-} from "@/features/categories/store/categorySelectors";
 import CategoryGrid, { type CategoryGridHandle } from "./CategoryGrid";
-import { isRequestSettled, useReportHomeSection } from "@/features/home/homeScreenReady";
+import { useReportHomeSection } from "@/features/home/homeScreenReady";
+import { useHomeCategoriesQuery } from "@/features/home/queries/useHomeCategoriesQuery";
 import { Typing } from "@/components/loading-ui/typing";
+import { StorefrontUnavailableNotice } from "@/components/feedback/StorefrontUnavailableNotice";
 
 const CategoriesSection = () => {
-  const dispatch = useAppDispatch();
-  const categoriesWithProducts = useAppSelector(selectCategoriesWithProducts);
-  const status = useAppSelector(selectCategoriesStatus);
+  const { data: categories = [], isPending, isError, isFetched, isSuccess } =
+    useHomeCategoriesQuery();
+  const categoriesWithProducts = useMemo(
+    () => categories.filter((c) => (c._count?.products ?? 0) > 0),
+    [categories],
+  );
   const gridRef = useRef<CategoryGridHandle>(null);
   const [showArrows, setShowArrows] = useState(false);
-  useReportHomeSection("categories", isRequestSettled(status));
+  useReportHomeSection("categories", isFetched);
 
   useEffect(() => {
-    if (status === "idle") {
-      void dispatch(fetchCategories());
-    }
-  }, [dispatch, status]);
-
-  useEffect(() => {
-    if (status !== "succeeded") {
+    if (!isSuccess) {
       setShowArrows(false);
       return;
     }
@@ -41,50 +34,53 @@ const CategoriesSection = () => {
       window.clearTimeout(t);
       window.removeEventListener("resize", update);
     };
-  }, [status, categoriesWithProducts.length]);
+  }, [isSuccess, categoriesWithProducts.length]);
 
   return (
     <section className="pt-6">
-      <div className="mb-5 flex items-center justify-between px-4 sm:px-6">
+      <div className="mb-5 flex min-h-7 items-center justify-between px-4 sm:px-6">
         <h1 className="text-base uppercase font-semibold text-gray-600">
           Shop by Category
         </h1>
-        {status === "succeeded" && showArrows && (
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[var(--dni-primary)] bg-white text-[var(--dni-primary)] transition-colors hover:bg-[var(--dni-primary)] hover:text-white cursor-pointer"
-              onClick={() => gridRef.current?.scrollLeft()}
-            >
-              <ChevronLeft className="h-4 w-4" />
-              <span className="sr-only">Scroll left</span>
-            </button>
-            <button
-              type="button"
-              className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[var(--dni-primary)] bg-white text-[var(--dni-primary)] transition-colors hover:bg-[var(--dni-primary)] hover:text-white cursor-pointer"
-              onClick={() => gridRef.current?.scrollRight()}
-            >
-              <ChevronRight className="h-4 w-4" />
-              <span className="sr-only">Scroll right</span>
-            </button>
-          </div>
-        )}
+        <div
+          className={`flex items-center gap-1 ${showArrows ? "visible" : "invisible"}`}
+          aria-hidden={!showArrows}
+        >
+          <button
+            type="button"
+            disabled={!showArrows}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[var(--dni-primary)] bg-white text-[var(--dni-primary)] transition-colors hover:bg-[var(--dni-primary)] hover:text-white cursor-pointer disabled:pointer-events-none"
+            onClick={() => gridRef.current?.scrollLeft()}
+          >
+            <ChevronLeft className="h-4 w-4" />
+            <span className="sr-only">Scroll left</span>
+          </button>
+          <button
+            type="button"
+            disabled={!showArrows}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[var(--dni-primary)] bg-white text-[var(--dni-primary)] transition-colors hover:bg-[var(--dni-primary)] hover:text-white cursor-pointer disabled:pointer-events-none"
+            onClick={() => gridRef.current?.scrollRight()}
+          >
+            <ChevronRight className="h-4 w-4" />
+            <span className="sr-only">Scroll right</span>
+          </button>
+        </div>
       </div>
 
-      {status === "loading" && (
-        <div className="flex min-h-40 items-center justify-center">
+      {isPending && (
+        <div className="flex min-h-[180px] items-center justify-center">
           <Typing className="w-8" />
         </div>
       )}
 
-      {status === "failed" && (
-        <div className="text-sm text-red-500">
-          Failed to load categories. Please try again later.
-        </div>
+      {isError && (
+        <StorefrontUnavailableNotice className="min-h-[180px]" />
       )}
 
-      {status === "succeeded" && (
-        <CategoryGrid ref={gridRef} items={categoriesWithProducts} />
+      {isSuccess && (
+        <div className="min-h-[180px]">
+          <CategoryGrid ref={gridRef} items={categoriesWithProducts} />
+        </div>
       )}
     </section>
   );

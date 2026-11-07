@@ -170,16 +170,22 @@ const VARIANT_WIDTH_BY_FOLDER: Record<
     string,
     Record<ProductImageVariant, number>
 > = {
-    products: { thumb: 200, card: 600, full: 1200 },
-    categories: { thumb: 128, card: 320, full: 800 },
-    'hero-banners': { thumb: 640, card: 1280, full: 1920 },
+    products: { thumb: 480, card: 720, full: 1200 },
+    categories: { thumb: 180, card: 320, full: 800 },
+    'hero-banners': { thumb: 640, card: 960, full: 1920 },
     'promo-banners': { thumb: 200, card: 400, full: 800 },
-    'home-features': { thumb: 64, card: 128, full: 256 },
+    'home-features': { thumb: 96, card: 128, full: 256 },
 }
 
 const DEFAULT_VARIANT_WIDTH = VARIANT_WIDTH_BY_FOLDER.products
 
 const VARIANT_PATH_RE = /-(thumb|card|full)\.webp(?=[?#]|$)/i
+
+const VARIANT_RANK: Record<ProductImageVariant, number> = {
+    thumb: 0,
+    card: 1,
+    full: 2,
+}
 
 function variantWidthsForUrl(url: string): Record<ProductImageVariant, number> {
     const match = url.match(
@@ -200,15 +206,21 @@ export function productImageVariantUrl(
     return url.replace(VARIANT_PATH_RE, `-${variant}.webp`)
 }
 
-/** Browser picks phone vs desktop size when the asset has multi-size uploads. */
+/**
+ * Browser picks phone vs desktop size when the asset has multi-size uploads.
+ * `maxVariant` caps the largest candidate (e.g. product cards never load `-full`).
+ */
 export function productImageSrcSet(
     path: string | undefined | null,
+    maxVariant: ProductImageVariant = 'full',
 ): string | undefined {
     const url = productServiceAssetUrl(path)
     if (!url || !VARIANT_PATH_RE.test(url)) return undefined
 
     const widths = variantWidthsForUrl(url)
+    const maxRank = VARIANT_RANK[maxVariant]
     return (Object.keys(widths) as ProductImageVariant[])
+        .filter((variant) => VARIANT_RANK[variant] <= maxRank)
         .map((variant) => `${productImageVariantUrl(path, variant)} ${widths[variant]}w`)
         .join(', ')
 }

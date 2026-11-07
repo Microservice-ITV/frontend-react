@@ -36,8 +36,11 @@ const TopOrderedProductCard = ({ product }: Props) => {
                     src={product.image}
                     alt={product.name}
                     className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.03]"
-                    variant="card"
+                    variant="thumb"
+                    maxSrcSetVariant="card"
                     sizes="200px"
+                    width={200}
+                    height={200}
                     loading="lazy"
                 />
 

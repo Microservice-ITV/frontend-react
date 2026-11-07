@@ -31,6 +31,8 @@ export interface CartItem {
 
 export interface CartState {
     items: CartItem[]
+    selectedVoucherCodes: string[]
+    voucherSelectionUserId: string | null
 }
 
 export type CartItemListProps = {

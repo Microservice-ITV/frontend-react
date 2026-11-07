@@ -9,7 +9,7 @@ export type CustomerVoucher = {
   used_at: string | null
   expires_at: string | null
   created_at: string
-  promotion?: { name?: string; description?: string | null; end_at?: string | null }
+  promotion?: { name?: string; description?: string | null; end_at?: string | null; shop_id?: string | null; owner_type?: 'PLATFORM' | 'SELLER' }
 }
 
 export const vouchersApi = {

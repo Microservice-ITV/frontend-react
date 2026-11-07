@@ -3,11 +3,14 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { BuyerHomeRoute, GuestRoute, ProtectedRoute } from "./RouteGuards";
 import RootEmployeeGuard from "./RootEmployeeGuard";
 import { ROUTE_ACCESS } from "./routeAccessMap";
-import { CATALOG_ENTITY_CONFIG } from "@/features/seller/config/catalogEntityConfig";
 import SpinPage from "@/components/spin/SpinPage";
 import HomePage from "@/features/home/HomePage";
 
 const HomeFeaturesPage = lazy(() => import("@/features/homeFeatures/pages/HomeFeaturesPage"));
+const ShopFinanceDashboardPage = lazy(() => import("@/features/finance/pages/ShopFinanceDashboardPage"));
+const SalaryApprovalsPage = lazy(() => import("@/features/finance/pages/SalaryApprovalsPage"));
+const SellerReceivablesPayablesPage = lazy(() => import("@/features/accounting/pages/SellerReceivablesPayablesPage"));
+const InventoryValuationPage = lazy(() => import("@/features/finance/pages/InventoryValuationPage"));
 const NewHomeFeaturePage = lazy(() => import("@/features/homeFeatures/pages/NewHomeFeaturePage"));
 const EditHomeFeaturePage = lazy(() => import("@/features/homeFeatures/pages/EditHomeFeaturePage"));
 const HeroBannersPage = lazy(() => import("@/features/heroBanners/pages/HeroBannersPage"));
@@ -152,8 +155,51 @@ const SellerProductDetailPage = lazy(() => import("@/features/seller/pages/Selle
 const NewCategoryPage = lazy(() => import("@/features/seller/pages/NewCategoryPage"));
 const EditCategoryPage = lazy(() => import("@/features/seller/pages/EditCategoryPage"));
 const SellerCategoryDetailPage = lazy(() => import("@/features/seller/pages/SellerCategoryDetailPage"));
-const CatalogListPage = lazy(() => import("@/features/seller/pages/CatalogListPage"));
-const CatalogFormPage = lazy(() => import("@/features/seller/pages/CatalogFormPage"));
+const SellerBrandListPage = lazy(() =>
+  import("@/features/seller/pages/catalogEntityPages").then((m) => ({
+    default: m.SellerBrandListPage,
+  })),
+);
+const SellerBrandCreatePage = lazy(() =>
+  import("@/features/seller/pages/catalogEntityPages").then((m) => ({
+    default: m.SellerBrandCreatePage,
+  })),
+);
+const SellerBrandEditPage = lazy(() =>
+  import("@/features/seller/pages/catalogEntityPages").then((m) => ({
+    default: m.SellerBrandEditPage,
+  })),
+);
+const SellerColorListPage = lazy(() =>
+  import("@/features/seller/pages/catalogEntityPages").then((m) => ({
+    default: m.SellerColorListPage,
+  })),
+);
+const SellerColorCreatePage = lazy(() =>
+  import("@/features/seller/pages/catalogEntityPages").then((m) => ({
+    default: m.SellerColorCreatePage,
+  })),
+);
+const SellerColorEditPage = lazy(() =>
+  import("@/features/seller/pages/catalogEntityPages").then((m) => ({
+    default: m.SellerColorEditPage,
+  })),
+);
+const SellerSizeListPage = lazy(() =>
+  import("@/features/seller/pages/catalogEntityPages").then((m) => ({
+    default: m.SellerSizeListPage,
+  })),
+);
+const SellerSizeCreatePage = lazy(() =>
+  import("@/features/seller/pages/catalogEntityPages").then((m) => ({
+    default: m.SellerSizeCreatePage,
+  })),
+);
+const SellerSizeEditPage = lazy(() =>
+  import("@/features/seller/pages/catalogEntityPages").then((m) => ({
+    default: m.SellerSizeEditPage,
+  })),
+);
 const SellerNotificationsPage = lazy(() => import("@/features/seller/pages/SellerNotificationsPage"));
 const SellerInvoicesPage = lazy(() => import("@/features/seller/pages/SellerInvoicesPage"));
 const PaymentsPage = lazy(() => import("@/features/seller/pages/PaymentsPage"));
@@ -423,7 +469,7 @@ const AppRoutes = () => {
             element={
               <ProtectedRoute
                 requiredCapabilities={ROUTE_ACCESS.sellerDashboard}
-                allowedRoles={["SHOP_OWNER", "SHOP_ADMIN"]}
+                allowedRoles={["SHOP_OWNER", "SHOP_ADMIN", "FINANCE_MANAGER"]}
               />
             }
           >
@@ -697,10 +743,7 @@ const AppRoutes = () => {
                 <ProtectedRoute
                   requiredCapabilities={ROUTE_ACCESS.sellerCatalogRefs}
                 >
-                  <CatalogFormPage
-                    config={CATALOG_ENTITY_CONFIG.brand}
-                    mode="create"
-                  />
+                  <SellerBrandCreatePage />
                 </ProtectedRoute>
               }
             />
@@ -710,10 +753,7 @@ const AppRoutes = () => {
                 <ProtectedRoute
                   requiredCapabilities={ROUTE_ACCESS.sellerCatalogRefs}
                 >
-                  <CatalogFormPage
-                    config={CATALOG_ENTITY_CONFIG.brand}
-                    mode="edit"
-                  />
+                  <SellerBrandEditPage />
                 </ProtectedRoute>
               }
             />
@@ -723,7 +763,7 @@ const AppRoutes = () => {
                 <ProtectedRoute
                   requiredCapabilities={ROUTE_ACCESS.sellerCatalogRefs}
                 >
-                  <CatalogListPage config={CATALOG_ENTITY_CONFIG.brand} />
+                  <SellerBrandListPage />
                 </ProtectedRoute>
               }
             />
@@ -733,10 +773,7 @@ const AppRoutes = () => {
                 <ProtectedRoute
                   requiredCapabilities={ROUTE_ACCESS.sellerCatalogRefs}
                 >
-                  <CatalogFormPage
-                    config={CATALOG_ENTITY_CONFIG.color}
-                    mode="create"
-                  />
+                  <SellerColorCreatePage />
                 </ProtectedRoute>
               }
             />
@@ -746,10 +783,7 @@ const AppRoutes = () => {
                 <ProtectedRoute
                   requiredCapabilities={ROUTE_ACCESS.sellerCatalogRefs}
                 >
-                  <CatalogFormPage
-                    config={CATALOG_ENTITY_CONFIG.color}
-                    mode="edit"
-                  />
+                  <SellerColorEditPage />
                 </ProtectedRoute>
               }
             />
@@ -759,7 +793,7 @@ const AppRoutes = () => {
                 <ProtectedRoute
                   requiredCapabilities={ROUTE_ACCESS.sellerCatalogRefs}
                 >
-                  <CatalogListPage config={CATALOG_ENTITY_CONFIG.color} />
+                  <SellerColorListPage />
                 </ProtectedRoute>
               }
             />
@@ -769,10 +803,7 @@ const AppRoutes = () => {
                 <ProtectedRoute
                   requiredCapabilities={ROUTE_ACCESS.sellerCatalogRefs}
                 >
-                  <CatalogFormPage
-                    config={CATALOG_ENTITY_CONFIG.size}
-                    mode="create"
-                  />
+                  <SellerSizeCreatePage />
                 </ProtectedRoute>
               }
             />
@@ -782,10 +813,7 @@ const AppRoutes = () => {
                 <ProtectedRoute
                   requiredCapabilities={ROUTE_ACCESS.sellerCatalogRefs}
                 >
-                  <CatalogFormPage
-                    config={CATALOG_ENTITY_CONFIG.size}
-                    mode="edit"
-                  />
+                  <SellerSizeEditPage />
                 </ProtectedRoute>
               }
             />
@@ -795,7 +823,7 @@ const AppRoutes = () => {
                 <ProtectedRoute
                   requiredCapabilities={ROUTE_ACCESS.sellerCatalogRefs}
                 >
-                  <CatalogListPage config={CATALOG_ENTITY_CONFIG.size} />
+                  <SellerSizeListPage />
                 </ProtectedRoute>
               }
             />
@@ -941,7 +969,27 @@ const AppRoutes = () => {
                 <ProtectedRoute
                   requiredCapabilities={ROUTE_ACCESS.sellerFinanceOverview}
                 >
-                  <SellerFinanceOverviewPage />
+                  <ShopFinanceDashboardPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="finance/ar-ap"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerFinanceOverview}
+                >
+                  <Navigate to="/seller/accounting/receivables-payables" replace />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="salary-approvals"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerSalaryApprovals}
+                >
+                  <SalaryApprovalsPage />
                 </ProtectedRoute>
               }
             />
@@ -992,6 +1040,26 @@ const AppRoutes = () => {
                   requiredCapabilities={ROUTE_ACCESS.sellerAccounting}
                 >
                   <SellerProfitLossPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/receivables-payables"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerFinanceManagerReports}
+                >
+                  <SellerReceivablesPayablesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="accounting/inventory-valuation"
+              element={
+                <ProtectedRoute
+                  requiredCapabilities={ROUTE_ACCESS.sellerInventoryValuation}
+                >
+                  <InventoryValuationPage />
                 </ProtectedRoute>
               }
             />
@@ -2488,7 +2556,7 @@ const AppRoutes = () => {
               }
             />
 
-            <Route
+          <Route
               path="finance"
               element={
                 <ProtectedRoute
@@ -2508,11 +2576,11 @@ const AppRoutes = () => {
                     title="Accounting"
                     description="Platform accounting, payments, and financial reporting will be managed here."
                   />
-                </ProtectedRoute>
-              }
-            />
+                  </ProtectedRoute>
+  }
+/>
 
-            <Route
+<Route
               path="finance/transactions"
               element={
                 <ProtectedRoute

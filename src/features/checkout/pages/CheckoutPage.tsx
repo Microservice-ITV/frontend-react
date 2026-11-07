@@ -36,6 +36,7 @@ import { isShopStaffUser, readStaffCheckoutAddress } from '../utils/staffCheckou
 import { parseDeliveryFeeInput } from '../utils/checkoutShopShipping'
 import CheckoutPreparingAnimation from '../components/CheckoutPreparingAnimation'
 import { isQuantityApprovalHold } from '../utils/quantityApprovalHold'
+import { CheckoutPreparingScreen } from '../components/CheckoutPreparingAnimation'
 
 type StoredCheckoutSession = {
     checkoutId: string
@@ -640,18 +641,7 @@ const CheckoutPage = () => {
         <Elements stripe={stripePromise}>
             <div className="min-h-[60vh] bg-[#f5f5f5] py-3 sm:py-4 lg:py-5">
                 {isPreparingCheckout ? (
-                    <div
-                        role="status"
-                        aria-live="polite"
-                        aria-busy="true"
-                        className="flex min-h-[60vh] w-full flex-col items-center justify-center gap-4"
-                    >
-                        <CheckoutPreparingAnimation />
-                        <div className="text-center">
-                            <p className="text-sm font-medium text-slate-700">Getting Your Order Ready...</p>
-                            <p className="mt-1 text-xs text-slate-500">We're preparing your order with care.</p>
-                        </div>
-                    </div>
+                    <CheckoutPreparingScreen />
                 ) : (
                     <div className="mx-auto w-full max-w-7xl px-3 sm:px-4 lg:px-6">
                         {/* <h1 className="mb-3 text-lg font-semibold text-gray-900 sm:mb-4 sm:text-xl">Checkout</h1> */}

@@ -455,7 +455,6 @@ const buildAssetPayload = (kind: ManagementTab, form: AssetFormState, mode: Asse
   }
   if (kind === 'usageLimits') {
     return {
-      promotion_id: form.promotionId,
       limit_type: form.limitType,
       max_count: form.limitType === 'SHOP_BUDGET' || !form.maxCount
         ? undefined
@@ -473,6 +472,18 @@ const buildAssetPayload = (kind: ManagementTab, form: AssetFormState, mode: Asse
     target_type: form.targetType,
     target_id: form.targetId,
   }
+}
+
+const getApiErrorMessage = (error: unknown): string | null => {
+  if (!error || typeof error !== 'object') return null
+  const response = (error as { response?: { data?: { message?: unknown } } }).response
+  const message = response?.data?.message
+  if (typeof message === 'string' && message.trim()) return message
+  if (Array.isArray(message)) {
+    const details = message.filter((item): item is string => typeof item === 'string' && Boolean(item.trim()))
+    return details.length ? details.join(' ') : null
+  }
+  return null
 }
 
 const PromotionEnginePage = () => {
@@ -824,7 +835,9 @@ const PromotionEnginePage = () => {
         | PromotionCodeRecord
         | PromotionUsageLimitRecord
       const record = assetMode === 'create'
-        ? await promotionApi.create<PromotionAssetRecord>(managementTab, payload)
+        ? managementTab === 'usageLimits'
+          ? await promotionApi.createUsageLimit<PromotionUsageLimitRecord>(assetForm.promotionId, payload)
+          : await promotionApi.create<PromotionAssetRecord>(managementTab, payload)
         : await promotionApi.update<PromotionAssetRecord>(managementTab, editingAssetId!, payload)
       const targetNames = managementTab === 'targets'
         ? await promotionApi.resolveTargetNames([record as PromotionTargetRecord])
@@ -838,8 +851,12 @@ const PromotionEnginePage = () => {
       }))
       setAssetError(null)
       setAssetModalOpen(false)
-    } catch {
-      setAssetError(`Could not ${assetMode === 'create' ? 'create' : 'update'} this ${ASSET_SINGULAR_LABELS[managementTab]}. Check the values and JSON.`)
+    } catch (error) {
+      const action = assetMode === 'create' ? 'create' : 'update'
+      const detail = getApiErrorMessage(error)
+      setAssetError(detail
+        ? `Could not ${action} this ${ASSET_SINGULAR_LABELS[managementTab]}: ${detail}`
+        : `Could not ${action} this ${ASSET_SINGULAR_LABELS[managementTab]}. Check the values and service connection.`)
     } finally {
       setAssetSaving(false)
     }
@@ -1320,7 +1337,7 @@ const PromotionAssetManager = ({
             key={tab}
             type="button"
             onClick={() => onTabChange(tab)}
-            className={`border-b-2 px-3 pb-3 text-xs font-semibold ${activeTab === tab ? 'border-violet-600 text-violet-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+            className={`border-b-2 px-3 pb-3 text-xs font-semibold ${!isAwardPromotionTab && activeTab === tab ? 'border-violet-600 text-violet-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
           >
             {ASSET_LABELS[tab]}
           </button>
@@ -1349,7 +1366,7 @@ const PromotionAssetManager = ({
               <div className="flex items-center gap-4 px-5 py-4">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-slate-900">{deliveryAwardPromotionName || 'Selected promotion'}</p>
-                  <p className="mt-1 text-xs text-slate-500">Supplies voucher codes for delivered orders</p>
+                  <p className="mt-1 text-xs text-slate-500">Selected rules apply to a unique voucher issued after delivery</p>
                 </div>
                 <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${deliveryAwardPromotionStatus === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
                   {deliveryAwardPromotionStatus ?? 'CONFIGURED'}
@@ -1630,8 +1647,12 @@ const PromotionAssetFormModal = ({
       ? [{ value: 'EQ', label: 'User and shop match' }]
       : [{ value: form.operator, label: form.operator }]
   const invalidCode = kind === 'codes' && !form.code.trim()
+  const usageLimitCount = Number(form.maxCount)
+  const usageLimitAmount = Number(form.maxAmount)
   const invalidUsageLimit = kind === 'usageLimits' && (
-    form.limitType === 'SHOP_BUDGET' ? !form.maxAmount : !form.maxCount
+    form.limitType === 'SHOP_BUDGET'
+      ? form.maxAmount.trim() === '' || !Number.isFinite(usageLimitAmount) || usageLimitAmount < 0
+      : form.maxCount.trim() === '' || !Number.isInteger(usageLimitCount) || usageLimitCount < 1
   )
   const invalidTarget = kind === 'targets' && (
     !requiredTargetType ||
@@ -2028,7 +2049,7 @@ const DeliveryAwardPromotionModal = ({
 }) => (
   <ModalShell eyebrow="Promotion setting" title="Delivered-order award promotion" onClose={onClose}>
     <p className="text-sm text-slate-600">
-      Select the active promotion that supplies a voucher code after an order is confirmed delivered. Choose Disabled to turn off awards.
+      Select the active promotion whose rules will apply to a unique voucher issued after an order is confirmed delivered. Choose Disabled to turn off awards.
     </p>
     {canManage ? (
       <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">

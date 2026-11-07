@@ -16,6 +16,11 @@ type ResponsiveAssetImageProps = {
    * (e.g. home-feature icons that should use `-full.webp`).
    */
   lockVariant?: boolean
+  /**
+   * Largest srcset candidate. Product cards use `card` so feed tiles never
+   * download `-full` (FB/IG-style: sharp for the slot, not the original file).
+   */
+  maxSrcSetVariant?: ProductImageVariant
   /** CSS sizes hint so the browser picks thumb vs card vs full. */
   sizes?: string
   loading?: 'lazy' | 'eager'
@@ -37,6 +42,7 @@ export default function ResponsiveAssetImage({
   className,
   variant = 'card',
   lockVariant = false,
+  maxSrcSetVariant = 'full',
   sizes = '(max-width: 640px) 50vw, 300px',
   loading = 'lazy',
   fetchPriority,
@@ -47,7 +53,9 @@ export default function ResponsiveAssetImage({
   onError,
 }: ResponsiveAssetImageProps) {
   const resolved = productImageVariantUrl(src, variant)
-  const srcSet = lockVariant ? undefined : productImageSrcSet(src)
+  const srcSet = lockVariant
+    ? undefined
+    : productImageSrcSet(src, maxSrcSetVariant)
 
   if (!resolved) return null
 
